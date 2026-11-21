@@ -710,6 +710,15 @@ def video_estado(edge_id: str) -> dict:
     return servicios.video.estado(edge_id)
 
 
+@app.get("/edge/{edge_id}/clases")
+def clases_de_edge(edge_id: str) -> dict:
+    """Las clases que pide la pauta de la OT en sesión: el edge las consulta y arma su detector con ellas.
+    `detector_no_conoce` son las que el modelo del servidor no trae (hay que exportarlo de nuevo); sin
+    detector en el servidor va vacío."""
+    r = servicios.clases_de_edge(edge_id)
+    return {**r, "detector_no_conoce": sorted(set(r["clases"]) - set(detector.clases)) if detector else []}
+
+
 @app.get("/edge/{edge_id}/detecciones")
 def detecciones_actuales(edge_id: str) -> dict:
     """Lo último que vio el modelo del edge: clase, confianza y caja normalizada."""

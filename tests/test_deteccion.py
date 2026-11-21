@@ -3,6 +3,7 @@
 Correr:  python3 -m unittest discover tests
 """
 
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
@@ -19,8 +20,12 @@ BLOQUEO = LOTO.paso("l2")       # mouse presente
 SIN_LAPIZ = LOTO.paso("l5")     # pencil ausente
 
 
-def det(*objetos):
-    return {"modelo": "yolo", "objetos": [{"clase": c, "conf": p, "caja": [0, 0, 1, 1]} for c, p in objetos]}
+CLASES = ["mouse", "pencil"]
+
+
+def det(*objetos, clases=CLASES):
+    return {"modelo": "yolo", "clases": clases,
+            "objetos": [{"clase": c, "conf": p, "caja": [0, 0, 1, 1]} for c, p in objetos]}
 
 
 class Contrato(unittest.TestCase):
@@ -54,6 +59,11 @@ class Capa2Camara(unittest.TestCase):
         self.assertIs(por_deteccion(SIN_LAPIZ, [det(("mouse", 0.9))] * 5).estado, Estado.VERIFICADO)
         self.assertIsNone(por_deteccion(SIN_LAPIZ, [det()] * 4 + [det(("pencil", 0.4))]))
 
+    def test_un_detector_que_no_busca_la_clase_no_puede_decir_que_no_esta(self):
+        # con pautas de cualquier proceso, el detector puede no conocer el objeto: no verlo no dice nada
+        self.assertIsNone(por_deteccion(SIN_LAPIZ, [det(("mouse", 0.9), clases=["mouse"])] * 5))
+        self.assertIsNone(por_deteccion(SIN_LAPIZ, [det()] * 4 + [det(clases=None)]))
+
     def test_sin_detecciones_o_sin_campo_no_decide(self):
         self.assertIsNone(por_deteccion(BLOQUEO, []))
         correa = desde_json()
@@ -82,7 +92,8 @@ class CierreEnVivo(unittest.TestCase):
     def mandar(self, n, *objetos):
         for _ in range(n):
             self.s._ultimo_juicio.clear()  # en la prueba no se espera el medio segundo entre juicios
-            self.s.recibir_detecciones("edge-1", {"objetos": [{"clase": c, "conf": p, "caja": [0, 0, 1, 1]}
+            self.s.recibir_detecciones("edge-1", {"clases": CLASES,
+                                                  "objetos": [{"clase": c, "conf": p, "caja": [0, 0, 1, 1]}
                                                               for c, p in objetos]})
 
     def test_el_bloqueo_se_cierra_solo_cuando_el_modelo_esta_seguro(self):
@@ -115,6 +126,23 @@ class CierreEnVivo(unittest.TestCase):
     def test_solo_el_paso_actual(self):
         self.mandar(DETECCIONES_MIN, ("pencil", 0.95))  # l4 es de lápiz, pero el actual es l2
         self.assertEqual(self.veredictos("l4"), [])
+
+    def test_el_edge_sabe_que_clases_pide_la_ot_que_ejecuta(self):
+        self.assertEqual(self.s.clases_de_edge("edge-1"), {"ot": "ot-1", "clases": ["mouse", "pencil"]})
+        self.assertEqual(self.s.clases_de_edge("edge-libre"), {"ot": None, "clases": []})
+
+    def test_las_clases_del_detector_llegan_con_la_deteccion(self):
+        self.mandar(1, ("mouse", 0.95))
+        self.assertEqual(self.s.video.ultimas_detecciones("edge-1")["clases"], CLASES)
+
+
+class ElModeloDelServidor(unittest.TestCase):
+    def test_se_exporta_con_las_clases_que_piden_las_pautas(self):
+        ruta = PAUTA_DEMO.parents[1] / "edge" / "exportar_onnx.py"
+        spec = importlib.util.spec_from_file_location("exportar_onnx", ruta)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)  # no importa ultralytics hasta exportar
+        self.assertEqual(modulo.clases_de(sorted(PAUTA_DEMO.parent.glob("pauta-*.json"))), ["mouse", "pencil"])
 
 
 if __name__ == "__main__":
