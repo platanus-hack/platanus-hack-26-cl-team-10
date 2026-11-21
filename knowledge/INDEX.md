@@ -30,12 +30,13 @@
 ## Proyectos
 
 - [Servicios en vivo · PRD](./projects/servicios-en-vivo/PRD.md): atribuir lo del edge a la OT en curso, calificarlo y llevarlo a la UI por WebSocket, y el CRUD con las reglas de negocio.
+- [Skills · PRD](./projects/skills/PRD.md): el diseño de las skills que un agente usa para extraer un protocolo, generar sus pautas con la capa que corresponde a cada paso, aterrizarlas en OT, reportar sin omitir nada y recomendar mejoras con las tres capas. Diseño, sin construir.
 - [Escenarios por industria · PRD](./projects/escenarios-por-industria/PRD.md): cada forma de ejecutar un paso (saltarlo, decirlo antes, deshacer un control) en minería, eléctrica y construcción, contra cada barrera, con las reglas de capa 1 por industria y su norma. Con la [simulación de capa 2](./projects/escenarios-por-industria/capa2-simulacion.md).
 
 ## Research
 
 - [research](./projects/research/research.md): hallazgos, vacíos y lectura prioritaria.
-- [REFERENCIAS](./projects/research/REFERENCIAS.md): las 73 referencias verificadas, numeradas y con enlace.
+- [REFERENCIAS](./projects/research/REFERENCIAS.md): las 77 referencias verificadas, numeradas y con enlace.
 - [notas/](./projects/research/notas/): una nota por paper leído completo.
 - [Presentaciones del último año](./projects/research/tour-platanus.md): tracks, preguntas del jurado y ganadores de Santiago 2025 y las cuatro paradas del Latam Tour 26, y las preguntas que nos van a hacer. Una nota por edición en [tour/](./projects/research/tour/) y las transcripciones en [fuentes/videos-platanus/](./projects/research/fuentes/videos-platanus/).
 - [fuentes/](./projects/research/fuentes/): la revisión IEEE original en CSV.

@@ -1,6 +1,6 @@
 # Referencias
 
-> Documento vivo. Las 73 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
+> Documento vivo. Las 77 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
 >
 > De casi todas se leyó solo el resumen. Las leídas completas tienen nota en [notas/](./notas/).
 
@@ -109,6 +109,15 @@ Los estándares contra los que se revisó la API en [API](../../architecture/API
 71. OWASP (2023). [API Security Top 10 2023](https://api-security.owasp.org/editions/2023/en/0x11-t10). Leída la lista con sus descripciones. Las que tocan a esta API: API1, autorización por objeto; API2, autenticación; API4, consumo sin límite; API5, autorización por función; API9, inventario.
 72. MaintainX. [Getting started with the REST API](https://help.getmaintainx.com/build/getting-started). La API de un sistema de órdenes de trabajo, como comparación del rubro. Lleva la versión en la ruta (`/v1`), entra con un token Bearer, publica su OpenAPI y muestra la llave solo al generarla. Leída esa página; la paginación y los límites están en otras, que no se abrieron.
 73. Scalar. [Integración con FastAPI](https://github.com/scalar/scalar/blob/main/documentation/integrations/fastapi.md). La página de referencia se sirve con el paquete `scalar-fastapi`, a partir del OpenAPI de la aplicación. Leídos los ejemplos de instalación y de ruta propia.
+74. Agent Skills. [Specification](https://agentskills.io/specification). El formato abierto de una skill: una carpeta con `SKILL.md`, cuyo encabezado lleva `name` (hasta 64 caracteres, minúsculas, números y guiones, igual al nombre de la carpeta) y `description` (hasta 1.024, qué hace y cuándo usarla). El cuerpo, bajo 500 líneas; lo largo en `references/` y lo que se ejecuta en `scripts/`. El agente carga primero solo el nombre y la descripción. Leída completa el 2026-11-21.
+75. Howard (2024, revisada en 2026). [The /llms.txt file](https://llmstxt.org/). Un archivo en Markdown en la raíz del sitio, o en una ruta: un título, un resumen en cita y listas de enlaces, para que un agente encuentre lo que necesita sin leer el sitio entero. Las páginas que un agente necesita ofrecen además una versión `.md`. Leída completa el 2026-11-21.
+
+## Cómo se gestiona hoy una OT
+
+Cómo una planta pasa del procedimiento a la orden y la cierra en SAP PM, el sistema habitual en minería. Sirven de punto de partida para las [skills](../skills/PRD.md). Abiertas el 2026-11-21; de cada página se leyó el resumen que dio una herramienta de búsqueda, no la página completa.
+
+76. SAP. [Maintenance Plan](https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/e72f747389b340229f7fa343975bfa57/617ac253d0a4b54ce10000000a174cb4.html). La categoría del plan decide qué objeto genera cuando vence: una orden, una notificación o una hoja de servicio. Si es una orden, el trabajo se describe con una lista de tareas asignada al ítem del plan, y al generar la orden el sistema copia en ella las operaciones de esa lista.
+77. SAP. [Completion Confirmation](https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/e72f747389b340229f7fa343975bfa57/18f4b853dcfcb44ce10000000a174cb4.html). La confirmación registra cuánto se avanzó en cada operación de la orden; los datos técnicos del informe de actividad son la confirmación técnica. La orden queda confirmada cuando todas sus operaciones lo están.
 
 ## No encontradas
 
