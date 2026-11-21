@@ -28,6 +28,7 @@ del servidor no las pierde.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 import time
 from collections import defaultdict, deque
@@ -51,6 +52,8 @@ from app.reglas import (
 from app.contratos import Veredicto
 from app.scoring import Nivel, avisos, calificar_evento, capa2, frescura, peor, vigentes
 from app.video import SEGUNDOS_GUARDADOS, Video
+
+log = logging.getLogger(__name__)
 
 HISTORIA_MAX = 300
 SEQ_RECORDADOS = 500
@@ -182,8 +185,13 @@ class Servicios:
         if evidencia is None:
             return None
         cuadro = self.video.ultimo(edge_id) if edge_id else None
-        return {**evidencia, "cuadro": (self.video.guardar_evidencia(cuadro, f"{ot_id}-{paso_id}-{cuadro.n}")
-                                        if cuadro else None)}
+        ruta = None
+        if cuadro:
+            try:
+                ruta = self.video.guardar_evidencia(cuadro, f"{ot_id}-{paso_id}-{cuadro.n}")
+            except OSError:  # sin disco o carpeta rota: se pierde la foto, no el veredicto
+                log.exception("no se pudo guardar el cuadro de %s %s", ot_id, paso_id)
+        return {**evidencia, "cuadro": ruta}
 
     # ─── Bitácora: agregar y repartir ──────────────────────────────────────
 

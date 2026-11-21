@@ -13,7 +13,7 @@ id factum >/dev/null 2>&1 || useradd --system --create-home --home-dir /srv/fact
 if ! command -v uv >/dev/null; then curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh >/dev/null; fi
 mkdir -p /srv/factum/app-nueva && tar xzf /tmp/factum.tgz -C /srv/factum/app-nueva
 rm -rf /srv/factum/codigo && mv /srv/factum/app-nueva /srv/factum/codigo
-mkdir -p /srv/factum/datos
+mkdir -p /srv/factum/datos/evidencias  # destino del enlace datos/evidencias: sin esto queda roto y guardar_evidencia falla
 ln -sfn /srv/factum/datos/bitacora.sqlite3 /srv/factum/codigo/datos/bitacora.sqlite3
 ln -sfn /srv/factum/datos/evidencias /srv/factum/codigo/datos/evidencias
 chown -R factum:factum /srv/factum
@@ -27,7 +27,7 @@ User=factum
 WorkingDirectory=/srv/factum/codigo
 # Secretos fuera del repo: ANTHROPIC_API_KEY=... (capa 3 de cámara). El "-" lo hace opcional.
 EnvironmentFile=-/srv/factum/entorno
-ExecStart=/srv/factum/codigo/.venv/bin/uvicorn app.api:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1
+ExecStart=/srv/factum/codigo/.venv/bin/uvicorn app.api:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1 --timeout-graceful-shutdown 3
 Restart=always
 RestartSec=2
 [Install]
