@@ -35,6 +35,22 @@ class StreamDeLaOT(unittest.TestCase):
             tipos = [ws.receive_json()["tipo"] for _ in range(3)]
             self.assertEqual(tipos, ["lectura", "evento", "calificacion_ot"])
 
+    def test_las_detecciones_del_edge_llegan_a_la_ui_con_sus_cajas(self):
+        det = {"tipo": "detecciones", "modelo": "yolo", "ts": 1.0,
+               "objetos": [{"clase": "mouse", "conf": 0.93, "caja": [0.2, 0.6, 0.4, 0.9]}]}
+        with self.c.websocket_connect("/ot/ot-1/stream") as ui, \
+                self.c.websocket_connect("/edge/edge-1/video") as edge:
+            ui.receive_json()
+            edge.send_bytes(b"\xff\xd8cuadro\xff\xd9")
+            edge.send_json(det)
+            m = ui.receive_json()
+            self.assertEqual(m["tipo"], "detecciones")
+            self.assertEqual(m["objetos"][0]["caja"], [0.2, 0.6, 0.4, 0.9])
+            self.assertEqual(m["cuadro"], 1)
+            edge.send_json({"tipo": "detecciones", "objetos": [{"clase": "x", "conf": 2, "caja": [0, 0, 1, 1]}]})
+            self.assertIn("error", edge.receive_json())
+        self.assertEqual(self.c.get("/edge/edge-1/detecciones").json()["objetos"][0]["clase"], "mouse")
+
     def test_la_declaracion_del_operario_tambien_llega_por_el_stream(self):
         self.c.post("/edge/edge-1/lecturas", json=[{"sensor_id": "reed_bloqueo", "valor": "abierto"}])
         with self.c.websocket_connect("/ot/ot-1/stream") as ws:
