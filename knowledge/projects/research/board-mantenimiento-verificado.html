@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<base target="_blank">
+<title>Mantenimiento verificado: problema, solución y referencias</title>
+<style>
+.solo{--background:#faf9f6;--foreground:#22241f;--muted:#eeede8;--muted-foreground:#6b6e66;--card:#fff;--border:#dcdad2;--primary:#3d5a45;--primary-foreground:#fff;color-scheme:light}
+.solo body{background:var(--background);color:var(--foreground);font-family:system-ui,-apple-system,"Inter",sans-serif;max-width:760px;margin:0 auto;padding:40px 20px 80px}
+.w{font-size:15px;line-height:1.55}
+h1{font-size:24px;line-height:1.25;margin:0 0 6px}
+h2{font-size:18px;margin:40px 0 4px}
+h3{font-size:15px;margin:0 0 4px}
+.d{color:var(--muted-foreground);margin:0 0 16px}
+a{color:inherit;text-decoration:underline;text-decoration-color:var(--muted-foreground);text-underline-offset:3px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.g3 p{margin:0 0 6px}
+.r{font-size:13px;color:var(--muted-foreground)}
+.gap{border-left:2px solid var(--primary);padding-left:14px;margin:22px 0 0}
+.sv{overflow-x:auto;margin:8px 0 14px}
+svg{display:block;width:100%;min-width:620px;height:auto;font-family:inherit}
+svg text{font-size:12px;fill:var(--foreground);text-anchor:middle}
+svg .lh{font-weight:600}
+svg .mu{fill:var(--muted-foreground);font-size:11.5px}
+.ln{stroke:var(--border);stroke-dasharray:3 4}
+.ar{stroke:var(--muted-foreground);stroke-width:1.3;fill:none}
+.ah{fill:var(--muted-foreground)}
+.n{cursor:pointer}
+.n rect{fill:var(--card);stroke:var(--border);stroke-width:1.2}
+.n circle{fill:var(--muted);stroke:var(--border)}
+svg .b{font-size:10.5px;font-weight:600}
+.n.on rect{stroke:var(--primary);stroke-width:2}
+.n.on circle{fill:var(--primary);stroke:var(--primary)}
+.n.on .b{fill:var(--primary-foreground)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 20px}
+.tabs button{font:inherit;font-size:13px;padding:5px 11px;border:1px solid var(--border);border-radius:999px;background:none;color:var(--muted-foreground);cursor:pointer}
+.tabs button.on{border-color:var(--primary);color:var(--foreground);font-weight:600}
+.p>p{margin:0}
+.p dl{display:grid;grid-template-columns:118px 1fr;gap:12px 16px;margin:16px 0 0}
+.p dt{color:var(--muted-foreground);font-size:13px;padding-top:2px}
+.p dd{margin:0}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px 8px 0;border-bottom:1px solid var(--border)}
+th{font-weight:600;color:var(--muted-foreground);font-size:13px}
+td:nth-child(2){white-space:nowrap;font-weight:600}
+.refs h3{margin:22px 0 6px}
+.refs ol{margin:0;padding-left:26px;font-size:14px}
+.refs li{margin:0 0 7px}
+.refs span{color:var(--muted-foreground)}
+details{border-top:1px solid var(--border);padding:10px 0}
+details:last-of-type{border-bottom:1px solid var(--border)}
+summary{cursor:pointer;font-weight:600}
+details p{margin:8px 0 4px}
+details ul{margin:8px 0 0;padding-left:18px}
+@media(max-width:600px){.g3{grid-template-columns:1fr}.p dl{grid-template-columns:1fr;gap:2px 0}.p dd{margin-bottom:10px}}
+</style>
+</head>
+<body>
+<div class="w">
+
+<h1>Mantenimiento verificado en operaciones críticas</h1>
+<p class="d">Un operario que ejecuta bien, con menos accidentes y una bitácora confiable, en equipos donde una falla o un error salen caros.</p>
+
+<h2>Problema</h2>
+<p class="d">El error de ejecución es caro y casi nunca queda registrado.</p>
+<div class="g3">
+  <div>
+    <p><strong>La bitácora no sirve como dato.</strong> El tiempo medio entre fallas de un mismo equipo va de 97 a 226 días según cómo se agrupen las OT.</p>
+    <p class="r">Referencias 3, 4 y 5</p>
+  </div>
+  <div>
+    <p><strong>La pauta no se cumple y nadie lo ve.</strong> Muchas desviaciones nacen de la presión de la jefatura, y las guías actuales no comprueban el paso.</p>
+    <p class="r">Referencias 18, 33, 34 y 35</p>
+  </div>
+  <div>
+    <p><strong>El costo es alto.</strong> La mantención no planificada puede bajar la disponibilidad de la maquinaria hasta 37%. La minería chilena tuvo 20 muertes en 2025, frente a 11 en 2024.</p>
+    <p class="r">Referencias 24 y 36. Falta aislar cuántos accidentes ocurren en mantenimiento.</p>
+  </div>
+</div>
+<p class="gap">Lo que no existe: nadie convierte la ejecución verificada en la bitácora, no hay verificación de bloqueo con cámara revisada por pares y nada de esto se ha probado en equipo pesado. Lo que todavía no funciona: un modelo general de visión detecta 3 de 12 cambios de orden y rechaza 5 de 12 ejecuciones correctas (referencia 9).</p>
+
+<h2>Solución</h2>
+<p class="d">La ejecución verificada es la bitácora. Toca un paso del flujo para ver la evidencia, cómo construirlo y qué leer.</p>
+
+<div class="sv">
+<svg viewBox="0 0 728 624" role="img" aria-label="Flujo por actor: equipo, sistema, operario y supervisor">
+  <defs><marker id="a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path class="ah" d="M0,0 L7,3.5 L0,7 z"/></marker></defs>
+  <line class="ln" x1="182" y1="8" x2="182" y2="616"/><line class="ln" x1="364" y1="8" x2="364" y2="616"/><line class="ln" x1="546" y1="8" x2="546" y2="616"/>
+  <text class="lh" x="91" y="22">Equipo</text><text class="lh" x="273" y="22">Sistema</text><text class="lh" x="455" y="22">Operario</text><text class="lh" x="637" y="22">Supervisor</text>
+  <text class="mu" x="12" y="52" style="text-anchor:start">Entrada: una vez por tarea</text>
+  <line class="ln" x1="0" y1="262" x2="728" y2="262"/>
+  <text class="mu" x="12" y="276" style="text-anchor:start">Ciclo: en cada OT</text>
+  <path class="ar" marker-end="url(#a)" d="M170,85 H192"/>
+  <path class="ar" marker-end="url(#a)" d="M273,108 V130"/>
+  <path class="ar" marker-start="url(#a)" marker-end="url(#a)" d="M355,155 H373"/>
+  <path class="ar" marker-end="url(#a)" d="M273,178 V225 H556"/>
+  <path class="ar" marker-end="url(#a)" d="M600,248 V305 H354"/>
+  <path class="ar" marker-end="url(#a)" d="M170,298 H192"/>
+  <path class="ar" marker-end="url(#a)" d="M273,328 V350"/>
+  <path class="ar" marker-start="url(#a)" marker-end="url(#a)" d="M355,375 H373"/>
+  <path class="ar" marker-end="url(#a)" d="M273,398 V420"/>
+  <path class="ar" marker-end="url(#a)" d="M273,468 V490"/>
+  <path class="ar" marker-end="url(#a)" d="M352,515 H556"/>
+  <path class="ar" marker-end="url(#a)" d="M690,492 V250"/>
+  <path class="ar" marker-end="url(#a)" d="M273,538 V560"/>
+  <path class="ar" marker-end="url(#a)" d="M194,585 H186 V318 H192"/>
+  <text class="mu" x="470" y="299">pauta vigente</text>
+  <text class="mu" x="683" y="404" style="text-anchor:end">la pauta mejora</text>
+  <text class="mu" x="176" y="456" style="text-anchor:end">anticipa la falla</text>
+  <g class="n" data-s="1" transform="translate(12,62)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Sensores y cámara,</text><text x="79" y="35">sin tocar el PLC</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">1</text></g>
+  <g class="n" data-s="1" transform="translate(194,62)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Lee telemetría y</text><text x="79" y="35">OT históricas</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">1</text></g>
+  <g class="n" data-s="2" transform="translate(194,132)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Redacta el borrador</text><text x="79" y="35">de la pauta</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">2</text></g>
+  <g class="n" data-s="2" transform="translate(376,132)"><rect width="158" height="46" rx="8"/><text x="79" y="20">El experto hace la</text><text x="79" y="35">tarea y corrige</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">2</text></g>
+  <g class="n" data-s="2" transform="translate(558,202)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Aprueba la pauta</text><text x="79" y="35">matriz</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">2</text></g>
+  <g class="n" data-s="3" transform="translate(12,282)"><rect width="158" height="46" rx="8"/><text x="79" y="28">Vibra fuera de rango</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">3</text></g>
+  <g class="n" data-s="3" transform="translate(194,282)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Detecta la anomalía</text><text x="79" y="35">y abre la OT</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">3</text></g>
+  <g class="n" data-s="4" transform="translate(194,352)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Comprueba el paso</text><text x="79" y="35">actual con la cámara</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">4</text></g>
+  <g class="n" data-s="4" transform="translate(376,352)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Bloquea, ejecuta</text><text x="79" y="35">y confirma</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">4</text></g>
+  <g class="n" data-s="5" transform="translate(194,422)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Bitácora: los pasos</text><text x="79" y="35">verificados</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">5</text></g>
+  <g class="n" data-s="6" transform="translate(194,492)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Propone un cambio</text><text x="79" y="35">a la pauta</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">6</text></g>
+  <g class="n" data-s="6" transform="translate(558,492)"><rect width="158" height="46" rx="8"/><text x="79" y="28">Aprueba o rechaza</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">6</text></g>
+  <g class="n" data-s="7" transform="translate(194,562)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Predice con el</text><text x="79" y="35">historial limpio</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">7</text></g>
+</svg>
+</div>
+
+<div class="tabs">
+  <button data-s="1">1 Conectar</button><button data-s="2">2 Estandarizar</button><button data-s="3">3 Detectar</button><button data-s="4">4 Verificar</button><button data-s="5">5 Bitácora</button><button data-s="6">6 Mejorar</button><button data-s="7">7 Predecir</button>
+</div>
+
+<section class="p" data-s="1">
+  <h3>Conectar sin integrar</h3>
+  <p>Sensores inalámbricos pegados al equipo, la cámara del operario y el archivo exportado de OT. Nada toca el PLC ni la red de control.</p>
+  <dl>
+    <dt>Evidencia</dt><dd>Aqueveque et al. pusieron acelerómetros inalámbricos en bulldozers, palas y retroexcavadoras sin tocar su control, y clasificaron la salud del equipo con 85% a 95% de exactitud.</dd>
+    <dt>Construcción</dt><dd>Partir con una fuente de cada tipo: un sensor, un archivo de OT y la cámara del celular. Un adaptador por fuente se justifica cuando llegue la segunda faena.</dd>
+    <dt>Leer</dt><dd>Referencia 24. Además ISO 13374 y MIMOSA OSA-CBM, sin enlace verificado.</dd>
+    <dt>Por decidir</dt><dd>Quién autoriza instalar un sensor y una cámara en la faena, y cuánto demora.</dd>
+  </dl>
+</section>
+
+<section class="p" data-s="2" hidden>
+  <h3>Identificar y estandarizar</h3>
+  <p>Un técnico experto hace la tarea con la cámara. El sistema redacta un borrador de la pauta, el experto lo corrige y el supervisor lo aprueba.</p>
+  <dl>
+    <dt>Evidencia</dt><dd>Un modelo de visión sin entrenar describió por su cuenta el 54,6% de las fases de un montaje, y el 68% cuando se le dio la pauta correcta. Alcanza para un borrador, no para una pauta. Sus descripciones libres sí recogen ajustes e inspecciones que el experto hace sin decirlos.</dd>
+    <dt>Construcción</dt><dd>El modelo redacta y pregunta; el experto corrige. La cámara cenital rindió mejor que la frontal: 80% frente a 56% de cobertura.</dd>
+    <dt>Leer</dt><dd>Referencias 9, 15, 16, 21, 27 y 1.</dd>
+    <dt>Por decidir</dt><dd>Cuántas repeticiones del experto hacen falta para confiar en la pauta.</dd>
+  </dl>
+</section>
+
+<section class="p" data-s="3" hidden>
+  <h3>Detectar y abrir la OT</h3>
+  <p>El sensor sale de rango. El sistema detecta la anomalía y abre la OT con la pauta vigente; una persona la confirma.</p>
+  <dl>
+    <dt>Evidencia</dt><dd>O'Donncha et al. cruzan OT, sensores y FMEA, y ponen un verificador determinista entre el modelo y la respuesta. Aqueveque et al. alertaron entre 120 y 170 horas antes de la falla crítica.</dd>
+    <dt>Construcción</dt><dd>La OT es una fila con un estado. Un umbral sobre la vibración basta para el primer disparo.</dd>
+    <dt>Leer</dt><dd>Referencias 25, 26, 29 y 24.</dd>
+    <dt>Por decidir</dt><dd>Si conviene buscar OT parecidas por palabra clave o por similitud. Se prueba en una tarde con OT reales.</dd>
+  </dl>
+</section>
+
+<section class="p" data-s="4" hidden>
+  <h3>Ejecutar y verificar</h3>
+  <p>El operario bloquea y etiqueta, y ejecuta paso a paso. La cámara comprueba el paso actual y el operario confirma.</p>
+  <dl>
+    <dt>Evidencia</dt><dd>Sabetta et al. midieron un modelo general sobre videos completos. Detectó los 12 casos en que la pauta traía un paso que el video no mostraba, es decir el paso saltado. Pero detectó solo 3 de 12 cambios de orden, ninguna de las 12 acciones hechas fuera de la pauta, y rechazó 5 de 12 ejecuciones correctas. Es un solo modelo, cuatro montajes en mesa y cámaras fijas.</dd>
+    <dt>Construcción</dt><dd>El orden lo impone la aplicación, que pregunta por un paso a la vez; no se le pide al modelo juzgar el video entero. Cada paso se comprueba por su estado final visible, como el candado puesto. Con 5 falsas alarmas en 12, al principio el sistema avisa y no bloquea.</dd>
+    <dt>Leer</dt><dd>Referencias 9, 10, 11, 12, 13, 14, 18, 20, 22 y 23.</dd>
+    <dt>Por decidir</dt><dd>Cómo comprobar el orden del bloqueo, que es justo donde el modelo falla, y qué pasa sin conectividad.</dd>
+  </dl>
+</section>
+
+<section class="p" data-s="5" hidden>
+  <h3>Bitácora</h3>
+  <p>La bitácora no se escribe: es la lista de pasos verificados con su evidencia. El operario solo confirma.</p>
+  <dl>
+    <dt>Evidencia</dt><dd>Los errores al registrar OT son sistemáticos y cambian el resultado. Con sugerencias del sistema y confirmación humana, el etiquetado tomó 88% menos tiempo, aunque con menos exactitud que el de un experto.</dd>
+    <dt>Construcción</dt><dd>Una tabla de pasos verificados que solo admite agregar filas, con la evidencia y quién confirmó. La OT cerrada se arma desde esa tabla.</dd>
+    <dt>Leer</dt><dd>Referencias 3, 4, 2, 8, 7 y 6. Además ISO 14224, sin enlace verificado.</dd>
+    <dt>Por decidir</dt><dd>Qué evidencia exige una auditoría (foto, video o firma) y cuánto tiempo se guarda.</dd>
+  </dl>
+</section>
+
+<section class="p" data-s="6" hidden>
+  <h3>Mejorar la pauta</h3>
+  <p>Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta matriz. El supervisor aprueba o rechaza.</p>
+  <dl>
+    <dt>Evidencia</dt><dd>Muchas desviaciones nacen de la presión de la jefatura y de pautas mal hechas, no del operario. Plant Memory reconoce que sus cambios se auditan, pero no se versionan ni se revierten.</dd>
+    <dt>Construcción</dt><dd>Cada pauta lleva número de versión y cada OT guarda cuál ejecutó. El sistema propone y una persona aprueba.</dd>
+    <dt>Leer</dt><dd>Referencias 33, 34, 35, 28, 25 y 7.</dd>
+    <dt>Por decidir</dt><dd>Cuándo una desviación es error del operario y cuándo es una pauta mala.</dd>
+  </dl>
+</section>
+
+<section class="p" data-s="7" hidden>
+  <h3>Predecir</h3>
+  <p>El primer día detecta anomalías. La vida útil remanente llega cuando hay historia limpia por equipo.</p>
+  <dl>
+    <dt>Evidencia</dt><dd>Aqueveque et al. alertaron entre 120 y 170 horas antes en maquinaria minera móvil. Los modelos fundacionales de series de tiempo prometen detectar anomalías sin entrenar por equipo, pero no vi ninguno probado en esta maquinaria.</dd>
+    <dt>Construcción</dt><dd>Es lo último. Sale de los pasos verificados más la telemetría, así que depende de que los pasos 4 y 5 funcionen.</dd>
+    <dt>Leer</dt><dd>Referencias 24, 26, 31 y 32. Además ISO 13381-1, sin enlace verificado.</dd>
+    <dt>Por decidir</dt><dd>Cuántas fallas reales por equipo hacen falta para prometer vida útil remanente.</dd>
+  </dl>
+</section>
+
+<h2>Patrones: cuáles usar</h2>
+<p class="d">Que un patrón sea conocido no lo hace útil acá. Esta es la lectura para un producto que todavía no tiene piloto (ADR-0003, propuesto).</p>
+<table>
+  <tr><th>Patrón</th><th>Ahora</th><th>Por qué</th></tr>
+  <tr><td>Registro que solo agrega filas</td><td>Sí</td><td>Es la tesis del producto: la bitácora son los pasos verificados. Es la parte útil de event sourcing.</td></tr>
+  <tr><td>Aprobación humana antes de un efecto</td><td>Sí</td><td>Abrir una OT o cambiar una pauta son efectos. Es barato y es lo que pide la seguridad.</td></tr>
+  <tr><td>Pauta versionada</td><td>Sí</td><td>Sin versión no se sabe qué se ejecutó ni se puede mejorar la pauta.</td></tr>
+  <tr><td>Event sourcing completo y CQRS</td><td>No</td><td>Proyecciones, snapshots y evolución de esquema resuelven problemas que todavía no existen.</td></tr>
+  <tr><td>Saga y ejecución durable</td><td>No</td><td>Una OT avanza al ritmo de una persona y vive en una sola base. Una columna de estado alcanza. Se revisa si algún día se escribe de vuelta en SAP PM.</td></tr>
+  <tr><td>Contextos de DDD como servicios</td><td>No</td><td>Sirven como vocabulario, para no mezclar la falla del sensor con la falla de la OT. Una aplicación y una base.</td></tr>
+  <tr><td>Varios agentes</td><td>No</td><td>El flujo es fijo y conocido. Un modelo por tarea, llamado desde código.</td></tr>
+  <tr><td>Palabra clave antes que búsqueda vectorial</td><td>Probar</td><td>Se afirma en general. Con jerga minera en español nadie lo ha medido.</td></tr>
+  <tr><td>Inferencia en el borde y modelos apilados</td><td>Después</td><td>Importa en una faena sin conectividad, no en el demo. Si se entrena un detector, YOLO de Ultralytics es AGPL-3.0.</td></tr>
+  <tr><td>Datos sintéticos y cobertura de gateways</td><td>Después</td><td>No resuelven nada del primer piloto.</td></tr>
+</table>
+
+<h2>Referencias</h2>
+<p class="d">Las 37 verificadas. De casi todas se leyó solo el resumen; la 9, completa. La lista viva está en REFERENCIAS.md.</p>
+<div class="refs">
+<h3>Bitácora y texto de las OT</h3>
+<ol>
+  <li>Brundage, Sexton, Hodkiewicz, Dima y Lukens (2021). <a href="https://doi.org/10.1016/j.mfglet.2020.11.001">Technical language processing: Unlocking maintenance knowledge</a>. Manufacturing Letters 27. <span>El marco del área.</span></li>
+  <li>Sexton, Brundage, Hoffman y Morris (2017). <a href="https://www.nist.gov/publications/hybrid-datafication-maintenance-logs-ai-assisted-human-tags">Hybrid datafication of maintenance logs from AI-assisted human tags</a>. IEEE Big Data. <span>El sistema sugiere, el técnico confirma.</span></li>
+  <li>Sexton, Hodkiewicz y Brundage (2019). <a href="https://papers.phmsociety.org/index.php/phmconf/article/view/790">Categorization Errors for Data Entry in Maintenance Work-Orders</a>. PHM Society. <span>Los errores al registrar son sistemáticos.</span></li>
+  <li>Bikaun y Hodkiewicz (2021). <a href="https://papers.phmsociety.org/index.php/phme/article/download/2950/1760">Semi-automated Estimation of Reliability Measures from Maintenance Work Order Records</a>. PHM Europe. <span>MTBF de 97 a 226 días según el registro.</span></li>
+  <li>Hodkiewicz y Ho (2016). <a href="https://www.emerald.com/insight/content/doi/10.1108/JQME-04-2015-0013/full/html">Cleaning historical maintenance work order data for reliability analysis</a>. J. Quality in Maintenance Engineering 22(2). <span>Qué falta en las OT históricas.</span></li>
+  <li>Bikaun, French, Stewart, Liu y Hodkiewicz (2024). <a href="https://aclanthology.org/2024.lrec-main.954/">MaintIE: A Fine-Grained Annotation Schema and Benchmark for Information Extraction from Maintenance Short Texts</a>. LREC-COLING. <span>OT reales anotadas, con <a href="https://github.com/nlp-tlp/maintie">datos</a>.</span></li>
+  <li><a href="https://arxiv.org/pdf/2610.19131">Plant Memory: Technical Language Processing and a Verified Maintenance Ontology from SAP PM Work Orders</a> (2026). arXiv 2610.19131. <span>OT de SAP PM en una planta.</span></li>
+  <li><a href="https://arxiv.org/abs/2311.04064">KPI Extraction from Maintenance Work Orders: Expert Labeling, Text Classification and AI-Assisted Tagging</a> (2023). arXiv 2311.04064. <span>88% menos tiempo de etiquetado.</span></li>
+</ol>
+<h3>Verificar la ejecución con visión</h3>
+<ol start="9">
+  <li>Sabetta, Colabianchi, Costantino, Freire y Niforatos (2026). <a href="https://doi.org/10.1109/ACCESS.2026.3747249">Evaluating Vision–Language Models Capabilities for Object, Tool, and Action Recognition in Industrial Manual Assembly Process: The Case of Gemini Robotics-ER 1.5</a>. IEEE Access 14. <span>Leída completa. Mide qué detecta y qué no un modelo general.</span></li>
+  <li>Haneji et al. (2025). <a href="https://arxiv.org/abs/2410.05343">EgoOops: A Dataset for Mistake Action Detection from Egocentric Videos Referring to Procedural Texts</a>. ICCV Workshops. <span>Contrasta el video con el texto de la pauta.</span></li>
+  <li>(2024). <a href="https://arxiv.org/abs/2404.01933">PREGO: online mistake detection in PRocedural EGOcentric videos</a>. CVPR. <span>Detecta el error mientras ocurre. Autoría sin verificar.</span></li>
+  <li><a href="https://arxiv.org/abs/2411.02570">TI-PREGO: Chain of Thought and In-Context Learning for Online Mistake Detection</a> (2024). arXiv 2411.02570. <span>Usa un LLM para anticipar el paso siguiente.</span></li>
+  <li>Schoonbeek et al. (2024). <a href="https://arxiv.org/pdf/2310.17323">IndustReal: A Dataset for Procedure Step Recognition Handling Execution Errors in Egocentric Videos</a>. WACV. <span>Con <a href="https://github.com/TimSchoonbeek/IndustReal">código y pesos</a>.</span></li>
+  <li>Lee, Lu, Zhang, Hoai y Elhamifar (2024). <a href="https://www.khoury.northeastern.edu/home/eelhami/egoper.htm">Error Detection in Egocentric Procedural Task Videos (EgoPER)</a>. CVPR. <span>Entrena solo con videos sin error.</span></li>
+  <li>Seminara, Farinella y Furnari (2024). <a href="https://arxiv.org/abs/2406.01486">Differentiable Task Graph Learning: Procedural Activity Representation and Online Mistake Detection from Egocentric Videos</a>. NeurIPS. <span>Aprende el grafo de la tarea. Con <a href="https://github.com/fpv-iplab/Differentiable-Task-Graph-Learning">código</a>.</span></li>
+  <li>Bansal, Arora y Jawahar (2022). <a href="https://arxiv.org/abs/2207.10883">My View is the Best View: Procedure Learning from Egocentric Videos (EgoProceL)</a>. ECCV. <span>Descubre los pasos sin supervisión.</span></li>
+  <li>Ragusa et al. (2024). <a href="https://arxiv.org/abs/2309.14809">ENIGMA-51: Towards a Fine-Grained Understanding of Human-Object Interactions in Industrial Scenarios</a>. WACV. <span>Reparación de tarjetas eléctricas.</span></li>
+  <li>Manuri, Pizzigalli y Sanna (2019). <a href="https://www.doi.org/10.3390/APP9102115">A State Validation System for Augmented Reality Based Maintenance Procedures</a>. Applied Sciences 9(10). <span>Valida cada paso por su estado final.</span></li>
+  <li>Rukubayihunga, Didier y Otmane (2015). <a href="https://researchr.org/publication/RukubayihungaDO15">Reprojection error as a new metric to detect assembly/disassembly maintenance tasks</a>. <span>Antecedente en IEEE.</span></li>
+  <li><a href="https://doi.org/10.3390/jimaging12080349">Automation of Monitoring Compliance with Technological Regulations: the Process of Filling Petroleum Products</a> (2026). J. Imaging 12(8). <span>El único caso en terreno real.</span></li>
+  <li><a href="https://arxiv.org/pdf/2608.22617">AI-based worker guidance in assembly and disassembly using multimodal ego/exo-centric data capture and structured task knowledge</a> (2026). arXiv 2608.22617. <span>Captura al experto.</span></li>
+  <li><a href="https://arxiv.org/pdf/2510.19292">Vision-Based Mistake Analysis in Procedural Activities: A Review of Advances and Challenges</a> (2025). arXiv 2510.19292. <span>El mapa del área.</span></li>
+  <li>Chen. <a href="https://digitalcommons.calpoly.edu/theses/2629/">A Design of a Digital Lockout Tagout System with Machine Learning</a>. Tesis, Cal Poly. <span>Bloqueo con candados inteligentes, sin cámara.</span></li>
+</ol>
+<h3>Sensores, diagnóstico y OT</h3>
+<ol start="24">
+  <li>Aqueveque, Radrigan, Pastene, Morales y Guerra (2021). <a href="https://doaj.org/article/69042fd186ed4db4bec069840d11143a">Data-Driven Condition Monitoring of Mining Mobile Machinery in Non-Stationary Operations Using Wireless Accelerometer Sensor Modules</a>. IEEE Access 9. <span>Minería, sensores sin integración.</span></li>
+  <li>O'Donncha et al. (2026). <a href="https://aclanthology.org/2026.acl-industry.50/">Evidence-Driven Reasoning for Industrial Maintenance Using Heterogeneous Data</a>. ACL Industry Track. <span>Lo más parecido al ciclo completo. Benchmark: <a href="https://ibm.github.io/AssetOpsBench/">AssetOpsBench</a>.</span></li>
+  <li>Li y Zhao (2026). <a href="https://arxiv.org/abs/2603.08048">S2S-FDD: Bridging Industrial Time Series and Natural Language for Explainable Zero-shot Fault Diagnosis</a>. arXiv 2603.08048. <span>Diagnóstico sin datos de falla.</span></li>
+  <li>Vidyaratne et al. (2024). <a href="https://ieeexplore.ieee.org/document/10626823/">Generating Troubleshooting Trees for Industrial Equipment using Large Language Models</a>. IEEE ICPHM. <span>Pautas de diagnóstico desde manuales.</span></li>
+  <li><a href="https://ieeexplore.ieee.org/document/11062049/">Generating Troubleshooting Trees With FMEA Using Large Language Models</a>. IEEE. <span>Lo mismo, partiendo del FMEA.</span></li>
+  <li><a href="https://arxiv.org/abs/2609.20754">RAFT: A Stateful Retrieval-Augmented Framework for Troubleshooting Agents</a> (2026). EMNLP Industry Track. <span>Recupera casos históricos por etapa.</span></li>
+  <li><a href="https://arxiv.org/pdf/2605.26533">A Hybrid Vision-Language Architecture for Automated Defect Reasoning and Report Generation in Industrial Inspection</a> (2026). arXiv 2605.26533. <span>Reporte anclado en protocolos.</span></li>
+  <li>Ansari et al. (2024). <a href="https://arxiv.org/pdf/2403.07815">Chronos: Learning the Language of Time Series</a>. TMLR. <span>Series de tiempo sin entrenar por equipo.</span></li>
+  <li>Goswami et al. (2024). <a href="https://arxiv.org/pdf/2402.03885">MOMENT: A Family of Open Time-series Foundation Models</a>. ICML. <span>Alternativa abierta a Chronos.</span></li>
+</ol>
+<h3>Seguridad y cumplimiento de la pauta</h3>
+<ol start="33">
+  <li>Peres, Smith y Sasangohar (2020). <a href="https://acelab.tamu.edu/wp-content/uploads/sites/23/2020/09/1-s2.0-S0950423020305519-main.pdf">Worker-centered investigation of issues with procedural systems</a>. J. Loss Prevention in the Process Industries. <span>Por qué se desvían. Petroquímica.</span></li>
+  <li>Reason y Hobbs (2003). <a href="https://www.routledge.com/Managing-Maintenance-Error-A-Practical-Guide-1st-Edition/Reason-Hobbs/p/book/9780754615910">Managing Maintenance Error: A Practical Guide</a>. Ashgate. <span>El clásico del error en mantenimiento.</span></li>
+  <li>FAA. <a href="https://www.faa.gov/about/initiatives/maintenance_hf/procedural_non-compliance">Procedural non-compliance</a>. <span>No seguir el procedimiento, en aviación.</span></li>
+  <li>Diario Financiero. <a href="https://www.df.cl/regiones/cuanto-han-aumentado-realmente-los-accidentes-mineros-fatalidades">¿Cuánto han aumentado realmente los accidentes mineros?</a> <span>Cifras de Sernageomin, vía prensa.</span></li>
+  <li>MSHA. <a href="https://www.msha.gov/data-and-reports/data-sources-and-calculators/data-resources/mdsrg/accident-injuries-and-illnesses-data-set">Accident, Injuries and Illnesses Data Set</a>. <span>Accidentes mineros de EE.UU. desde 1983.</span></li>
+</ol>
+</div>
+
+<h2>Pendientes</h2>
+<details>
+  <summary>Referencias de la planilla que no aparecieron</summary>
+  <p>No las cites sin abrirlas desde el link original de la planilla: RAFTAR-FM (2025), Mitigating Aviation Maintenance Challenges (2026), Multi-Source Data Consistency Verification of Power Work Orders (2026), Address Temporal-Semantic Gap (2026), Thaduri et al. 2023 y Bate, Orchard y Tagle 2024.</p>
+</details>
+<details>
+  <summary>Sin enlace verificado</summary>
+  <p>ISO 14224, ISO 13374, ISO 13381-1, MIMOSA OSA-CBM y TimesFM. Existen, pero no confirmé una fuente para enlazar.</p>
+</details>
+
+</div>
+<script>
+(function(){
+  var r=document.documentElement;
+  if(!getComputedStyle(r).getPropertyValue('--foreground').trim())r.classList.add('solo');
+  function sel(s){
+    document.querySelectorAll('.p').forEach(function(e){e.hidden=e.dataset.s!==s});
+    document.querySelectorAll('.n,.tabs button').forEach(function(e){e.classList.toggle('on',e.dataset.s===s)});
+  }
+  document.querySelectorAll('.n,.tabs button').forEach(function(e){e.addEventListener('click',function(){sel(e.dataset.s)})});
+  sel('4');
+})();
+</script>
+</body>
+</html>
