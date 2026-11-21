@@ -1,0 +1,241 @@
+// Las pantallas de gestión de punta a punta contra el mock (MSW en Node), con las mismas rutas que App.
+
+import { MantineProvider } from '@mantine/core'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { MemoryRouter, Route, Routes, useParams } from 'react-router'
+import { config } from '../config'
+import { voz } from '../ejecucion/voz'
+import { ESCENARIOS, type Temporizador } from '../mocks/escenarios'
+import { crearHandlers } from '../mocks/handlers'
+import { Mundo } from '../mocks/mundo'
+import { PAUTA_DEMO } from '../mocks/pauta'
+import { RequiereRol } from '../sesion/RequiereRol'
+import { guardarSesion, leerSesion } from '../sesion/sesion'
+import { USUARIOS } from '../sesion/usuarios'
+import { tema } from '../tema'
+import { Inicio } from './Inicio'
+import { PaginaLogin } from './PaginaLogin'
+import { PaginaOperador } from './PaginaOperador'
+import { PaginaSupervisor } from './PaginaSupervisor'
+
+const [SUPERVISOR, OP1, OP2] = USUARIOS
+const sinEspera: Temporizador = () => {}
+
+const server = setupServer()
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+afterAll(() => server.close())
+
+let m: Mundo
+beforeEach(() => {
+  m = new Mundo(PAUTA_DEMO)
+  ESCENARIOS.feliz!.preparar(m)
+  server.resetHandlers(...crearHandlers(m, ESCENARIOS.feliz!, sinEspera))
+})
+
+function Ejecucion() {
+  return <p>ejecución de {useParams().id}</p>
+}
+
+function abrir(ruta: string) {
+  render(
+    <MantineProvider theme={tema}>
+      <MemoryRouter initialEntries={[ruta]}>
+        <Routes>
+          <Route path="/login" element={<PaginaLogin />} />
+          <Route path="/supervisor" element={<RequiereRol rol="supervisor"><PaginaSupervisor /></RequiereRol>} />
+          <Route path="/operador" element={<RequiereRol rol="operador"><PaginaOperador /></RequiereRol>} />
+          <Route path="/ot/:id" element={<RequiereRol rol="operador"><Ejecucion /></RequiereRol>} />
+          <Route path="*" element={<Inicio />} />
+        </Routes>
+      </MemoryRouter>
+    </MantineProvider>,
+  )
+}
+
+/** La tarjeta de una OT, por su id en mayúsculas. */
+const tarjeta = async (ot: string) => (await screen.findByText(ot.toUpperCase())).closest<HTMLElement>('.mantine-Card-root')!
+
+describe('login and routes', () => {
+  it('sends a visitor without session from / to the login', async () => {
+    abrir('/')
+    expect(await screen.findByRole('heading', { name: '¿Quién eres?' })).toBeInTheDocument()
+  })
+
+  it('signs in as an operator and lands on their dashboard', async () => {
+    abrir('/login')
+    await userEvent.click(screen.getByRole('button', { name: 'Entrar como OP1' }))
+    expect(await screen.findByRole('heading', { name: 'Mis órdenes de trabajo' })).toBeInTheDocument()
+    expect(leerSesion()?.id).toBe('operario:1')
+  })
+
+  it('sends a signed-in supervisor from the login to supervision', async () => {
+    guardarSesion(SUPERVISOR)
+    abrir('/login')
+    expect(await screen.findByRole('heading', { name: 'Órdenes de trabajo' })).toBeInTheDocument()
+  })
+
+  it('keeps an operator out of supervision', async () => {
+    guardarSesion(OP1)
+    abrir('/supervisor')
+    expect(await screen.findByRole('heading', { name: 'Mis órdenes de trabajo' })).toBeInTheDocument()
+  })
+
+  it('signs out back to the login', async () => {
+    guardarSesion(OP1)
+    abrir('/operador')
+    await userEvent.click(await screen.findByRole('button', { name: 'Salir' }))
+    expect(await screen.findByRole('heading', { name: '¿Quién eres?' })).toBeInTheDocument()
+    expect(leerSesion()).toBeNull()
+  })
+})
+
+describe('operator dashboard', () => {
+  it('shows only their OTs, with progress and the next step', async () => {
+    guardarSesion(OP1)
+    abrir('/operador')
+    const ot12 = await tarjeta('ot-12')
+    expect(within(ot12).getByText('0/6')).toBeInTheDocument()
+    expect(within(ot12).getByText(/^Sigue en: 1 · /)).toBeInTheDocument()
+    expect(screen.queryByText('OT-13')).not.toBeInTheDocument()
+    expect(screen.queryByText('OT-14')).not.toBeInTheDocument()
+  })
+
+  it('unlocks the audio on Comenzar and opens the execution', async () => {
+    const desbloquear = vi.spyOn(voz, 'desbloquear')
+    guardarSesion(OP1)
+    abrir('/operador')
+    await userEvent.click(within(await tarjeta('ot-12')).getByRole('button', { name: 'Comenzar' }))
+    expect(await screen.findByText('ejecución de ot-12')).toBeInTheDocument()
+    expect(desbloquear).toHaveBeenCalledOnce()
+  })
+
+  it('offers Continuar once the OT is under way and Ver resumen once complete', async () => {
+    m.abrirSesion('ot-12', config.EDGE_ID, 'operario:1')
+    m.asignar('ot-14', 'operario:1')
+    for (const p of PAUTA_DEMO.pasos) m.agregar('ot-14', { tipo: 'veredicto', actor: 'sistema', paso_id: p.id, estado: 'verificado', detalle: 'ok' })
+    guardarSesion(OP1)
+    abrir('/operador')
+    expect(within(await tarjeta('ot-12')).getByRole('button', { name: 'Continuar' })).toBeInTheDocument()
+    expect(within(await tarjeta('ot-14')).getByRole('link', { name: 'Ver resumen' })).toHaveAttribute('href', '/ot/ot-14')
+  })
+
+  it('says so when there is nothing assigned', async () => {
+    m.asignar('ot-13', null)
+    guardarSesion(OP2)
+    abrir('/operador')
+    expect(await screen.findByText(/No tienes OT asignadas/)).toBeInTheDocument()
+  })
+
+  it('shows the error and retries when the API is down', async () => {
+    m.caido = true
+    guardarSesion(OP1)
+    abrir('/operador')
+    expect(await screen.findByText('No se pudieron cargar las OT')).toBeInTheDocument()
+    m.caido = false
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByText('OT-12')).toBeInTheDocument()
+  })
+})
+
+describe('supervisor dashboard', () => {
+  it('lists every OT, what needs action first, with counters', async () => {
+    guardarSesion(SUPERVISOR)
+    abrir('/supervisor')
+    expect(await screen.findByLabelText('Por asignar: 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('En curso: 2')).toBeInTheDocument()
+    const ids = screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)
+    expect(ids).toEqual(['OT-14', 'OT-12', 'OT-13'])
+    expect(within(await tarjeta('ot-12')).getByText('OP1')).toBeInTheDocument()
+  })
+
+  it('assigns an unassigned OT to an operator', async () => {
+    guardarSesion(SUPERVISOR)
+    abrir('/supervisor')
+    await userEvent.click(await screen.findByRole('button', { name: 'Asignar ot-14 a OP2' }))
+    await waitFor(() => expect(within(screen.getByText('OT-14').closest<HTMLElement>('.mantine-Card-root')!).getByText('OP2')).toBeInTheDocument())
+    expect(m.operador('ot-14')).toBe('operario:2')
+    expect(screen.getByLabelText('Por asignar: 0')).toBeInTheDocument()
+  })
+
+  it('reassigns a handed-over OT', async () => {
+    m.agregar('ot-12', { tipo: 'relevo_entregado', actor: 'operario:1', detalle: 'resumen' })
+    m.asignar('ot-12', null)
+    guardarSesion(SUPERVISOR)
+    abrir('/supervisor')
+    const ot12 = await tarjeta('ot-12')
+    expect(within(ot12).getByText('Entregada')).toBeInTheDocument()
+    expect(within(ot12).getByText('Turno entregado')).toBeInTheDocument()
+    await userEvent.click(within(ot12).getByRole('button', { name: 'Reasignar ot-12 a OP2' }))
+    await waitFor(() => expect(m.operador('ot-12')).toBe('operario:2'))
+    expect(await screen.findByLabelText('Entregadas: 0')).toBeInTheDocument()
+  })
+
+  it('shows the rule when the API refuses the assignment', async () => {
+    server.use(http.post(`${config.API_URL}/ot/:id/asignar`, () => HttpResponse.json({ regla: 'la OT ya tiene operador' }, { status: 409 })))
+    guardarSesion(SUPERVISOR)
+    abrir('/supervisor')
+    await userEvent.click(await screen.findByRole('button', { name: 'Asignar ot-14 a OP1' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('la OT ya tiene operador')
+    expect(m.operador('ot-14')).toBeNull()
+  })
+
+  it('refreshes the list after a refused assignment, so a stale OT drops its buttons', async () => {
+    guardarSesion(SUPERVISOR)
+    abrir('/supervisor')
+    const boton = await screen.findByRole('button', { name: 'Asignar ot-14 a OP1' })
+    m.asignar('ot-14', 'operario:2') // otro supervisor se adelantó
+    await userEvent.click(boton)
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Asignar ot-14 a OP1' })).not.toBeInTheDocument())
+    expect(within(await tarjeta('ot-14')).getByText('OP2')).toBeInTheDocument()
+  })
+
+  it('shows a table on wide screens', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query) => ({ matches: true, media: query, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false }) as MediaQueryList,
+    )
+    guardarSesion(SUPERVISOR)
+    abrir('/supervisor')
+    const fila = (await screen.findByText('OT-14')).closest('tr')!
+    expect(screen.getByRole('columnheader', { name: 'Avance' })).toBeInTheDocument()
+    expect(within(fila).getByRole('button', { name: 'Asignar ot-14 a OP1' })).toBeInTheDocument()
+    expect(within(screen.getByText('OT-12').closest('tr')!).getByText('OP1')).toBeInTheDocument()
+  })
+
+  it('says so when there are no OTs', async () => {
+    server.use(http.get(`${config.API_URL}/ots`, () => HttpResponse.json([])))
+    guardarSesion(SUPERVISOR)
+    abrir('/supervisor')
+    expect(await screen.findByText('No hay órdenes de trabajo abiertas.')).toBeInTheDocument()
+  })
+})
+
+it('the demo handover: the supervisor assigns, OP1 sees it, hands over, OP2 takes it', async () => {
+  guardarSesion(SUPERVISOR)
+  abrir('/supervisor')
+  await userEvent.click(await screen.findByRole('button', { name: 'Asignar ot-14 a OP1' }))
+  await waitFor(() => expect(m.operador('ot-14')).toBe('operario:1'))
+  await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Entrar como OP1' }))
+  expect(await tarjeta('ot-14')).toBeInTheDocument()
+  // OP1 entrega el turno desde la ejecución de Dani; acá se imita su llamada.
+  m.agregar('ot-14', { tipo: 'relevo_entregado', actor: 'operario:1', detalle: 'resumen' })
+  m.asignar('ot-14', null)
+  await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Entrar como OP1' }))
+  expect(await tarjeta('ot-12')).toBeInTheDocument()
+  expect(screen.queryByText('OT-14')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Entrar como Supervisor' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Reasignar ot-14 a OP2' }))
+  await waitFor(() => expect(m.operador('ot-14')).toBe('operario:2'))
+  await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Entrar como OP2' }))
+  await userEvent.click(within(await tarjeta('ot-14')).getByRole('button', { name: /Comenzar|Continuar/ }))
+  expect(await screen.findByText('ejecución de ot-14')).toBeInTheDocument()
+})

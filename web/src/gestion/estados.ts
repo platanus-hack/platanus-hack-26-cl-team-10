@@ -1,0 +1,48 @@
+import type { EstadoGeneral, EstadoOt, OtResumen } from '../api/tipos'
+import type { Rol } from '../sesion/usuarios'
+
+/**
+ * El estado general lo trae la API. Mientras el back real no entregue `estado_general`
+ * (docs/gestion-ot/PRD.md §6), se deduce de lo poco que sí trae.
+ */
+export function estadoDe(ot: OtResumen): EstadoGeneral {
+  if (ot.estado_general) return ot.estado_general
+  if (ot.completa) return 'completa'
+  return ot.operador ? 'asignada' : 'sin_asignar'
+}
+
+export type Avance = { cerrados: number; total: number; nombre: string; pasoActual: string | null }
+
+/** Un paso cuenta como cerrado si está verificado o sobrescrito a la palabra del operario. */
+export function avanceDe(estado: EstadoOt): Avance {
+  const actual = estado.pasos.find((p) => p.id === estado.paso_actual)
+  return {
+    cerrados: estado.pasos.filter((p) => p.estado === 'verificado' || p.estado === 'sobrescrito').length,
+    total: estado.pasos.length,
+    nombre: estado.pauta,
+    pasoActual: actual ? `${actual.orden} · ${actual.titulo}` : null,
+  }
+}
+
+export const ESTADOS: Record<EstadoGeneral, { etiqueta: string; color: string }> = {
+  sin_asignar: { etiqueta: 'Sin asignar', color: 'roca' },
+  asignada: { etiqueta: 'Asignada', color: 'accion' },
+  en_ejecucion: { etiqueta: 'En ejecución', color: 'accion' },
+  entregada: { etiqueta: 'Entregada', color: 'precaucion' },
+  completa: { etiqueta: 'Completa', color: 'verificado' },
+}
+
+/** Lo que pide acción del supervisor va primero. */
+const ORDEN: EstadoGeneral[] = ['entregada', 'sin_asignar', 'en_ejecucion', 'asignada', 'completa']
+
+export function porPrioridad<T extends { estado: EstadoGeneral; ot: string }>(ots: T[]): T[] {
+  return [...ots].sort((a, b) => ORDEN.indexOf(a.estado) - ORDEN.indexOf(b.estado) || a.ot.localeCompare(b.ot))
+}
+
+export function puedeAsignarse(estado: EstadoGeneral): boolean {
+  return estado === 'sin_asignar' || estado === 'entregada'
+}
+
+export function inicioDe(rol: Rol): string {
+  return rol === 'supervisor' ? '/supervisor' : '/operador'
+}
