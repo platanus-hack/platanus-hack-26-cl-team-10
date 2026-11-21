@@ -104,13 +104,27 @@ Cada paso se comprueba con la primera capa que puede decidirlo. `Candidata a val
 
 ## Demo propuesto
 
-`Candidata a validar`. Una pasada completa del ciclo sobre una correa transportadora a escala, en vez de cada pieza a medias. El equipo tiene Arduino, Raspberry Pi, ESP, sensores y motores, y quiere una interfaz donde se vea llegar el protocolo, generarse la OT y al operario recibir ayuda cuando se equivoca.
+`Candidata a validar`; ver [ADR-0010](../decisions/0010-demo-brazo-robotico-en-una-celda-con-corte-local.md). Un brazo robótico con pinza, dentro de una caja que simula la celda de trabajo. Se ve peligroso sin explicarlo, y el sistema ayuda a que no lo sea.
 
-1. Un motor mueve la correa. Un ESP lee vibración o temperatura, un interruptor que corta la energía y un sensor en la guarda.
-2. La correa se detiene sin aviso. El sistema genera la OT desde la pauta, y la pantalla muestra el costo de cada hora detenida. La falla es uno de los disparos posibles; es el que se muestra porque pone el costo en pantalla.
-3. Alguien ejecuta la pauta con el celular como cámara y un auricular. Se salta el bloqueo a propósito y abre la guarda con la energía conectada: el sensor lo detecta y el aviso le llega al oído antes de que meta la mano. Es el momento del demo.
-4. La cámara comprueba que el candado y la tarjeta están puestos. Cada paso verificado entra a la bitácora con su evidencia.
-5. A mitad del trabajo cambia el turno: otra persona lo retoma desde el último paso verificado.
-6. La desviación se convierte en una propuesta de cambio a la pauta matriz, que una persona aprueba frente al jurado, y la vista del supervisor muestra dónde se saltan pasos.
+**La celda.**
 
-Si falta tiempo, se cortan primero los puntos 5 y 6; el 3 no se corta. Sin OT de faena, el corpus histórico puede salir de MaintIE (6). Lo abierto está en [SEGUIMIENTO](../roadmap/SEGUIMIENTO.md).
+| Pieza | Qué hace en el demo | Estado |
+|---|---|---|
+| Brazo impreso con servos y pinza | La máquina: mueve piezas en ciclo | Existe |
+| ESP32 | Lee los sensores, los manda al servidor y corta la energía por su cuenta | Existe; falta que actúe |
+| Ultrasonido en la entrada de la caja | Marca la zona ocupada cuando alguien se acerca | Existe |
+| Relé en la alimentación de los servos | Corta la energía, y su estado es el sensor de energía | Falta |
+| Pulsador en el bloqueo | Marca que el bloqueo está puesto | El pulsador existe; falta montarlo |
+| Cámara cenital (el celular) | Confirma los pasos que se ven, como el ajuste de la pinza | Existe; falta que el detector reconozca la pinza y la herramienta |
+| Pantalla y voz | Muestran la OT y le hablan al operario | La pantalla existe; la voz está en la rama de Daniel |
+
+**El guion.**
+
+1. **El brazo trabaja y se ve peligroso.** Gira y abre y cierra la pinza. En pantalla, sus sensores en vivo.
+2. **Falla:** suelta la pieza. Factum detecta la falla, abre la OT desde el protocolo y le dice al operario: «OT abierta: ajuste de pinza. Primer paso: corta la energía».
+3. **El operario se salta ese paso y se acerca con el brazo energizado.** Es el momento del demo. El ESP32 ve la zona ocupada con energía viva y corta los servos, y Factum le habla: «Alto. El brazo tiene energía. Córtala y pon el bloqueo antes de acercarte». El brazo se detiene frente al jurado.
+4. **Factum lo guía.** Corta la energía y pone el bloqueo, y cada paso lo cierra su sensor. Ajusta la pinza mientras la voz le dicta el paso, y la cámara lo confirma. Si duda, pregunta en voz alta y el modelo responde mirando la cámara. Retira el bloqueo, devuelve la energía y el brazo vuelve a trabajar bien. En pantalla queda la bitácora: la falla, el intento peligroso, el corte y cada paso con su evidencia.
+
+La frase para el pitch: **Factum no reemplaza la seguridad de la máquina: hace que se cumpla.** El corte que hace el ESP32 se presenta como integración opcional; instalado sin integrarse, Factum avisa y guía.
+
+Lo que no entra al demo y se cuenta en una frase: el relevo de turno y la propuesta de cambio a la pauta. Si falta tiempo, el paso 4 se acorta; el 3 no se corta. Lo abierto está en [SEGUIMIENTO](../roadmap/SEGUIMIENTO.md).

@@ -47,6 +47,12 @@
 | Banco de pruebas `/casos`: cada criterio del PRD corrido contra un servidor vivo | Francisco | hecho | 2026-11-21. CA1 a CA17 pasan contra local con el código integrado con `main` (16 de 16 tarjetas; CA15 es el banco mismo). Falta correrlo contra la VM: ver [Servicios: estado y resultados](#servicios-estado-y-resultados) |
 | Escenarios por industria: 24 patrones × minería, eléctrica y construcción contra cada barrera | Francisco | hecho | 2026-11-21. [PRD](../projects/escenarios-por-industria/PRD.md) y [ADR-0008](../decisions/0008-escenarios-por-industria-en-una-caja-aislada.md). Los 72 escenarios pasan, con un archivo de tests por industria y una sección por industria en `/casos`. Reglas por industria, orden invertido, control perdido y confirmación por persona en `reglas.py`, `servicios.py` y [LOGICA](../architecture/LOGICA.md). Abierto: [§9 del PRD](../projects/escenarios-por-industria/PRD.md#9-riesgos-y-decisiones-abiertas) |
 | Regla de seguridad del demo: guarda abierta con energía viva | — | hecho | Capa 1, independiente del paso en curso, en `app/reglas.py` ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario)). La pauta LOTO del demo no monta sensor de guarda, así que hoy no aparece en vivo |
+| Celda del demo: caja, relé en los servos, pulsador en el bloqueo y cámara cenital | Jonathan | pendiente | [ADR-0010](../decisions/0010-demo-brazo-robotico-en-una-celda-con-corte-local.md). El brazo, el ESP32 y el ultrasonido ya están |
+| Corte local en el ESP32: zona ocupada con energía viva abre el relé sin esperar al servidor | Jonathan | pendiente | Tiene que ser la misma regla que la de capa 1 en `reglas.py`. Medir cuánto tarda en abrir |
+| Detectar que el brazo falló (la pieza fuera de la bandeja) | Jonathan | pendiente | Cámara o un sensor en la bandeja. `Brecha` |
+| Que el detector reconozca la pinza, la pieza y la herramienta | Jonathan | pendiente | El modelo de hoy distingue mouse y lápiz |
+| Pauta del brazo, regla «persona en la zona con energía viva» y OT que se abre sola con la falla | Francisco | pendiente | `datos/pauta-brazo.json`, `reglas.py` y [LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario). Hoy la OT se abre a mano |
+| Voz del aviso y preguntas en voz alta, integradas a `main` | Daniel | pendiente | Está en la rama `feat/front-y-servicios` (`app/voz.py`) |
 
 ## Servicios: estado y resultados
 
@@ -97,11 +103,11 @@ El recorrido animado de una lectura está en [servicios.html](../architecture/se
 
 | Tarea | Responsable | Estado | Notas |
 |---|---|---|---|
-| Aceptar o rechazar los ADR 0002 a 0009 y la decisión de dejar la predicción como visión | Equipo | pendiente | Ver el [registro](../decisions/decisions.md). Todos siguen `proposed` y el código ya se apoya en ellos, contra la regla 5 de [CONTRIBUTING](../CONTRIBUTING.md). El 0001 quedó reemplazado por el 0005, y el [0009](../decisions/0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md) lleva el producto de «mantenimiento verificado» a cualquier flujo operacional |
+| Aceptar o rechazar los ADR 0002 a 0010 y la decisión de dejar la predicción como visión | Equipo | pendiente | Ver el [registro](../decisions/decisions.md). Todos siguen `proposed` y el código ya se apoya en ellos, contra la regla 5 de [CONTRIBUTING](../CONTRIBUTING.md). El 0001 quedó reemplazado por el 0005, y el [0009](../decisions/0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md) lleva el producto de «mantenimiento verificado» a cualquier flujo operacional |
 | ¿Hay hardware a mano para el demo? | Equipo | hecho | Sí: Arduino, Raspberry Pi, ESP, sensores, receptores y motores ([planteamiento](../domain/fuentes/2026-11-21-planteamiento-del-equipo.md)) |
-| ¿El demo es la correa a escala con el bloqueo saltado? | Equipo | pendiente | Ver [Demo propuesto](../architecture/FLUJO.md#demo-propuesto). Lo construido es la pauta LOTO con ESP32 y cámara (#14, #17), no la correa. Falta decidir si `web/` o el home de `app/estatico/` es la pantalla del demo |
+| ¿Cuál es el demo? | Equipo | pendiente | Propuesta del 2026-11-21: el brazo robótico en una celda, con el corte de energía como paso que se salta ([ADR-0010](../decisions/0010-demo-brazo-robotico-en-una-celda-con-corte-local.md), guion en el [FLUJO](../architecture/FLUJO.md#demo-propuesto)). Reemplaza a la correa a escala. Falta que el equipo lo acepte y decidir si la pantalla es `web/` o el home de `app/estatico/` |
 | ¿La predicción de fallas y la OT automática siguen en el alcance del demo? | Francisco | hecho | 2026-11-21. No: quedan como visión ([registro](../decisions/decisions.md)). Falta que el equipo la acepte |
 | Formato del relevo de turno | Equipo | pendiente | Resumen, consultas o *briefing*. Propuesta en [LOGICA](../architecture/LOGICA.md#relevo-de-turno): lectura de los eventos, registro completo al modelo y sin base vectorial |
-| Canal del aviso al operario | Equipo | pendiente | El equipo propone un auricular. Confirmar qué dispositivo es «la muela» de la transcripción |
+| Canal del aviso al operario | Equipo | pendiente | El equipo propone un auricular. En el demo del brazo basta un parlante en la celda. Confirmar qué dispositivo es «la muela» de la transcripción |
 | Algoritmo de la capa de aprendizaje automático | Equipo | pendiente | Para el demo basta un umbral ([ADR-0004](../decisions/0004-verificacion-por-capas.md)) |
 | ¿Hay OT reales de alguna faena? | — | pendiente | Sin ellas, el corpus sale de MaintIE (6) |
