@@ -30,7 +30,7 @@
 ## Proyectos
 
 - [Servicios en vivo · PRD](./projects/servicios-en-vivo/PRD.md): atribuir lo del edge a la OT en curso, calificarlo y llevarlo a la UI por WebSocket, y el CRUD con las reglas de negocio.
-- [Skills · PRD](./projects/skills/PRD.md): el diseño de las skills que un agente usa para extraer un protocolo, generar sus pautas con la capa que corresponde a cada paso, aterrizarlas en OT, reportar sin omitir nada y recomendar mejoras con las tres capas. Diseño, sin construir.
+- [Skills · PRD](./projects/skills/PRD.md): las ocho skills que un agente usa en `.claude/skills/`: reconocer un proceso y generar su pauta con la capa que corresponde a cada paso, optimizarla con las tres capas, y del lado del cliente pedir, ejecutar, reportar y medir. Cómo se hace hoy en una planta, cómo se mide cada skill y qué les da la API.
 - [Escenarios por industria · PRD](./projects/escenarios-por-industria/PRD.md): cada forma de ejecutar un paso (saltarlo, decirlo antes, deshacer un control) en minería, eléctrica y construcción, contra cada barrera, con las reglas de capa 1 por industria y su norma. Con la [simulación de capa 2](./projects/escenarios-por-industria/capa2-simulacion.md).
 
 ## Research
