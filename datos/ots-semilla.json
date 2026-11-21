@@ -44,6 +44,6 @@
     {"ot": "ot-1016", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:1", "cerrar": "todos",
      "intercalar": [
        {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["operario", "ausente"], ["equipo", "caliente"]]},
-       {"antes_del_paso": 5, "lecturas": [["operario", "ausente"]]}]}
+       {"antes_del_paso": 6, "lecturas": [["operario", "ausente"]]}]}
   ]
 }

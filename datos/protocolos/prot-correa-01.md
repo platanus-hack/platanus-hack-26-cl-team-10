@@ -69,5 +69,5 @@ El polín cambiado y su estación, por qué se cambió, quién cortó la corrien
 
 - `pauta-polin-ct-01`: el cambio de polín, con los tres bloques completos. Sus pasos se llaman igual que aquí.
 - `pauta-polin-demo`: la versión de 2 minutos para el demo, con la correa a escala. Deja fuera la tapa protectora y la prueba sin carga, y agrega «acercarte a la correa» y «alejarte», que mide el sensor de distancia.
-- `pauta-polin-estacion`: la que corre en la estación física, con lo que el ESP32 mide de verdad: el motor que se apaga y enciende con el botón, la distancia y la temperatura. Cinco pasos: apagar el motor, acercarse, esperar a que enfríe, cambiar el polín rojo (cámara) y dejar la cinta andando. No tiene candado, porque la estación no lo mide.
+- `pauta-polin-estacion`: la que corre en la estación física, con lo que el ESP32 mide de verdad: el motor que se apaga y enciende con el botón, la distancia y la temperatura. Seis pasos: apagar el motor, acercarse, esperar a que enfríe, ubicar el polín rojo (la cámara lo tiene que ver), cambiarlo (la cámara deja de verlo) y dejar la cinta andando. Que no se vea un polín rojo no prueba que se sacó: por eso primero hay que verlo. No tiene candado, porque la estación no lo mide.
 - `pauta-correa-ct-01`: el cambio de rodillo del demo anterior. Junta cortar la corriente y poner candado en un paso y no prueba que no arranca.

@@ -204,7 +204,8 @@ class AislarBloquearYComprobar(Base):
     (REFERENCIAS 56). Se corren contra los servicios, con las reglas de capa 1 que ya hay."""
 
     def abrir(self, archivo, orden, reposo):
-        pauta = json.loads((DATOS / archivo).read_text(encoding="utf-8"))
+        # en la base de la prueba es la primera versión, vaya en la que vaya el archivo
+        pauta = {**json.loads((DATOS / archivo).read_text(encoding="utf-8")), "version": 1}
         catalogo.crear_pauta(self.cx, pauta)
         catalogo.aprobar_pauta(self.cx, pauta["id"], 1, "supervisor:X")
         catalogo.abrir_ot(self.cx, "ot-1", pauta["id"], "supervisor:X")
@@ -347,12 +348,22 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual(self.cerrados(), 2)  # con el equipo caliente no pasa de «esperar»
         alertas += self.leer(equipo="frio")
         self.ver(("soda can", 0.7), ("red soda can", 0.9))
-        self.assertEqual(self.cerrados(), 3)  # la lata roja sigue en la cinta
+        self.assertEqual(self.cerrados(), 4)  # la cámara vio el polín rojo; sigue en la cinta
         self.ver(("soda can", 0.7), ("soda can", 0.6))  # la nueva, de otro color
-        self.assertEqual(self.cerrados(), 4)
+        self.assertEqual(self.cerrados(), 5)
         alertas += self.leer(operario="ausente") + self.leer(energia="viva")
         self.assertEqual(alertas, [])
-        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 5))
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 6))
+
+    def test_estacion_que_no_se_vea_un_polin_rojo_no_prueba_que_se_saco(self):
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.ver(("soda can", 0.7))  # la cámara nunca vio el rojo
+        self.ver()                   # ni ve nada
+        self.assertEqual(self.cerrados(), 3)
+        self.ver(("red soda can", 0.9))
+        self.assertEqual(self.cerrados(), 4)  # recién ahora lo vio: falta sacarlo
+        self.ver(("soda can", 0.7))
+        self.assertEqual(self.cerrados(), 5)
 
     def test_estacion_con_el_equipo_ya_frio_no_avisa_al_empezar(self):
         # shortcut: «Apagar el motor» no lleva control_critico porque, con el paso actual crítico,
