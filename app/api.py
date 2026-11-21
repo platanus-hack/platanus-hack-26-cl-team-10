@@ -1,7 +1,7 @@
 """FRENTE 2 entra por acá — la API que une los cuatro frentes.
 
 Correr:  uv run uvicorn app.api:app --reload
-La UI mínima vive en app/estatico/ y se sirve en /.
+La demo (monitor en vivo) se sirve en / y en /monitor; la UI mínima de ensayo, en /ensayo.
 
 La app impone el orden (ADR-0002): /ot/{id}/declarar solo evalúa el paso actual.
 """
@@ -91,6 +91,13 @@ class LecturaEdge(BaseModel):
 
 @app.get("/")
 def portada() -> FileResponse:
+    """La demo: el monitor de la OT en vivo (video, cajas, sensores, pasos y bitácora)."""
+    return FileResponse(ESTATICO / "monitor.html")
+
+
+@app.get("/ensayo")
+def pagina_ensayo() -> FileResponse:
+    """La UI mínima del esqueleto para ensayar el flujo a mano (pauta de la correa)."""
     return FileResponse(ESTATICO / "index.html")
 
 
