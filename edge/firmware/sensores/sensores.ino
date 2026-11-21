@@ -1,6 +1,6 @@
 // Lee sensores y emite una línea JSON por segundo por serial (115200).
 // Sensor no conectado -> su campo sale null.
-// El pulsador prende y apaga el servo MG996R (180°): encendido barre de lado a lado sin parar,
+// El servo MG996R (180°) parte encendido y el pulsador lo apaga y prende: encendido barre de lado a lado sin parar,
 // apagado se detiene donde está. Su estado sale en el campo "motor".
 #include <DHT.h>
 
@@ -15,7 +15,7 @@
 #define BTN_PIN   27      // pulsador entre el pin y GND (pull-up interno)
 
 DHT dht(DHT_PIN, DHT_TYPE);
-bool motor = false, btnAntes = HIGH;
+bool motor = true, btnAntes = HIGH;  // parte encendido: la demo empieza con la cinta andando
 int pos = 1500, paso = PASO_US;
 unsigned long ultimoEnvio = 0;
 
