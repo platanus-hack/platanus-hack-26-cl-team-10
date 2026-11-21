@@ -4,6 +4,7 @@
 
 | ADR | Fecha | Decisión | Estado |
 |---|---|---|---|
+| [0007](./0007-servicios-en-vivo-sesion-stream-y-calificacion.md) | 2026-11-21 | Servicios en vivo: la sesión une el edge con la OT, un WebSocket por OT y la calificación ok · warning · error se calcula por capa | `proposed` |
 | [0006](./0006-la-ot-nace-del-protocolo.md) | 2026-11-21 | La OT nace del protocolo: el disparo puede ser calendario, pedido o falla | `proposed` |
 | [0005](./0005-producto-general-mineria-como-caso-del-demo.md) | 2026-11-21 | El producto es general; la minería es el caso del demo. Reemplaza al 0001 | `proposed` |
 | — | 2026-11-21 | Predecir fallas, abrir OT automáticas y cruzar con OT históricas quedan como visión, fuera del alcance del demo y del pitch | `proposed` |

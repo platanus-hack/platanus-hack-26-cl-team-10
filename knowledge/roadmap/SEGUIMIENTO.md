@@ -39,6 +39,7 @@
 | Frente 2 · App del operario: voz de ida y vuelta, un paso a la vez | — | pendiente | El orden lo impone la app ([ADR-0002](../decisions/0002-la-aplicacion-impone-el-orden-de-la-pauta.md)). Dejar botones como respaldo. UI de ensayo en `app/estatico/`, rama `feat/app-operario` |
 | Frente 3 · Verificación: capa 1 con sensores, capa 3 con cámara | — | pendiente | Solo la capa 1 interrumpe ([ADR-0004](../decisions/0004-verificacion-por-capas.md)). Stub en `app/verificacion.py`, rama `feat/verificacion` |
 | Frente 4 · Registro de eventos, relevo de turno y vista del supervisor | — | pendiente | El relevo es una lectura de los eventos, no un documento aparte. Stub en `app/cerebro.py`, rama `feat/cerebro-relevo` |
+| Servicios en vivo: sesión por edge, stream por OT, calificación por capa y CRUD con reglas de negocio | Francisco | en curso | [PRD](../projects/servicios-en-vivo/PRD.md) y [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md). Recorrido animado en [servicios.html](../architecture/servicios.html). Desplegado en `https://34-176-44-192.sslip.io`, guía para agentes en `/agente` |
 | Regla de seguridad del demo: guarda abierta con energía viva | — | pendiente | Es el momento del demo. Capa 1, independiente del paso en curso ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario)) |
 
 ## Decisiones abiertas

@@ -35,6 +35,7 @@ class TipoEvento(StrEnum):
     DECLARACION = "declaracion"
     VEREDICTO = "veredicto"
     ALERTA = "alerta"
+    ALERTA_RESUELTA = "alerta_resuelta"
     RELEVO_ENTREGADO = "relevo_entregado"
     RELEVO_RECIBIDO = "relevo_recibido"
     PROPUESTA_PAUTA = "propuesta_pauta"

@@ -40,7 +40,9 @@ El evento **es** la bitácora. La tabla solo admite agregar filas: nada se edita
 | `evidencia` | objeto o nulo | El valor del sensor o la foto, con su hora |
 | `detalle` | texto | Por qué se decidió así, legible por una persona |
 
-Tipos de evento: `ot_abierta` · `paso_iniciado` · `declaracion` · `veredicto` · `alerta` · `relevo_entregado` · `relevo_recibido` · `propuesta_pauta`.
+Tipos de evento: `ot_abierta` · `paso_iniciado` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` · `relevo_recibido` · `propuesta_pauta`.
+
+Una alerta no se borra cuando su condición desaparece: entra un `alerta_resuelta` que apunta a ella (`evidencia.resuelve`) con la lectura que la normalizó. Así la bitácora muestra cuándo empezó y cuándo terminó, y la UI saca el aviso en vivo. Ver [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md).
 
 ## Los tres estados de un paso
 
