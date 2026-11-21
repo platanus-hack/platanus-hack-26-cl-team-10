@@ -50,6 +50,9 @@ class _Servicios(Servicios):
     def _con_cuadro(self, evidencia, ot_id, paso_id, edge_id):
         return {**evidencia, "cuadro": None, "semilla": "respuesta de cámara fija, sin cuadro"} if evidencia else None
 
+    def _cuadro_de_paso(self, ot_id, paso_id):
+        return b""
+
 
 @contextmanager
 def _reloj(desde: datetime) -> Iterator[None]:
@@ -69,7 +72,7 @@ def _reloj(desde: datetime) -> Iterator[None]:
 
 def _ejecutar(s: Servicios, d: dict, pauta) -> None:
     confianza = {"valor": CAMARA_POR_DEFECTO}
-    s.juez = lambda pregunta, cuadro: (True, confianza["valor"])
+    s.juez = lambda pregunta, cuadro, antes=None: (True, confianza["valor"])
     operador = d["operador"]
     s.iniciar_sesion(d["ot"], EDGE, operador)
     seq = [0]

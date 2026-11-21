@@ -91,6 +91,9 @@ def estados(d, dist_previa, dist_max, temp_max):
     e["operario"] = "presente" if cerca(dist) and cerca(dist_previa) else "ausente"
     if d.get("temp_c") is not None:
         e["equipo"] = "frio" if d["temp_c"] < temp_max else "caliente"
+    if d.get("motor") is not None:
+        e["energia"] = "viva" if d["motor"] else "cortada"  # lo que leen la pauta del demo y la regla de peligro
+        e["motor"] = "activo" if d["motor"] else "detenido"  # el mismo dato, como se muestra en el dashboard
     return e
 
 
@@ -155,13 +158,14 @@ def main():
     ap.add_argument("--fps", type=float, default=20)
     ap.add_argument("--ancho", type=int, default=960, help="ancho del JPEG enviado (alto en 16:9)")
     ap.add_argument("--calidad", type=int, default=65, help="calidad JPEG 1-100")
-    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil"])
+    # "soda can" va junto a "red soda can" para que una lata de otro color no caiga en la roja
+    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil", "soda can", "red soda can"])
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
     ap.add_argument("--deteccion", choices=["servidor", "edge"], default="servidor",
                     help="dónde corre YOLO: servidor (por defecto, el edge solo manda video y sensores) o edge (acá)")
     ap.add_argument("--puerto", default="/dev/cu.usbserial-0001", help="'' para no leer sensores")
     ap.add_argument("--dist-max", type=float, default=60, help="cm: más cerca = operario presente")
-    ap.add_argument("--temp-max", type=float, default=30, help="°C: bajo esto = equipo frío")
+    ap.add_argument("--temp-max", type=float, default=26, help="°C: bajo esto = equipo frío")
     a = ap.parse_args()
 
     servidor = a.servidor.rstrip("/")

@@ -53,7 +53,7 @@ def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
     pautas = []
     for ruta in sorted(DATOS.glob("pauta-*.json")):
         pauta = desde_json(ruta)
-        if not catalogo.versiones(cx, pauta.id):
+        if pauta.version not in {v["version"] for v in catalogo.versiones(cx, pauta.id)}:
             db.guardar_pauta(cx, pauta)
         if not catalogo.aprobada(cx, pauta.id, pauta.version):
             catalogo.aprobar_pauta(cx, pauta.id, pauta.version, "supervisor:demo")

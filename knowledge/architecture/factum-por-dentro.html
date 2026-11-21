@@ -520,7 +520,7 @@ ol.plan li{margin:0 0 8px}
     <div><h4>Lo que entra a la bitácora y sale por el stream</h4><pre id="rec-sale"></pre><div class="stream" id="rec-stream"></div></div>
   </div>
   <div class="bloque tres" style="margin-top:22px">
-    <div class="card"><h3>Antes del servidor</h3><p class="nota">El ESP32 emite una línea JSON por segundo con <code>temp_c</code>, <code>hum_pct</code> y <code>dist_cm</code>. <code>edge.py</code> las reenvía tal cual y además las vuelve estados, porque las reglas comparan igualdad de texto, no rangos: <code>operario = presente</code> si las dos últimas distancias miden menos de 60 cm, y <code>equipo = frio</code> bajo 30 °C. Cada lectura viaja con su <code>seq</code>.</p></div>
+    <div class="card"><h3>Antes del servidor</h3><p class="nota">El ESP32 emite una línea JSON por segundo con <code>temp_c</code>, <code>hum_pct</code> y <code>dist_cm</code>. <code>edge.py</code> las reenvía tal cual y además las vuelve estados, porque las reglas comparan igualdad de texto, no rangos: <code>operario = presente</code> si las dos últimas distancias miden menos de 60 cm, y <code>equipo = frio</code> bajo 26 °C. Cada lectura viaja con su <code>seq</code>.</p></div>
     <div class="card"><h3>Dentro de <code>recibir_lectura</code></h3><p class="nota">Descarta un <code>seq</code> repetido (recuerda los últimos 500 por edge), guarda el último valor del sensor y busca la sesión. Con sesión corre cinco revisiones, siempre en este orden: seguridad, paso actual, controles, orden y señal. Al final publica la calificación de la OT.</p></div>
     <div class="card"><h3>Hasta la pantalla</h3><p class="nota">Toda fila nueva pasa por <code>servicios.agregar</code>, que la escribe y la publica en el canal <code>ot:{id}</code> de <code>bus.py</code>. El WebSocket <code>/ot/{id}/stream</code> manda primero un snapshot y después cada <code>lectura</code>, <code>evento</code>, <code>calificacion_ot</code>, <code>detecciones</code> y <code>sesion</code>. La cola guarda 1000 mensajes por cliente; si se llena, se pierde el más viejo. El video nunca viaja por ahí.</p></div>
   </div>
@@ -775,7 +775,7 @@ ol.plan li{margin:0 0 8px}
     </div>
   </div>
   <div class="bloque dos" style="margin-top:22px">
-    <p class="honesto" style="margin:0"><b>Sobre el escritorio el equipo ya está frío.</b> El DHT22 a temperatura ambiente marca menos de 30 °C, así que el edge manda <code>equipo = frio</code> desde el primer segundo. Corrido contra el código: la alerta de orden invertido se abre en el mismo lote de lecturas en que el operario llega, antes de que alcance a poner el bloqueo. Aquí el equipo parte caliente para que cada cosa se vea por separado.</p>
+    <p class="honesto" style="margin:0"><b>Sobre el escritorio el equipo ya está frío.</b> El DHT22 a temperatura ambiente marca menos de 26 °C, así que el edge manda <code>equipo = frio</code> desde el primer segundo. Corrido contra el código: la alerta de orden invertido se abre en el mismo lote de lecturas en que el operario llega, antes de que alcance a poner el bloqueo. Aquí el equipo parte caliente para que cada cosa se vea por separado.</p>
     <p class="honesto" style="margin:0"><b>Las confianzas del detector son entrada de la corrida.</b> El mouse entra con 0,93 y el lápiz con 0,88, y en el primer escenario la respuesta del juez está forzada con el gancho de ensayo del código. Qué confianza da el detector real sobre la mesa se mide en vivo, no aquí.</p>
   </div>
   <div class="pie"><button data-ir="sistema">← 6 · Software y hardware</button><span></span></div>

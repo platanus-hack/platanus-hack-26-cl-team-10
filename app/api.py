@@ -58,7 +58,8 @@ def estado_detector() -> dict:
 
 EDGE_POR_DEFECTO = "edge-1"
 PAUTA_DEMO = "pauta-correa-ct-01"
-PAUTAS_DEMO = {"correa": protocolos.PAUTA_DEMO, "loto": protocolos.PAUTA_DEMO.parent / "pauta-loto.json"}
+PAUTAS_DEMO = {"correa": protocolos.PAUTA_DEMO, "loto": protocolos.DATOS / "pauta-loto.json",
+               "polin": protocolos.DATOS / "pauta-polin-estacion.json"}
 
 
 @app.exception_handler(ReglaDeNegocio)
@@ -163,6 +164,11 @@ class Sesion(BaseModel):
     operario: str
 
 
+class SesionCliente(BaseModel):
+    edge_id: str = EDGE_POR_DEFECTO
+    tomar: bool = False
+
+
 class LecturaEdge(BaseModel):
     sensor_id: str
     valor: str
@@ -184,7 +190,8 @@ def pagina_ensayo() -> FileResponse:
 @app.post("/pauta/demo")
 def cargar_pauta_demo(pauta: str = "correa") -> dict:
     """Frente 1: cuando exista PDF→pasos, este endpoint recibe el PDF.
-    `pauta`: `correa` (cambio de rodillo) o `loto` (bloqueo con cámara y ESP32)."""
+    `pauta`: `correa` (cambio de rodillo), `polin` (cambio de polín en la estación: motor, distancia,
+    temperatura y cámara) o `loto` (bloqueo con cámara y ESP32)."""
     if pauta not in PAUTAS_DEMO:
         raise HTTPException(404, f"pauta de demo desconocida: {pauta}; hay {sorted(PAUTAS_DEMO)}")
     pauta = protocolos.desde_json(PAUTAS_DEMO[pauta])
@@ -332,7 +339,7 @@ def sembrar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> dic
 
 @app.post("/interno/ots/semilla")
 def sembrar_ots(x_clave_equipo: str | None = Header(default=None)) -> dict:
-    """La minera ficticia Oculta con sus personas, los protocolos con sus pautas habilitadas para ella y 15 OT
+    """La minera ficticia Oculta con sus personas, los protocolos con sus pautas habilitadas para ella y 16 OT
     de ejemplo (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `accesos` trae las claves de las
     personas creadas en esta llamada: es la única vez que se ven. Se puede repetir sin duplicar."""
     _solo_equipo(x_clave_equipo)
@@ -440,8 +447,10 @@ def pedir_ot(p: PedidoOt, authorization: str | None = Header(default=None)) -> d
 
 @app.get("/cliente/ots")
 def ots_para_clientes(authorization: str | None = Header(default=None)) -> list[dict]:
-    """El supervisor ve todas las OT de su empresa; el operador, las que tiene asignadas."""
-    return acceso.ots_de(cx, _persona(authorization), servicios._ots_en_sesion())
+    """El supervisor ve todas las OT de su empresa; el operador, las que tiene asignadas. Cada una trae su
+    `calificacion`, la misma de `GET /cliente/ots/{ot_id}`."""
+    ots = acceso.ots_de(cx, _persona(authorization), servicios._ots_en_sesion())
+    return [{**o, "calificacion": servicios.calificacion(o["ot"])} for o in ots]
 
 
 @app.get("/cliente/ots/{ot_id}")
@@ -451,12 +460,29 @@ def ot_para_clientes(ot_id: str, authorization: str | None = Header(default=None
     return {**o, "calificacion": servicios.calificacion(ot_id)}
 
 
+@app.post("/cliente/ots/{ot_id}/sesion")
+def iniciar_sesion_del_cliente(ot_id: str, s: SesionCliente, authorization: str | None = Header(default=None)) -> dict:
+    """El operador que tiene la OT asignada la une a una estación con su token, sin la clave del equipo. El
+    `operario` de la sesión es quien entró. Si la estación ejecuta otra OT abierta responde 409 y hay que repetir
+    con `tomar` en true; 403 si esa OT es de otra empresa o si quien pide no es operador; 404 si la OT no es suya."""
+    p = _persona(authorization)
+    acceso.exige_estacion(cx, p, ot_id, s.edge_id, servicios.sesion(s.edge_id), s.tomar)
+    return servicios.iniciar_sesion(ot_id, s.edge_id, p["id"])
+
+
 @app.get("/cliente/operadores")
 def operadores_del_cliente(authorization: str | None = Header(default=None)) -> list[dict]:
     """Los operadores de la empresa, para asignarles OT. Solo supervisor."""
     p = _persona(authorization)
     acceso.exige_rol(p, "supervisor")
     return acceso.personas_de(cx, p["cliente"]["id"], "operador")
+
+
+@app.get("/cliente/personas")
+def personas_del_cliente(authorization: str | None = Header(default=None)) -> list[dict]:
+    """El `id`, el `nombre` y el `rol` de cada persona de la empresa, para mostrar nombres donde la bitácora
+    guarda ids. Lo lee cualquier persona de la empresa, también un operador."""
+    return acceso.nombres_de(cx, _persona(authorization)["cliente"]["id"])
 
 
 @app.post("/cliente/ots/{ot_id}/asignar")
