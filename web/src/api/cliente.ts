@@ -2,11 +2,10 @@
 
 import { config } from '../config'
 import type {
-  CuerpoSobrescribir,
   EstadoOt,
-  Evento,
   OtResumen,
   Pauta,
+  RespuestaConfirmar,
   RespuestaDeclarar,
   Sesion,
 } from './tipos'
@@ -33,8 +32,10 @@ export type Cliente = {
   leerOt(otId: string): Promise<EstadoOt>
   leerPauta(pautaId: string, version: number): Promise<Pauta>
   abrirSesion(otId: string, edgeId: string, operario: string): Promise<Sesion>
-  declarar(otId: string, actor: string, texto: string): Promise<RespuestaDeclarar>
-  sobrescribir(otId: string, cuerpo: CuerpoSobrescribir): Promise<Evento>
+  /** `pasoId` es el paso que la pantalla mostraba: si su evidencia ya lo cerró, no se evalúa el siguiente. */
+  declarar(otId: string, actor: string, texto: string, pasoId?: string): Promise<RespuestaDeclarar>
+  /** Una persona cierra el paso en curso contra la evidencia, con un motivo (obligatorio). */
+  confirmarPaso(otId: string, pasoId: string, actor: string, motivo: string): Promise<RespuestaConfirmar>
   entregarTurno(otId: string, actor: string): Promise<{ resumen: string }>
   recibirTurno(otId: string, actor: string): Promise<{ firmado_por: string }>
   /** Propuesta: asigna o reasigna el operador de la OT. */
@@ -76,8 +77,10 @@ export function crearCliente(base: string, fetchImpl: typeof fetch = (...a) => f
     leerOt: (id) => pedir('GET', ot(id)),
     leerPauta: (id, version) => pedir('GET', `/pautas/${encodeURIComponent(id)}?version=${version}`),
     abrirSesion: (id, edgeId, operario) => pedir('POST', `${ot(id)}/sesion`, { edge_id: edgeId, operario }),
-    declarar: (id, actor, texto) => pedir('POST', `${ot(id)}/declarar`, { actor, texto }, TIMEOUT_DECLARAR_MS),
-    sobrescribir: (id, cuerpo) => pedir('POST', `${ot(id)}/sobrescribir`, cuerpo),
+    declarar: (id, actor, texto, pasoId) =>
+      pedir('POST', `${ot(id)}/declarar`, pasoId ? { actor, texto, paso_id: pasoId } : { actor, texto }, TIMEOUT_DECLARAR_MS),
+    confirmarPaso: (id, pasoId, actor, motivo) =>
+      pedir('POST', `${ot(id)}/pasos/${encodeURIComponent(pasoId)}/confirmar`, { actor, motivo }),
     entregarTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/entregar?actor=${encodeURIComponent(actor)}`),
     recibirTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/recibir?actor=${encodeURIComponent(actor)}`),
     asignar: (id, operador) => pedir('POST', `${ot(id)}/asignar`, { operador }),

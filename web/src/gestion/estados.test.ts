@@ -33,18 +33,18 @@ it('falls back when the real API sends no estado_general', () => {
   expect(estadoDe(resumen({ completa: true }))).toBe('completa')
 })
 
-it('counts verified and overwritten steps as closed', () => {
+it('counts every verified step as closed, by evidence or by a person', () => {
   const estado: EstadoOt = {
     pauta: 'Cambio de rodillo v1',
     equipo: 'CT-01',
     paso_actual: 'p3',
     completa: false,
-    pasos: [paso('p1', 1, 'verificado'), paso('p2', 2, 'sobrescrito'), paso('p3', 3, 'en_conflicto'), paso('p4', 4, 'no_verificado')],
+    pasos: [paso('p1', 1, 'verificado'), paso('p2', 2, 'verificado'), paso('p3', 3, 'en_conflicto'), paso('p4', 4, 'no_verificado')],
     verificados: ['p1'],
     en_conflicto: ['p3'],
     pendientes: ['p4'],
   }
-  expect(avanceDe(estado)).toEqual({ cerrados: 2, total: 4, nombre: 'Cambio de rodillo v1', pasoActual: '3 · Paso 3' })
+  expect(avanceDe(estado)).toEqual({ cerrados: 2, total: 4, nombre: 'Cambio de rodillo v1', pasoActual: '3. Paso 3' })
 })
 
 it('puts what needs the supervisor first', () => {

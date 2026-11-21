@@ -1,11 +1,12 @@
-import { Anchor, Box, Button, Center, Container, Group, Loader, Stack, Text } from '@mantine/core'
-import { IconVolume } from '@tabler/icons-react'
+import { Box, Button, Center, Container, Group, Loader, Paper, Stack, Text, Title } from '@mantine/core'
+import { IconArrowsExchange, IconVolume } from '@tabler/icons-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { EstadoOt } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import type { Usuario } from '../sesion/usuarios'
 import { FranjaSinConexion, MensajeError } from './Avisos'
+import { BarraOt } from './BarraOt'
 import { Briefing } from './Briefing'
 import { avance, relevoPendiente } from './estado'
 import { OtCompleta } from './OtCompleta'
@@ -23,8 +24,8 @@ export function PaginaOt() {
 /** El primer toque: desbloquea el audio y abre la sesión. */
 function Puerta({ otId, ot, onEntrar }: { otId: string; ot: EstadoOt; onEntrar(): void }) {
   return (
-    <Center mih="100vh" p="md">
-      <Stack align="center" gap="lg" w="100%" maw={420}>
+    <Container size={420} px="md" py={48}>
+      <Stack align="center" gap="lg">
         <Text fw={900} size="2.5rem" lh={1}>
           {otId.toUpperCase()}
         </Text>
@@ -32,38 +33,45 @@ function Puerta({ otId, ot, onEntrar }: { otId: string; ot: EstadoOt; onEntrar()
           <Text fw={600} ta="center">
             {ot.pauta}
           </Text>
-          <Text c="roca.6">{ot.equipo}</Text>
+          <Text c="roca.6">Equipo {ot.equipo}</Text>
         </Stack>
         <Button size="xl" h={72} fullWidth leftSection={<IconVolume size={26} />} onClick={onEntrar}>
           {avance(ot).hechos === 0 ? 'Comenzar' : 'Continuar'}
         </Button>
-        <Text size="sm" c="roca.6">
+        <Text size="sm" c="roca.6" ta="center">
           Activa el audio para escuchar los avisos
         </Text>
       </Stack>
-    </Center>
+    </Container>
   )
 }
 
 /** «Entregar turno» pide confirmación en la misma pantalla, sin diálogos del navegador. */
-function EntregarTurno({ onConfirmar }: { onConfirmar(): void }) {
+function EntregarTurno({ onConfirmar, habilitado }: { onConfirmar(): void; habilitado: boolean }) {
   const [preguntando, setPreguntando] = useState(false)
   if (!preguntando)
     return (
-      <Button variant="subtle" color="roca" onClick={() => setPreguntando(true)}>
+      <Button variant="default" size="md" fullWidth leftSection={<IconArrowsExchange size={18} />} disabled={!habilitado} onClick={() => setPreguntando(true)}>
         Entregar turno
       </Button>
     )
   return (
-    <Group justify="space-between" wrap="nowrap">
-      <Text fw={700}>¿Entregar el turno?</Text>
-      <Group gap="xs" wrap="nowrap">
-        <Button onClick={onConfirmar}>Confirmar</Button>
-        <Button variant="default" onClick={() => setPreguntando(false)}>
-          Cancelar
-        </Button>
-      </Group>
-    </Group>
+    <Paper withBorder p="sm" bg="white">
+      <Stack gap="xs">
+        <Text fw={700}>¿Entregar el turno?</Text>
+        <Text size="sm" c="roca.7">
+          La OT queda esperando que el supervisor la reasigne. Quien la reciba sigue desde el paso actual.
+        </Text>
+        <Group grow>
+          <Button disabled={!habilitado} onClick={onConfirmar}>
+            Confirmar
+          </Button>
+          <Button variant="default" onClick={() => setPreguntando(false)}>
+            Cancelar
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
   )
 }
 
@@ -101,9 +109,10 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
     void comenzar()
   }
 
-  /** La franja de conexión y el último error, también fuera de la pantalla de ejecución. */
-  const conAvisos = (pantalla: ReactNode) => (
+  /** La barra, la franja de conexión y el último error, en todas las pantallas de la OT. */
+  const conBarra = (pantalla: ReactNode) => (
     <Box>
+      <BarraOt usuario={usuario} />
       {s.conexion === 'reconectando' && <FranjaSinConexion />}
       {s.mensaje && (
         <Container size={560} px="md" pt="md">
@@ -116,28 +125,32 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
 
   switch (vista) {
     case 'no_existe':
-      return (
-        <Center mih="100vh" p="md">
-          <Stack align="center">
-            <Text fw={800} size="xl">
-              Esta OT no existe
+      return conBarra(
+        <Center py={64} px="md">
+          <Stack align="center" gap="sm">
+            <Title order={2}>Esta OT no existe</Title>
+            <Text c="roca.6" ta="center">
+              Revisa el enlace o vuelve a tu lista.
             </Text>
-            <Anchor component={Link} to="/operador">
+            <Button component={Link} to="/operador" variant="default">
               Volver a mis OT
-            </Anchor>
+            </Button>
           </Stack>
-        </Center>
+        </Center>,
       )
     case 'cargando':
-      return (
-        <Center mih="100vh">
-          <Loader />
-        </Center>
+      return conBarra(
+        <Center py={64}>
+          <Stack align="center" gap="xs">
+            <Loader />
+            <Text c="roca.6">{s.conexion === 'reconectando' ? 'Esperando a la API…' : 'Cargando la OT…'}</Text>
+          </Stack>
+        </Center>,
       )
     case 'completa':
-      return <OtCompleta ot={s.ot!} bitacora={s.bitacora} />
+      return conBarra(<OtCompleta ot={s.ot!} bitacora={s.bitacora} />)
     case 'briefing':
-      return conAvisos(
+      return conBarra(
         <Briefing
           ot={s.ot!}
           bitacora={s.bitacora}
@@ -150,14 +163,16 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
         />,
       )
     case 'puerta':
-      return conAvisos(<Puerta otId={otId} ot={s.ot!} onEntrar={entrar} />)
+      return conBarra(<Puerta otId={otId} ot={s.ot!} onEntrar={entrar} />)
     case 'ejecucion':
       return (
         <PantallaEjecucion
           otId={otId}
+          usuario={usuario}
           e={e}
           pie={
             <EntregarTurno
+              habilitado={s.conexion === 'en_vivo'}
               onConfirmar={async () => {
                 if (await e.entregarTurno()) navigate('/operador')
               }}

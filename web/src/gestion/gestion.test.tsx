@@ -98,7 +98,7 @@ describe('operator dashboard', () => {
     abrir('/operador')
     const ot12 = await tarjeta('ot-12')
     expect(within(ot12).getByText('0/6')).toBeInTheDocument()
-    expect(within(ot12).getByText(/^Sigue en: 1 · /)).toBeInTheDocument()
+    expect(within(ot12).getByText(/^Sigue en: 1\. /)).toBeInTheDocument()
     expect(screen.queryByText('OT-13')).not.toBeInTheDocument()
     expect(screen.queryByText('OT-14')).not.toBeInTheDocument()
   })

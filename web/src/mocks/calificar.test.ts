@@ -35,8 +35,12 @@ it('a step closed by a person is ok and says so', () => {
   })
 })
 
-it('an overwrite is a warning', () => {
-  expect(ev('sobrescritura', null, 'sobrescrito')?.nivel).toBe('warning')
+it('a step a person confirmed against the evidence is a warning at half certainty', () => {
+  expect(ev('veredicto', null, 'verificado', { tipo: 'persona', motivo: 'el reed está dañado' })).toMatchObject({
+    nivel: 'warning',
+    certeza: 0.5,
+    capa: null,
+  })
 })
 
 it('other events are not graded', () => {

@@ -7,10 +7,10 @@ import { contarCierre } from './estado'
 /** El cierre de la OT. El reporte con KPIs de desempeño es P1. */
 export function OtCompleta({ ot, bitacora }: { ot: EstadoOt; bitacora: Evento[] }) {
   const verificados = ot.pasos.filter((p) => p.estado === 'verificado').length
-  const { sobrescritos, avisos } = contarCierre(bitacora)
+  const { confirmados, avisos } = contarCierre(bitacora)
 
   return (
-    <Center mih="100vh" p="md">
+    <Center py={48} px="md">
       <Stack align="center" gap="md" w="100%" maw={420}>
         <ThemeIcon color="verificado" radius="xl" size={88}>
           <IconCheck size={56} />
@@ -23,9 +23,9 @@ export function OtCompleta({ ot, bitacora }: { ot: EstadoOt; bitacora: Evento[] 
           <Text size="lg" fw={700}>
             {verificados} de {ot.pasos.length} pasos verificados
           </Text>
-          {sobrescritos > 0 && (
-            <Text c="precaucion.9" fw={600}>
-              {sobrescritos === 1 ? '1 cerrado' : `${sobrescritos} cerrados`} a la palabra del operario
+          {confirmados > 0 && (
+            <Text c="precaucion.9" fw={600} ta="center">
+              {confirmados === 1 ? '1 confirmado' : `${confirmados} confirmados`} por una persona contra la evidencia
             </Text>
           )}
           {avisos > 0 && (

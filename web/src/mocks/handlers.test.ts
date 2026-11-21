@@ -42,11 +42,29 @@ it('declarar verifies the current step and refuses a complete OT', async () => {
   await expect(api().declarar('ot-12', 'operario:1', 'hecho')).rejects.toMatchObject({ status: 409, regla: 'la pauta ya está completa' })
 })
 
-it('sobrescribir closes an open step and refuses a closed one', async () => {
-  const ev = await api().sobrescribir('ot-12', { actor: 'operario:1', paso_id: 'p1', nota: 'puse el candado' })
-  expect(ev).toMatchObject({ tipo: 'sobrescritura', estado: 'sobrescrito', declarado: 'puse el candado' })
+it('confirmar closes the current step on a person word and keeps who and why', async () => {
+  const r = await api().confirmarPaso('ot-12', 'p1', 'operario:1', 'el reed está dañado; el candado está puesto')
+  expect(r).toMatchObject({ paso: 'p1', estado: 'verificado', capa: null, interrumpe: false })
+  const p1 = (await api().leerOt('ot-12')).pasos[0]
+  expect(p1).toMatchObject({ estado: 'verificado', evidencia: { tipo: 'persona', motivo: 'el reed está dañado; el candado está puesto' } })
   expect((await api().leerOt('ot-12')).paso_actual).toBe('p2')
-  await expect(api().sobrescribir('ot-12', { actor: 'operario:1', paso_id: 'p1' })).rejects.toMatchObject({ status: 409 })
+})
+
+it('confirmar follows the API rules', async () => {
+  const confirmar = (paso: string, actor = 'operario:1', motivo = 'lo vi') => api().confirmarPaso('ot-12', paso, actor, motivo)
+  await expect(confirmar('p3')).rejects.toMatchObject({ status: 409, regla: 'solo se confirma el paso en curso (p1): el orden lo impone la app' })
+  await expect(confirmar('p1', 'sistema')).rejects.toMatchObject({ status: 409, regla: 'un paso lo confirma una persona, no el sistema' })
+  await expect(confirmar('p1', 'operario:1', '   ')).rejects.toMatchObject({ status: 409, regla: 'confirmar contra la evidencia necesita un motivo' })
+  await expect(confirmar('p9')).rejects.toMatchObject({ status: 404 })
+  for (const p of ['p1', 'p2', 'p3', 'p4', 'p5']) await confirmar(p)
+  await expect(confirmar('p6')).rejects.toMatchObject({ status: 409, regla: '«Prueba de detención» es de confirmación: se cierra declarando' })
+})
+
+it('declarar with the step the screen showed does not judge the next one', async () => {
+  m.agregar('ot-12', { tipo: 'veredicto', actor: 'sistema', paso_id: 'p1', estado: 'verificado', capa: 1, detalle: 'ok' })
+  const r = await api().declarar('ot-12', 'operario:1', 'hecho', 'p1')
+  expect(r).toMatchObject({ paso: 'p1', estado: 'verificado' })
+  expect((await api().leerOt('ot-12')).pasos[1].estado).toBe('no_verificado')
 })
 
 it('handover clears the operator and receiving assigns the new one', async () => {
@@ -64,6 +82,22 @@ it('opening a session starts the timers of the current step', async () => {
     await api().abrirSesion('ot-12', 'edge-1', 'operario:1')
     await vi.advanceTimersByTimeAsync(4000)
     expect(m.estado('ot-12').pasos[0].estado).toBe('verificado')
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('each step that becomes current starts its own timers, once a session is open', async () => {
+  vi.useFakeTimers()
+  try {
+    await api().abrirSesion('ot-12', 'edge-1', 'operario:1')
+    await vi.advanceTimersByTimeAsync(4000)
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(m.estado('ot-12').pasos.slice(0, 2).map((p) => p.estado)).toEqual(['verificado', 'verificado'])
+    // ot-13 no tiene sesión: sus pasos no avanzan solos.
+    m.agregar('ot-13', { tipo: 'veredicto', actor: 'sistema', paso_id: 'p1', estado: 'verificado', capa: 1, detalle: 'ok' })
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(m.estado('ot-13').pasos[1].estado).toBe('no_verificado')
   } finally {
     vi.useRealTimers()
   }

@@ -1,11 +1,12 @@
-import { Badge, Box, Button, Container, Group, Paper, Stack, Text } from '@mantine/core'
+import { Badge, Box, Button, Container, Divider, Group, Paper, Progress, Stack, Text } from '@mantine/core'
 import { IconVolume, IconVolumeOff } from '@tabler/icons-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Nivel } from '../api/tipos'
-import { nombreDe } from '../sesion/usuarios'
+import { nombreDe, type Usuario } from '../sesion/usuarios'
 import { FranjaSinConexion, MensajeError } from './Avisos'
 import { BannerAlertas } from './BannerAlertas'
-import { avance, cerradoPor, estadoUi } from './estado'
+import { BarraOt } from './BarraOt'
+import { avance, avisoDelPaso, cerradoPor, estadoUi } from './estado'
 import { Paso } from './Paso'
 import type { Ejecutor } from './useEjecucion'
 
@@ -35,14 +36,14 @@ function Cabecera({ otId, e }: { otId: string; e: Ejecutor }) {
 
   return (
     <Paper radius={0} bg="white" px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-roca-2)' }}>
-      <Container size={560} p={0}>
+      <Stack gap={8} maw={560} mx="auto">
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Stack gap={2} style={{ minWidth: 0 }}>
             <Group gap="xs">
               <Text fw={900} size="xl">
                 {otId.toUpperCase()}
               </Text>
-              <Badge color={nivel.color} size="lg" radius="sm">
+              <Badge color={nivel.color} size="lg">
                 {nivel.texto}
               </Badge>
             </Group>
@@ -50,7 +51,7 @@ function Cabecera({ otId, e }: { otId: string; e: Ejecutor }) {
               {ot.pauta}
             </Text>
             <Text size="sm" c="roca.6">
-              {ot.equipo}
+              Equipo {ot.equipo}
             </Text>
           </Stack>
           <Stack gap={0} align="flex-end">
@@ -64,7 +65,8 @@ function Cabecera({ otId, e }: { otId: string; e: Ejecutor }) {
             )}
           </Stack>
         </Group>
-        <Group gap="xs" mt={6}>
+        <Progress value={total ? (hechos / total) * 100 : 0} color={ot.completa ? 'verificado' : 'accion'} aria-label={`Avance ${hechos} de ${total}`} />
+        <Group gap="xs">
           {e.audio === 'activo' ? <IconVolume size={18} /> : <IconVolumeOff size={18} color="var(--mantine-color-peligro-6)" />}
           <Text size="sm" fw={600} c={e.audio === 'activo' ? undefined : 'peligro.7'}>
             {e.audio === 'activo' ? 'Audio activo' : 'Audio bloqueado'}
@@ -73,27 +75,33 @@ function Cabecera({ otId, e }: { otId: string; e: Ejecutor }) {
             Probar audio
           </Button>
         </Group>
-      </Container>
+      </Stack>
     </Paper>
   )
 }
 
-export function PantallaEjecucion({ otId, e, pie }: { otId: string; e: Ejecutor; pie?: ReactNode }) {
+/**
+ * La OT en ejecución. Los pasos se cierran solos con su evidencia; el operario solo actúa donde
+ * la API lo necesita: «Hecho» en un paso que se cierra declarando, y «Ya lo hice» cuando la API
+ * avisa un paso saltado, un conflicto o una evidencia que no llega.
+ */
+export function PantallaEjecucion({ otId, usuario, e, pie }: { otId: string; usuario: Usuario; e: Ejecutor; pie?: ReactNode }) {
   const { s, pauta } = e
   const ot = s.ot!
+  const habilitado = s.conexion === 'en_vivo' && !s.pendiente
   const quienCerro = (pasoId: string) => {
     const actor = cerradoPor(s.bitacora, pasoId)
     return actor ? nombreDe(actor) : null
   }
-  const puedeDeclarar = !!ot.paso_actual && !s.pendiente && s.conexion === 'en_vivo'
 
   return (
-    <Box pb={170}>
+    <Box pb="xl">
+      <BarraOt usuario={usuario} />
       <Cabecera otId={otId} e={e} />
       {s.conexion === 'reconectando' && <FranjaSinConexion />}
       <Container size={560} px="md" pt="md">
         <Stack gap="sm">
-          <BannerAlertas alertas={s.alertas} onYaLoHice={e.yaLoHiceAlerta} />
+          <BannerAlertas alertas={s.alertas} ot={ot} />
           {s.mensaje && <MensajeError mensaje={s.mensaje} onVisto={e.verMensaje} />}
           {ot.pasos.map((p) => (
             <Paso
@@ -101,29 +109,22 @@ export function PantallaEjecucion({ otId, e, pie }: { otId: string; e: Ejecutor;
               paso={p}
               pauta={pauta?.pasos.find((x) => x.id === p.id)}
               ui={estadoUi(p, s)}
+              aviso={avisoDelPaso(p, s)}
               cerradoPor={quienCerro(p.id)}
-              onYaLoHice={(nota) => void e.yaLoHice(p.id, nota)}
+              habilitado={habilitado}
+              vistas={p.id === ot.paso_actual ? e.vistas : undefined}
+              onHecho={() => void e.hecho(p.id)}
+              onConfirmar={(motivo) => void e.confirmar(p.id, motivo)}
             />
           ))}
+          {pie && (
+            <>
+              <Divider my="xs" />
+              {pie}
+            </>
+          )}
         </Stack>
       </Container>
-      <Box
-        pos="fixed"
-        bottom={0}
-        left={0}
-        right={0}
-        bg="white"
-        style={{ borderTop: '1px solid var(--mantine-color-roca-2)', paddingBottom: 'env(safe-area-inset-bottom)', zIndex: 10 }}
-      >
-        <Container size={560} px="md" py="sm">
-          <Stack gap="xs">
-            <Button size="xl" h={64} fullWidth disabled={!puedeDeclarar} loading={!!s.pendiente} onClick={() => void e.hecho()}>
-              Hecho
-            </Button>
-            {pie}
-          </Stack>
-        </Container>
-      </Box>
     </Box>
   )
 }

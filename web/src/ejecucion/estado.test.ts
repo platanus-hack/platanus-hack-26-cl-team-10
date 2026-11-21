@@ -1,5 +1,18 @@
 import type { Calificacion, EstadoOt, EstadoPasoApi, Evento, Nivel, PasoEstado, Snapshot } from '../api/tipos'
-import { avance, cerradoPor, contarCierre, estadoUi, inicial, reducir, relevoPendiente, type Accion, type Ejecucion } from './estado'
+import {
+  avance,
+  avisoDelPaso,
+  cerradoPor,
+  contarCierre,
+  estadoUi,
+  inicial,
+  reducir,
+  relevoPendiente,
+  textoParaVoz,
+  tipoDeAlerta,
+  type Accion,
+  type Ejecucion,
+} from './estado'
 
 const cal = (nivel: Nivel): Calificacion => ({ nivel, certeza: 1, capa: 1, motivos: ['m'] })
 
@@ -10,9 +23,15 @@ function ev(id: number, extra: Partial<Evento> = {}): Evento {
   }
 }
 const error = (id: number, extra: Partial<Evento> = {}) => ev(id, { tipo: 'alerta', capa: 1, estado: 'en_conflicto', calificacion: cal('error'), ...extra })
+const saltoDeP1 = (id: number) =>
+  error(id, {
+    detalle: 'ORDEN INVERTIDO: «p2» (guarda = abierta) antes de «p1».',
+    evidencia: { tipo: 'orden', pendiente: 'p1', adelantado: 'p2', sensor: 'guarda', valor: 'abierta', clave: 'orden:p2' },
+  })
 
-function paso(id: string, estado: EstadoPasoApi = 'no_verificado'): PasoEstado {
-  return { id, orden: Number(id.slice(1)), titulo: id, estado, control_critico: false, capa: null, evidencia: null, detalle: null }
+function paso(id: string, estado: EstadoPasoApi = 'no_verificado', extra: Partial<PasoEstado> = {}): PasoEstado {
+  const n = Number(id.slice(1))
+  return { id, orden: n, titulo: `Paso ${n}`, estado, control_critico: false, capa: null, evidencia: null, detalle: null, ...extra }
 }
 function ot(pasoActual: string | null, pasos: PasoEstado[] = [paso('p1'), paso('p2'), paso('p3')]): EstadoOt {
   return { pauta: 'Pauta v1', equipo: 'CT-01', paso_actual: pasoActual, completa: pasoActual === null, pasos, verificados: [], en_conflicto: [], pendientes: [] }
@@ -24,6 +43,7 @@ function snap(bitacora: Evento[], extra: Partial<Snapshot> = {}): Snapshot {
   }
 }
 const correr = (s: Ejecucion, ...acciones: Accion[]) => acciones.reduce(reducir, s)
+const enP1 = reducir(inicial, { tipo: 'estado', estado: ot('p1') })
 
 describe('the stream', () => {
   it('first snapshot does not speak, reconnect snapshot speaks missed errors', () => {
@@ -52,81 +72,118 @@ describe('the stream', () => {
   })
 
   it('a verdict updates its step right away, without touching paso_actual', () => {
-    const s = correr(inicial, { tipo: 'estado', estado: ot('p1') }, { tipo: 'evento', evento: ev(1, { paso_id: 'p1', estado: 'verificado', capa: 1, detalle: 'ok' }) })
+    const s = reducir(enP1, { tipo: 'evento', evento: ev(1, { paso_id: 'p1', estado: 'verificado', capa: 1, detalle: 'ok' }) })
     expect(s.ot?.pasos[0]).toMatchObject({ estado: 'verificado', capa: 1, detalle: 'ok' })
     expect(s.ot?.paso_actual).toBe('p1')
   })
 })
 
 describe('alerts', () => {
-  it('alerta_resuelta and alert overwrite remove the alert', () => {
+  it('alerta_resuelta removes the alert, the snapshot replaces them', () => {
     const s1 = correr(inicial, { tipo: 'evento', evento: error(1) }, { tipo: 'evento', evento: error(2) })
     expect(s1.alertas.map((a) => a.id)).toEqual([1, 2])
-    const s2 = correr(
-      s1,
-      { tipo: 'evento', evento: ev(3, { tipo: 'alerta_resuelta', evidencia: { resuelve: 1 } }) },
-      { tipo: 'evento', evento: ev(4, { tipo: 'sobrescritura', evidencia: { alerta_id: 2 } }) },
-    )
-    expect(s2.alertas).toEqual([])
+    const s2 = reducir(s1, { tipo: 'evento', evento: ev(3, { tipo: 'alerta_resuelta', evidencia: { resuelve: 1 } }) })
+    expect(s2.alertas.map((a) => a.id)).toEqual([2])
+    const s3 = reducir(s2, { tipo: 'snapshot', inicial: false, snapshot: snap([], { alertas_activas: [error(7)] }) })
+    expect(s3.alertas.map((a) => a.id)).toEqual([7])
   })
 
-  it('the snapshot replaces the active alerts', () => {
-    const s = correr(inicial, { tipo: 'evento', evento: error(1) }, { tipo: 'snapshot', inicial: false, snapshot: snap([], { alertas_activas: [error(7)] }) })
-    expect(s.alertas.map((a) => a.id)).toEqual([7])
+  it('classifies each alert by its key, or by its evidence', () => {
+    expect(tipoDeAlerta(error(1, { evidencia: { clave: 'seguridad:GUARDA ABIERTA' } }))).toBe('seguridad')
+    expect(tipoDeAlerta(saltoDeP1(2))).toBe('orden')
+    expect(tipoDeAlerta(error(3, { evidencia: { tipo: 'control', paso: 'p1' } }))).toBe('control')
+    expect(tipoDeAlerta(ev(4, { tipo: 'alerta', capa: 2, evidencia: { clave: 'senal:vibracion' } }))).toBe('senal')
+    expect(tipoDeAlerta(error(5, { evidencia: { tipo: 'sensor', guarda: 'abierta', energia: 'viva' } }))).toBe('seguridad')
+  })
+})
+
+describe('steps', () => {
+  it('maps every API state to its UI state', () => {
+    const s = reducir(inicial, { tipo: 'estado', estado: ot('p2') })
+    expect(estadoUi(paso('p1', 'verificado'), s)).toBe('verificado')
+    expect(estadoUi(paso('p1', 'verificado', { evidencia: { tipo: 'persona', motivo: 'lo vi' } }), s)).toBe('confirmado')
+    expect(estadoUi(paso('p1', 'en_conflicto'), s)).toBe('warn')
+    expect(estadoUi(paso('p2'), s)).toBe('en_curso')
+    expect(estadoUi(paso('p3'), s)).toBe('pendiente')
+  })
+
+  it('an active skip warning puts the skipped step in warn and names what was done early', () => {
+    const s = reducir(enP1, { tipo: 'evento', evento: saltoDeP1(1) })
+    expect(estadoUi(s.ot!.pasos[0], s)).toBe('warn')
+    expect(avisoDelPaso(s.ot!.pasos[0], s)).toBe('Te saltaste este paso: hiciste «Paso 2» antes.')
+    const resuelto = reducir(s, { tipo: 'evento', evento: ev(2, { tipo: 'alerta_resuelta', evidencia: { resuelve: 1, tipo: 'orden' } }) })
+    expect(estadoUi(resuelto.ot!.pasos[0], resuelto)).toBe('en_curso')
+  })
+
+  it('a verdict conflict tells its detail', () => {
+    const s = reducir(enP1, { tipo: 'estado', estado: ot('p1', [paso('p1', 'en_conflicto', { detalle: 'la cámara responde que no (62%)' })]) })
+    expect(avisoDelPaso(s.ot!.pasos[0], s)).toBe('la cámara responde que no (62%)')
+  })
+
+  it('the evidence wait running out puts only the current open step in sin_senal', () => {
+    const s = correr(enP1, { tipo: 'espera_vencida', pasoId: 'p1' }, { tipo: 'espera_vencida', pasoId: 'p2' })
+    expect(estadoUi(s.ot!.pasos[0], s)).toBe('sin_senal')
+    expect(estadoUi(s.ot!.pasos[1], s)).toBe('pendiente')
+    const cerrado = reducir(s, { tipo: 'evento', evento: ev(1, { paso_id: 'p1', estado: 'verificado', capa: 1 }) })
+    expect(estadoUi(cerrado.ot!.pasos[0], cerrado)).toBe('verificado')
+    expect(cerrado.sinSenal).toEqual([])
   })
 })
 
 describe('Hecho', () => {
-  const base = reducir(inicial, { tipo: 'estado', estado: ot('p1') })
-
   it('hecho_enviado is ignored while pendiente', () => {
-    const s = correr(base, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'hecho_enviado', pasoId: 'p2' })
+    const s = correr(enP1, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'hecho_enviado', pasoId: 'p2' })
     expect(s.pendiente).toEqual({ pasoId: 'p1' })
   })
 
-  it('shows comprobando while the declaration is in flight', () => {
-    const s = reducir(base, { tipo: 'hecho_enviado', pasoId: 'p1' })
+  it('shows comprobando while the declaration is in flight, even over a conflict', () => {
+    const conflicto = reducir(inicial, { tipo: 'estado', estado: ot('p1', [paso('p1', 'en_conflicto')]) })
+    const s = reducir(conflicto, { tipo: 'hecho_enviado', pasoId: 'p1' })
     expect(estadoUi(s.ot!.pasos[0], s)).toBe('comprobando')
   })
 
-  it('error clears pendiente and keeps the message', () => {
-    const s = correr(base, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'error', mensaje: 'la pauta ya está completa' })
+  it('error clears pendiente and keeps the message; a new Hecho clears it', () => {
+    const s = correr(enP1, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'error', mensaje: 'la pauta ya está completa' })
     expect(s).toMatchObject({ pendiente: null, mensaje: 'la pauta ya está completa' })
     expect(reducir(s, { tipo: 'mensaje_visto' }).mensaje).toBeNull()
+    expect(reducir(s, { tipo: 'hecho_enviado', pasoId: 'p1' }).mensaje).toBeNull()
   })
 
-  it('a new Hecho clears the previous message', () => {
-    const s = correr(base, { tipo: 'error', mensaje: 'x' }, { tipo: 'hecho_enviado', pasoId: 'p1' })
-    expect(s.mensaje).toBeNull()
-  })
-
-  it('no_verificado answer goes to sin_senal, a later verdict leaves it', () => {
-    const s1 = correr(base, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'hecho_respondido', pasoId: 'p1', estado: 'no_verificado' })
+  it('no_verificado answer or no answer at all goes to sin_senal', () => {
+    const s1 = correr(enP1, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'hecho_respondido', pasoId: 'p1', estado: 'no_verificado' })
     expect(estadoUi(s1.ot!.pasos[0], s1)).toBe('sin_senal')
-    const s2 = reducir(s1, { tipo: 'evento', evento: ev(9, { paso_id: 'p1', estado: 'verificado', capa: 1 }) })
-    expect(estadoUi(s2.ot!.pasos[0], s2)).toBe('verificado')
-    expect(s2.sinSenal).toEqual([])
-  })
-
-  it('no answer within the timeout also goes to sin_senal', () => {
-    const s = correr(base, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'hecho_sin_respuesta', pasoId: 'p1' })
-    expect(s.pendiente).toBeNull()
-    expect(estadoUi(s.ot!.pasos[0], s)).toBe('sin_senal')
+    const s2 = correr(enP1, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'hecho_sin_respuesta', pasoId: 'p1' })
+    expect(s2.pendiente).toBeNull()
+    expect(estadoUi(s2.ot!.pasos[0], s2)).toBe('sin_senal')
   })
 
   it('a verdict for the pending step over the stream clears pendiente', () => {
-    const s = correr(base, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'evento', evento: ev(3, { paso_id: 'p1', estado: 'en_conflicto', capa: 1 }) })
+    const s = correr(enP1, { tipo: 'hecho_enviado', pasoId: 'p1' }, { tipo: 'evento', evento: ev(3, { paso_id: 'p1', estado: 'en_conflicto', capa: 3 }) })
     expect(s.pendiente).toBeNull()
   })
 })
 
-it('maps every API state to its UI state', () => {
-  const s = reducir(inicial, { tipo: 'estado', estado: ot('p2') })
-  expect(estadoUi(paso('p1', 'verificado'), s)).toBe('verificado')
-  expect(estadoUi(paso('p1', 'sobrescrito'), s)).toBe('sobrescrito')
-  expect(estadoUi(paso('p1', 'en_conflicto'), s)).toBe('warn')
-  expect(estadoUi(paso('p2'), s)).toBe('en_curso')
-  expect(estadoUi(paso('p3'), s)).toBe('pendiente')
+describe('what the voice says', () => {
+  const o = ot('p1', [paso('p1'), paso('p2')])
+
+  it('a skip is said as a plain sentence naming the skipped step', () => {
+    expect(textoParaVoz(saltoDeP1(1), o)).toBe('Oye, te saltaste el paso 1: Paso 1. Hazlo antes de seguir.')
+  })
+
+  it('a lost control names the step that came undone', () => {
+    expect(textoParaVoz(error(1, { detalle: 'CONTROL PERDIDO: «Paso 1» se deshizo.', evidencia: { tipo: 'control', paso: 'p1', clave: 'control:p1' } }), o)).toBe(
+      'Oye, se deshizo el paso 1: Paso 1. Vuelve a dejarlo como estaba.',
+    )
+  })
+
+  it('a shouted detail is said in sentence case', () => {
+    expect(textoParaVoz(error(1, { detalle: 'GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.' }), o)).toBe(
+      'Guarda abierta con energía viva. Detener y aislar la energía antes de continuar.',
+    )
+    expect(textoParaVoz(error(2, { detalle: 'el operario declaró «hecho» y reed_bloqueo = abierto' }), o)).toBe(
+      'el operario declaró «hecho» y reed_bloqueo = abierto',
+    )
+  })
 })
 
 it('relevoPendiente is the last handover not yet received', () => {
@@ -136,26 +193,24 @@ it('relevoPendiente is the last handover not yet received', () => {
   expect(relevoPendiente([])).toBeNull()
 })
 
-it('avance counts verified and overwritten steps', () => {
-  expect(avance(ot('p3', [paso('p1', 'verificado'), paso('p2', 'sobrescrito'), paso('p3', 'en_conflicto')]))).toEqual({ hechos: 2, total: 3 })
+it('avance counts every verified step, by evidence or by a person', () => {
+  expect(avance(ot('p3', [paso('p1', 'verificado'), paso('p2', 'verificado', { evidencia: { tipo: 'persona' } }), paso('p3', 'en_conflicto')]))).toEqual({ hechos: 2, total: 3 })
 })
 
-it('contarCierre counts overwrites and warnings', () => {
+it('cerradoPor names who confirmed a step against the evidence, latest first', () => {
+  const persona = (id: number, actor: string) => ev(id, { paso_id: 'p2', estado: 'verificado', actor, evidencia: { tipo: 'persona', motivo: 'lo vi' } })
+  const bitacora = [persona(1, 'operario:1'), persona(2, 'supervisor:1'), ev(3, { paso_id: 'p1', estado: 'verificado' })]
+  expect(cerradoPor(bitacora, 'p2')).toBe('supervisor:1')
+  expect(cerradoPor(bitacora, 'p1')).toBeNull()
+})
+
+it('contarCierre counts confirmations by a person and warnings', () => {
   const bitacora = [
-    ev(1, { tipo: 'sobrescritura' }),
+    ev(1, { paso_id: 'p2', estado: 'verificado', evidencia: { tipo: 'persona' } }),
     error(2),
     ev(3, { estado: 'en_conflicto' }),
     ev(4, { estado: 'verificado' }),
     ev(5, { tipo: 'alerta_resuelta' }),
   ]
-  expect(contarCierre(bitacora)).toEqual({ sobrescritos: 1, avisos: 2 })
-})
-
-it('cerradoPor names who overwrote a step, latest first', () => {
-  const bitacora = [
-    ev(1, { tipo: 'sobrescritura', paso_id: 'p2', actor: 'operario:1' }),
-    ev(2, { tipo: 'sobrescritura', paso_id: 'p2', actor: 'operario:2' }),
-  ]
-  expect(cerradoPor(bitacora, 'p2')).toBe('operario:2')
-  expect(cerradoPor(bitacora, 'p1')).toBeNull()
+  expect(contarCierre(bitacora)).toEqual({ confirmados: 1, avisos: 2 })
 })

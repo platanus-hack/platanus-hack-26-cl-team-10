@@ -12,6 +12,7 @@ import type {
   PasoEstado,
   PasoPauta,
   Pauta,
+  RespuestaConfirmar,
   Sesion,
   Snapshot,
 } from '../api/tipos'
@@ -23,6 +24,21 @@ export type NuevoEvento = Pick<Evento, 'tipo' | 'actor' | 'detalle'> &
 type OtMock = { id: string; eventos: Evento[]; operador: string | null; sesion: Sesion | null; abiertaEn: string }
 
 const GRAVEDAD = { ok: 0, warning: 1, error: 2 } as const
+
+/** Lo que la API responde con 404 o 409; el handler lo traduce. */
+export class ErrorMock extends Error {
+  status: 404 | 409
+  constructor(status: 404 | 409, mensaje: string) {
+    super(mensaje)
+    this.status = status
+  }
+}
+
+/** El valor contrario al que el paso espera: lo que marca un sensor cuando el paso no está hecho. */
+export const CONTRARIO: Record<string, string> = {
+  cerrado: 'abierto', abierto: 'cerrado', cerrada: 'abierta', abierta: 'cerrada', viva: 'cortada', cortada: 'viva',
+  presente: 'ausente', ausente: 'presente', frio: 'caliente', caliente: 'frio',
+}
 
 export class Mundo {
   readonly pauta: Pauta
@@ -43,6 +59,8 @@ export class Mundo {
 
   private ots = new Map<string, OtMock>()
   private siguienteId = 1
+  /** La última lectura de cada sensor, como db.sensores en la API. */
+  private lecturas = new Map<string, string>()
   private suscriptores = new Map<string, Set<(m: MensajeStream) => void>>()
 
   constructor(pauta: Pauta) {
@@ -85,6 +103,12 @@ export class Mundo {
     this.publicar(otId, { tipo: 'evento', evento: ev })
     this.publicar(otId, { tipo: 'calificacion_ot', calificacion: this.calificacion(otId) })
 
+    // Como _resolver_orden: hacer el paso saltado cierra su aviso de orden.
+    if (ev.tipo === 'veredicto' && ev.estado === 'verificado' && ev.paso_id) {
+      const por = ev.evidencia?.tipo === 'persona' ? `lo confirmó ${ev.actor}` : ''
+      this.resolverOrden(otId, ev.paso_id, por)
+    }
+
     const despues = this.estado(otId).paso_actual
     if (despues && despues !== antes) {
       const paso = this.paso(despues)
@@ -97,7 +121,7 @@ export class Mundo {
     return [...this.ot(otId).eventos]
   }
 
-  /** Por paso, manda el último evento que trae estado (veredicto o sobrescritura). */
+  /** Por paso, manda el último veredicto. */
   private ultimosPorPaso(otId: string): Map<string, Evento> {
     const ultimo = new Map<string, Evento>()
     for (const ev of this.ot(otId).eventos) if (ev.paso_id && ev.estado) ultimo.set(ev.paso_id, ev)
@@ -119,7 +143,7 @@ export class Mundo {
         detalle: u?.detalle ?? null,
       }
     })
-    const actual = pasos.find((p) => p.estado !== 'verificado' && p.estado !== 'sobrescrito')
+    const actual = pasos.find((p) => p.estado !== 'verificado')
     const con = (e: string) => pasos.filter((p) => p.estado === e).map((p) => p.id)
     return {
       pauta: `${this.pauta.nombre} v${this.pauta.version}`,
@@ -138,7 +162,6 @@ export class Mundo {
     const cerradas = new Set<unknown>()
     for (const e of eventos) {
       if (e.tipo === 'alerta_resuelta') cerradas.add(e.evidencia?.resuelve)
-      if (e.tipo === 'sobrescritura' && e.evidencia?.alerta_id != null) cerradas.add(e.evidencia.alerta_id)
     }
     return eventos.filter((e) => e.tipo === 'alerta' && !cerradas.has(e.id))
   }
@@ -172,6 +195,10 @@ export class Mundo {
     }
   }
 
+  sesionDe(otId: string): Sesion | null {
+    return this.ot(otId).sesion
+  }
+
   operador(otId: string): string | null {
     return this.ot(otId).operador
   }
@@ -193,7 +220,7 @@ export class Mundo {
     const recibidoDespues = ot.eventos.some((e, i) => i > ultimoEntregado && e.tipo === 'relevo_recibido')
     if (!ot.operador && ultimoEntregado >= 0 && !recibidoDespues) return 'entregada'
     if (!ot.operador) return 'sin_asignar'
-    if (ot.sesion || ot.eventos.some((e) => e.tipo === 'veredicto' || e.tipo === 'sobrescritura')) return 'en_ejecucion'
+    if (ot.sesion || ot.eventos.some((e) => e.tipo === 'veredicto')) return 'en_ejecucion'
     return 'asignada'
   }
 
@@ -211,6 +238,90 @@ export class Mundo {
         operador: ot.operador,
         estado_general: this.estadoGeneral(ot),
       }
+    })
+  }
+
+  // ─── Sensores, orden, controles y confirmación por persona (app/servicios.py) ───
+
+  leer(sensorId: string, valor: string): void {
+    this.lecturas.set(sensorId, valor)
+  }
+
+  lectura(sensorId: string): string | null {
+    return this.lecturas.get(sensorId) ?? null
+  }
+
+  /** POST /ot/{id}/pasos/{paso}/confirmar, con las reglas de servicios.confirmar_por_persona. */
+  confirmar(otId: string, pasoId: string, actor: string, motivo: string): RespuestaConfirmar {
+    const paso = this.paso(pasoId)
+    if (!paso) throw new ErrorMock(404, `paso ${pasoId}`)
+    const actual = this.estado(otId).paso_actual
+    if (!actual) throw new ErrorMock(409, 'la pauta ya está completa')
+    if (paso.id !== actual) throw new ErrorMock(409, `solo se confirma el paso en curso (${actual}): el orden lo impone la app`)
+    if (paso.tipo_evidencia === 'confirmacion') throw new ErrorMock(409, `«${paso.titulo}» es de confirmación: se cierra declarando`)
+    if (!actor || actor === 'sistema') throw new ErrorMock(409, 'un paso lo confirma una persona, no el sistema')
+    if (!motivo.trim()) throw new ErrorMock(409, 'confirmar contra la evidencia necesita un motivo')
+
+    const valor = paso.sensor ? this.lectura(paso.sensor.id) : null
+    const contra = paso.sensor ? { sensor: paso.sensor.id, valor, espera: paso.sensor.espera } : { camara: paso.pregunta_visual }
+    const que = paso.sensor ? `${paso.sensor.id} = ${valor}, se esperaba ${paso.sensor.espera}` : 'la cámara no lo confirmó'
+    const ev = this.agregar(otId, {
+      tipo: 'veredicto', actor, paso_id: paso.id, estado: 'verificado', capa: null, declarado: motivo,
+      evidencia: { tipo: 'persona', motivo, contra },
+      detalle: `${actor} confirma «${paso.titulo}» contra la evidencia (${que}): ${motivo}`,
+    })
+    return {
+      paso: paso.id, estado: 'verificado', capa: null, detalle: ev.detalle, interrumpe: false,
+      evidencia: ev.evidencia, calificacion: ev.calificacion, calificacion_ot: this.calificacion(otId),
+    }
+  }
+
+  /** Una lectura cierra un paso posterior mientras el actual, un control crítico, sigue abierto. */
+  saltar(otId: string, pendiente: PasoPauta, adelantado: PasoPauta): Evento {
+    const sensor = adelantado.sensor!
+    this.leer(sensor.id, sensor.espera)
+    return this.agregar(otId, {
+      tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1,
+      detalle: `ORDEN INVERTIDO: «${adelantado.titulo}» (${sensor.id} = ${sensor.espera}) antes de «${pendiente.titulo}».`,
+      evidencia: {
+        tipo: 'orden', adelantado: adelantado.id, pendiente: pendiente.id, sensor: sensor.id, valor: sensor.espera,
+        clave: `orden:${adelantado.id}`,
+      },
+    })
+  }
+
+  private resolverOrden(otId: string, pasoId: string, por: string): void {
+    for (const a of this.alertasActivas(otId)) {
+      if (a.evidencia?.tipo !== 'orden' || a.evidencia.pendiente !== pasoId) continue
+      this.agregar(otId, {
+        tipo: 'alerta_resuelta', actor: 'sistema', capa: 1,
+        detalle: `Orden resuelto: se hizo el paso saltado (${pasoId}${por ? `, ${por}` : ''}). ${a.detalle}`,
+        evidencia: { resuelve: a.id, tipo: 'orden', sensor: a.evidencia.sensor, valor: a.evidencia.valor },
+      })
+    }
+  }
+
+  /** Un control crítico ya verificado se deshace: su sensor vuelve al valor contrario. */
+  perderControl(otId: string, paso: PasoPauta): Evento {
+    const { id, espera } = paso.sensor!
+    const valor = CONTRARIO[espera] ?? 'otro'
+    this.leer(id, valor)
+    return this.agregar(otId, {
+      tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1,
+      detalle: `CONTROL PERDIDO: «${paso.titulo}» se deshizo (${id} = ${valor}, exige ${espera}).`,
+      evidencia: { tipo: 'control', paso: paso.id, sensor: id, valor, clave: `control:${paso.id}` },
+    })
+  }
+
+  reponerControl(otId: string, alerta: Evento): void {
+    const paso = this.paso(String(alerta.evidencia?.paso))
+    if (!paso?.sensor || !this.alertasActivas(otId).some((a) => a.id === alerta.id)) return
+    const { id, espera } = paso.sensor
+    this.leer(id, espera)
+    this.agregar(otId, {
+      tipo: 'alerta_resuelta', actor: 'sistema', capa: 1,
+      detalle: `Control repuesto con ${id} = ${espera}: ${alerta.detalle}`,
+      evidencia: { resuelve: alerta.id, tipo: 'control', sensor: id, valor: espera },
     })
   }
 

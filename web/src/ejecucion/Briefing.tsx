@@ -1,10 +1,10 @@
 import { Button, Container, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core'
-import { IconAlertTriangle, IconCheck, IconHandFinger } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconHandFinger, IconUserCheck } from '@tabler/icons-react'
 import type { EstadoOt, Evento } from '../api/tipos'
 import { nombreDe } from '../sesion/usuarios'
 import { cerradoPor } from './estado'
 
-const COMO: Record<string, string> = { '1': 'por sensor', '2': 'por señal', '3': 'por cámara' }
+const COMO: Record<string, string> = { '1': 'por sensor', '2': 'por la cámara', '3': 'por la cámara' }
 
 const hora = (ts: string) => new Date(ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
@@ -18,7 +18,7 @@ type Props = {
 
 /** Lo que lee el que llega antes de seguir: qué está cerrado y cómo, qué warns hereda y desde dónde sigue. */
 export function Briefing({ ot, bitacora, alertas, relevo, onRecibido }: Props) {
-  const cerrados = ot.pasos.filter((p) => p.estado === 'verificado' || p.estado === 'sobrescrito')
+  const cerrados = ot.pasos.filter((p) => p.estado === 'verificado')
   const enConflicto = ot.pasos.filter((p) => p.estado === 'en_conflicto')
   const sigue = ot.pasos.find((p) => p.id === ot.paso_actual)
 
@@ -38,17 +38,17 @@ export function Briefing({ ot, bitacora, alertas, relevo, onRecibido }: Props) {
 
         <Stack gap={6}>
           {cerrados.map((p) => {
-            const sobrescrito = p.estado === 'sobrescrito'
-            const actor = sobrescrito ? cerradoPor(bitacora, p.id) : null
+            const porPersona = p.evidencia?.tipo === 'persona'
+            const actor = porPersona ? cerradoPor(bitacora, p.id) : null
             return (
               <Group key={p.id} gap="sm" wrap="nowrap" align="flex-start">
-                <ThemeIcon color="verificado" radius="xl" size="md" style={sobrescrito ? { outline: '3px solid var(--mantine-color-precaucion-6)' } : undefined}>
-                  <IconCheck size={16} />
+                <ThemeIcon color="verificado" radius="xl" size="md" style={porPersona ? { outline: '3px solid var(--mantine-color-precaucion-6)' } : undefined}>
+                  {porPersona ? <IconUserCheck size={16} /> : <IconCheck size={16} />}
                 </ThemeIcon>
                 <Text size="sm">
                   {p.orden}. {p.titulo}{' '}
-                  <Text span size="sm" fw={600} c={sobrescrito ? 'precaucion.9' : 'roca.7'}>
-                    {sobrescrito ? `a la palabra de ${actor ? nombreDe(actor) : 'otro operario'}` : COMO[String(p.capa)] ?? 'por una persona'}
+                  <Text span size="sm" fw={600} c={porPersona ? 'precaucion.9' : 'roca.7'}>
+                    {porPersona ? `confirmado por ${actor ? nombreDe(actor) : 'una persona'}` : COMO[String(p.capa)] ?? 'por una persona'}
                   </Text>
                 </Text>
               </Group>
@@ -57,7 +57,7 @@ export function Briefing({ ot, bitacora, alertas, relevo, onRecibido }: Props) {
         </Stack>
 
         {(enConflicto.length > 0 || alertas.length > 0) && (
-          <Paper p="md" bg="precaucion.6" radius="sm">
+          <Paper p="md" bg="precaucion.6">
             <Stack gap={6}>
               <Group gap={6}>
                 <IconAlertTriangle size={20} />

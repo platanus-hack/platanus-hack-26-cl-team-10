@@ -13,14 +13,14 @@ export function estadoDe(ot: OtResumen): EstadoGeneral {
 
 export type Avance = { cerrados: number; total: number; nombre: string; pasoActual: string | null }
 
-/** Un paso cuenta como cerrado si está verificado o sobrescrito a la palabra del operario. */
+/** Un paso cuenta como cerrado si está verificado: por su evidencia o porque una persona lo confirmó. */
 export function avanceDe(estado: EstadoOt): Avance {
   const actual = estado.pasos.find((p) => p.id === estado.paso_actual)
   return {
-    cerrados: estado.pasos.filter((p) => p.estado === 'verificado' || p.estado === 'sobrescrito').length,
+    cerrados: estado.pasos.filter((p) => p.estado === 'verificado').length,
     total: estado.pasos.length,
     nombre: estado.pauta,
-    pasoActual: actual ? `${actual.orden} · ${actual.titulo}` : null,
+    pasoActual: actual ? `${actual.orden}. ${actual.titulo}` : null,
   }
 }
 

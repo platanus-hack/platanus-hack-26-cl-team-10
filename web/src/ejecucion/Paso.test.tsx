@@ -2,72 +2,137 @@ import { MantineProvider } from '@mantine/core'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
-import type { PasoEstado } from '../api/tipos'
-import { PAUTA_DEMO } from '../mocks/pauta'
+import type { PasoEstado, PasoPauta } from '../api/tipos'
+import { PAUTA_DEMO, PAUTA_LOTO } from '../mocks/pauta'
 import { tema } from '../tema'
 import { Paso } from './Paso'
 
-const pp1 = PAUTA_DEMO.pasos[0]
-const p1: PasoEstado = {
-  id: 'p1', orden: 1, titulo: pp1.titulo, estado: 'no_verificado', control_critico: true, capa: null, evidencia: null, detalle: null,
+const enPauta = (id: string): PasoPauta => [...PAUTA_DEMO.pasos, ...PAUTA_LOTO.pasos].find((p) => p.id === id)!
+const estado = (id: string, extra: Partial<PasoEstado> = {}): PasoEstado => {
+  const p = enPauta(id)
+  return { id, orden: p.orden, titulo: p.titulo, estado: 'no_verificado', control_critico: p.control_critico, capa: null, evidencia: null, detalle: null, ...extra }
 }
 
-function pintar(props: Partial<ComponentProps<typeof Paso>> = {}) {
-  const onYaLoHice = vi.fn()
+function pintar(id: string, props: Partial<ComponentProps<typeof Paso>> = {}) {
+  const onHecho = vi.fn()
+  const onConfirmar = vi.fn()
   render(
     <MantineProvider theme={tema}>
-      <Paso paso={p1} pauta={pp1} ui="pendiente" cerradoPor={null} onYaLoHice={onYaLoHice} {...props} />
+      <Paso paso={estado(id)} pauta={enPauta(id)} ui="pendiente" aviso={null} cerradoPor={null} habilitado onHecho={onHecho} onConfirmar={onConfirmar} {...props} />
     </MantineProvider>,
   )
-  return onYaLoHice
+  return { onHecho, onConfirmar }
 }
 
-it('warn shows the detail and sends the note on Confirmar', async () => {
-  const onYaLoHice = pintar({ paso: { ...p1, estado: 'en_conflicto', capa: 1, detalle: 'reed_bloqueo = abierto' }, ui: 'warn' })
-  expect(screen.getByText('reed_bloqueo = abierto')).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Ya lo hice' }))
-  await userEvent.type(screen.getByPlaceholderText('Nota (opcional)'), 'puse el candado')
-  await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
-  expect(onYaLoHice).toHaveBeenCalledWith('puse el candado')
+const boton = (nombre: string) => screen.queryByRole('button', { name: nombre })
+
+describe('a step that closes on its own', () => {
+  it('shows its instruction, says how it closes, and offers no button', () => {
+    pintar('p1', { ui: 'en_curso' })
+    expect(screen.getByText(enPauta('p1').instruccion)).toBeInTheDocument()
+    expect(screen.getByText('Se cierra solo cuando el sensor lo marque.')).toBeInTheDocument()
+    expect(boton('Hecho')).toBeNull()
+    expect(boton('Ya lo hice')).toBeNull()
+  })
+
+  it('a camera step with a detection closes when the camera sees it, and says what it sees now', () => {
+    pintar('l2', { ui: 'en_curso', vistas: [{ clase: 'mouse', conf: 0.92 }, { clase: 'cup', conf: 0.6 }] })
+    expect(screen.getByText('Se cierra solo cuando la cámara lo vea.')).toBeInTheDocument()
+    expect(screen.getByText('La cámara ve: mouse, cup')).toBeInTheDocument()
+    expect(boton('Hecho')).toBeNull()
+  })
 })
 
-it('an empty note is sent as no note', async () => {
-  const onYaLoHice = pintar({ ui: 'sin_senal' })
-  expect(screen.getByText('No llega la señal del sensor')).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Ya lo hice' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
-  expect(onYaLoHice).toHaveBeenCalledWith(undefined)
+describe('a step that closes by declaring', () => {
+  it('a confirmation step offers Hecho', async () => {
+    const { onHecho } = pintar('p6', { ui: 'en_curso' })
+    await userEvent.click(boton('Hecho')!)
+    expect(onHecho).toHaveBeenCalledOnce()
+  })
+
+  it('a camera step without a detection offers Hecho, which asks the camera', () => {
+    pintar('p3', { ui: 'en_curso' })
+    expect(boton('Hecho')).toBeInTheDocument()
+    expect(screen.getByText('Al tocar «Hecho», la cámara lo revisa.')).toBeInTheDocument()
+  })
+
+  it('comprobando says it is checking', () => {
+    pintar('p3', { ui: 'comprobando' })
+    expect(screen.getByText('Comprobando…')).toBeInTheDocument()
+    expect(boton('Hecho')).toBeNull()
+  })
 })
 
-it('Cancelar closes the note without overriding', async () => {
-  const onYaLoHice = pintar({ paso: { ...p1, estado: 'en_conflicto', detalle: 'x' }, ui: 'warn' })
-  await userEvent.click(screen.getByRole('button', { name: 'Ya lo hice' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
-  expect(onYaLoHice).not.toHaveBeenCalled()
-  expect(screen.queryByPlaceholderText('Nota (opcional)')).toBeNull()
+describe('when the API warns', () => {
+  it('a skipped step shows why and asks for a reason before confirming', async () => {
+    const { onConfirmar } = pintar('p1', { ui: 'warn', aviso: 'Te saltaste este paso: hiciste «Retirar la guarda» antes.' })
+    expect(screen.getByText('Te saltaste este paso: hiciste «Retirar la guarda» antes.')).toBeInTheDocument()
+    await userEvent.click(boton('Ya lo hice')!)
+    expect(boton('Confirmar')).toBeDisabled()
+    await userEvent.type(screen.getByLabelText('Motivo'), 'el reed está dañado; el candado está puesto')
+    await userEvent.click(boton('Confirmar')!)
+    expect(onConfirmar).toHaveBeenCalledWith('el reed está dañado; el candado está puesto')
+  })
+
+  it('a quick reason fills the motivo', async () => {
+    const { onConfirmar } = pintar('p1', { ui: 'warn', aviso: 'x' })
+    await userEvent.click(boton('Ya lo hice')!)
+    await userEvent.click(boton('El sensor no lo marca')!)
+    await userEvent.click(boton('Confirmar')!)
+    expect(onConfirmar).toHaveBeenCalledWith('El sensor no lo marca')
+  })
+
+  it('Cancelar closes the reason without confirming', async () => {
+    const { onConfirmar } = pintar('p1', { ui: 'warn', aviso: 'x' })
+    await userEvent.click(boton('Ya lo hice')!)
+    await userEvent.click(boton('Cancelar')!)
+    expect(onConfirmar).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('Motivo')).toBeNull()
+  })
+
+  it('a camera conflict offers to try again or to confirm', () => {
+    pintar('p3', { paso: estado('p3', { estado: 'en_conflicto', capa: 3 }), ui: 'warn', aviso: 'la cámara responde que no (62%)' })
+    expect(boton('Hecho')).toBeInTheDocument()
+    expect(boton('Ya lo hice')).toBeInTheDocument()
+  })
+
+  it('no signal on a sensor step offers Ya lo hice', () => {
+    pintar('p1', { ui: 'sin_senal' })
+    expect(screen.getByText('Todavía no se marca.')).toBeInTheDocument()
+    expect(boton('Ya lo hice')).toBeInTheDocument()
+  })
+
+  it('a confirmation step never offers Ya lo hice: it closes by declaring', () => {
+    pintar('p6', { ui: 'sin_senal' })
+    expect(boton('Ya lo hice')).toBeNull()
+    expect(boton('Hecho')).toBeInTheDocument()
+  })
+
+  it('actions are disabled while the connection is down', () => {
+    pintar('p3', { ui: 'warn', aviso: 'x', habilitado: false })
+    expect(boton('Hecho')).toBeDisabled()
+    expect(boton('Ya lo hice')).toBeDisabled()
+  })
 })
 
-it('sobrescrito says whose word closed it', () => {
-  pintar({ paso: { ...p1, estado: 'sobrescrito' }, ui: 'sobrescrito', cerradoPor: 'OP1' })
-  expect(screen.getByText('a la palabra de OP1')).toBeInTheDocument()
-})
+describe('a closed step', () => {
+  it('confirmed by a person says who and why', () => {
+    pintar('p1', {
+      paso: estado('p1', { estado: 'verificado', evidencia: { tipo: 'persona', motivo: 'el reed está dañado' } }),
+      ui: 'confirmado',
+      cerradoPor: 'OP1',
+    })
+    expect(screen.getByText('Confirmado por OP1: «el reed está dañado»')).toBeInTheDocument()
+  })
 
-it('the current step shows its instruction', () => {
-  pintar({ ui: 'en_curso' })
-  expect(screen.getByText(pp1.instruccion)).toBeInTheDocument()
-})
+  it('verified says by what', () => {
+    pintar('p1', { paso: estado('p1', { estado: 'verificado', capa: 1 }), ui: 'verificado' })
+    expect(screen.getByText('por sensor')).toBeInTheDocument()
+    expect(boton('Ya lo hice')).toBeNull()
+  })
 
-it('comprobando says it is checking', () => {
-  pintar({ ui: 'comprobando' })
-  expect(screen.getByText('Comprobando…')).toBeInTheDocument()
-})
-
-it('verificado and pendiente offer no Ya lo hice', () => {
-  pintar({ paso: { ...p1, estado: 'verificado' }, ui: 'verificado' })
-  expect(screen.queryByRole('button', { name: 'Ya lo hice' })).toBeNull()
-})
-
-it('pendiente offers no Ya lo hice either', () => {
-  pintar({ ui: 'pendiente' })
-  expect(screen.queryByRole('button', { name: 'Ya lo hice' })).toBeNull()
+  it('a future step offers nothing', () => {
+    pintar('p2', { ui: 'pendiente' })
+    expect(screen.queryAllByRole('button')).toEqual([])
+  })
 })

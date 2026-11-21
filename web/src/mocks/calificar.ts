@@ -13,9 +13,9 @@ export function calificarEvento(ev: Graduable): Calificacion | null {
       return con('ok')
     case 'alerta':
       return con(ev.capa === 1 ? 'error' : 'warning')
-    case 'sobrescritura':
-      return con('warning')
     case 'veredicto':
+      // Una persona confirmó el paso contra la evidencia: se le cree, pero no en silencio.
+      if (ev.evidencia?.tipo === 'persona') return con('warning', 0.5, [ev.detalle, 'lo confirmó una persona contra la evidencia'])
       if (ev.capa === 1) return con(conflicto ? 'error' : 'ok')
       if (ev.capa === 3) {
         const confianza = typeof ev.evidencia?.confianza === 'number' ? ev.evidencia.confianza : 1

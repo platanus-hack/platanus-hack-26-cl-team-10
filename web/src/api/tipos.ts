@@ -2,7 +2,7 @@
 // Verificado contra app/servicios.py (snapshot, evento_dict) y app/cerebro.py (estado_de_ot).
 // Lo marcado «propuesta» todavía no existe en el back: lo imita el mock.
 
-export type EstadoPasoApi = 'no_verificado' | 'verificado' | 'en_conflicto' | 'sobrescrito' // sobrescrito: propuesta
+export type EstadoPasoApi = 'no_verificado' | 'verificado' | 'en_conflicto'
 export type Nivel = 'ok' | 'warning' | 'error'
 
 export type Calificacion = { nivel: Nivel; certeza: number; capa: number | null; motivos: string[] }
@@ -18,7 +18,6 @@ export type TipoEvento =
   | 'relevo_entregado'
   | 'relevo_recibido'
   | 'propuesta_pauta'
-  | 'sobrescritura' // propuesta
 
 export type Evento = {
   id: number
@@ -69,6 +68,8 @@ export type PasoPauta = {
   control_critico: boolean
   pregunta_visual: string | null
   sensor: { id: string; espera: string } | null
+  /** La cámara del edge lo cierra sola cuando su modelo ve (o deja de ver) esta clase. */
+  deteccion?: { clase: string; presente: boolean } | null
 }
 
 export type Pauta = { id: string; nombre: string; version: number; equipo: string; pasos: PasoPauta[] }
@@ -107,6 +108,9 @@ export type MensajeStream =
   | { tipo: 'evento'; evento: Evento }
   | { tipo: 'calificacion_ot'; calificacion: CalificacionOt }
   | { tipo: 'sesion'; sesion: Sesion; video: unknown }
+  | { tipo: 'detecciones'; edge_id: string; modelo?: string; ts: number; objetos: Deteccion[] }
+
+export type Deteccion = { clase: string; conf: number; caja?: number[] }
 
 export type RespuestaDeclarar = {
   paso: string
@@ -114,7 +118,10 @@ export type RespuestaDeclarar = {
   capa: number | null
   detalle: string
   interrumpe: boolean
+  evidencia?: Record<string, unknown> | null
+  calificacion?: Calificacion | null
+  calificacion_ot?: CalificacionOt
 }
 
-/** Propuesta: uno de los dos ids. */
-export type CuerpoSobrescribir = { actor: string; paso_id?: string; alerta_id?: number; nota?: string }
+/** POST /ot/{id}/pasos/{paso}/confirmar: una persona cierra el paso en curso aunque la evidencia no lo muestre. */
+export type RespuestaConfirmar = RespuestaDeclarar

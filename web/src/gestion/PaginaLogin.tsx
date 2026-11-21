@@ -5,7 +5,7 @@ import { guardarSesion, useSesion } from '../sesion/sesion'
 import { USUARIOS, type Usuario } from '../sesion/usuarios'
 import { inicioDe } from './estados'
 
-const ROL = { supervisor: 'Asigna y reasigna las OT', operador: 'Operador · ejecuta las OT en terreno' } as const
+const ROL = { supervisor: 'Asigna y reasigna las OT', operador: 'Ejecuta las OT en terreno' } as const
 
 function OpcionUsuario({ usuario, onElegir }: { usuario: Usuario; onElegir: () => void }) {
   const Icono = usuario.rol === 'supervisor' ? IconClipboardList : IconTool

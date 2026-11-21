@@ -3,25 +3,37 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore } from 'react'
 import { api, ApiError, urlStream } from '../api/cliente'
-import type { Pauta } from '../api/tipos'
+import { cierraSolo } from '../api/pauta'
+import type { Deteccion, Pauta } from '../api/tipos'
 import { config } from '../config'
 import type { Usuario } from '../sesion/usuarios'
-import { inicial, reducir } from './estado'
+import { inicial, reducir, saltoDe, textoParaVoz } from './estado'
 import { conectarStream } from './stream'
 import { useWakeLock } from './useWakeLock'
 import { voz } from './voz'
 
-const REINTENTO_SESION_MS = 3000
+/** Tiempos de la pantalla. Los tests los acortan. */
+export const tiempos = {
+  /** Si abrir la sesión falla, se reintenta: sin sesión las lecturas del edge no llegan a la OT. */
+  reintentoSesionMs: 3000,
+  /** Cuánto espera un paso que se cierra solo antes de ofrecer «Ya lo hice» (sensor caído, cámara sin vista). */
+  esperaEvidenciaMs: 20_000,
+}
 
 function mensajeDe(e: unknown): string {
   if (e instanceof ApiError) return e.tipo === 'regla' && e.regla ? e.regla : e.message
   return 'Algo falló. Intenta de nuevo.'
 }
 
+const mismasClases = (a: Deteccion[], b: Deteccion[]) =>
+  a.length === b.length && a.every((d, i) => d.clase === b[i].clase)
+
 export function useEjecucion(otId: string, usuario: Usuario) {
   const [s, dispatch] = useReducer(reducir, inicial)
   const [pauta, setPauta] = useState<Pauta | null>(null)
   const [sesionDesde, setSesionDesde] = useState<number | null>(null)
+  /** Lo último que vio la cámara del edge, para mostrarlo en el paso de cámara en curso. */
+  const [vistas, setVistas] = useState<Deteccion[]>([])
   const audio = useSyncExternalStore(voz.alCambiar, voz.estado)
 
   // Lo que leen los callbacks sin volver a crearse en cada render.
@@ -37,7 +49,7 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     )
   }, [otId])
 
-  // La pauta trae la instrucción y el tipo de evidencia de cada paso.
+  // La pauta trae la instrucción y cómo se cierra cada paso.
   useEffect(() => {
     let vivo = true
     ;(async () => {
@@ -74,6 +86,9 @@ export function useEjecucion(otId: string, usuario: Usuario) {
               case 'calificacion_ot':
                 dispatch({ tipo: 'calificacion', calificacion: m.calificacion })
                 break
+              case 'detecciones':
+                setVistas((antes) => (mismasClases(antes, m.objetos) ? antes : m.objetos))
+                break
             }
           },
           conexion: (conexion) => dispatch({ tipo: 'conexion', conexion }),
@@ -82,16 +97,32 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     [otId, refrescar],
   )
 
-  // Cada evento de nivel error suena una vez, en orden.
+  // Cada evento de nivel error suena una vez, en orden, dicho como frase.
   useEffect(() => {
     if (s.porSonar.length === 0) return
-    for (const ev of s.porSonar) voz.decir(ev.detalle)
+    for (const ev of s.porSonar) voz.decir(textoParaVoz(ev, actual.current.ot))
     dispatch({ tipo: 'sonado', ids: s.porSonar.map((e) => e.id) })
   }, [s.porSonar])
 
   useWakeLock(sesionDesde !== null && !s.ot?.completa)
 
-  // Sin sesión las lecturas del edge no llegan a la OT: si abrirla falla, se reintenta.
+  // Un paso que se cierra solo y lleva rato sin evidencia: se ofrece confirmarlo a mano.
+  const pasoActual = s.ot?.pasos.find((p) => p.id === s.ot?.paso_actual)
+  const pasoEnPauta = pauta?.pasos.find((p) => p.id === pasoActual?.id)
+  const esperando =
+    sesionDesde !== null &&
+    !!pasoActual &&
+    pasoActual.estado === 'no_verificado' &&
+    !!pasoEnPauta &&
+    cierraSolo(pasoEnPauta) &&
+    !saltoDe(s, pasoActual.id)
+  const pasoEsperando = esperando ? pasoActual.id : null
+  useEffect(() => {
+    if (!pasoEsperando) return
+    const reloj = setTimeout(() => dispatch({ tipo: 'espera_vencida', pasoId: pasoEsperando }), tiempos.esperaEvidenciaMs)
+    return () => clearTimeout(reloj)
+  }, [pasoEsperando])
+
   const [fallosSesion, setFallosSesion] = useState(0)
   const abrirSesion = useCallback(async () => {
     try {
@@ -104,7 +135,7 @@ export function useEjecucion(otId: string, usuario: Usuario) {
   }, [otId, usuario.id])
   useEffect(() => {
     if (fallosSesion === 0 || sesionDesde !== null) return
-    const reintento = setTimeout(() => void abrirSesion(), REINTENTO_SESION_MS)
+    const reintento = setTimeout(() => void abrirSesion(), tiempos.reintentoSesionMs)
     return () => clearTimeout(reintento)
   }, [fallosSesion, sesionDesde, abrirSesion])
 
@@ -114,25 +145,28 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     await abrirSesion()
   }, [abrirSesion])
 
-  const hecho = useCallback(async () => {
-    const { ot, pendiente } = actual.current
-    const pasoId = ot?.paso_actual
-    if (!pasoId || pendiente) return
-    dispatch({ tipo: 'hecho_enviado', pasoId })
-    try {
-      const r = await api.declarar(otId, usuario.id, 'hecho')
-      dispatch({ tipo: 'hecho_respondido', pasoId, estado: r.estado })
-    } catch (e) {
-      if (e instanceof ApiError && e.tipo === 'timeout') dispatch({ tipo: 'hecho_sin_respuesta', pasoId })
-      else dispatch({ tipo: 'error', mensaje: mensajeDe(e) })
-    }
-    refrescar()
-  }, [otId, usuario.id, refrescar])
-
-  const sobrescribir = useCallback(
-    async (cuerpo: { paso_id?: string; alerta_id?: number; nota?: string }) => {
+  /** «Hecho» en un paso que se cierra declarando (confirmación, o cámara que se juzga al declarar). */
+  const hecho = useCallback(
+    async (pasoId: string) => {
+      if (actual.current.pendiente) return
+      dispatch({ tipo: 'hecho_enviado', pasoId })
       try {
-        await api.sobrescribir(otId, { actor: usuario.id, ...cuerpo })
+        const r = await api.declarar(otId, usuario.id, 'hecho', pasoId)
+        dispatch({ tipo: 'hecho_respondido', pasoId, estado: r.estado })
+      } catch (e) {
+        if (e instanceof ApiError && e.tipo === 'timeout') dispatch({ tipo: 'hecho_sin_respuesta', pasoId })
+        else dispatch({ tipo: 'error', mensaje: mensajeDe(e) })
+      }
+      refrescar()
+    },
+    [otId, usuario.id, refrescar],
+  )
+
+  /** «Ya lo hice»: la persona confirma el paso en curso contra la evidencia, con un motivo. */
+  const confirmar = useCallback(
+    async (pasoId: string, motivo: string) => {
+      try {
+        await api.confirmarPaso(otId, pasoId, usuario.id, motivo)
       } catch (e) {
         dispatch({ tipo: 'error', mensaje: mensajeDe(e) })
       }
@@ -140,9 +174,6 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     },
     [otId, usuario.id, refrescar],
   )
-
-  const yaLoHice = useCallback((pasoId: string, nota?: string) => sobrescribir({ paso_id: pasoId, nota }), [sobrescribir])
-  const yaLoHiceAlerta = useCallback((alertaId: number, nota?: string) => sobrescribir({ alerta_id: alertaId, nota }), [sobrescribir])
 
   /** Devuelve true si el turno quedó entregado. */
   const entregarTurno = useCallback(async (): Promise<boolean> => {
@@ -171,12 +202,12 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     s,
     pauta,
     audio,
+    vistas,
     sesionAbierta: sesionDesde !== null,
     sesionDesde,
     comenzar,
     hecho,
-    yaLoHice,
-    yaLoHiceAlerta,
+    confirmar,
     entregarTurno,
     recibirTurno,
     probarAudio: () => voz.probar(),

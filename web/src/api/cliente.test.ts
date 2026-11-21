@@ -79,3 +79,26 @@ it('posts the operator to asignar', async () => {
   expect(pedidos).toEqual([{ url: 'https://x/ot/ot-1/asignar', metodo: 'POST', cuerpo: { operador: 'operario:2' } }])
   expect(r.operador).toBe('operario:2')
 })
+
+it('confirms a step with actor and motivo', async () => {
+  const pedidos: { url: string; cuerpo: unknown }[] = []
+  const c = crearCliente('https://x', async (url, init) => {
+    pedidos.push({ url: String(url), cuerpo: JSON.parse(String(init?.body)) })
+    return json({ paso: 'p1', estado: 'verificado', capa: null, detalle: 'ok', interrumpe: false })
+  })
+  const r = await c.confirmarPaso('ot-1', 'p1', 'operario:1', 'el reed está dañado; el candado está puesto')
+  expect(pedidos).toEqual([
+    { url: 'https://x/ot/ot-1/pasos/p1/confirmar', cuerpo: { actor: 'operario:1', motivo: 'el reed está dañado; el candado está puesto' } },
+  ])
+  expect(r.estado).toBe('verificado')
+})
+
+it('declarar sends the step the screen was showing', async () => {
+  let cuerpo: unknown = null
+  const c = crearCliente('https://x', async (_url, init) => {
+    cuerpo = JSON.parse(String(init?.body))
+    return json({ paso: 'p6', estado: 'verificado', capa: null, detalle: 'ok', interrumpe: false })
+  })
+  await c.declarar('ot-1', 'operario:1', 'hecho', 'p6')
+  expect(cuerpo).toEqual({ actor: 'operario:1', texto: 'hecho', paso_id: 'p6' })
+})
