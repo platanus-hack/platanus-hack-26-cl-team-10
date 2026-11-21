@@ -3,8 +3,8 @@
 | Término | Definición en este proyecto | Fuente |
 |---|---|---|
 | **Operario aumentado con IA** | La premisa del producto: la IA acompaña al operario como copiloto, comprueba cada paso y le avisa en el momento. No lo reemplaza | [Planteamiento del equipo](./fuentes/2026-11-21-planteamiento-del-equipo.md) |
-| **ICP** | Perfil de cliente ideal: una operación que ya tiene procedimientos estandarizados y no tiene cómo verificarlos | [CONTEXTO](./CONTEXTO.md) |
-| **OT** | Orden de trabajo de mantenimiento. Tiene campos estructurados (equipo, fechas, estado) y un texto libre que escribe el técnico | Uso en SAP PM y CMMS |
+| **ICP** | Perfil de cliente ideal: una operación con equipos críticos, de cualquier rubro, que ya tiene procedimientos estandarizados y no tiene cómo verificarlos | [CONTEXTO](./CONTEXTO.md) |
+| **OT** | Orden de trabajo de mantenimiento. Tiene campos estructurados (equipo, fechas, estado) y un texto libre que escribe el técnico. En este proyecto es la instancia ejecutable de la pauta vigente, y se genera por calendario, por pedido o por una falla | Uso en SAP PM y CMMS; [ADR-0006](../decisions/0006-la-ot-nace-del-protocolo.md) |
 | **Bitácora** | Registro de lo que se hizo en una OT. En este proyecto es la lista de pasos verificados con su evidencia, no un texto escrito después | [CONTEXTO](./CONTEXTO.md) |
 | **Pauta** | Procedimiento paso a paso para ejecutar una tarea de mantenimiento. El equipo también le dice protocolo o procedimiento estandarizado | — |
 | **Pauta comprobable** | Pauta en la que cada paso declara qué evidencia lo cierra: un sensor, la cámara o la confirmación del operario | [ADR-0004](../decisions/0004-verificacion-por-capas.md) |

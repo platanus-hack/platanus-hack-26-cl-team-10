@@ -10,6 +10,7 @@
 | Intersección con la visión del operario y verificación de enlaces | Francisco | hecho | 2026-11-21. 37 referencias en [REFERENCIAS](../projects/research/REFERENCIAS.md) |
 | Leer completo Sabetta et al. 2026 | Francisco | hecho | [Nota](../projects/research/notas/2026-sabetta-gemini-robotics-er.md). Originó el [ADR-0002](../decisions/0002-la-aplicacion-impone-el-orden-de-la-pauta.md) |
 | Pasar el planteamiento del equipo al knowledge | Francisco | hecho | 2026-11-21. [Transcripción íntegra](../domain/fuentes/2026-11-21-planteamiento-del-equipo.md); entró a CONTEXTO, FLUJO, GLOSARIO y originó el [ADR-0004](../decisions/0004-verificacion-por-capas.md) |
+| Alinear el knowledge con el planteamiento: producto general, OT desde el protocolo y predicción como visión | Francisco | hecho | 2026-11-21. [ADR-0005](../decisions/0005-producto-general-mineria-como-caso-del-demo.md), [ADR-0006](../decisions/0006-la-ot-nace-del-protocolo.md); cambiaron CONTEXTO, FLUJO y GLOSARIO |
 | Costo por hora de detención de un equipo minero crítico | Francisco | en curso | Hay dos fuentes de prensa, (38) y (39): USD 100.000 a 300.000 por hora según un proveedor. Falta una fuente de operador, de Cochilco o de un estudio identificable antes de llevar la cifra al pitch |
 | Subir las hojas «IEEE ampliado» (25) y «Fuera de IEEE» (50) de la planilla | Francisco | pendiente | Solo está la hoja «Papers» (42). Exportarlas a CSV en [fuentes/](../projects/research/fuentes/), idealmente con la columna de enlaces |
 | Verificar las referencias mencionadas sin fuente | — | pendiente | [Lista](../projects/research/REFERENCIAS.md#mencionadas-sin-verificar). Al verificarla, cada una recibe el número siguiente de su grupo |
@@ -24,10 +25,10 @@
 
 | Tarea | Responsable | Estado | Notas |
 |---|---|---|---|
-| Aceptar o rechazar los ADR 0001 a 0004 | Equipo | pendiente | Ver el [registro](../decisions/decisions.md) |
+| Aceptar o rechazar los ADR 0002 a 0006 y la decisión de dejar la predicción como visión | Equipo | pendiente | Ver el [registro](../decisions/decisions.md). El 0001 quedó reemplazado por el 0005 |
 | ¿Hay hardware a mano para el demo? | Equipo | hecho | Sí: Arduino, Raspberry Pi, ESP, sensores, receptores y motores ([planteamiento](../domain/fuentes/2026-11-21-planteamiento-del-equipo.md)) |
 | ¿El demo es la correa a escala con el bloqueo saltado? | Equipo | pendiente | Ver [Demo propuesto](../architecture/FLUJO.md#demo-propuesto). Define qué sensores se montan |
-| ¿La predicción de fallas y la OT automática siguen en el alcance del demo? | Equipo | pendiente | El handoff original las incluye; el planteamiento del 2026-11-21 no las menciona ([CONTEXTO](../domain/CONTEXTO.md#la-visión)) |
+| ¿La predicción de fallas y la OT automática siguen en el alcance del demo? | Francisco | hecho | 2026-11-21. No: quedan como visión ([registro](../decisions/decisions.md)). Falta que el equipo la acepte |
 | Formato del relevo de turno | Equipo | pendiente | Resumen, consultas o *briefing* |
 | Canal del aviso al operario | Equipo | pendiente | El equipo propone un auricular. Confirmar qué dispositivo es «la muela» de la transcripción |
 | Algoritmo de la capa de aprendizaje automático | Equipo | pendiente | Para el demo basta un umbral ([ADR-0004](../decisions/0004-verificacion-por-capas.md)) |

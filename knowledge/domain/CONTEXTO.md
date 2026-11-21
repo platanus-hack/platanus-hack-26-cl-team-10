@@ -16,7 +16,9 @@ El caso que usa el equipo es la detención no planificada de una correa transpor
 
 **Un operario aumentado con IA.** La IA acompaña al operario como copiloto mientras ejecuta: comprueba cada paso de la pauta y le avisa en el momento si se salta uno, para que el error se corrija ahí y no después. El resultado es un operario que ejecuta bien, con menos accidentes y con una bitácora confiable, gracias a pautas suficientes y verificables. La bitácora no se escribe: es la lista de pasos verificados con su evidencia. `Confirmada` por el equipo ([planteamiento del 2026-11-21](./fuentes/2026-11-21-planteamiento-del-equipo.md)).
 
-**Cliente objetivo.** Una operación que ya tiene procedimientos estandarizados y no tiene cómo verificarlos. A la que no los tiene, el sistema le redacta el primero observando al operario, y desde ahí sigue el mismo flujo. `Candidata a validar`.
+**Cliente objetivo.** Una operación con equipos críticos, de cualquier rubro, que ya tiene procedimientos estandarizados y no tiene cómo verificarlos. A la que no los tiene, el sistema le redacta el primero observando al operario, y desde ahí sigue el mismo flujo. La minería es el caso del demo, no el límite del producto ([ADR-0005](../decisions/0005-producto-general-mineria-como-caso-del-demo.md)). `Candidata a validar`.
+
+**El flujo.** El cliente entrega su protocolo; el sistema lo extrae y lo vuelve una pauta comprobable; de esa pauta se genera la OT cada vez que hay que ejecutar la tarea, sea por calendario, por pedido o por una falla ([ADR-0006](../decisions/0006-la-ot-nace-del-protocolo.md)); cámara, sensores, analítica y modelos de lenguaje guían la ejecución paso a paso.
 
 Lo que entrega, según el planteamiento del equipo. `Candidata a validar`:
 
@@ -27,14 +29,7 @@ Lo que entrega, según el planteamiento del equipo. `Candidata a validar`:
 
 La verificación no depende solo de un modelo de lenguaje: hay sensores y reglas deterministas debajo. Ver [ADR-0004](../decisions/0004-verificacion-por-capas.md).
 
-El objetivo de largo plazo, del handoff original, es un ciclo cerrado con datos reales:
-
-1. Cruzar telemetría IoT con el texto de las OT y bitácoras.
-2. Predecir fallas y abrir OT automáticas.
-3. Ejecutar con pautas estandarizadas que quedan auditadas y verificadas, incluso con imágenes.
-4. Usar lo auditado para actualizar las pautas matriz.
-
-El planteamiento del 2026-11-21 no menciona predecir fallas ni abrir OT automáticas: ahí la OT nace del procedimiento que el cliente ya tiene. Si los pasos 1 y 2 siguen en el alcance del demo está abierto en [SEGUIMIENTO](../roadmap/SEGUIMIENTO.md).
+**Hacia dónde va.** El handoff original del research proponía además cruzar la telemetría con las OT históricas, predecir fallas y abrir OT automáticas. El planteamiento del 2026-11-21 no lo menciona, y la evidencia para predecir es la más débil del flujo. Queda como visión: fuera del alcance del demo y del pitch, salvo como una línea de hacia dónde va ([registro de decisiones](../decisions/decisions.md)). `Candidata a validar`.
 
 La entrada a una operación es *plug & play*: sensores pegados al equipo, la cámara del operario y el archivo exportado de OT, sin tocar el PLC ni pedirle integración a TI. El orden es identificar el proceso, estandarizar, mejorar y recién después predecir. La mayoría de las soluciones de mantenimiento predictivo parten por predecir y chocan con datos malos; nosotros llegamos a predecir como consecuencia. `Candidata a validar`.
 
@@ -48,14 +43,14 @@ Tres cuidados con el planteamiento, que salen de la evidencia; el detalle está 
 
 ## Industrias
 
-Lo que une a los posibles clientes no es el rubro sino el tipo de activo: equipos críticos con pautas repetibles. Ver [ADR-0001](../decisions/0001-mineria-como-mercado-de-entrada.md).
+Lo que une a los posibles clientes no es el rubro sino el tipo de activo: equipos críticos con pautas repetibles. El producto es el mismo en los tres; la minería es el caso del demo. Ver [ADR-0005](../decisions/0005-producto-general-mineria-como-caso-del-demo.md).
 
 | | Minería | Eléctrica | Construcción |
 |---|---|---|---|
 | Encaje | Alto: equipos críticos, pautas repetibles, detención cara | Alto: subestaciones, transformadores y líneas con pauta | Medio: trabajo por proyecto, salvo la flota de maquinaria |
 | Seguridad | Bloqueo y etiquetado en equipos con energía acumulada | El más fuerte: el bloqueo evita la electrocución | Alta, pero ligada a la obra y no al mantenimiento |
 | Papers en la revisión IEEE (42) | 1 | 13 | 0 |
-| Rol | Mercado de entrada | Primera expansión y fuente de métodos | Expansión vía maquinaria pesada |
+| Rol | Caso del demo | Mismo flujo en subestaciones; fuente de métodos | Mismo flujo en la flota de maquinaria |
 
 ## Cómo nos evalúan
 
@@ -65,7 +60,7 @@ Track Physical World. Criterios y pesos de la hackathon: `Confirmada`.
 |---|---|---|---|
 | Aspecto técnico | 25% | Nada construido. Hay hardware: Arduino, Raspberry Pi, ESP, sensores y motores | Un sistema que corra en vivo y donde se vea una parte difícil |
 | Ejecución | 20% | Nada construido | Un demo de punta a punta que no se caiga |
-| Ambición | 20% | El operario aumentado con IA y el ciclo cerrado | Mostrar el ciclo completo, aunque sea a escala chica |
+| Ambición | 20% | El operario aumentado con IA, un producto que sirve a cualquier operación crítica y el ciclo de mejora de la pauta | Mostrar el ciclo completo, aunque sea a escala chica |
 | Impacto | 20% | La evidencia del problema y el contexto minero chileno | Una fuente de operador o de estudio para el costo por hora; hoy es la estimación de un proveedor (38) |
 | Originalidad | 15% | Los vacíos de la literatura | Que el vacío se note en el demo, no solo en una lámina |
 
