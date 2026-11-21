@@ -4,6 +4,7 @@
 
 | ADR | Fecha | Decisión | Estado |
 |---|---|---|---|
+| [0014](./0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md) | 2026-11-21 | El operario deja observaciones; la pauta mejora desde señales repetidas en el mismo paso, que valida el supervisor y se comprueban con la versión nueva; las métricas se leen de la bitácora por pauta, equipo, paso y día, nunca por persona | `proposed` |
 | [0013](./0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md) | 2026-11-21 | Factum se presenta como el copiloto del operario: cada trabajo queda verificado sin un supervisor encima. No se vende como un supervisor que mira todo el tiempo; el conocimiento del operario y las métricas son visión hasta construirlos | `proposed` |
 | [0012](./0012-login-y-clientes-cada-empresa-ve-lo-suyo.md) | 2026-11-21 | El servicio para clientes pide login; cada empresa ve solo sus OT y las pautas que el equipo le habilitó, con roles supervisor y operador | `proposed` |
 | [0011](./0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md) | 2026-11-21 | Los protocolos y las pautas se cargan por un servicio interno del equipo, atribuidos entre sí de muchos a muchos; el cliente solo pide OT de las pautas aprobadas | `proposed` |

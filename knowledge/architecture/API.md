@@ -15,6 +15,7 @@
 | Servicio | Quién | Cómo entra | Qué hace |
 |---|---|---|---|
 | Entrar y Cliente (`/auth`, `/yo`, `/cliente`) | Las personas de una empresa cliente | Token Bearer de `POST /auth/entrar`, 12 horas | El supervisor pide OT de una pauta habilitada y las asigna. El operador ve las suyas y las une a una estación |
+| Mejora continua y métricas (`/cliente/...`) | El operario observa; el supervisor valida y mide | Token Bearer; las métricas y las propuestas, solo supervisor | Observaciones, propuestas de mejora de la pauta con su validación, y métricas por pauta, equipo, paso y día ([ADR-0014](../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)) |
 | Ejecución de la OT (`/ot/{id}/...`) | El operario, desde la interfaz | Nada | Estado por paso, declarar, confirmar, relevo y bitácora |
 | Estación (`/edge`, `/sensores`, `/sesiones`) | El edge y la interfaz | Nada, salvo la clave del equipo para quitarle una estación a otra OT | Lecturas, video y la sesión que une estación y OT |
 | Interno (`/interno`) | El equipo de Factum | Clave del equipo en `X-Clave-Equipo` | Protocolos, pautas, aprobaciones, empresas, personas y qué pautas tiene cada empresa |
@@ -35,7 +36,7 @@ Ordenado por lo que más pesa. Cada punto dice cómo se comprobó.
 
 | Tema | Qué pide | Cómo está | Estado |
 |---|---|---|---|
-| Documento de la API | OpenAPI con esquemas de seguridad y grupos (67) | `/openapi.json` 3.1 con `Token` (http bearer), `ClaveEquipo` (apiKey en cabecera), ocho grupos y un nombre único por operación | `Confirmada` |
+| Documento de la API | OpenAPI con esquemas de seguridad y grupos (67) | `/openapi.json` 3.1 con `Token` (http bearer), `ClaveEquipo` (apiKey en cabecera), nueve grupos y un nombre único por operación | `Confirmada` |
 | Mandar el token | `Authorization: Bearer <token>` (69, 2.1) | Así entra, y la cabecera ya no figura como parámetro suelto, que OpenAPI manda ignorar (67) | `Confirmada` |
 | 401 con desafío | Un 401 lleva `WWW-Authenticate` (70, 15.5.2; 69, 3) | El del login lo lleva (`Bearer`). El de la clave del equipo no | `Brecha` menor |
 | Ocultar lo ajeno | Se puede responder 404 en vez de 403 para no confirmar que algo existe (70, 15.5.4) | Una OT de otra empresa responde 404 | `Confirmada` |

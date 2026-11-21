@@ -28,9 +28,9 @@ Cada promesa del pitch se dice según lo que hay detrás:
 |---|---|---|
 | Copiloto que verifica cada paso y avisa | Como algo que funciona | La verificación en tres capas y el aviso, construidos ([ADR-0004](./0004-verificacion-por-capas.md)) |
 | El reporte no omite nada | Como algo que funciona, en lo que se verifica | La bitácora de pasos verificados con su evidencia, que solo agrega |
-| La pauta mejora con cada ejecución | Como algo que funciona a escala chica | `GET /supervisor/propuestas` agrupa los pasos en conflicto por pauta, nunca por persona |
-| El operario genera conocimiento | Como hacia dónde va, hasta que exista | No construido: el operario no tiene cómo dejar una observación |
-| Métricas y datos por API | La API, como algo que funciona; las métricas, como hacia dónde va | El servicio para clientes pide y lista OT con login ([ADR-0012](./0012-login-y-clientes-cada-empresa-ve-lo-suyo.md)). No hay rutas de métricas |
+| La pauta mejora con cada ejecución | Como algo que funciona | Propuestas por paso desde la evidencia, validadas por el supervisor y comprobadas con la versión nueva ([ADR-0014](./0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)) |
+| El operario genera conocimiento | Como algo que funciona | El operario deja observaciones en la bitácora, y las de `pauta` y `seguridad` alimentan las propuestas ([ADR-0014](./0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)) |
+| Métricas y datos por API | Como algo que funciona | Cinco GET de métricas por pauta, equipo, paso y día, además del servicio para clientes ([ADR-0012](./0012-login-y-clientes-cada-empresa-ve-lo-suyo.md), [ADR-0014](./0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)) |
 
 En el knowledge, quien ejecuta es el **operario**. «Operador» es su rol en la API.
 
@@ -42,16 +42,13 @@ En el knowledge, quien ejecuta es el **operario**. «Operador» es su rol en la 
 ## Consecuencias
 
 - El pitch suma el reporte que no omite nada y la API, que ya existen, sin prometer lo que falta.
-- El conocimiento del operario y las métricas quedan como visión hasta construirlos. Si se construyen, cambia la tabla de arriba, no la frase.
+- El conocimiento del operario y las métricas quedaban como visión. Francisco decidió construirlos el mismo día ([ADR-0014](./0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)), y la tabla de arriba ya lo dice.
 - La respuesta a «¿me van a vigilar?» parte de esta decisión: Factum mira el paso y la pauta, no a la persona.
 
 ## Pendientes y no verificado
 
-- Si el conocimiento del operario y las métricas se construyen para el demo o se presentan como visión. Lo decide Francisco. `Brecha`.
-- La observación del operario pide un tipo de evento nuevo en `app/contratos.py`, que es el contrato entre los cuatro frentes. `Brecha`.
 - La postura de privacidad completa: qué se graba, quién lo ve y cuánto dura. Esta decisión solo fija que no se agrupa por persona. `Brecha`.
 - Que «el reporte no omite nada» vale para lo que la pauta verifica. Lo que pasa fuera de un paso no queda registrado. `Candidata a validar`.
-- Los textos que lee el jurado (`project-description.md` y el *oneliner* de `platanus-hack-project.jsonc`) siguen con el pitch anterior. `Brecha`.
 
 ## Referencias
 

@@ -131,7 +131,7 @@ Límite conocido y aceptado: esto funciona mientras el registro de una OT quepa 
 
 ## Cuándo el sistema propone cambiar la pauta
 
-Una desviación suelta no es una propuesta. La propuesta nace cuando la **misma** desviación se repite en el mismo paso, en ejecuciones distintas.
+Una desviación suelta no es una propuesta. La propuesta nace cuando el **mismo** paso de la misma versión tiene señales en ejecuciones distintas: alertas de orden o de control, conflictos, pasos confirmados por una persona porque la evidencia no los vio, y lo que observaron los operarios. El supervisor la valida, el equipo escribe la versión nueva y la misma propuesta dice después si el paso dejó de desviarse ([ADR-0014](../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)).
 
 La vista del supervisor **agrupa por pauta y por área antes que por persona**: un paso que se saltan muchos operarios que normalmente cumplen apunta a la pauta, no a ellos (REFERENCIAS 33). Y dos cuidados que son regla, no consejo:
 
