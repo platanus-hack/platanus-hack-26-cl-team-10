@@ -88,9 +88,21 @@ def estados(d, dist_previa, dist_max, temp_max):
 
 
 def hilo_sensores(servidor, edge_id, puerto, stats, dist_max, temp_max):
+    """Si el puerto no se puede abrir (otro proceso aún lo suelta, USB desconectado) o se
+    cae, reintenta cada 2 s: un hilo de sensores muerto no avisa a nadie."""
+    while True:
+        try:
+            _leer_y_enviar(servidor, edge_id, puerto, stats, dist_max, temp_max)
+        except (serial.SerialException, OSError) as e:
+            print(f"[sensores] ESP32 no disponible ({e}); reintento en 2 s")
+            time.sleep(2)
+
+
+def _leer_y_enviar(servidor, edge_id, puerto, stats, dist_max, temp_max):
     url = f"{servidor}/edge/{edge_id}/lecturas"
     seq = int(time.time() * 1000)  # crece entre reinicios: el servidor descarta seq repetidos
     esp = serial.Serial(puerto, 115200, timeout=2)
+    print(f"[sensores] leyendo {puerto}")
     dist_previa = None
     while True:
         try:
@@ -109,8 +121,10 @@ def hilo_sensores(servidor, edge_id, puerto, stats, dist_max, temp_max):
         try:
             urllib.request.urlopen(req, timeout=3).read()
             stats["lect"] += len(lote)
-        except OSError as e:
+        except OSError as e:  # el servidor no responde: se pierde este lote, el puerto sigue abierto
             print(f"[sensores] no se pudo enviar: {e}")
+        except Exception as e:  # noqa: BLE001 - cualquier otra falla del envío no debe matar la lectura
+            print(f"[sensores] error al enviar: {e!r}")
 
 
 def main():
