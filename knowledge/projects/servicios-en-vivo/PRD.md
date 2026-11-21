@@ -25,6 +25,7 @@
 - **O5 —** Un aviso vive mientras su condición dure: cuando el sensor se corrige, el aviso sale de la pantalla y la bitácora registra que se resolvió.
 - **O6 —** El video del edge entra a la API, la UI lo ve en vivo y un paso de cámara se juzga con el último cuadro, que queda como evidencia.
 - **O7 —** Un agente que se conecta encuentra en `/agente` todo lo que necesita para usar la API sin leer el código.
+- **O8 —** Cada criterio de aceptación se puede correr contra un servidor vivo, local o el del demo, y ver qué se llamó, qué respondió y qué llegó por el stream.
 - **NO1 —** No es un broker ni varios servicios desplegados: una aplicación y una base ([ADR-0003](../../decisions/0003-patrones-de-arquitectura-para-el-mvp.md)).
 - **NO2 —** No redacta la justificación en texto; entrega los motivos y la redacción es del frente 4.
 
@@ -67,17 +68,26 @@ CUANDO llega una lectura del edge
   ENTONCES
     la regla de seguridad que EMPIEZA entra como alerta de capa 1 (una vez mientras dura)
     si es el sensor del paso actual y lo cierra, entra su veredicto
-    si es numérica y se aleja de su historia, entra una alerta de capa 2 (una vez)
+    si deshace un control crítico ya verificado, entra una alerta de capa 1 (control)
+    si cierra un paso posterior mientras el actual, crítico, sigue abierto, entra una alerta de capa 1 (orden)
+    si es numérica y se aleja de su historia normal, entra una alerta de capa 2 (una vez); diez iguales seguidas, sensor pegado
     todo sale por el stream de esa OT, con su calificación
 CUANDO la condición de una alerta abierta desaparece
   ENTONCES entra alerta_resuelta que la apunta, y el aviso deja de venir en calificacion.avisos
+CUANDO el sensor del paso en curso lleva más de 5 s sin lecturas
+  ENTONCES la OT baja a warning: el sensor puede haberse caído
+CUANDO una persona confirma el paso en curso contra la evidencia, con motivo
+  ENTONCES el paso queda verificado por persona (capa nula), la OT en warning, y la seguridad se sigue evaluando con los sensores
+CUANDO el operario declara
+  SI nombra un paso que su sensor ya cerró → se registra y no se evalúa contra el siguiente
+  SI el paso es de cámara y no hay un cuadro de los últimos 10 s → no se verifica y no se le pregunta al juez
 
 Promesas: un modelo nunca contradice a un sensor; solo la capa 1 llega a ERROR; la bitácora solo agrega.
 ```
 
 ## 7. Alcance
 
-**Entra:** sesión por edge, ingreso de lecturas en lote, atribución, revisión por capa, calificación, resolución de alertas, WebSocket por OT con reconexión, video del edge (entrada, MJPEG y cuadro para el juez), CRUD de pautas, aprobaciones, OT, sesiones, eventos (lectura) y sensores, la guía `/agente` y el servidor del demo.
+**Entra:** sesión por edge, ingreso de lecturas en lote, atribución, revisión por capa, calificación, resolución de alertas, WebSocket por OT con reconexión, video del edge (entrada, MJPEG y cuadro para el juez), CRUD de pautas, aprobaciones, OT, sesiones, eventos (lectura) y sensores, la guía `/agente`, el banco de pruebas `/casos` y el servidor del demo.
 
 **No entra:** la redacción de la justificación (frente 4), el juez real de cámara (frente 3), la voz del operario (frente 2), varias estaciones con el mismo `sensor_id`.
 
@@ -97,8 +107,10 @@ Promesas: un modelo nunca contradice a un sensor; solo la capa 1 llega a ERROR; 
 - **CA12 —** **Dado** un pico de vibración con alerta abierta, **cuando** la señal vuelve a lo normal, **entonces** la alerta de capa 2 se resuelve.
 - **CA13 —** **Dado** la cámara del edge transmitiendo, **cuando** el operario declara un paso de cámara, **entonces** el juez recibe el último cuadro y ese cuadro queda como evidencia del veredicto.
 - **CA14 —** **Dado** un agente nuevo, **cuando** lee `/agente`, **entonces** encuentra todas las rutas de la API con la URL del servidor.
+- **CA16 —** **Dado** un paso en curso cuyo sensor no muestra lo hecho, **cuando** una persona lo confirma con su motivo en `POST /ot/{id}/pasos/{paso}/confirmar`, **entonces** el paso queda verificado por persona, la bitácora guarda quién, por qué y qué marcaba el sensor, la OT queda en `warning`, y las reglas de seguridad siguen mandando. Sin motivo, como `sistema` o sobre un paso que no es el actual, recibe 409.
+- **CA15 —** **Dado** el banco `/casos` apuntando a un servidor, **cuando** se corre un criterio, **entonces** usa una OT y un edge propios de la corrida, muestra cada llamada con su respuesta y cada mensaje del stream, compara lo esperado con lo obtenido, y al terminar deja los sensores como estaban y su sesión cerrada.
 
-Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.py`, `tests/test_stream.py`, `tests/test_api_crud.py` y `tests/test_video.py`.
+Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.py`, `tests/test_stream.py`, `tests/test_api_crud.py`, `tests/test_video.py`, `tests/test_casos.py` y `tests/test_confirmar.py`, y del CA1 al CA14 su tarjeta en `/casos`; `tests/test_casos.py` falla si un criterio queda sin tarjeta.
 
 ## 9. Riesgos y decisiones abiertas
 
@@ -106,7 +118,7 @@ Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.p
 | --- | --- | --- | --- | --- |
 | Umbrales de la calificación | medio | ¿5 s de frescura, 75 % de confianza de cámara y 3,5 desvíos aguantan el ensayo sin falsas alarmas? `Candidata a validar` | Frente 3 | Francisco |
 | Abrir una OT | medio | ADR-0003 pide que una persona la confirme; hoy el endpoint acepta `actor=sistema` | Equipo | Equipo |
-| Sensores globales | bajo | Con dos estaciones que usen el mismo `sensor_id` se pisan. ¿El demo tiene una sola? | Frente 3 | Francisco |
+| Sensores globales | medio | Con dos estaciones que usen el mismo `sensor_id` se pisan. ¿El demo tiene una sola? Además la calificación de **toda** OT, con o sin sesión, se calcula con esos sensores: mientras una estación tiene la guarda abierta con energía viva, cualquier otra OT responde `error` aunque la alerta no entre a su bitácora (se ve en la tarjeta CA2 de `/casos`). Por lo mismo, correr `/casos` contra un servidor con una OT en sesión puede mostrarle un aviso ajeno; el banco lo advierte y restaura los sensores. ¿Los sensores pasan a ser por edge? | Frente 3 | Francisco |
 | Juez de cámara | alto | El stub ya recibe el cuadro pero no lo mira. ¿Qué VLM y con qué latencia? `Brecha` | Frente 3 | Frente 3 |
 | Autenticación | medio | El servidor del demo es abierto: cualquiera con la URL escribe. ¿Basta para el demo? | Equipo | Francisco |
 | Justificación | medio | ¿El frente 4 redacta sobre los motivos de cada evento o solo al cambiar de nivel? `Brecha` | Frente 4 | Frente 4 |

@@ -1,0 +1,75 @@
+{
+  "id": "pauta-excavadora-01",
+  "nombre": "Cambio de manguera hidráulica en excavadora",
+  "version": 1,
+  "equipo": "excavadora EX-12, obra",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Bajar los implementos al suelo",
+      "instruccion": "Apoya el balde y la pluma en el suelo antes de detener la máquina.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "implementos", "espera": "en_suelo" }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Apagar el motor y retirar la llave",
+      "instruccion": "Detén el motor y guarda la llave contigo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "motor", "espera": "apagado" }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Bloquear la palanca de seguridad hidráulica",
+      "instruccion": "Sube la palanca de bloqueo de los mandos hidráulicos y pon el candado.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "palanca_seguridad", "espera": "bloqueada" }
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Aliviar la presión hidráulica",
+      "instruccion": "Mueve los mandos con el motor detenido hasta que el circuito quede sin presión.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "presion_hidraulica", "espera": "aliviada" }
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Cambiar la manguera",
+      "instruccion": "Retira la manguera dañada e instala la nueva con sus dos conexiones apretadas.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿Está la manguera nueva instalada, con sus dos conexiones apretadas y sin fugas a la vista?"
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Retirar el bloqueo de la palanca",
+      "instruccion": "Saca el candado y baja la palanca de bloqueo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "palanca_seguridad", "espera": "desbloqueada" }
+    },
+    {
+      "id": "p7",
+      "orden": 7,
+      "titulo": "Arrancar y probar sin fugas",
+      "instruccion": "Arranca, mueve cada mando dos veces y confirma que no hay fugas.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1
+    }
+  ]
+}

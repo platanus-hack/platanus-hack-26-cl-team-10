@@ -1,0 +1,85 @@
+{
+  "id": "pauta-celda-mt-01",
+  "nombre": "Mantenimiento de interruptor en celda de media tensión",
+  "version": 1,
+  "equipo": "celda MT-07, subestación S-1",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Abrir el interruptor y el seccionador",
+      "instruccion": "Abre el interruptor de la celda y después el seccionador, hasta tener corte visible.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "seccionador", "espera": "abierto" }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Bloquear y etiquetar el mando",
+      "instruccion": "Pon el candado y la tarjeta en el mando del seccionador.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "candado_mando", "espera": "cerrado" }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Verificar ausencia de tensión",
+      "instruccion": "Comprueba con el detector, en las tres fases, que no hay tensión.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "tension", "espera": "ausente" }
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Poner a tierra y en cortocircuito",
+      "instruccion": "Conecta el equipo de puesta a tierra primero a tierra y después a las tres fases.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "tierra", "espera": "puesta" }
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Delimitar y señalizar la zona de trabajo",
+      "instruccion": "Cierra la zona con barrera o cinta y cuelga el letrero de trabajo en curso.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿Está la zona cerrada con barrera o cinta y el letrero de trabajo en curso a la vista?"
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Retirar las tierras",
+      "instruccion": "Terminado el trabajo, desconecta la puesta a tierra, primero las fases y después la tierra.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "tierra", "espera": "retirada" }
+    },
+    {
+      "id": "p7",
+      "orden": 7,
+      "titulo": "Retirar el bloqueo",
+      "instruccion": "Saca el candado y la tarjeta del mando.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "candado_mando", "espera": "abierto" }
+    },
+    {
+      "id": "p8",
+      "orden": 8,
+      "titulo": "Reponer el servicio",
+      "instruccion": "Cierra el seccionador y el interruptor, y confirma con el centro de control que la celda quedó en servicio.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1
+    }
+  ]
+}

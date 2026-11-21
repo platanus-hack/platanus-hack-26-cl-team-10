@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Monitoreo de OT en tiempo real · base de datos, servicios y conexión con el front</title>
+<style>
+:root{
+  --brand:#2f5f9e; --brand-soft:#e7eef8;
+  --ink:#1f2933; --muted:#5b6673; --line:#d9dee5; --soft:#f1f3f6; --tinte:#f7f8fa; --paper:#fff;
+  --ok:#2f7d5b; --ok-bg:#e6f4ec; --warn:#8a5a00; --warn-bg:#fdf6d8; --bad:#b42318; --bad-bg:#fdecea; --deep:#1c2430;
+  --fuente:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--fuente);color:var(--ink);background:var(--tinte);font-size:16px;line-height:1.55}
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+header{background:var(--paper);border-bottom:1px solid var(--line);padding:32px 0 28px}
+.chip{display:inline-block;font-size:15px;padding:3px 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand);margin-right:6px}
+.chip--warn{background:var(--warn-bg);color:var(--warn)}
+h1{font-size:32px;line-height:1.2;margin:14px 0 8px;letter-spacing:-.01em}
+.lead{color:var(--muted);font-size:18px;max-width:880px;margin:0}
+section{margin:36px 0}
+h2{font-size:23px;margin:0 0 12px}
+h3{font-size:18px;margin:0 0 8px}
+p{max-width:880px}
+code{font-family:var(--mono);font-size:15px;background:var(--soft);padding:1px 5px;border-radius:5px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px}
+.diagrama{overflow-x:auto}
+.diagrama svg{display:block;width:100%;min-width:1100px;height:auto;font-family:var(--fuente)}
+.leyenda{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px;color:var(--muted);font-size:15px}
+.leyenda span{display:inline-flex;align-items:center;gap:8px}
+.leyenda i{display:inline-block;width:18px;height:14px;border-radius:4px;border:1.5px solid}
+.leyenda i.ln{width:30px;height:0;border-width:2px 0 0;border-radius:0}
+table{width:100%;border-collapse:collapse;font-size:15px;background:var(--paper)}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--soft);font-weight:600}
+td.k{font-weight:600;white-space:nowrap}
+pre{font-family:var(--mono);font-size:15px;background:var(--deep);color:#e8edf3;padding:16px 18px;border-radius:12px;overflow-x:auto;margin:0}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:860px){.dos{grid-template-columns:1fr}}
+ol,ul{padding-left:22px;margin:0}
+li{margin:5px 0}
+.aviso{border-left:4px solid var(--warn);background:var(--warn-bg);padding:12px 16px;border-radius:8px;max-width:880px}
+.nota{color:var(--muted);font-size:15px}
+
+/* svg */
+svg .api{fill:#fbfcfd;stroke:var(--brand);stroke-width:2.5}
+svg .apil{font-size:19px;font-weight:700;fill:var(--brand)}
+svg .band{fill:var(--soft);stroke:none}
+svg .bl{font-size:15px;font-weight:600;fill:var(--muted)}
+svg .n{fill:var(--paper);stroke:#c5ccd6;stroke-width:1.5}
+svg .n.core{fill:var(--brand-soft);stroke:var(--brand);stroke-width:2}
+svg .n.gw{fill:var(--paper);stroke:var(--ink);stroke-width:1.5}
+svg .n.repo{fill:var(--paper);stroke:#9aa5b3;stroke-dasharray:0}
+svg .n.edge{fill:var(--ok-bg);stroke:var(--ok)}
+svg .nt{font-size:17px;font-weight:700;fill:var(--ink)}
+svg .ns{font-size:15px;fill:var(--muted)}
+svg .front{fill:var(--deep)}
+svg .ft{font-size:18px;font-weight:700;fill:#f4f6f9}
+svg .fs{font-size:15px;fill:#b8c2cf}
+svg .tb{fill:var(--paper);stroke:#8792a2;stroke-width:1.5}
+svg .tbh{stroke:#8792a2;stroke-width:1}
+svg .hub{fill:#fff8ec;stroke:var(--warn);stroke-width:2}
+svg .tt{font-family:var(--mono);font-size:16px;font-weight:700;fill:var(--ink)}
+svg .tc{font-family:var(--mono);font-size:14px;fill:var(--muted)}
+svg .l{stroke:var(--ink);stroke-width:1.8;fill:none}
+svg .fk{stroke:#8792a2;stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+svg .bus{stroke:var(--ok);stroke-width:4;fill:none}
+svg .busl{font-size:15px;font-weight:600;fill:var(--ok)}
+svg .nota{font-size:15px;fill:#98a2b0;font-style:italic}
+svg .s0{fill:var(--soft);stroke:#8792a2;stroke-width:2}
+svg .s1{fill:var(--ok-bg);stroke:var(--ok);stroke-width:2}
+svg .s2{fill:var(--warn-bg);stroke:var(--warn);stroke-width:2}
+svg .s3{fill:var(--bad-bg);stroke:var(--bad);stroke-width:2}
+svg .stt{font-size:19px;font-weight:700;fill:var(--ink)}
+svg .tr{font-size:15px;fill:var(--ink)}
+svg .trr{font-size:15px;font-weight:600;fill:var(--bad)}
+svg .lr{stroke:var(--bad);stroke-width:2.2;fill:none}
+svg .lg{stroke:#8792a2;stroke-width:2;fill:none;stroke-dasharray:7 5}
+svg .n.video{fill:#f3eefb;stroke:#6b4fa0}
+svg .vl{font-size:15px;font-weight:600;fill:#6b4fa0}
+svg .lv{stroke:#6b4fa0;stroke-width:2.2;fill:none;stroke-dasharray:9 5}
+svg .card{fill:var(--paper);stroke:#c5ccd6;stroke-width:1.5}
+svg .card.core{fill:#f6f9fd;stroke:var(--brand);stroke-width:2}
+svg .ct{font-size:20px;font-weight:700;fill:var(--ink)}
+svg .cr{font-size:15px;fill:var(--muted)}
+svg .pi{fill:var(--ok-bg);stroke:var(--ok);stroke-width:1.5}
+svg .pl{fill:#f3eefb;stroke:#6b4fa0;stroke-width:1.5}
+svg .pp{fill:var(--paper);stroke:#9aa5b3;stroke-width:1.3}
+svg .po{fill:var(--soft);stroke:#8792a2;stroke-width:1.3}
+svg .pt{font-size:15px;font-weight:700;fill:var(--ink)}
+svg .pd{font-size:15px;fill:var(--muted)}
+svg .lgn{stroke:#8792a2;stroke-width:2;fill:none;stroke-dasharray:7 5}
+</style>
+</head>
+<body>
+
+<div style="background:#fdf3d6;color:#7a4f00;border-bottom:1px solid #e8d49a;padding:12px 24px;font:15px/1.5 Inter,system-ui,sans-serif">
+  <b>Exploración inicial del 21-nov-2026, superada.</b> Lo que se construyó es más simple: una aplicación con SQLite y sin broker (ADR-0003). Para lo vigente, ver <a href="../../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md">ADR-0007</a>, el <a href="./PRD.md">PRD</a> y <a href="../../architecture/servicios.html">servicios.html</a>.
+</div>
+<header>
+  <div class="wrap">
+    <span class="chip">Documento de diseño</span><span class="chip chip--warn">Borrador v3 · 21-nov-2026</span>
+    <h1>El front escucha una compañía y su botella; por detrás, cada OT tiene un estado con su certeza</h1>
+    <p class="lead">El front pide un snapshot por REST y después escucha los datos por WebSocket. El video entra a la API y sigue dos caminos: uno rápido, que lo entrega al front por WebRTC sin tocarlo, y otro que lo analiza con CV para calificar junto a los sensores. Por detrás, el MonitorService arma ventanas con lo que publica el edge, el ScoringService les pone score y certeza, y la máquina de estados de cada OT decreta OK, WARNING o ERROR solo cuando la certeza alcanza. La API es un nodo con cuatro capas adentro, y solo la última toca la base.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section>
+  <h2>La arquitectura: la API como un nodo con cuatro capas</h2>
+  <p>El patrón es una <b>arquitectura en capas</b> (n-tier) con el reparto <b>Controller → Service → Repository</b>, y un <b>API Gateway</b> como capa de entrada. Cada capa solo llama a la de abajo: el gateway no consulta tablas, un servicio no escribe SQL y un repositorio no decide nada. Los servicios de lógica además se hablan por un bus de eventos (el mismo broker MQTT), así el MonitorService no sabe cuántos front están escuchando.</p>
+  <div class="card diagrama">
+<svg viewBox="0 0 1640 1230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Arquitectura de la API por capas">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f2933"/></marker></defs>
+<rect class="api" x="240" y="130" width="1380" height="1085" rx="22"/>
+<text class="apil" x="262" y="162">API · gateway → servicios → repositorios → tablas (Postgres + TimescaleDB)</text>
+<rect class="band" x="256" y="180" width="1348" height="112" rx="14"/>
+<text class="bl" x="270" y="201">1 · Gateway</text>
+<rect class="band" x="256" y="310" width="1348" height="185" rx="14"/>
+<text class="bl" x="270" y="331">2 · Lógica (servicios)</text>
+<rect class="band" x="256" y="512" width="1348" height="120" rx="14"/>
+<text class="bl" x="270" y="533">3 · Repositorios</text>
+<rect class="band" x="256" y="650" width="1348" height="546" rx="14"/>
+<text class="bl" x="270" y="671">4 · Tablas</text>
+<rect class="front" x="1030" y="20" width="552" height="78" rx="14"/>
+<text class="ft" x="1050" y="50">FRONT · equipo</text>
+<text class="fs" x="1050" y="76">REST: snapshot · WebSocket: datos · WebRTC: video</text>
+<rect class="n edge" x="20" y="300" width="180" height="86" rx="12"/>
+<text class="nt" x="34" y="326">EDGE</text>
+<text class="ns" x="34" y="348">sensores + cámara</text>
+<text class="ns" x="34" y="367">MQTT y RTSP</text>
+<rect class="n" x="20" y="410" width="180" height="100" rx="12"/>
+<text class="nt" x="34" y="436">Broker MQTT</text>
+<text class="ns" x="34" y="458">lectura.cruda</text>
+<text class="ns" x="34" y="477">lectura · estado</text>
+<text class="ns" x="34" y="496">alerta</text>
+<path class="l" d="M110,386 V410" marker-end="url(#ar)"/>
+<rect class="n video" x="460" y="212" width="172" height="64" rx="12"/>
+<text class="nt" x="474" y="238">Video · MediaMTX</text>
+<text class="ns" x="474" y="260">sin transcodificar</text>
+<rect class="n gw" x="1030" y="212" width="172" height="64" rx="12"/>
+<text class="nt" x="1044" y="238">WS /stream</text>
+<text class="ns" x="1044" y="260">datos en vivo</text>
+<rect class="n gw" x="1220" y="212" width="362" height="64" rx="12"/>
+<text class="nt" x="1234" y="238">REST /api</text>
+<text class="ns" x="1234" y="260">auth · validación · rutas</text>
+<path class="lv" d="M200,320 H225 V244 H460" marker-end="url(#ar)"/>
+<text class="vl" x="290" y="236">RTSP</text>
+<path class="lv" d="M1030,59 H546 V212" marker-start="url(#ar)"/>
+<text class="vl" x="566" y="50">WebRTC: camino rápido, el video no espera a la CV</text>
+<path class="l" d="M1116,98 V212" marker-end="url(#ar)" marker-start="url(#ar)"/>
+<path class="l" d="M1401,98 V212" marker-end="url(#ar)"/>
+<rect class="n" x="270" y="342" width="172" height="90" rx="12"/>
+<text class="nt" x="284" y="368">IngestaService</text>
+<text class="ns" x="284" y="390">recibe sensores</text>
+<text class="ns" x="284" y="409">del edge, limpios</text>
+<rect class="n core" x="460" y="342" width="172" height="90" rx="12"/>
+<text class="nt" x="474" y="368">VisionService</text>
+<text class="ns" x="474" y="390">CV en GPU sobre</text>
+<text class="ns" x="474" y="409">el mismo stream</text>
+<rect class="n core" x="650" y="342" width="172" height="90" rx="12"/>
+<text class="nt" x="664" y="368">MonitorService</text>
+<text class="ns" x="664" y="390">máquina de estados</text>
+<text class="ns" x="664" y="409">y bitácora por OT</text>
+<rect class="n core" x="840" y="342" width="172" height="90" rx="12"/>
+<text class="nt" x="854" y="368">ScoringService</text>
+<text class="ns" x="854" y="390">reglas OT → soft</text>
+<text class="ns" x="854" y="409">→ LLM: veredicto</text>
+<rect class="n" x="1030" y="342" width="172" height="90" rx="12"/>
+<text class="nt" x="1044" y="368">StreamService</text>
+<text class="ns" x="1044" y="390">reparte eventos</text>
+<text class="ns" x="1044" y="409">a cada conexión</text>
+<rect class="n" x="1220" y="342" width="172" height="90" rx="12"/>
+<text class="nt" x="1234" y="368">AlertaService</text>
+<text class="ns" x="1234" y="390">abre, reconoce</text>
+<text class="ns" x="1234" y="409">y cierra</text>
+<rect class="n" x="1410" y="342" width="172" height="90" rx="12"/>
+<text class="nt" x="1424" y="368">OTService</text>
+<text class="ns" x="1424" y="390">protocolo, OT,</text>
+<text class="ns" x="1424" y="409">bitácora, snapshot</text>
+<path class="lv" d="M546,276 V342" marker-end="url(#ar)"/>
+<path class="l" d="M1116,276 V342" marker-end="url(#ar)" marker-start="url(#ar)"/>
+<path class="l" d="M1306,276 V342" marker-end="url(#ar)"/>
+<path class="l" d="M1496,276 V342" marker-end="url(#ar)"/>
+<path class="l" d="M822,387 H840" marker-end="url(#ar)" marker-start="url(#ar)"/>
+<path class="bus" d="M200,458 H1260"/>
+<path class="l" d="M310,458 V432" marker-end="url(#ar)" marker-start="url(#ar)"/>
+<path class="l" d="M500,458 V432" marker-end="url(#ar)" marker-start="url(#ar)"/>
+<path class="l" d="M690,458 V432" marker-end="url(#ar)" marker-start="url(#ar)"/>
+<path class="l" d="M1070,458 V432" marker-end="url(#ar)"/>
+<path class="l" d="M1260,458 V432" marker-end="url(#ar)"/>
+<rect class="n repo" x="270" y="544" width="172" height="70" rx="12"/>
+<text class="nt" x="284" y="570">LecturaRepo</text>
+<text class="ns" x="284" y="592">insert en lote</text>
+<text class="ns" x="284" y="611">ventanas</text>
+<path class="l" d="M418,432 V544" marker-end="url(#ar)"/>
+<rect class="n repo" x="460" y="544" width="172" height="70" rx="12"/>
+<text class="nt" x="474" y="570">EvidenciaRepo</text>
+<text class="ns" x="474" y="592">clip al objeto,</text>
+<text class="ns" x="474" y="611">fila en la tabla</text>
+<path class="l" d="M546,432 V544" marker-end="url(#ar)"/>
+<rect class="n repo" x="650" y="544" width="172" height="70" rx="12"/>
+<text class="nt" x="664" y="570">BitacoraRepo</text>
+<text class="ns" x="664" y="592">entrada + estado OT</text>
+<text class="ns" x="664" y="611">en una transacción</text>
+<path class="l" d="M736,432 V544" marker-end="url(#ar)"/>
+<rect class="n repo" x="840" y="544" width="172" height="70" rx="12"/>
+<text class="nt" x="854" y="570">ReglaRepo</text>
+<text class="ns" x="854" y="592">reglas de negocio</text>
+<text class="ns" x="854" y="611">del protocolo</text>
+<path class="l" d="M926,432 V544" marker-end="url(#ar)"/>
+<rect class="n repo" x="1220" y="544" width="172" height="70" rx="12"/>
+<text class="nt" x="1234" y="570">AlertaRepo</text>
+<text class="ns" x="1234" y="592">ciclo de la alerta</text>
+<path class="l" d="M1306,432 V544" marker-end="url(#ar)"/>
+<rect class="n repo" x="1410" y="544" width="172" height="70" rx="12"/>
+<text class="nt" x="1424" y="570">OTRepo</text>
+<text class="ns" x="1424" y="592">OT, protocolo,</text>
+<text class="ns" x="1424" y="611">botella, usuario</text>
+<path class="l" d="M1496,432 V544" marker-end="url(#ar)"/>
+<text class="nota" x="1116" y="584" text-anchor="middle">no toca la BD</text>
+<rect class="tb" x="270" y="686" width="172" height="170" rx="10"/>
+<path class="tbh" d="M270,716 H442"/>
+<text class="tt" x="282" y="707">lecturas</text>
+<text class="tc" x="282" y="736">ts · pts</text>
+<text class="tc" x="282" y="755">ot_id FK</text>
+<text class="tc" x="282" y="774">edge_id · seq</text>
+<text class="tc" x="282" y="793">magnitud</text>
+<text class="tc" x="282" y="812">valor · unidad</text>
+<text class="tc" x="282" y="831">fuente · calidad</text>
+<rect class="tb" x="460" y="686" width="172" height="170" rx="10"/>
+<path class="tbh" d="M460,716 H632"/>
+<text class="tt" x="472" y="707">evidencias</text>
+<text class="tc" x="472" y="736">id · ts</text>
+<text class="tc" x="472" y="755">ot_id FK</text>
+<text class="tc" x="472" y="774">bitacora_id FK</text>
+<text class="tc" x="472" y="793">uri del clip</text>
+<text class="tc" x="472" y="812">desde · hasta</text>
+<rect class="tb" x="650" y="686" width="172" height="170" rx="10"/>
+<path class="tbh" d="M650,716 H822"/>
+<text class="tt" x="662" y="707">bitacoras</text>
+<text class="tc" x="662" y="736">id · fecha_hora</text>
+<text class="tc" x="662" y="755">ot_id FK</text>
+<text class="tc" x="662" y="774">resultado</text>
+<text class="tc" x="662" y="793">score · certeza</text>
+<text class="tc" x="662" y="812">reglas_cruzadas</text>
+<text class="tc" x="662" y="831">justificacion</text>
+<rect class="tb" x="840" y="686" width="172" height="170" rx="10"/>
+<path class="tbh" d="M840,716 H1012"/>
+<text class="tt" x="852" y="707">reglas</text>
+<text class="tc" x="852" y="736">id · version</text>
+<text class="tc" x="852" y="755">protocolo_id FK</text>
+<text class="tc" x="852" y="774">magnitud · fuente</text>
+<text class="tc" x="852" y="793">condicion</text>
+<text class="tc" x="852" y="812">severidad</text>
+<text class="tc" x="852" y="831">ventana_s</text>
+<rect class="tb" x="1220" y="686" width="172" height="170" rx="10"/>
+<path class="tbh" d="M1220,716 H1392"/>
+<text class="tt" x="1232" y="707">alertas</text>
+<text class="tc" x="1232" y="736">id · ts</text>
+<text class="tc" x="1232" y="755">ot_id FK</text>
+<text class="tc" x="1232" y="774">bitacora_id FK</text>
+<text class="tc" x="1232" y="793">severidad · estado</text>
+<text class="tc" x="1232" y="812">reconocida_por FK</text>
+<text class="tc" x="1232" y="831">reconocida_en</text>
+<path class="l" d="M418,614 V686" marker-end="url(#ar)"/>
+<path class="l" d="M546,614 V686" marker-end="url(#ar)"/>
+<path class="l" d="M736,614 V686" marker-end="url(#ar)"/>
+<path class="l" d="M926,614 V686" marker-end="url(#ar)"/>
+<path class="l" d="M1306,614 V686" marker-end="url(#ar)"/>
+<path class="l" d="M1496,614 V896" marker-end="url(#ar)"/>
+<rect class="hub" x="270" y="896" width="1312" height="90" rx="12"/>
+<text class="tt" x="286" y="922">ordenes_trabajo</text>
+<text class="tc" x="286" y="948">id · protocolo_id FK · botella_id FK · edge_id FK · responsable_id FK · etapa: abierta | en_proceso | cerrada</text>
+<text class="tc" x="286" y="972">estado_salud: sin_datos | ok | warning | error · score · certeza · actualizado_en · abierta_en · cerrada_en</text>
+<path class="fk" d="M356,856 V896" marker-end="url(#ar)"/>
+<path class="fk" d="M546,856 V896" marker-end="url(#ar)"/>
+<path class="fk" d="M736,856 V896" marker-end="url(#ar)"/>
+<path class="fk" d="M1306,856 V896" marker-end="url(#ar)"/>
+<rect class="tb" x="270" y="1026" width="172" height="130" rx="10"/>
+<path class="tbh" d="M270,1056 H442"/>
+<text class="tt" x="282" y="1047">companias</text>
+<text class="tc" x="282" y="1076">id</text>
+<text class="tc" x="282" y="1095">nombre</text>
+<text class="tc" x="282" y="1114">creada_en</text>
+<rect class="tb" x="460" y="1026" width="172" height="130" rx="10"/>
+<path class="tbh" d="M460,1056 H632"/>
+<text class="tt" x="472" y="1047">protocolos</text>
+<text class="tc" x="472" y="1076">id · version</text>
+<text class="tc" x="472" y="1095">compania_id FK</text>
+<text class="tc" x="472" y="1114">nombre</text>
+<text class="tc" x="472" y="1133">creado_por FK</text>
+<rect class="tb" x="650" y="1026" width="172" height="130" rx="10"/>
+<path class="tbh" d="M650,1056 H822"/>
+<text class="tt" x="662" y="1047">botellas</text>
+<text class="tc" x="662" y="1076">id</text>
+<text class="tc" x="662" y="1095">compania_id FK</text>
+<text class="tc" x="662" y="1114">codigo · tipo</text>
+<text class="tc" x="662" y="1133">capacidad</text>
+<rect class="tb" x="1220" y="1026" width="172" height="130" rx="10"/>
+<path class="tbh" d="M1220,1056 H1392"/>
+<text class="tt" x="1232" y="1047">usuarios</text>
+<text class="tc" x="1232" y="1076">id · nombre</text>
+<text class="tc" x="1232" y="1095">email</text>
+<text class="tc" x="1232" y="1114">rol</text>
+<rect class="tb" x="1410" y="1026" width="172" height="130" rx="10"/>
+<path class="tbh" d="M1410,1056 H1582"/>
+<text class="tt" x="1422" y="1047">edges</text>
+<text class="tc" x="1422" y="1076">id · ubicacion</text>
+<text class="tc" x="1422" y="1095">ultimo_latido</text>
+<text class="tc" x="1422" y="1114">conectado</text>
+<path class="fk" d="M546,986 V1026" marker-end="url(#ar)"/>
+<path class="fk" d="M736,986 V1026" marker-end="url(#ar)"/>
+<path class="fk" d="M1306,986 V1026" marker-end="url(#ar)"/>
+<path class="fk" d="M1496,986 V1026" marker-end="url(#ar)"/>
+<path class="fk" d="M460,1091 H442" marker-end="url(#ar)"/>
+</svg>
+    <div class="leyenda">
+      <span><i style="background:#1c2430;border-color:#1c2430"></i>Front: lo hace el equipo</span>
+      <span><i style="background:#e7eef8;border-color:#2f5f9e"></i>El núcleo: estado y score</span>
+      <span><i class="ln" style="border-color:#2f7d5b;border-top-width:4px"></i>Bus de eventos</span>
+      <span><i class="ln" style="border-color:#8792a2;border-top-style:dashed"></i>Llave foránea</span>
+      <span><i style="background:#fff8ec;border-color:#8a5a00"></i>Tabla central</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Qué hace cada capa</h2>
+  <table>
+    <thead><tr><th>Capa</th><th>Pieza</th><th>Responsabilidad</th><th>Qué no hace</th></tr></thead>
+    <tbody>
+      <tr><td class="k">1 · Gateway</td><td>REST, WebSocket y video</td><td>Autentica, valida la entrada y enruta al servicio. El WebSocket mantiene abiertas las conexiones del front. El gateway de video recibe RTSP del edge y lo entrega por WebRTC sin transcodificar.</td><td>No tiene lógica ni toca la base</td></tr>
+      <tr><td class="k" rowspan="7">2 · Lógica</td><td>IngestaService</td><td>La puerta de entrada de los sensores. Toma lo que el edge publica crudo, valida el formato, pasa todo a las mismas unidades y al mismo reloj, descarta lo repetido (el edge reenvía lo que guardó durante un corte) y lo graba en lote. Publica <code>lectura</code> ya limpia.</td><td>No opina sobre el estado</td></tr>
+      <tr><td>VisionService</td><td>Lee el mismo stream desde el gateway de video, corre la CV en GPU y publica cada detección como <code>lectura</code> con <code>fuente = cv</code> y el <code>pts</code> del cuadro. Guarda un clip de evidencia cuando cambia el estado.</td><td>No retrasa el video ni decide el estado</td></tr>
+      <tr><td>MonitorService</td><td>Mantiene una ventana deslizante por OT con las lecturas del bus, pide el score y corre la máquina de estados. Aplica certeza e histéresis al veredicto, escribe la entrada de bitácora y, si cambia el estado, publica <code>estado</code>.</td><td>No califica</td></tr>
+      <tr><td>ScoringService</td><td>Todo lo que califica, en orden: junta sensores y CV en un vector por ventana, aplica las reglas de negocio del protocolo (determinista), el soft computing (score) y la certeza, emite el veredicto OK, WARNING o ERROR y le pide al LLM la justificación en texto.</td><td>No guarda nada ni aplica histéresis</td></tr>
+      <tr><td>StreamService</td><td>Escucha <code>lectura</code>, <code>deteccion</code>, <code>estado</code> y <code>alerta</code> en el bus y los reparte a cada conexión WebSocket según la compañía y la botella que pidió.</td><td>No toca la base</td></tr>
+      <tr><td>AlertaService</td><td>Abre una alerta cuando un estado pasa a WARNING o ERROR, y la reconoce o la cierra según ISA-18.2.</td><td>No cambia el estado de la OT</td></tr>
+      <tr><td>OTService</td><td>Protocolos, OT, botellas, usuarios, la bitácora de cada OT y el snapshot que el front pide antes de abrir el streaming.</td><td>No transmite en vivo</td></tr>
+      <tr><td class="k">3 · Acceso a datos</td><td>Repositorios</td><td>El único lugar con SQL. Uno por agregado; <code>BitacoraRepo</code> escribe la entrada de bitácora y el estado de la OT en una misma transacción.</td><td>No decide nada</td></tr>
+      <tr><td class="k">4 · Tablas</td><td>Postgres + TimescaleDB</td><td><code>lecturas</code> es una hypertable por tiempo; el resto son tablas comunes alrededor de <code>ordenes_trabajo</code>.</td><td>—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>La capa de lógica, ampliada</h2>
+  <p>Cada servicio es una tubería corta: entra algo (verde), pasa por piezas con una sola tarea y sale hacia un repositorio o hacia el bus (gris). Ninguna pieza de un servicio llama a una pieza de otro; se hablan por el bus, salvo el MonitorService, que le pide el score al ScoringService directamente porque necesita la respuesta en la misma ventana. El VisionService convierte la cámara en lecturas, así el MonitorService ve sensores y CV en la misma ventana sin tratarlos distinto.</p>
+  <div class="card diagrama">
+<svg viewBox="0 0 1460 1700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Composición interna de cada servicio">
+<defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f2933"/></marker></defs>
+<rect class="card" x="15" y="15" width="450" height="488" rx="16"/>
+<text class="ct" x="35" y="47">IngestaService</text>
+<text class="cr" x="35" y="71">la puerta de entrada de los sensores</text>
+<rect class="pi" x="35" y="89" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="110">entra: lectura.cruda</text>
+<text class="pd" x="49" y="130">lo que publica el edge en el broker</text>
+<path class="l" d="M240,139 V157" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="157" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="178">Validador</text>
+<text class="pd" x="49" y="198">formato del mensaje; si falla, a rechazos</text>
+<path class="l" d="M240,207 V225" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="225" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="246">Normalizador</text>
+<text class="pd" x="49" y="266">unidades SI y reloj UTC</text>
+<path class="l" d="M240,275 V293" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="293" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="314">Deduplicador</text>
+<text class="pd" x="49" y="334">el edge reenvía tras un corte: (edge_id, seq)</text>
+<path class="l" d="M240,343 V361" marker-end="url(#ar2)"/>
+<rect class="po" x="35" y="361" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="382">Escritor en lote</text>
+<text class="pd" x="49" y="402">LecturaRepo cada 500 ms</text>
+<path class="l" d="M240,411 V429" marker-end="url(#ar2)"/>
+<rect class="po" x="35" y="429" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="450">sale: lectura</text>
+<text class="pd" x="49" y="470">al bus, lista para el MonitorService</text>
+<rect class="card core" x="505" y="15" width="450" height="556" rx="16"/>
+<text class="ct" x="525" y="47">VisionService</text>
+<text class="cr" x="525" y="71">la cámara convertida en lecturas</text>
+<rect class="pi" x="525" y="89" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="110">entra: video</text>
+<text class="pd" x="539" y="130">del gateway de video, en la misma red</text>
+<path class="l" d="M730,139 V157" marker-end="url(#ar2)"/>
+<rect class="pp" x="525" y="157" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="178">Muestreo de cuadros</text>
+<text class="pd" x="539" y="198">5 a 10 por segundo por cámara</text>
+<path class="l" d="M730,207 V225" marker-end="url(#ar2)"/>
+<rect class="pp" x="525" y="225" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="246">Inferencia CV</text>
+<text class="pd" x="539" y="266">detección en GPU, con su pts</text>
+<path class="l" d="M730,275 V293" marker-end="url(#ar2)"/>
+<rect class="pp" x="525" y="293" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="314">Detecciones a lectura</text>
+<text class="pd" x="539" y="334">magnitud, confianza, fuente = cv</text>
+<path class="l" d="M730,343 V361" marker-end="url(#ar2)"/>
+<rect class="pp" x="525" y="361" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="382">Buffer de video</text>
+<text class="pd" x="539" y="402">últimos 30 s por cámara</text>
+<path class="l" d="M730,411 V429" marker-end="url(#ar2)"/>
+<rect class="po" x="525" y="429" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="450">Evidencia</text>
+<text class="pd" x="539" y="470">EvidenciaRepo: clip al cambiar de estado</text>
+<path class="l" d="M730,479 V497" marker-end="url(#ar2)"/>
+<rect class="po" x="525" y="497" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="518">sale: lectura (cv) y deteccion</text>
+<text class="pd" x="539" y="538">al bus</text>
+<rect class="card core" x="995" y="15" width="450" height="556" rx="16"/>
+<text class="ct" x="1015" y="47">MonitorService</text>
+<text class="cr" x="1015" y="71">decide el estado y escribe la bitácora</text>
+<rect class="pi" x="1015" y="89" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="110">entra: lectura</text>
+<text class="pd" x="1029" y="130">sensores y CV; al arrancar, OTRepo</text>
+<path class="l" d="M1220,139 V157" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="157" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="178">Ventanas por OT</text>
+<text class="pd" x="1029" y="198">sensores y CV juntos, 5 s</text>
+<path class="l" d="M1220,207 V225" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="225" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="246">Reloj de ventana</text>
+<text class="pd" x="1029" y="266">cierra la ventana y pide el veredicto</text>
+<path class="l" d="M1220,275 V293" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="293" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="314">Máquina de estados</text>
+<text class="pd" x="1029" y="334">certeza e histéresis sobre el veredicto</text>
+<path class="l" d="M1220,343 V361" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="361" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="382">Vigía de silencio</text>
+<text class="pd" x="1029" y="402">sin lecturas por T → SIN_DATOS</text>
+<path class="l" d="M1220,411 V429" marker-end="url(#ar2)"/>
+<rect class="po" x="1015" y="429" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="450">Bitácora</text>
+<text class="pd" x="1029" y="470">BitacoraRepo: entrada + estado de la OT</text>
+<path class="l" d="M1220,479 V497" marker-end="url(#ar2)"/>
+<rect class="po" x="1015" y="497" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="518">sale: estado</text>
+<text class="pd" x="1029" y="538">al bus</text>
+<rect class="card" x="15" y="600" width="450" height="420" rx="16"/>
+<text class="ct" x="35" y="632">StreamService</text>
+<text class="cr" x="35" y="656">del bus a cada front conectado</text>
+<rect class="pi" x="35" y="674" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="695">entra: lectura, deteccion, estado</text>
+<text class="pd" x="49" y="715">del bus</text>
+<path class="l" d="M240,724 V742" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="742" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="763">Submuestreo</text>
+<text class="pd" x="49" y="783">lectura a 1 por segundo y magnitud</text>
+<path class="l" d="M240,792 V810" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="810" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="831">Registro de conexiones</text>
+<text class="pd" x="49" y="851">quién escucha qué compañía y botella</text>
+<path class="l" d="M240,860 V878" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="878" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="899">Buffer de reenvío</text>
+<text class="pd" x="49" y="919">últimos N mensajes por compañía</text>
+<path class="l" d="M240,928 V946" marker-end="url(#ar2)"/>
+<rect class="po" x="35" y="946" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="967">sale: WebSocket</text>
+<text class="pd" x="49" y="987">al front</text>
+<rect class="card" x="505" y="600" width="450" height="420" rx="16"/>
+<text class="ct" x="525" y="632">AlertaService</text>
+<text class="cr" x="525" y="656">el ciclo de vida de una alerta</text>
+<rect class="pi" x="525" y="674" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="695">entra: estado y reconocer</text>
+<text class="pd" x="539" y="715">del bus y de REST</text>
+<path class="l" d="M730,724 V742" marker-end="url(#ar2)"/>
+<rect class="pp" x="525" y="742" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="763">Política</text>
+<text class="pd" x="539" y="783">abre, escala o normaliza</text>
+<path class="l" d="M730,792 V810" marker-end="url(#ar2)"/>
+<rect class="pp" x="525" y="810" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="831">Ciclo ISA-18.2</text>
+<text class="pd" x="539" y="851">activa, reconocida, normalizada, cerrada</text>
+<path class="l" d="M730,860 V878" marker-end="url(#ar2)"/>
+<rect class="po" x="525" y="878" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="899">Persistencia</text>
+<text class="pd" x="539" y="919">AlertaRepo</text>
+<path class="l" d="M730,928 V946" marker-end="url(#ar2)"/>
+<rect class="po" x="525" y="946" width="410" height="50" rx="9"/>
+<text class="pt" x="539" y="967">sale: alerta</text>
+<text class="pd" x="539" y="987">al bus</text>
+<rect class="card core" x="995" y="600" width="450" height="692" rx="16"/>
+<text class="ct" x="1015" y="632">ScoringService</text>
+<text class="cr" x="1015" y="656">de las reglas de la OT al LLM</text>
+<rect class="pi" x="1015" y="674" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="695">entra: ventana + OT</text>
+<text class="pd" x="1029" y="715">lecturas de sensores y de CV, y su protocolo</text>
+<path class="l" d="M1220,724 V742" marker-end="url(#ar2)"/>
+<rect class="po" x="1015" y="742" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="763">Reglas del protocolo</text>
+<text class="pd" x="1029" y="783">ReglaRepo, en caché por versión</text>
+<path class="l" d="M1220,792 V810" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="810" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="831">Fusión sensor + CV</text>
+<text class="pd" x="1029" y="851">alinea por tiempo: un vector por ventana</text>
+<path class="l" d="M1220,860 V878" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="878" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="899">Reglas de negocio</text>
+<text class="pd" x="1029" y="919">determinista: qué regla de la OT se cruzó</text>
+<path class="l" d="M1220,928 V946" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="946" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="967">Soft computing</text>
+<text class="pd" x="1029" y="987">lógica difusa sobre features → score</text>
+<path class="l" d="M1220,996 V1014" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="1014" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="1035">Certeza</text>
+<text class="pd" x="1029" y="1055">cobertura, calidad, acuerdo sensor y CV</text>
+<path class="l" d="M1220,1064 V1082" marker-end="url(#ar2)"/>
+<rect class="pp" x="1015" y="1082" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="1103">Veredicto</text>
+<text class="pd" x="1029" y="1123">ok, warning o error con su score</text>
+<path class="l" d="M1220,1132 V1150" marker-end="url(#ar2)"/>
+<rect class="pl" x="1015" y="1150" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="1171">LLM · justificación</text>
+<text class="pd" x="1029" y="1191">redacta el porqué; asíncrono, no lo cambia</text>
+<path class="l" d="M1220,1200 V1218" marker-end="url(#ar2)"/>
+<rect class="po" x="1015" y="1218" width="410" height="50" rx="9"/>
+<text class="pt" x="1029" y="1239">sale: veredicto y justificación</text>
+<text class="pd" x="1029" y="1259">al MonitorService y a la bitácora</text>
+<rect class="card" x="15" y="1185" width="450" height="488" rx="16"/>
+<text class="ct" x="35" y="1217">OTService</text>
+<text class="cr" x="35" y="1241">lo que el front pide por REST</text>
+<rect class="pi" x="35" y="1259" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="1280">entra: REST</text>
+<text class="pd" x="49" y="1300">desde el gateway</text>
+<path class="l" d="M240,1309 V1327" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="1327" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="1348">Controladores</text>
+<text class="pd" x="49" y="1368">protocolos, OT, botellas, usuarios</text>
+<path class="l" d="M240,1377 V1395" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="1395" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="1416">Armador de snapshot</text>
+<text class="pd" x="49" y="1436">OT, estado, última bitácora, video</text>
+<path class="l" d="M240,1445 V1463" marker-end="url(#ar2)"/>
+<rect class="pp" x="35" y="1463" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="1484">Bitácora de la OT</text>
+<text class="pd" x="49" y="1504">entradas por fecha y hora, paginadas</text>
+<path class="l" d="M240,1513 V1531" marker-end="url(#ar2)"/>
+<rect class="po" x="35" y="1531" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="1552">Persistencia</text>
+<text class="pd" x="49" y="1572">OTRepo y BitacoraRepo</text>
+<path class="l" d="M240,1581 V1599" marker-end="url(#ar2)"/>
+<rect class="po" x="35" y="1599" width="410" height="50" rx="9"/>
+<text class="pt" x="49" y="1620">sale: JSON</text>
+<text class="pd" x="49" y="1640">al gateway</text>
+<path class="l" d="M1220,571 V600" marker-end="url(#ar2)" marker-start="url(#ar2)"/>
+</svg>
+  </div>
+</section>
+
+<section>
+  <h2>La máquina de estados de cada OT</h2>
+  <p>Cada ventana (por ejemplo, cinco segundos) el MonitorService le pasa al ScoringService las lecturas de la OT, de sensores y de CV juntas. Adentro del scoring la calificación va de lo determinista a lo interpretativo:</p>
+  <ol>
+    <li><b>Fusión sensor + CV.</b> Alinea las lecturas por tiempo y arma un vector por ventana; la CV entra como una magnitud más, con su confianza.</li>
+    <li><b>Reglas de negocio de la OT.</b> Las condiciones que fija el protocolo, evaluadas tal cual. Si una regla de error se cruza, el veredicto es ERROR sin pasar por lo demás.</li>
+    <li><b>Soft computing.</b> Lógica difusa sobre qué tan cerca está cada magnitud de su límite, la tendencia y lo que ve la cámara: da un score de 0 a 100.</li>
+    <li><b>Certeza.</b> Cuánto creerle al score: baja si faltan lecturas, si la calidad viene <code>dudosa</code> o si sensores y CV no coinciden.</li>
+    <li><b>LLM.</b> Recibe las reglas cruzadas, el score, la certeza y la evidencia, y redacta la justificación que queda en la bitácora. Corre aparte: el veredicto y la alerta salen sin esperarlo, y el texto llega segundos después. El LLM nunca cambia el veredicto.</li>
+  </ol>
+  <div class="card diagrama">
+<svg viewBox="0 0 1320 350" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Máquina de estados de una OT">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f2933"/></marker></defs>
+<rect class="s0" x="30" y="140" width="180" height="90" rx="14"/>
+<text class="stt" x="46" y="176">SIN_DATOS</text>
+<text class="ns" x="46" y="202">no se opina</text>
+<rect class="s1" x="400" y="140" width="180" height="90" rx="14"/>
+<text class="stt" x="416" y="176">OK</text>
+<text class="ns" x="416" y="202">dentro de rango</text>
+<rect class="s2" x="760" y="140" width="200" height="90" rx="14"/>
+<text class="stt" x="776" y="176">WARNING</text>
+<text class="ns" x="776" y="202">fuera de lo normal</text>
+<rect class="s3" x="1110" y="140" width="180" height="90" rx="14"/>
+<text class="stt" x="1126" y="176">ERROR</text>
+<text class="ns" x="1126" y="202">falla probable</text>
+<path class="l" d="M210,178 H400" marker-end="url(#ar)"/>
+<text class="tr" x="305" y="166" text-anchor="middle">ventana completa</text>
+<path class="l" d="M580,178 H760" marker-end="url(#ar)"/>
+<text class="tr" x="670" y="150" text-anchor="middle">score ≥ 40</text>
+<text class="tr" x="670" y="168" text-anchor="middle">certeza ≥ 0,6</text>
+<path class="l" d="M760,212 H580" marker-end="url(#ar)"/>
+<text class="tr" x="670" y="234" text-anchor="middle">score &lt; 30</text>
+<text class="tr" x="670" y="252" text-anchor="middle">por N ventanas</text>
+<path class="l" d="M960,178 H1110" marker-end="url(#ar)"/>
+<text class="tr" x="1035" y="150" text-anchor="middle">score ≥ 75</text>
+<text class="tr" x="1035" y="168" text-anchor="middle">certeza ≥ 0,7</text>
+<path class="l" d="M1110,212 H960" marker-end="url(#ar)"/>
+<text class="tr" x="1035" y="234" text-anchor="middle">score &lt; 65</text>
+<text class="tr" x="1035" y="252" text-anchor="middle">por N ventanas</text>
+<path class="lr" d="M490,140 V80 H1200 V140" marker-end="url(#ar)"/>
+<text class="trr" x="845" y="68" text-anchor="middle">regla de negocio de error: inmediato, sin esperar ventanas</text>
+<path class="lg" d="M1200,230 V310 H120 V230" marker-end="url(#ar)"/>
+<path class="lgn" d="M490,230 V310"/><path class="lgn" d="M860,230 V310"/>
+<text class="tr" x="660" y="332" text-anchor="middle">sin lecturas por T segundos o edge caído, desde cualquier estado</text>
+</svg>
+  </div>
+  <p>Si la certeza no alcanza, el estado no cambia y el evento sale marcado como dudoso: el front puede mostrarlo sin que suene una alerta. El MonitorService no recalcula nada: toma el veredicto y le aplica la certeza y la histéresis. Para bajar de estado hay que quedar bajo el umbral varias ventanas seguidas, para que el estado no parpadee. La única excepción es una regla de negocio de error, que pasa a ERROR de inmediato. Y sin lecturas el estado es SIN_DATOS, nunca OK: que el edge se calle no significa que la botella esté bien.</p>
+  <p class="nota">Los umbrales 40, 30, 75 y 65 y las certezas 0,6 y 0,7 son de partida y se calibran con datos reales.</p>
+</section>
+
+<section>
+  <h2>Cómo se conecta el front</h2>
+  <div class="dos">
+    <div>
+      <h3>La secuencia</h3>
+      <ol>
+        <li><code>GET /companias/{id}/ots?etapa=en_proceso</code> trae las OT activas de la compañía con su botella.</li>
+        <li><code>GET /ots/{id}</code> trae el snapshot: protocolo, botella, estado, score, certeza, la última entrada de bitácora, las últimas lecturas y la URL del video. <code>GET /ots/{id}/bitacora</code> trae el historial por fecha y hora.</li>
+        <li>Abre el WebSocket <code>/stream</code>, manda un solo mensaje de suscripción con compañía, botella y el último <code>id</code> que vio, y desde ahí solo recibe. En paralelo reproduce el video con la URL WebRTC que vino en el snapshot.</li>
+        <li>WebSocket no reconecta solo: el front reconecta y vuelve a suscribirse con el último <code>id</code>, y el StreamService reenvía lo que faltó. Si pasó demasiado tiempo, el front vuelve a pedir el snapshot.</li>
+        <li>Para reconocer una alerta: <code>POST /alertas/{id}/reconocer</code>.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Un mensaje del streaming</h3>
+<pre>{
+  "tipo":        "estado",
+  "id":          4812,
+  "compania_id": "C-12",
+  "botella_id":  "B-77",
+  "ot_id":       "OT-1042",
+  "desde":  "OK",
+  "hacia":  "WARNING",
+  "score":   52,
+  "certeza": 0.74,
+  "bitacora_id":  9931,
+  "reglas":  ["presion_max_warning"],
+  "justificacion": null,          // llega en un mensaje bitacora
+  "ts": "2026-11-21T14:02:15Z"
+}</pre>
+    </div>
+  </div>
+  <table style="margin-top:20px">
+    <thead><tr><th>Mensaje WebSocket</th><th>Cuándo sale</th><th>Para qué lo usa el front</th></tr></thead>
+    <tbody>
+      <tr><td class="k"><code>lectura</code></td><td>Submuestreada, una por segundo y por magnitud</td><td>Los gráficos en vivo</td></tr>
+      <tr><td class="k"><code>deteccion</code></td><td>Cada cuadro analizado, con sus cajas y el <code>pts</code> del cuadro</td><td>Dibujar las cajas sobre el video</td></tr>
+      <tr><td class="k"><code>estado</code></td><td>Solo cuando cambia el estado de una OT, o cuando sale dudoso</td><td>El color de la botella y su score</td></tr>
+      <tr><td class="k"><code>alerta</code></td><td>Cuando se abre, se reconoce o se cierra una alerta</td><td>El panel de alertas</td></tr>
+      <tr><td class="k"><code>edge</code></td><td>Cuando un edge se conecta o se cae</td><td>Avisar que los datos dejaron de llegar</td></tr>
+    </tbody>
+  </table>
+  <p class="nota">El WebSocket se usa en un solo sentido: después del mensaje de suscripción, el front no manda nada más por ahí. Reconocer una alerta o abrir una OT sigue siendo REST.</p>
+</section>
+
+<section>
+  <h2>El video pasa por la API y sigue siendo rápido</h2>
+  <p>El video entra a la API porque la CV es la mitad de la calificación: el score sale de cruzar lo que ven los sensores con lo que ve la cámara. Para que el análisis no frene lo que ve el operador, el video se divide en dos caminos desde el gateway.</p>
+  <table>
+    <thead><tr><th>Camino</th><th>Qué hace</th><th>Latencia</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Rápido · al front</td><td>El edge manda H.264 por RTSP al gateway de video, que lo reenvía por WebRTC tal cual, sin decodificar ni volver a codificar.</td><td>Bajo un segundo de punta a punta</td></tr>
+      <tr><td class="k">Análisis · a la CV</td><td>El VisionService lee el mismo stream dentro del servidor, muestrea cuadros y corre la CV en GPU. Cada detección sale al bus con el <code>pts</code> de su cuadro.</td><td>Lo que tarde la inferencia, sin afectar al video</td></tr>
+      <tr><td class="k">Cajas · al front</td><td>Las detecciones llegan por el WebSocket y el front las dibuja en un canvas encima del <code>&lt;video&gt;</code>, usando el <code>pts</code> para calzarlas con el cuadro.</td><td>La de la inferencia más la del WebSocket</td></tr>
+    </tbody>
+  </table>
+  <p>Lo que no se hace, por velocidad: dibujar las cajas dentro del video en el servidor. Obligaría a decodificar y volver a codificar cada cuadro, sumaría latencia y GPU, y haría que el video esperara a la CV. Tampoco van cuadros por el WebSocket de datos, porque una ráfaga de video atrasaría los mensajes de estado.</p>
+  <p class="nota">El costo de que el video pase por la API: subida desde planta de unos pocos Mbps por cámara a 1080p y una GPU en el servidor. Si la planta no tiene esa subida, la CV vuelve al edge y solo suben las detecciones y un video de menor resolución.</p>
+</section>
+
+<section>
+  <h2>Decisiones de la base</h2>
+  <ul>
+    <li>La jerarquía sale del protocolo: una compañía tiene protocolos, un protocolo tiene muchas OT y cada OT acumula entradas de bitácora. <code>ordenes_trabajo</code> sigue siendo la tabla central porque lecturas, evidencias, bitácoras y alertas cuelgan de ella.</li>
+    <li>Cada entrada de <code>bitacoras</code> es un reporte con fecha y hora: resultado (OK, WARNING o ERROR), score, certeza, qué reglas se cruzaron y la justificación del LLM. Se escribe una al cambiar de estado y otra cada cierto tiempo aunque no cambie, para que la bitácora muestre también los OK.</li>
+    <li>El estado actual vive en <code>ordenes_trabajo.estado_salud</code> para leerlo sin buscar la última entrada. Se escribe en la misma transacción que la bitácora, así nunca se contradicen. La justificación se completa después en la misma fila.</li>
+    <li><code>reglas</code> cuelga del protocolo y lleva versión; cada entrada de bitácora guarda con qué versión se calificó, para explicar un ERROR de la semana pasada aunque las reglas hayan cambiado.</li>
+    <li><code>usuarios</code> es quien crea protocolos, responde por una OT y reconoce alertas.</li>
+    <li><code>lecturas</code> es una hypertable de TimescaleDB particionada por <code>ts</code>, con índice <code>(ot_id, ts desc)</code>. El duplicado se descarta con un único sobre <code>(edge_id, seq, ts)</code>: Timescale exige que la columna de tiempo esté en toda restricción única.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Preguntas abiertas</h2>
+  <div class="aviso">
+    <ul>
+      <li>¿Una OT es de una sola botella o de varias? El modelo asume una; si son varias, aparece una tabla <code>ot_botellas</code> y el estado pasa a ser por botella.</li>
+      <li>¿Cada cuánto se escribe una entrada de bitácora cuando todo está OK? Define cuánto crece la tabla y cuántas veces se llama al LLM.</li>
+      <li>¿El protocolo trae sus reglas escritas como condiciones, o hay que traducirlas a mano a la tabla <code>reglas</code>?</li>
+      <li>¿Qué mide el edge en cada botella (presión, peso, temperatura, fuga) y cada cuánto? Define las magnitudes de <code>reglas</code> y el tamaño de la ventana.</li>
+      
+      <li>¿El front necesita historial largo o solo lo de la OT en curso? Define cuánto se guardan las lecturas crudas.</li>
+      <li>¿Qué autenticación usa el front y si una compañía solo puede ver lo suyo?</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

@@ -40,7 +40,51 @@
 | Frente 3 · Verificación: capa 1 con sensores, capa 3 con cámara | — | pendiente | Solo la capa 1 interrumpe ([ADR-0004](../decisions/0004-verificacion-por-capas.md)). Stub en `app/verificacion.py`, rama `feat/verificacion` |
 | Frente 4 · Registro de eventos, relevo de turno y vista del supervisor | — | pendiente | El relevo es una lectura de los eventos, no un documento aparte. Stub en `app/cerebro.py`, rama `feat/cerebro-relevo` |
 | Servicios en vivo: sesión por edge, stream por OT, calificación por capa y CRUD con reglas de negocio | Francisco | en curso | [PRD](../projects/servicios-en-vivo/PRD.md) y [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md). Recorrido animado en [servicios.html](../architecture/servicios.html). Desplegado en `https://34-176-44-192.sslip.io`, guía para agentes en `/agente` |
+| Banco de pruebas `/casos`: cada criterio del PRD corrido contra un servidor vivo | Francisco | hecho | 2026-11-21. CA1 a CA16 pasan contra local con el código integrado con `main` (15 de 15 tarjetas; CA15 es el banco mismo). Falta correrlo contra la VM: ver [Servicios: estado y resultados](#servicios-estado-y-resultados) |
+| Escenarios por industria: 24 patrones × minería, eléctrica y construcción contra cada barrera | Francisco | hecho | 2026-11-21. [PRD](../projects/escenarios-por-industria/PRD.md) y [ADR-0008](../decisions/0008-escenarios-por-industria-en-una-caja-aislada.md). Los 72 escenarios pasan, con un archivo de tests por industria y una sección por industria en `/casos`. Reglas por industria, orden invertido, control perdido y confirmación por persona en `reglas.py`, `servicios.py` y [LOGICA](../architecture/LOGICA.md). Abierto: [§9 del PRD](../projects/escenarios-por-industria/PRD.md#9-riesgos-y-decisiones-abiertas) |
 | Regla de seguridad del demo: guarda abierta con energía viva | — | pendiente | Es el momento del demo. Capa 1, independiente del paso en curso ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario)) |
+
+## Servicios: estado y resultados
+
+Al 2026-11-21, con `dreamxist/services` integrada con `main` (YOLO en capa 2 de cámara, Claude Haiku 5.5 como juez de capa 3, pauta LOTO, SQLite serializada y edge). Dueño: Francisco. Para retomar, se parte de acá.
+
+**Qué hay.** Toda la API de servicios vive en `app/`, y [app/README.md](../../app/README.md) dice qué archivo hace qué:
+
+- sesión por edge, stream por OT, calificación por capa y CRUD con reglas ([PRD](../projects/servicios-en-vivo/PRD.md), CA1 a CA16);
+- reglas de capa 1 por industria, más orden invertido y control perdido ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario));
+- la confirmación por persona contra el sensor, `POST /ot/{id}/pasos/{paso}/confirmar` ([LOGICA](../architecture/LOGICA.md#cuando-la-persona-y-el-sensor-no-coinciden));
+- la matriz de escenarios por industria en una caja aislada ([PRD](../projects/escenarios-por-industria/PRD.md));
+- el banco `/casos`, con una sección por industria que anima el recorrido de cada test;
+- la [simulación de capa 2](../projects/escenarios-por-industria/capa2-simulacion.md) y el eval de capa 3, `scripts/evaluar_capa3.py`.
+
+El recorrido animado de una lectura está en [servicios.html](../architecture/servicios.html).
+
+**Resultados.**
+
+| Verificación | Comando | Resultado |
+|---|---|---|
+| Tests unitarios y de casos de uso | `uv run --with httpx python -m unittest discover tests` | 235 pasan, 0 fallan |
+| De esos, por industria | `python3 -m unittest tests.test_mineria tests.test_electrica tests.test_construccion` | 27, 26 y 26 pasan |
+| Recorrido del demo | `python3 scripts/recorrido_demo.py` | Pauta completa, 11 eventos, ninguno editado |
+| Banco contra local | `uv run python scripts/correr_casos.py http://localhost:8000` | 15 de 15 tarjetas pasan (CA1 a CA16) |
+| Matriz de escenarios | `POST /escenarios/correr` | 72 de 72 pasan, 0 brechas abiertas |
+| Simulación de capa 2 | `python3 scripts/simular_capa2.py` | Sin ciclo de carga (minería), el detector de hoy sostiene un escalón 100 % con 0,9 falsas alarmas cada 1.000. Con ciclo (eléctrica, construcción), lo sostiene 6 % y 30 %; el CUSUM contra el ciclo, 100 % |
+| Eval de capa 3 | `python3 scripts/evaluar_capa3.py` | 24 escenas sin imagen. El juez sin cuadro responde el stub: acepta 15 de 15 pasos mal hechos. Mide al VLM real cuando haya imágenes y `ANTHROPIC_API_KEY` |
+| Banco contra la VM | `uv run python scripts/correr_casos.py https://34-176-44-192.sslip.io` | Pendiente: la VM corre una versión anterior. Hay que desplegar con `deploy/vm/desplegar.sh` (con `CUENTA=francisco@imclabs.com`) |
+
+**Lo que depende de otros frentes.**
+
+- El edge reenvía cada sensor al menos cada 5 s; si no, la OT baja a warning por frescura.
+- La app manda `paso_id` al declarar.
+- La cámara transmite en los pasos de cámara; un cuadro de más de 10 s no cuenta.
+
+**Decisiones abiertas.** Las cuatro primeras se discuten en el [§9 del PRD de escenarios](../projects/escenarios-por-industria/PRD.md#9-riesgos-y-decisiones-abiertas).
+
+- Quién puede confirmar un control crítico contra el sensor: cualquier persona, como hoy, o solo un supervisor.
+- Si hay una señal de carga para la capa 2 en eléctrica y construcción.
+- Quién fotografía las escenas del eval de capa 3.
+- La ventana de gracia de A3.
+- El costo de la VM: la estimación da 18 a 24 USD al mes, y el tope fijado es unos 20.
 
 ## Decisiones abiertas
 

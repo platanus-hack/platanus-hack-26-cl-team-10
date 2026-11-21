@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from app import catalogo, cerebro, db, protocolos, verificacion
+from app import catalogo, cerebro, db, escenarios, protocolos, verificacion
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -62,11 +62,17 @@ ESTATICO = Path(__file__).resolve().parent / "estatico"
 class Declaracion(BaseModel):
     actor: str
     texto: str
+    paso_id: str | None = None
 
 
 class LecturaSensor(BaseModel):
     sensor_id: str
     valor: str
+
+
+class ConfirmacionPersona(BaseModel):
+    actor: str
+    motivo: str
 
 
 class Pregunta(BaseModel):
@@ -195,7 +201,14 @@ def estado_ot(ot_id: str) -> dict:
 def declarar(ot_id: str, d: Declaracion) -> dict:
     """El operario habla. La evidencia manda: el veredicto lo decide reglas.py, y un paso
     de cámara se juzga con el último cuadro del edge de la OT."""
-    return servicios.declarar(ot_id, d.actor, d.texto)
+    return servicios.declarar(ot_id, d.actor, d.texto, d.paso_id)
+
+
+@app.post("/ot/{ot_id}/pasos/{paso_id}/confirmar")
+def confirmar_paso(ot_id: str, paso_id: str, c: ConfirmacionPersona) -> dict:
+    """Una persona confirma el paso en curso aunque su sensor o la cámara no lo muestren. Queda quién, por qué y qué
+    marcaba el sensor; la OT queda en warning y la seguridad sigue mandando. Solo el paso en curso; sin motivo, 409."""
+    return servicios.confirmar_por_persona(ot_id, paso_id, c.actor, c.motivo)
 
 
 @app.post("/sensores")
@@ -326,6 +339,40 @@ def pagina_camara() -> FileResponse:
 def pagina_monitor() -> FileResponse:
     """Video, calificación, avisos y bitácora de una OT, en vivo."""
     return FileResponse(ESTATICO / "monitor.html")
+
+
+@app.get("/casos")
+def pagina_casos() -> FileResponse:
+    """El banco de pruebas: cada criterio del PRD, corrido contra este servidor u otro."""
+    return FileResponse(ESTATICO / "casos.html")
+
+
+# ─── Escenarios por industria (app/escenarios.py) ───────────────────────────
+
+
+@app.get("/escenarios")
+def listar_escenarios() -> list[dict]:
+    """Cada patrón de ejecución en cada industria, con la barrera que lo decide y lo que se espera."""
+    return [e.como_dict() for e in escenarios.catalogo()]
+
+
+@app.get("/industrias")
+def listar_industrias() -> dict:
+    """Cada industria con su pauta, sensores, reglas, trasfondo y casos de uso; y las piezas de la arquitectura."""
+    return {"industrias": [escenarios.industria_dict(i) for i in escenarios.INDUSTRIAS],
+            "arquitectura": escenarios.arquitectura()}
+
+
+@app.post("/escenarios/correr")
+def correr_escenarios() -> list[dict]:
+    """Corre todos en una caja aislada (base en memoria, juez y reloj propios). Sin trazas, para que pese poco."""
+    return [{k: v for k, v in r.items() if k not in ("bitacora", "stream")} for r in escenarios.correr_todos()]
+
+
+@app.post("/escenarios/{escenario_id}/correr")
+def correr_escenario(escenario_id: str) -> dict:
+    """Uno, con su bitácora y lo que habría llegado por el stream. No toca la base del servidor."""
+    return escenarios.correr(escenarios.buscar(escenario_id))
 
 
 @app.websocket("/ot/{ot_id}/stream")

@@ -67,21 +67,45 @@ La regla de oro del [ADR-0004](../decisions/0004-verificacion-por-capas.md): **l
 
 Tres consecuencias que importan:
 
-1. **Un paso de sensor nunca se cierra hablando.** Si el operario dice «bloqueo puesto» y el reed switch está abierto, el paso queda `en_conflicto`, no `verificado`.
+1. **Un paso de sensor nunca se cierra hablando.** Si el operario dice «bloqueo puesto» y el reed switch está abierto, el paso queda `en_conflicto`, no `verificado`. Hablar no lo cierra; **confirmarlo sí**, con la acción explícita de abajo.
 2. **El orden no lo juzga el modelo.** Lo impone la aplicación, que pregunta por un paso a la vez, y lo comprueba la capa 1 con las marcas de tiempo: la energía se cortó *antes* de abrir la guarda. Es justo donde un VLM falla (3 de 12 cambios de orden, REFERENCIAS 9).
-3. **La capa 2 todavía no cierra pasos.** Detecta anomalías en la señal y abre la OT. Qué algoritmo usa es `Brecha`.
+3. **La capa 2 todavía no cierra pasos.** Detecta anomalías en la señal y abre la OT. Qué algoritmo usa es `Brecha`; la [simulación de capa 2](../projects/escenarios-por-industria/capa2-simulacion.md) compara candidatos.
+4. **La palabra tardía no se confunde con el paso siguiente.** La app manda el paso que mostraba al operario. Si el sensor ya lo cerró, la declaración se registra y no se evalúa contra el paso que sigue.
+5. **Un paso de cámara sin un cuadro reciente no se verifica.** Sin video de los últimos 10 s, la respuesta del juez no es evidencia, aunque diga que sí.
+
+## Cuando la persona y el sensor no coinciden
+
+Un sensor se cae, se descalibra o queda mal montado, y la pauta no puede quedar trabada por eso. Si una persona afirma que el paso está hecho y la evidencia no lo muestra, **se le cree, pero no en silencio**:
+
+- Es una acción aparte de declarar: `POST /ot/{id}/pasos/{paso}/confirmar`, con quién y por qué. Hablar sigue sin cerrar el paso.
+- Solo el paso en curso, porque el orden lo impone la app. Un paso de confirmación se cierra declarando, no por acá.
+- El paso queda `verificado` por una persona (`capa` nula). El evento guarda quién, el motivo y qué marcaba el sensor en ese momento. El conflicto anterior, si lo hubo, sigue en la bitácora.
+- La OT queda en `warning` mientras dure: el registro dice que ese control lo afirmó una persona contra la evidencia. No interrumpe.
+- **No apaga la seguridad.** Las reglas de peligro se siguen evaluando con los sensores reales. Si el bloqueo se confirmó a mano y después la guarda se abre con energía viva, la alerta suena igual. Un control cerrado por una persona no cuenta para «control crítico deshecho», porque su sensor nunca lo mostró hecho.
+
+Quién puede confirmar un control crítico (el operario o solo un supervisor) está abierto. `Candidata a validar`.
 
 ## Qué puede interrumpir al operario
 
 **Solo la capa 1.** Mientras no se mida la tasa de falsas alarmas de la cámara, lo que detecta la capa 3 se muestra en pantalla pero no suena en el oído. Con 5 rechazos de 12 ejecuciones correctas (REFERENCIAS 9), un aviso falso repetido le enseña al operario a ignorar el aviso.
 
-Y hay reglas de seguridad que **no dependen del paso en curso**: se evalúan con cada lectura de sensor, incluso si el operario va en otro paso o en ninguno.
+Y hay reglas de seguridad que **no dependen del paso en curso**: se evalúan con cada lectura de sensor, incluso si el operario va en otro paso o en ninguno. Una por peligro de alta consecuencia de cada industria, con su norma (los números son de [REFERENCIAS](../projects/research/REFERENCIAS.md)):
 
-| Regla | Dispara | Por qué |
-|---|---|---|
-| Guarda abierta con energía viva | Alerta crítica, capa 1 | Es el momento del demo, y el aislamiento de energía es uno de los peligros de alta consecuencia que ICMM nombra (REFERENCIAS 40) |
+| Regla | Industria | Dispara | Por qué |
+|---|---|---|---|
+| Guarda abierta con energía viva | Minería | Alerta crítica, capa 1 | Es el momento del demo. Mantener solo con la energía cortada y la máquina bloqueada, con guardas puestas mientras opera (44, 45). El aislamiento de energía es uno de los peligros de alta consecuencia que ICMM nombra (40) |
+| Puesta a tierra con tensión presente | Eléctrica | Alerta crítica, capa 1 | Se verifica la ausencia de tensión antes de poner cualquier tierra (48, 49, 50) |
+| Cierre del seccionador con tierras puestas | Eléctrica | Alerta crítica, capa 1 | No se repone el servicio mientras haya tierras (48, 49, 50) |
+| Persona en la zona con los implementos levantados | Construcción | Alerta crítica, capa 1 | Nadie trabaja bajo una parte levantada que no esté calzada (52) |
 
-Esa es la única regla definida hoy. Agregar una regla de seguridad es una decisión de producto, no un detalle de implementación: va en este documento.
+Y dos reglas que **sí dependen de la pauta**, porque leen qué pasos están cerrados. También son capa 1 e interrumpen:
+
+| Regla | Dispara | Se resuelve | Por qué |
+|---|---|---|---|
+| Orden invertido | Llega la lectura que cierra un paso posterior mientras el paso en curso, que es control crítico, sigue abierto | Cuando se hace el paso saltado o se deshace lo adelantado | El orden lo comprueba la capa 1 (punto 2 de arriba). Es el bloqueo saltado del demo, y la causa de la muerte que investigó MSHA en 2025: el procedimiento existía y no se aplicó (47). Si el paso pendiente no es crítico no se avisa: cerrar la guarda porque sonó una alerta no vale una interrupción |
+| Control crítico deshecho | El sensor de un control crítico ya verificado deja de marcar lo que el paso exige, antes del paso de la pauta que lo deshace | Cuando el sensor vuelve | Las protecciones se reponen antes de volver a servicio y la reposición va en orden inverso (44, 48, 52). Deja de mirar cuando solo quedan pasos de confirmación, que es cuando la pauta devuelve el equipo a servicio |
+
+Agregar una regla de seguridad es una decisión de producto, no un detalle de implementación: va en este documento. Cada una tiene sus escenarios en las tres industrias ([escenarios por industria](../projects/escenarios-por-industria/PRD.md)).
 
 ## Dónde una persona tiene que aprobar
 
@@ -115,9 +139,9 @@ La vista del supervisor **agrupa por pauta y por área antes que por persona**: 
 
 ## Lo que esta lógica todavía no resuelve
 
-- Qué pasa con un paso `en_conflicto` cuando el operario insiste. ¿Se escala a un supervisor? `Brecha`.
+- Si confirmar un control crítico contra el sensor exige a un supervisor y no al operario. Ver [Cuando la persona y el sensor no coinciden](#cuando-la-persona-y-el-sensor-no-coinciden). `Brecha`.
 - Qué fracción de los pasos de una pauta real tiene una señal de sensor disponible sin tocar el PLC. `Brecha`.
-- Qué algoritmo usa la capa 2. Para el demo basta un umbral. `Brecha`.
+- Qué algoritmo usa la capa 2. Para el demo, sin ciclo de trabajo, basta el desvío robusto contra la historia normal. Con un ciclo de carga, como en una subestación o una excavadora, hace falta saber en qué parte del ciclo va el equipo ([simulación](../projects/escenarios-por-industria/capa2-simulacion.md)). `Brecha`.
 - La latencia del aviso de punta a punta, y si el auricular convive con la protección auditiva de una planta. `Brecha`.
 - Qué evidencia exige una auditoría y cuánto tiempo se guarda. `Brecha`.
 
