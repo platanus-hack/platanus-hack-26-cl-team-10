@@ -70,6 +70,11 @@ class EntranDetecciones(unittest.TestCase):
         self.assertEqual(d["objetos"][0]["clase"], "mouse")
         self.assertEqual(self.v.ultimas_detecciones("edge-1"), d)
 
+    def test_los_textos_largos_se_recortan(self):
+        d = validar_detecciones({"modelo": "m" * 500, "objetos": [{"clase": "x" * 500, "conf": 0.5, "caja": [0, 0, 1, 1]}]})
+        self.assertEqual(len(d["modelo"]), 64)
+        self.assertEqual(len(d["objetos"][0]["clase"]), 64)
+
     def test_una_lista_vacia_tambien_es_informacion(self):
         self.assertEqual(self.v.recibir_detecciones("edge-1", {"objetos": []})["objetos"], [])
 
@@ -77,7 +82,9 @@ class EntranDetecciones(unittest.TestCase):
         malos = [{}, {"objetos": "mouse"}, {"objetos": [{"clase": "mouse"}]},
                  {"objetos": [{"clase": "mouse", "conf": 1.5, "caja": [0, 0, 1, 1]}]},
                  {"objetos": [{"clase": "mouse", "conf": 0.9, "caja": [0, 0, 640, 480]}]},
-                 {"objetos": [{"clase": "mouse", "conf": 0.9, "caja": [0, 0, 1]}]}]
+                 {"objetos": [{"clase": "mouse", "conf": 0.9, "caja": [0, 0, 1]}]},
+                 {"objetos": [{"clase": "mouse", "conf": float("nan"), "caja": [0, 0, 1, 1]}]},
+                 {"objetos": [], "ts": "ayer"}]
         for m in malos:
             with self.subTest(m=m), self.assertRaises(DeteccionInvalida):
                 validar_detecciones(m)

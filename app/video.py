@@ -30,6 +30,7 @@ TAMANO_MAX = 2_000_000
 SEGUNDOS_GUARDADOS = 10
 FPS_MAX = 20
 OBJETOS_MAX = 50
+TEXTO_MAX = 64  # largo máximo de clase y modelo: lo que entra se reenvía a la UI
 RAIZ = Path(__file__).resolve().parent.parent
 EVIDENCIAS = RAIZ / "datos" / "evidencias"
 
@@ -50,13 +51,17 @@ def validar_detecciones(d: dict) -> dict:
     limpios = []
     for o in objetos:
         try:
-            clase, conf, caja = str(o["clase"]), float(o["conf"]), [float(v) for v in o["caja"]]
+            clase, conf, caja = str(o["clase"])[:TEXTO_MAX], float(o["conf"]), [float(v) for v in o["caja"]]
         except (KeyError, TypeError, ValueError) as e:
-            raise DeteccionInvalida(f"objeto mal formado: {o!r}") from e
+            raise DeteccionInvalida(f"objeto mal formado: {str(o)[:200]}") from e
         if not 0 <= conf <= 1 or len(caja) != 4 or not all(0 <= v <= 1 for v in caja):
-            raise DeteccionInvalida(f"conf y caja van entre 0 y 1 (caja = x1, y1, x2, y2): {o!r}")
+            raise DeteccionInvalida(f"conf y caja van entre 0 y 1 (caja = x1, y1, x2, y2): {str(o)[:200]}")
         limpios.append({"clase": clase, "conf": round(conf, 3), "caja": [round(v, 4) for v in caja]})
-    return {"modelo": str(d.get("modelo", "")), "ts_edge": d.get("ts"), "objetos": limpios}
+    try:
+        ts_edge = float(d["ts"]) if d.get("ts") is not None else None
+    except (TypeError, ValueError) as e:
+        raise DeteccionInvalida("'ts' debe ser un número (epoch en segundos)") from e
+    return {"modelo": str(d.get("modelo", ""))[:TEXTO_MAX], "ts_edge": ts_edge, "objetos": limpios}
 
 
 @dataclass(frozen=True, slots=True)
