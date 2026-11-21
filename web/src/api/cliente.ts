@@ -37,6 +37,8 @@ export type Cliente = {
   sobrescribir(otId: string, cuerpo: CuerpoSobrescribir): Promise<Evento>
   entregarTurno(otId: string, actor: string): Promise<{ resumen: string }>
   recibirTurno(otId: string, actor: string): Promise<{ firmado_por: string }>
+  /** Propuesta: asigna o reasigna el operador de la OT. */
+  asignar(otId: string, operador: string): Promise<OtResumen>
 }
 
 const TIMEOUT_DECLARAR_MS = 10_000
@@ -78,6 +80,7 @@ export function crearCliente(base: string, fetchImpl: typeof fetch = (...a) => f
     sobrescribir: (id, cuerpo) => pedir('POST', `${ot(id)}/sobrescribir`, cuerpo),
     entregarTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/entregar?actor=${encodeURIComponent(actor)}`),
     recibirTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/recibir?actor=${encodeURIComponent(actor)}`),
+    asignar: (id, operador) => pedir('POST', `${ot(id)}/asignar`, { operador }),
   }
 }
 

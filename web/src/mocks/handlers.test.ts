@@ -110,3 +110,29 @@ it('going down closes the open streams', async () => {
   m.caido = true
   expect(await cerrado).not.toBe(4404)
 })
+
+it('asignar gives an unassigned OT to an operator', async () => {
+  const r = await api().asignar('ot-14', 'operario:1')
+  expect(r).toMatchObject({ ot: 'ot-14', operador: 'operario:1', estado_general: 'asignada' })
+  expect((await api().listarOts()).find((o) => o.ot === 'ot-14')?.operador).toBe('operario:1')
+})
+
+it('asignar reassigns a handed-over OT', async () => {
+  await api().entregarTurno('ot-12', 'operario:1')
+  const r = await api().asignar('ot-12', 'operario:2')
+  expect(r).toMatchObject({ operador: 'operario:2' })
+  expect(r.estado_general).not.toBe('entregada')
+})
+
+it('asignar refuses an OT that already has an operator, an unknown operator and an unknown OT', async () => {
+  await expect(api().asignar('ot-12', 'operario:2')).rejects.toMatchObject({ status: 409, regla: 'la OT ya tiene operador' })
+  await expect(api().asignar('ot-14', 'supervisor:1')).rejects.toMatchObject({ status: 409, regla: 'el operador no existe' })
+  await expect(api().asignar('ot-99', 'operario:1')).rejects.toMatchObject({ status: 404 })
+})
+
+it('asignar answers 409, not 500, to a body without operator, and names a complete OT', async () => {
+  const r = await fetch(`${BASE}/ot/ot-14/asignar`, { method: 'POST', body: 'null', headers: { 'content-type': 'application/json' } })
+  expect(r.status).toBe(409)
+  for (const p of pauta.pasos) m.agregar('ot-14', { tipo: 'veredicto', actor: 'sistema', paso_id: p.id, estado: 'verificado', detalle: 'ok' })
+  await expect(api().asignar('ot-14', 'operario:1')).rejects.toMatchObject({ status: 409, regla: 'la OT ya está completa' })
+})

@@ -1,9 +1,9 @@
-// La API del mock: las rutas de la API desplegada más las que faltan (sobrescribir).
-// Diego agrega acá POST /ot/:id/asignar con m.asignar().
+// La API del mock: las rutas de la API desplegada más las que faltan (sobrescribir y asignar).
 
 import { http, HttpResponse, ws, type RequestHandler, type WebSocketHandler } from 'msw'
 import type { CuerpoSobrescribir } from '../api/tipos'
 import { config } from '../config'
+import { USUARIOS } from '../sesion/usuarios'
 import { resumenDeRelevo, type Escenario, type Temporizador } from './escenarios'
 import type { Mundo } from './mundo'
 
@@ -113,6 +113,22 @@ export function crearHandlers(
       m.agregar(id, { tipo: 'relevo_recibido', actor, detalle: `${actor} confirma que recibió el turno` })
       m.asignar(id, actor)
       return HttpResponse.json({ firmado_por: actor })
+    })),
+
+    // Propuesta (docs/gestion-ot/PRD.md §6): asigna una OT sin operador o reasigna una entregada.
+    http.post(`${raiz}/ot/:id/asignar`, vivo(async ({ params, request }) => {
+      const id = otDe(params)
+      if (!m.existe(id)) return noExiste(`OT ${id}`)
+      const cuerpo = (await request.json().catch(() => null)) as { operador?: unknown } | null
+      const operador = cuerpo?.operador
+      if (!USUARIOS.some((u) => u.rol === 'operador' && u.id === operador)) return regla('el operador no existe')
+      const actual = m.resumenes().find((o) => o.ot === id)!
+      if (actual.estado_general === 'completa') return regla('la OT ya está completa')
+      if (actual.estado_general !== 'sin_asignar' && actual.estado_general !== 'entregada') {
+        return regla('la OT ya tiene operador')
+      }
+      m.asignar(id, operador as string)
+      return HttpResponse.json(m.resumenes().find((o) => o.ot === id))
     })),
 
     stream.addEventListener('connection', ({ client, params }) => {
