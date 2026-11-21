@@ -105,7 +105,8 @@ class DetectorServidor:
                     objetos = self.detectar(c.jpeg)
                     self.ms_ultimo = (time.time() - t) * 1000
                     self.servicios.recibir_detecciones(edge, {"tipo": "detecciones", "modelo": self.modelo,
-                                                              "ts": c.ts, "objetos": objetos})
+                                                              "ts": c.ts, "objetos": objetos,
+                                                              "clases": self.clases})
                 except Exception:  # noqa: BLE001 - un cuadro malo no debe matar el hilo
                     log.exception("el detector del servidor falló con un cuadro de %s", edge)
             if not hubo:

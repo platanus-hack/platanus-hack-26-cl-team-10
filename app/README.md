@@ -11,6 +11,8 @@ python3 scripts/recorrido_demo.py     # los cinco momentos del demo, de punta a 
 uv run python scripts/correr_casos.py http://localhost:8000   # el banco /casos en Chrome sin ventana: cuántos casos pasan
 python3 scripts/simular_capa2.py      # capa 2: qué detector aguanta qué falla, por industria (señales sintéticas)
 python3 scripts/evaluar_capa3.py      # capa 3: falsa aceptación y falso rechazo del juez de cámara
+uv run python scripts/analizar.py pauta datos/pauta-polin.json --estacion datos/estaciones/correa-ct-01.json   # qué puede cerrar la estación y qué vale la pena analizar
+uv run python scripts/analizar.py ejecuciones   # cómo se ejecutó cada pauta, paso por paso
 ```
 
 ## Quién toca qué
@@ -37,6 +39,7 @@ python3 scripts/evaluar_capa3.py      # capa 3: falsa aceptación y falso rechaz
 | `../deploy/vm/` | Servicios | El servidor del demo: `deploy/vm/desplegar.sh` sube la rama actual a la VM sin borrar la bitácora |
 | `verificacion.py` | Frente 3 | Capa 3 de cámara con Claude Haiku 5.5 (`ANTHROPIC_API_KEY`; en la VM va en `/srv/factum/entorno`; modelo en `VLM_MODELO`; sin key queda el stub). La capa 2 de cámara (YOLO del edge) está en `reglas.por_deteccion` |
 | `cerebro.py` | Frente 4 | `redactar_resumen` y `responder` por el modelo, con el registro completo |
+| `analisis.py` + `scripts/analizar.py` | Servicios | Lo que se comprueba de una pauta sin modelo: contrato, citas del protocolo, factibilidad contra una estación (`datos/estaciones/`), historia de sus OT y el criterio de qué vale la pena analizar. Lo usan las skills de `.claude/skills/` ([ADR-0015](../knowledge/decisions/0015-reconocer-procesos-con-skills-de-agente-y-un-criterio.md)) |
 | `detector.py` | Servicios | YOLO en el servidor (ONNX + onnxruntime), el modo de detección por defecto |
 
 ## Dónde corre YOLO: dos modos
@@ -49,7 +52,9 @@ Las detecciones (clase, confianza y caja) entran siempre por `servicios.recibir_
 | **Edge** | `DETECTOR_ONNX=` vacío en `/srv/factum/entorno` y el edge con `--deteccion edge` (`edge/correr_edge_vm_yolo_local.command`) | ~18 en el Mac | El edge tiene CPU/GPU: más rápido, más preciso y no carga la VM |
 
 - Con el detector del servidor activo, las detecciones que mande un edge se ignoran, para no mezclar dos modelos.
-- Los modelos se exportan con `edge/exportar_onnx.py --lado 416` (clases por defecto: mouse y pencil para LOTO; soda can y red soda can para los polines, que en la estación son latas) a `datos/modelos/` (no van al repo) y `desplegar.sh` los sube si faltan en la VM. A 416 px el lápiz baja de 0,87 a ~0,67 de confianza frente a 640 px: un paso de cámara que no llega al 80 % se cierra declarando (capa 3).
+- **El detector busca lo que pide la pauta, además de sus clases de siempre.** En modo edge, el edge pregunta cada 2 s `GET /edge/{id}/clases` (las `deteccion.clase` de la pauta de la OT en sesión) y, si alguna no está entre las de `--clases`, arma el modelo de nuevo con ella. En modo servidor las clases quedan fijas al exportar: la misma ruta dice en `detector_no_conoce` cuáles le faltan, y hay que exportar de nuevo.
+- **Un detector que no busca una clase no puede decir que el objeto ya no está.** Cada detección lleva las `clases` que el modelo buscaba, y la capa 2 solo cierra un paso `presente: false` si la clase está ahí; si no, decide el VLM cuando el operario declara.
+- Los modelos se exportan con `edge/exportar_onnx.py --lado 416` (clases por defecto: mouse y pencil para LOTO; soda can y red soda can para los polines, que en la estación son latas; se suman las que pidan las pautas de `datos/pauta-*.json` o de `--pautas`) a `datos/modelos/` (no van al repo) y `desplegar.sh` los sube si faltan en la VM. A 416 px el lápiz baja de 0,87 a ~0,67 de confianza frente a 640 px: un paso de cámara que no llega al 80 % se cierra declarando (capa 3).
 - Con ~5 detecciones/s, la ventana de la capa 2 va en `VENTANA_DETECCION_S=1.5` para juntar las 5 que pide.
 
 ## El banco de pruebas
