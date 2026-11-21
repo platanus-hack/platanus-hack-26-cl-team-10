@@ -65,6 +65,30 @@ Si alcanzan a leer cinco: la carga de combustibles (20), porque es el caso en te
 - **ENIGMA-51** (17): 22 horas de reparación de tarjetas eléctricas en primera persona.
 - **AssetOpsBench** (25): sensores, OT, alertas y FMEA para agentes.
 
+## Advertencias de la planilla original
+
+- Los «¿?» de la planilla significan que el resumen de IEEE no lo decía; hay que confirmarlo al leer el paper.
+- Varios papers de la hoja «Fuera de IEEE» son solo preprints de arXiv, a dos revisiones de realidad aumentada les falta el DOI y uno es una tesis. Está marcado en su columna «Nota».
+- La columna «Industria» de Hodkiewicz y Ho 2016 dice «probablemente minería», sin confirmar.
+- El siguiente paso que proponía la planilla: filtrar «Prioridad = Alta» (unos 60 papers), marcar «Estado» como Leído, Citar o Descartado y armar el estado del arte con los marcados «Citar».
+
+## Realidad aumentada
+
+Como interfaz, la descartamos: se acerca a la simulación y no es lo que buscamos. De Manuri et al. (18) y ENIGMA-51 (17) se toma otra cosa: el algoritmo que valida cada paso por su estado final y la grabación de reparaciones reales.
+
+## Términos para seguir buscando
+
+La literatura no usa nuestras palabras. Estos son los términos académicos de cada idea:
+
+| Idea del equipo | Término académico |
+|---|---|
+| Entrar sin integración | *Plug-and-produce*, *retrofitting* de máquinas antiguas, *IIoT retrofitting legacy machines* |
+| Identificar procesos | *Procedure learning* en video, *process mining* en registros |
+| Estandarizar | *Standard work* (Lean y TPM), *task graphs* |
+| Verificar la ejecución | *Procedural mistake detection*, *procedure step recognition*, *egocentric* |
+| Predecir sin historia | Detección de anomalías *zero-shot* o *cold-start*, modelos fundacionales de series de tiempo |
+| Interoperar con lo que existe | ISO 13374, MIMOSA OSA-CBM |
+
 ## Normas para el marco
 
 ISO 14224, ISO 13374, ISO 17359, ISO 13381-1, EN 13306, IEC 60300-3-11, SAE JA1011, ISO 55000 e IEEE 1856. Sin enlace verificado.

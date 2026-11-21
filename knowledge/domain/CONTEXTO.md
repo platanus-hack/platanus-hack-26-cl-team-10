@@ -21,7 +21,11 @@ El objetivo de largo plazo es un ciclo cerrado con datos reales:
 3. Ejecutar con pautas estandarizadas que quedan auditadas y verificadas, incluso con imágenes.
 4. Usar lo auditado para actualizar las pautas matriz.
 
-La entrada a una operación es *plug & play*: sensores pegados al equipo, la cámara del operario y el archivo exportado de OT, sin tocar el PLC ni pedirle integración a TI. El orden es identificar el proceso, estandarizar, mejorar y recién después predecir. `Candidata a validar`.
+La entrada a una operación es *plug & play*: sensores pegados al equipo, la cámara del operario y el archivo exportado de OT, sin tocar el PLC ni pedirle integración a TI. El orden es identificar el proceso, estandarizar, mejorar y recién después predecir. La mayoría de las soluciones de mantenimiento predictivo parten por predecir y chocan con datos malos; nosotros llegamos a predecir como consecuencia. `Candidata a validar`.
+
+Dos cuidados con el *plug & play*. Una faena no deja conectar nada a su red de control sin meses de aprobaciones de ciberseguridad, así que lo creíble es solo lo no invasivo: «funciona el primer día sin pedirle nada a TI». Y la predicción no se promete desde el día uno: detectar anomalías sí, la vida útil remanente necesita semanas o meses de datos por equipo. `Candidata a validar`.
+
+Un ángulo de impacto adicional: capturar el conocimiento de los técnicos senior antes de que se retiren, grabando cómo ejecutan la tarea. `Candidata a validar`.
 
 **Fuera de alcance:** gemelos digitales basados en física.
 

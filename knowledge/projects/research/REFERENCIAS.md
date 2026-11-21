@@ -63,6 +63,25 @@ Venían en la planilla de la revisión IEEE y no aparecieron en la web abierta. 
 - Address Temporal-Semantic Gap: Dynamic Semantic Alignment for Time-Series Fault Representation and Zero-Shot Diagnosis (IEEE T-ASE, 2026). S2S-FDD (26) hace lo mismo.
 - Thaduri et al. (2023), sobre calidad de datos y predicción.
 - Bate, Orchard y Tagle (2024), sobre los molinos SAG de Los Pelambres. Vale la pena encontrarla: es la referencia minera chilena.
+- Mendoza et al. (2024), sobre cuánto se desvían los técnicos de las pautas. Probablemente es [este PDF](https://acelab.tamu.edu/wp-content/uploads/sites/23/2024/04/j75.pdf), del mismo laboratorio de Peres (33), que lo cita; no se confirmó el título.
+
+## Mencionadas, sin verificar
+
+Aparecieron en la conversación de research o en búsquedas, pero no se confirmó la fuente ni se leyeron. No llevan número hasta verificarlas.
+
+- **HoloAssist** (Wang et al., ICCV 2023): asistente que acompaña a una persona en una tarea física y detecta errores. Modelo de interacción con el operario.
+- **Ego-Exo4D** (Grauman et al., CVPR 2024): reconocimiento de pasos clave y nivel de destreza; compara experto y novato.
+- **Tixier et al. (2016)**, *Automation in Construction*: NLP sobre reportes de accidentes de construcción para extraer precursores.
+- **Conte et al. (2021)**: los errores humanos en el texto libre de las OT no son aleatorios y distorsionan los indicadores.
+- **MaintNorm** (grupo de Hodkiewicz): unos 12.000 ejemplos para normalizar el texto de las OT.
+- **Van der Aalst (2016)**, *Process Mining: Data Science in Action*: descubrir procesos desde los registros de eventos, como los estados de las OT en SAP PM.
+- **Arai et al. (2000)**, *CIRP Annals*: origen del término *plug-and-produce*.
+- **TimesFM** (Das et al., ICML 2024, arXiv 2310.10688): modelo fundacional de series de tiempo de Google.
+- **Wang et al. (2026), HCMA_GPT**: [diagnóstico de fallas no vistas en maquinaria rotatoria](https://strathprints.strath.ac.uk/96594/1/Wang-etal-2026-Towards-Generalizable-Fault-Diagnosis-via-LLM-Driven-Hierarchical-Cross-Modal-Alignment.pdf) alineando vibración y texto.
+- **Cui et al.**, A*STAR: [marco de calidad de datos para mantenimiento predictivo](https://oar.a-star.edu.sg/storage/3/3rngr1xj2e/pdm-data-quality-assessment-framework-20240226.pdf), probado en remolcadores.
+- **PARAM** ([arXiv 2508.04714](https://arxiv.org/html/2508.04714v2)) y **LLM-R** ([arXiv 2411.04476](https://arxiv.org/pdf/2411.04476)): agentes con RAG para planificar mantenimiento.
+- **Tesis del MIT** sobre un [chatbot multimodal para causa raíz](https://dspace.mit.edu/bitstream/handle/1721.1/163337/LorenteAnon-cla6-mgt-2025-thesis.pdf?sequence=1&isAllowed=y), con sensores, OT y video.
+- **Proveedores de verificación de bloqueo con cámara**, no revisados por pares: [Roboflow](https://roboflow.com/ai/lockout-tagout-verification) e [iFactory](https://ifactoryapp.com/ai-vision-camera/ai-vision-lockout-tagout-verification).
 
 ## Sin enlace verificado
 
