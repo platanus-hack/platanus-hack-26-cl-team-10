@@ -146,11 +146,15 @@ export const tema = createTheme({
 
 **Pedir OT.** El supervisor elige una de las pautas de su empresa y la OT aparece por asignar, con un aviso de cuál pidió.
 
+**La lista.** Cada OT es una tarjeta, también en el computador: id, pauta y equipo, quién la tiene, el avance y su estado. Van en grupos, y arriba siempre «En ejecución», las que corren ahora en una estación (si no hay ninguna, lo dice). Después «Por asignar» (las entregadas y las sin asignar), «Asignadas, sin empezar» y «Completas». Dentro de un grupo van primero las que avisan. Un clic en cualquier parte de la tarjeta abre su vista en vivo. El supervisor ve todas las de su empresa: la API no distingue a qué supervisor pertenece cada una.
+
+**Tarjeta encendida.** Si la estación avisa algo en una OT abierta, su tarjeta se enciende y dice el motivo más grave: amarillo para «Atención» (la cámara o una señal dudan) y rojo para «Detente». Lleva una franja a la izquierda y el fondo teñido, además del ícono y el texto, porque el color nunca va solo. Una OT completa no se enciende.
+
 **Verificación.** Cada OT de la lista dice cómo va lo que Factum verifica: «Todo bien», «Atención» o «Detente», con ícono y texto. La trae `GET /cliente/ots` en cada OT (`calificacion`), sin una llamada por OT. Las sin asignar no la muestran.
 
 **Incidentes.** Una OT abierta en «Detente» es un incidente. Arriba de la lista aparece una barra roja con cada uno (OT, operador y el motivo más grave) y «Ver en vivo». Cuando aparece uno nuevo suena una campana corta (Web Audio, sin archivos); los que ya estaban al entrar no suenan. El supervisor solo mira: no confirma ni detiene nada.
 
-**Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde el id de la OT o desde «Ver». Arriba, las alertas abiertas en rojo, con «Ver en la bitácora». A un lado, la cámara de la estación (`GET /edge/{edge}/video.mjpg`, el video que el edge manda al servidor) y los sensores, con el que espera el paso en curso marcado; si la OT no corre en una estación, lo dice. Al otro, los pasos y la bitácora completa, lo último arriba. Todo llega por el mismo WebSocket de la OT que usa la ejecución, pero esta vista no abre sesión ni declara: mirar no cambia la bitácora.
+**Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde la tarjeta de la OT, desde su id o desde «Ver». Arriba, las alertas abiertas en rojo, con «Ver en la bitácora». A un lado, la cámara de la estación (`GET /edge/{edge}/video.mjpg`, el video que el edge manda al servidor) y los sensores, con el que espera el paso en curso marcado; si la OT no corre en una estación, lo dice. Al otro, los pasos y la bitácora completa, lo último arriba. Todo llega por el mismo WebSocket de la OT que usa la ejecución, pero esta vista no abre sesión ni declara: mirar no cambia la bitácora.
 
 **Supervisor.** Ve todas las OT con su estado general, su operador y su avance. Asigna las que no tienen operador y reasigna las entregadas. Reasignar es P0: sin eso no hay relevo.
 
@@ -356,6 +360,7 @@ Ejecución (Dani). Todos sirven para las dos pautas del repo: la correa (por def
 | Sin evidencia | `sin-senal` | Nada se cierra solo: a los 20 s el paso ofrece «Ya lo hice» |
 | Relevo | `relevo` | OT en 3/6 con un paso confirmado por Ana; Bruno entra y la termina |
 | Incidente | `incidente` | Para el supervisor: la OT de Bruno va en la estación y a los 8 s se abre la guarda con la energía viva. Barra roja, campana y vista en vivo. `/supervisor?escenario=incidente&como=supervisor:oculta` |
+| Atención | `atencion` | Para el supervisor: Ana y Bruno ejecutan a la vez, cada uno en su estación, y en la de Bruno la cámara duda del candado. Su tarjeta va primero y encendida en amarillo. `/supervisor?escenario=atencion&como=supervisor:oculta` |
 | Estación ocupada | `estacion-ocupada` | `edge-1` ejecuta la OT de Bruno cuando Ana abre la suya: el aviso dice de quién es y «Tomar la estación» se la quita. `/ot/ot-12?escenario=estacion-ocupada&como=operario:1` |
 | API caída | `api-caida` | Errores y timeouts con el operario a mitad de un paso |
 | Ya completa | `completa` | La OT está terminada cuando el operario la abre |

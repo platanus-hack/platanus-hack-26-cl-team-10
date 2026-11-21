@@ -42,11 +42,34 @@ export const ESTADOS: Record<EstadoGeneral, { etiqueta: string; color: string }>
   completa: { etiqueta: 'Completa', color: 'verificado' },
 }
 
-/** Lo que pide acción del supervisor va primero. */
-const ORDEN: EstadoGeneral[] = ['entregada', 'sin_asignar', 'en_ejecucion', 'asignada', 'completa']
+/** Cómo se agrupan las OT del supervisor. Arriba, las que se ejecutan ahora: ese grupo se muestra aunque esté vacío. */
+const GRUPOS: { titulo: string; estados: EstadoGeneral[]; siVacio?: string }[] = [
+  { titulo: 'En ejecución', estados: ['en_ejecucion'], siVacio: 'Ninguna OT se está ejecutando ahora.' },
+  { titulo: 'Por asignar', estados: ['entregada', 'sin_asignar'] },
+  { titulo: 'Asignadas, sin empezar', estados: ['asignada'] },
+  { titulo: 'Completas', estados: ['completa'] },
+]
 
-export function porPrioridad<T extends { estado: EstadoGeneral; ot: string }>(ots: T[]): T[] {
-  return [...ots].sort((a, b) => ORDEN.indexOf(a.estado) - ORDEN.indexOf(b.estado) || a.ot.localeCompare(b.ot))
+const GRAVEDAD: Record<Nivel, number> = { error: 0, warning: 1, ok: 2 }
+
+export type Grupo<T> = { titulo: string; ots: T[]; siVacio?: string }
+
+/** Las OT en sus grupos. Dentro de cada uno van primero las que avisan: «detente», después «atención». */
+export function enGrupos<T extends { ot: string; estado: EstadoGeneral; calificacion: CalificacionOt | null }>(ots: T[]): Grupo<T>[] {
+  if (ots.length === 0) return []
+  const gravedad = (o: T) => GRAVEDAD[avisoDe(o)?.nivel ?? 'ok']
+  return GRUPOS.map(({ titulo, estados, siVacio }) => ({
+    titulo,
+    siVacio,
+    ots: ots
+      .filter((o) => estados.includes(o.estado))
+      .sort(
+        (a, b) =>
+          gravedad(a) - gravedad(b) ||
+          estados.indexOf(a.estado) - estados.indexOf(b.estado) ||
+          a.ot.localeCompare(b.ot, undefined, { numeric: true }),
+      ),
+  })).filter((g) => g.ots.length > 0 || g.siVacio)
 }
 
 export function puedeAsignarse(estado: EstadoGeneral): boolean {
@@ -60,15 +83,23 @@ export const VERIFICACION: Record<Nivel, { etiqueta: string; color: string }> = 
   error: { etiqueta: 'Detente', color: 'peligro' },
 }
 
+/** Lo que avisa una OT abierta que no va bien: «atención» o «detente», con su motivo más grave. */
+export type Aviso = { nivel: 'warning' | 'error'; que: string }
+
+export function avisoDe(o: { estado: EstadoGeneral; calificacion: CalificacionOt | null }): Aviso | null {
+  const c = o.calificacion
+  if (o.estado === 'completa' || !c || c.nivel === 'ok') return null
+  const grave = c.avisos.find((a) => a.nivel === c.nivel) ?? c
+  return { nivel: c.nivel, que: grave.motivos[0] ?? (c.nivel === 'error' ? 'Hay un control que no se cumple' : 'Hay algo que revisar') }
+}
+
 /** Un incidente: una OT abierta cuya calificación es «detente». `que` es el motivo más grave. */
 export type Incidente = { ot: string; operador: string | null; que: string }
 
 export function incidentesDe(ots: { ot: string; operador?: string | null; estado: EstadoGeneral; calificacion: CalificacionOt | null }[]): Incidente[] {
   return ots.flatMap((o) => {
-    const c = o.calificacion
-    if (o.estado === 'completa' || c?.nivel !== 'error') return []
-    const grave = c.avisos.find((a) => a.nivel === 'error') ?? c
-    return [{ ot: o.ot, operador: o.operador ?? null, que: grave.motivos[0] ?? 'Hay un control que no se cumple' }]
+    const aviso = avisoDe(o)
+    return aviso?.nivel === 'error' ? [{ ot: o.ot, operador: o.operador ?? null, que: aviso.que }] : []
   })
 }
 

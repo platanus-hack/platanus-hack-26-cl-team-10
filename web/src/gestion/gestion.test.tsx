@@ -28,7 +28,7 @@ const sinEspera: Temporizador = () => {}
 const server = setupServer()
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterAll(() => server.close())
-// Un test cambia matchMedia para ver la tabla: no se le debe pegar al siguiente.
+// Los espías de un test (la campana) no se le deben pegar al siguiente.
 afterEach(() => vi.restoreAllMocks())
 
 let m: Mundo
@@ -222,7 +222,7 @@ describe('operator dashboard', () => {
 })
 
 describe('supervisor dashboard', () => {
-  it('lists every OT, what needs action first, with counters', async () => {
+  it('lists every OT in cards, with counters', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     expect(await screen.findByLabelText('Por asignar: 1')).toBeInTheDocument()
@@ -296,16 +296,54 @@ describe('supervisor dashboard', () => {
     expect(within(await tarjeta('ot-14')).getByText('Bruno Díaz')).toBeInTheDocument()
   })
 
-  it('shows a table on wide screens', async () => {
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-      (query) => ({ matches: true, media: query, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false }) as MediaQueryList,
-    )
+  it('puts the OTs running now on top, the one that warns first', async () => {
+    m.abrirSesion('ot-12', 'edge-2', 'operario:1')
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    m.agregar('ot-13', { tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto.', evidencia: { tipo: 'camara', clave: 'camara:candado' } })
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    const fila = (await screen.findByText('OT-14')).closest('tr')!
-    expect(screen.getByRole('columnheader', { name: 'Avance' })).toBeInTheDocument()
-    expect(within(fila).getByRole('button', { name: 'Asignar ot-14 a Ana Rojas' })).toBeInTheDocument()
-    expect(within(screen.getByText('OT-12').closest('tr')!).getByText('Ana Rojas')).toBeInTheDocument()
+    const enEjecucion = await screen.findByRole('region', { name: 'En ejecución' })
+    expect(within(enEjecucion).getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12'])
+    expect(within(screen.getByRole('region', { name: 'Por asignar' })).getByText('OT-14')).toBeInTheDocument()
+    expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12', 'OT-14'])
+  })
+
+  it('says so when no OT is running, and still lists the rest', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    expect(within(await screen.findByRole('region', { name: 'En ejecución' })).getByText('Ninguna OT se está ejecutando ahora.')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Asignadas, sin empezar' })).getByText('OT-12')).toBeInTheDocument()
+  })
+
+  it('a warning from the station lights up its card and says why, without raising the red bar', async () => {
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    m.agregar('ot-13', { tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto.', evidencia: { tipo: 'camara', clave: 'camara:candado' } })
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    const ot13 = await tarjeta('ot-13')
+    expect(ot13).toHaveAttribute('data-nivel', 'warning')
+    expect(within(ot13).getByText('Atención')).toBeInTheDocument()
+    expect(within(ot13).getByText('La cámara no ve el candado puesto.')).toBeInTheDocument()
+    expect(within(ot13).getByText('Bruno Díaz')).toBeInTheDocument()
+    expect(await tarjeta('ot-12')).not.toHaveAttribute('data-nivel')
+    expect(screen.queryByRole('alert', { name: 'Incidentes en curso' })).toBeNull()
+  })
+
+  it('a «detente» lights its card in red, with the reason', async () => {
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    m.agregar('ot-13', { tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1, detalle: 'GUARDA ABIERTA.', evidencia: { tipo: 'sensor', clave: 'seguridad:g' } })
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    const ot13 = await tarjeta('ot-13')
+    expect(ot13).toHaveAttribute('data-nivel', 'error')
+    expect(within(ot13).getByText('GUARDA ABIERTA.')).toBeInTheDocument()
+  })
+
+  it('a click anywhere on a card opens its live view', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    await userEvent.click(within(await tarjeta('ot-12')).getByText('Ana Rojas'))
+    expect(await screen.findByText('vista en vivo de ot-12')).toBeInTheDocument()
   })
 
   it('orders a new OT from a company pauta: it shows up unassigned', async () => {

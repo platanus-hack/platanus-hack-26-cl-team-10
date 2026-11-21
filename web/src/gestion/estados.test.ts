@@ -1,5 +1,5 @@
 import type { EstadoOt, OtResumen, PasoEstado } from '../api/tipos'
-import { avanceDe, estadoDe, incidentesDe, porPrioridad, puedeAsignarse } from './estados'
+import { avanceDe, avisoDe, enGrupos, estadoDe, incidentesDe, puedeAsignarse } from './estados'
 
 const resumen = (extra: Partial<OtResumen>): OtResumen => ({
   ot: 'ot-1',
@@ -47,14 +47,62 @@ it('counts every verified step as closed, by evidence or by a person', () => {
   expect(avanceDe(estado)).toEqual({ cerrados: 2, total: 4, nombre: 'Cambio de rodillo v1', pasoActual: '3. Paso 3' })
 })
 
-it('puts what needs the supervisor first', () => {
-  const ots = [
-    { ot: 'ot-3', estado: 'completa' as const },
-    { ot: 'ot-1', estado: 'asignada' as const },
-    { ot: 'ot-2', estado: 'entregada' as const },
-    { ot: 'ot-4', estado: 'sin_asignar' as const },
-  ]
-  expect(porPrioridad(ots).map((o) => o.ot)).toEqual(['ot-2', 'ot-4', 'ot-1', 'ot-3'])
+const calif = (nivel: 'ok' | 'warning' | 'error', motivos: string[] = [], avisos: { nivel: 'ok' | 'warning' | 'error'; motivos: string[] }[] = []) => ({
+  nivel, certeza: 1, capa: 1, motivos, avisos: avisos.map((a) => ({ ...a, certeza: 1, capa: 1 })),
+})
+
+describe('enGrupos', () => {
+  it('puts the OTs running now on top, then the ones to assign, the ones not started and the complete ones', () => {
+    const ots = [
+      { ot: 'ot-3', estado: 'completa' as const, calificacion: calif('ok') },
+      { ot: 'ot-1', estado: 'asignada' as const, calificacion: calif('ok') },
+      { ot: 'ot-5', estado: 'en_ejecucion' as const, calificacion: calif('ok') },
+      { ot: 'ot-4', estado: 'sin_asignar' as const, calificacion: null },
+      { ot: 'ot-2', estado: 'entregada' as const, calificacion: calif('ok') },
+    ]
+    expect(enGrupos(ots).map((g) => [g.titulo, g.ots.map((o) => o.ot)])).toEqual([
+      ['En ejecución', ['ot-5']],
+      ['Por asignar', ['ot-2', 'ot-4']],
+      ['Asignadas, sin empezar', ['ot-1']],
+      ['Completas', ['ot-3']],
+    ])
+  })
+
+  it('inside a group, the ones that warn go first: «detente», then «atención», then the rest', () => {
+    const ots = [
+      { ot: 'ot-1', estado: 'en_ejecucion' as const, calificacion: calif('ok') },
+      { ot: 'ot-2', estado: 'en_ejecucion' as const, calificacion: calif('warning', ['temp']) },
+      { ot: 'ot-3', estado: 'en_ejecucion' as const, calificacion: calif('error', ['guarda']) },
+      { ot: 'ot-4', estado: 'en_ejecucion' as const, calificacion: calif('ok') },
+    ]
+    expect(enGrupos(ots)[0].ots.map((o) => o.ot)).toEqual(['ot-3', 'ot-2', 'ot-1', 'ot-4'])
+  })
+
+  it('keeps «En ejecución» on top even when nothing is running, and drops the other empty groups', () => {
+    const ots = [{ ot: 'ot-1', estado: 'asignada' as const, calificacion: calif('ok') }]
+    expect(enGrupos(ots).map((g) => [g.titulo, g.ots.length])).toEqual([['En ejecución', 0], ['Asignadas, sin empezar', 1]])
+    expect(enGrupos([])).toEqual([])
+  })
+})
+
+describe('avisoDe', () => {
+  it('names the gravest reason of an open OT that is not going well', () => {
+    const o = { estado: 'en_ejecucion' as const, calificacion: calif('warning', ['peor'], [{ nivel: 'warning', motivos: ['La cámara no ve el candado'] }]) }
+    expect(avisoDe(o)).toEqual({ nivel: 'warning', que: 'La cámara no ve el candado' })
+    const grave = { estado: 'en_ejecucion' as const, calificacion: calif('error', ['peor'], [{ nivel: 'warning', motivos: ['temp'] }, { nivel: 'error', motivos: ['GUARDA ABIERTA'] }]) }
+    expect(avisoDe(grave)).toEqual({ nivel: 'error', que: 'GUARDA ABIERTA' })
+  })
+
+  it('says nothing when it goes well, has no grade yet, or is already complete', () => {
+    expect(avisoDe({ estado: 'en_ejecucion', calificacion: calif('ok', ['todo en orden']) })).toBeNull()
+    expect(avisoDe({ estado: 'sin_asignar', calificacion: null })).toBeNull()
+    expect(avisoDe({ estado: 'completa', calificacion: calif('error', ['ya cerrada']) })).toBeNull()
+  })
+
+  it('still says something when the API sends no reason', () => {
+    expect(avisoDe({ estado: 'en_ejecucion', calificacion: calif('warning') })).toEqual({ nivel: 'warning', que: 'Hay algo que revisar' })
+    expect(avisoDe({ estado: 'en_ejecucion', calificacion: calif('error') })).toEqual({ nivel: 'error', que: 'Hay un control que no se cumple' })
+  })
 })
 
 it('only unassigned and handed-over OTs can be assigned', () => {
@@ -66,9 +114,7 @@ it('only unassigned and handed-over OTs can be assigned', () => {
 })
 
 describe('incidentesDe', () => {
-  const c = (nivel: 'ok' | 'warning' | 'error', motivos: string[], avisos: { nivel: 'ok' | 'warning' | 'error'; motivos: string[] }[] = []) => ({
-    nivel, certeza: 1, capa: 1, motivos, avisos: avisos.map((a) => ({ ...a, certeza: 1, capa: 1 })),
-  })
+  const c = calif
 
   it('an open OT on «detente» is an incident, named by its gravest reason', () => {
     const ots = [

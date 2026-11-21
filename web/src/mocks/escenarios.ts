@@ -29,6 +29,7 @@ export type NombreEscenario =
   | 'api-caida'
   | 'completa'
   | 'incidente'
+  | 'atencion'
   | 'estacion-ocupada'
 
 export const SENSOR_TARDA_MS = 4000
@@ -291,6 +292,24 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
     },
     alIniciar(m, t) {
       t(8000, () => alertaDeGuarda(m, 'ot-13', t, 40_000))
+    },
+  }),
+
+  // Para el supervisor: Ana y Bruno ejecutan a la vez, cada uno en su estación, y en la de Bruno
+  // la cámara duda del candado. Su tarjeta se enciende en amarillo. /supervisor?escenario=atencion
+  atencion: como({
+    preparar(m) {
+      otsBase(m)
+      m.abrirSesion('ot-12', 'edge-2', 'operario:1')
+      cerrarYa(m, 'ot-12', m.pauta.pasos[0])
+      m.abrirSesion('ot-13', 'edge-1', 'operario:2')
+      const [a, b] = m.pauta.pasos
+      cerrarYa(m, 'ot-13', a)
+      cerrarYa(m, 'ot-13', b)
+      m.agregar('ot-13', {
+        tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto en el tablero.',
+        evidencia: { tipo: 'camara', clave: 'camara:candado' },
+      })
     },
   }),
 

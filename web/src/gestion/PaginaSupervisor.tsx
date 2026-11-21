@@ -1,14 +1,14 @@
-import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
-import { IconAlertTriangle, IconEye, IconPlus, IconRefresh } from '@tabler/icons-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { IconAlertTriangle, IconEye, IconPlus, IconRefresh, IconUser } from '@tabler/icons-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { api } from '../api/cliente'
 import type { EstadoGeneral, OtPedida, PautaResumen, Persona } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { recordarNombres, useNombres } from '../sesion/usuarios'
 import { campana } from './campana'
-import { ESTADOS, incidentesDe, porPrioridad, puedeAsignarse, type Incidente } from './estados'
+import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, type Incidente } from './estados'
+import estilos from './TarjetaOt.module.css'
 import { EstadoBadge, Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
 import { mensajeDe, useOts, type OtVista } from './useOts'
 
@@ -165,10 +165,6 @@ function IdOt({ ot }: { ot: string }) {
   )
 }
 
-function Verificacion({ ot }: { ot: OtVista }) {
-  return ot.calificacion ? <VerificacionBadge nivel={ot.calificacion.nivel} /> : <Text c="roca.6">—</Text>
-}
-
 function Ver({ ot, ancho = false }: { ot: OtVista; ancho?: boolean }) {
   const enVivo = ot.estado === 'en_ejecucion'
   return (
@@ -229,85 +225,76 @@ function useCampanaDeIncidentes(incidentes: Incidente[] | null) {
   }, [])
 }
 
-/** El id, el estado y el nombre se leen de un vistazo: no se parten en dos líneas. */
-const SIN_CORTE = { whiteSpace: 'nowrap' } as const
-
-function Tabla({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Operadores; onListo: () => Promise<void> }) {
+/**
+ * Una OT en su tarjeta. Si la estación avisa algo, la tarjeta se enciende (amarillo o rojo) y dice
+ * por qué. Un clic en cualquier parte abre su vista en vivo; los botones y los enlaces hacen lo suyo.
+ */
+function TarjetaOt({ ot: o, operadores, onListo }: { ot: OtVista; operadores: Operadores; onListo: () => Promise<void> }) {
+  const navigate = useNavigate()
+  const aviso = avisoDe(o)
+  const abrir = (e: MouseEvent<HTMLElement>) => {
+    if (!(e.target as HTMLElement).closest('a, button')) void navigate(rutaDe(o.ot))
+  }
   return (
-    <Paper withBorder radius="md">
-      <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>OT</Table.Th>
-            <Table.Th>Pauta y equipo</Table.Th>
-            <Table.Th>Estado</Table.Th>
-            <Table.Th>Verificación</Table.Th>
-            <Table.Th>Operador</Table.Th>
-            <Table.Th>Avance</Table.Th>
-            <Table.Th>Acción</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {ots.map((o) => (
-            <Table.Tr key={o.ot} bg={o.calificacion?.nivel === 'error' && o.estado !== 'completa' ? 'peligro.0' : undefined}>
-              <Table.Td style={SIN_CORTE}>
-                <IdOt ot={o.ot} />
-              </Table.Td>
-              <Table.Td>
-                <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
-                <Text size="sm" c="roca.6">
-                  {o.equipo}
-                </Text>
-              </Table.Td>
-              <Table.Td style={SIN_CORTE}>
-                <EstadoBadge estado={o.estado} />
-              </Table.Td>
-              <Table.Td style={SIN_CORTE}>
-                <Verificacion ot={o} />
-              </Table.Td>
-              <Table.Td style={SIN_CORTE}>
-                <Operador ot={o} />
-              </Table.Td>
-              <Table.Td>
-                <Avance ot={o} />
-              </Table.Td>
-              <Table.Td>
-                {puedeAsignarse(o.estado) ? <Asignar ot={o} operadores={operadores} onListo={onListo} /> : <Ver ot={o} />}
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Paper>
+    <Card withBorder radius="md" padding="md" className={estilos.tarjeta} data-nivel={aviso?.nivel} onClick={abrir}>
+      <Stack gap="sm" flex={1}>
+        <Group justify="space-between" wrap="nowrap" align="flex-start">
+          <IdOt ot={o.ot} />
+          <Group gap={6} justify="flex-end">
+            {o.calificacion && <VerificacionBadge nivel={o.calificacion.nivel} />}
+            <EstadoBadge estado={o.estado} />
+          </Group>
+        </Group>
+        <div>
+          <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
+          <Text size="sm" c="roca.6">
+            {o.equipo}
+          </Text>
+        </div>
+        {aviso && (
+          <Text size="sm" fw={700}>
+            {aviso.que}
+          </Text>
+        )}
+        <Group justify="space-between" align="flex-end" wrap="nowrap" mt="auto">
+          <Group gap={6} wrap="nowrap">
+            <IconUser size={18} aria-hidden style={{ flexShrink: 0 }} />
+            <Operador ot={o} />
+          </Group>
+          <Avance ot={o} />
+        </Group>
+        {puedeAsignarse(o.estado) ? <Asignar ot={o} operadores={operadores} onListo={onListo} /> : <Ver ot={o} ancho />}
+      </Stack>
+    </Card>
   )
 }
 
-function Tarjetas({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Operadores; onListo: () => Promise<void> }) {
+/** Las OT en grupos, con las que se ejecutan ahora arriba. */
+function Grupos({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Operadores; onListo: () => Promise<void> }) {
   return (
-    <Stack gap="sm">
-      {ots.map((o) => (
-        <Card key={o.ot} withBorder radius="md" padding="md">
-          <Stack gap="sm">
-            <Group justify="space-between" wrap="nowrap">
-              <IdOt ot={o.ot} />
-              <Group gap={6} wrap="nowrap">
-                {o.calificacion && <VerificacionBadge nivel={o.calificacion.nivel} />}
-                <EstadoBadge estado={o.estado} />
-              </Group>
-            </Group>
-            <div>
-              <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
-              <Text size="sm" c="roca.6">
-                {o.equipo}
+    <Stack gap="xl">
+      {enGrupos(ots).map((g) => (
+        <Stack key={g.titulo} component="section" aria-label={g.titulo} gap="sm">
+          <Group gap="xs" align="baseline">
+            <Title order={3} size="h4">
+              {g.titulo}
+            </Title>
+            {g.ots.length > 0 && (
+              <Text c="roca.6" fw={700}>
+                {g.ots.length}
               </Text>
-            </div>
-            <Group justify="space-between" align="flex-start">
-              <Operador ot={o} />
-              <Avance ot={o} />
-            </Group>
-            {puedeAsignarse(o.estado) ? <Asignar ot={o} operadores={operadores} onListo={onListo} /> : <Ver ot={o} ancho />}
-          </Stack>
-        </Card>
+            )}
+          </Group>
+          {g.ots.length === 0 ? (
+            <Text c="roca.6">{g.siVacio}</Text>
+          ) : (
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+              {g.ots.map((o) => (
+                <TarjetaOt key={o.ot} ot={o} operadores={operadores} onListo={onListo} />
+              ))}
+            </SimpleGrid>
+          )}
+        </Stack>
       ))}
     </Stack>
   )
@@ -388,10 +375,9 @@ export function PaginaSupervisor() {
   const incidentes = useMemo(() => (ots ? incidentesDe(ots) : null), [ots])
   useCampanaDeIncidentes(incidentes)
   const [pedida, setPedida] = useState<OtPedida | null>(null)
-  const ancha = useMediaQuery('(min-width: 62em)', undefined, { getInitialValueInEffect: false })
   if (!usuario) return null
 
-  const lista = porPrioridad(ots ?? [])
+  const lista = ots ?? []
   const deOperadores: Operadores = { lista: operadores.operadores, error: operadores.error }
   const actualizar = () => {
     void recargar()
@@ -431,12 +417,7 @@ export function PaginaSupervisor() {
             textoVacia="No hay órdenes de trabajo abiertas."
             onReintentar={() => void recargar()}
           />
-          {lista.length > 0 &&
-            (ancha ? (
-              <Tabla ots={lista} operadores={deOperadores} onListo={recargar} />
-            ) : (
-              <Tarjetas ots={lista} operadores={deOperadores} onListo={recargar} />
-            ))}
+          <Grupos ots={lista} operadores={deOperadores} onListo={recargar} />
         </Stack>
       </Pagina>
     </>
