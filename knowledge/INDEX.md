@@ -16,7 +16,7 @@
 
 ## Arquitectura
 
-- [FLUJO](./architecture/FLUJO.md): los siete pasos por actor, con evidencia, cómo construirlo y qué falta decidir en cada uno. Incluye las capas de verificación y el demo propuesto.
+- [FLUJO](./architecture/FLUJO.md): los pasos por actor, del protocolo a la OT y a la ejecución guiada, con evidencia, cómo construirlo y qué falta decidir en cada uno. Incluye las capas de verificación y el demo propuesto.
 
 ## Decisiones
 
@@ -28,7 +28,7 @@
 - [REFERENCIAS](./projects/research/REFERENCIAS.md): las 39 referencias verificadas, numeradas y con enlace.
 - [notas/](./projects/research/notas/): una nota por paper leído completo.
 - [fuentes/](./projects/research/fuentes/): la revisión IEEE original en CSV.
-- [Board interactivo](./projects/research/board-mantenimiento-verificado.html): problema, flujo y referencias en una página. Es anterior al planteamiento del equipo del 2026-11-21 y no lo incluye. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
+- [Board interactivo](./projects/research/board-mantenimiento-verificado.html): problema, flujo y referencias en una página. Es anterior al planteamiento del equipo del 2026-11-21 y a los ADR 0005 y 0006, y no los incluye: ahí la OT todavía nace de una anomalía. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
 
 ## Cómo se trabaja
 

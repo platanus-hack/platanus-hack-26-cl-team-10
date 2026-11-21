@@ -1,18 +1,18 @@
 # Flujo de la solución
 
-> La ejecución verificada es la bitácora. Siete pasos, cuatro actores. Estado del flujo completo: `Candidata a validar`.
+> La ejecución verificada es la bitácora. Seis pasos en el alcance, un séptimo como visión y cuatro actores. Estado del flujo completo: `Candidata a validar`.
 
 ```mermaid
 flowchart TD
   subgraph E["Entrada: una vez por tarea"]
-    A1["1 · Equipo: sensores y cámara, sin tocar el PLC"] --> A2["1 · Sistema: lee telemetría y OT históricas"]
+    A1["1 · Equipo: sensores y cámara, sin tocar el PLC"] --> A2["1 · Sistema: recibe telemetría y cámara en vivo"]
     A0["2 · Cliente: entrega el procedimiento que ya tiene"] --> B1
     A2 --> B1["2 · Sistema: lo vuelve pauta comprobable, o redacta el borrador"]
     B2["2 · Operario experto: hace la tarea y corrige"] <--> B1
     B1 --> B3["2 · Supervisor: aprueba la pauta matriz"]
   end
   subgraph C["Ciclo: en cada OT"]
-    C1["3 · Equipo: se detiene o sale de rango"] --> C2["3 · Sistema: abre la OT desde la pauta"]
+    C1["3 · Calendario, pedido o falla del equipo"] --> C2["3 · Sistema: genera la OT desde la pauta"]
     C2 --> D1["4 · Sistema: comprueba el paso actual con sensores y cámara"]
     D2["4 · Operario: bloquea, ejecuta y confirma"] --> D1
     D1 -- "avisa por audio si falta un paso" --> D2
@@ -20,21 +20,21 @@ flowchart TD
     F1 --> F2["5 · Turno siguiente: retoma desde el último paso verificado"]
     F1 --> G1["6 · Sistema: propone un cambio a la pauta"]
     G1 --> G2["6 · Supervisor: aprueba o rechaza, y ve dónde se saltan pasos"]
-    F1 --> H1["7 · Sistema: predice con el historial limpio"]
+    F1 -.-> H1["7 · Visión: predecir con el historial limpio"]
   end
   B3 -- "pauta vigente" --> C2
   G2 -- "la pauta mejora" --> B3
-  H1 -- "anticipa la falla" --> C2
+  H1 -. "anticipa la falla" .-> C1
 ```
 
-Los números entre paréntesis remiten a [REFERENCIAS](../projects/research/REFERENCIAS.md). El flujo incorpora el [planteamiento del equipo del 2026-11-21](../domain/fuentes/2026-11-21-planteamiento-del-equipo.md).
+Los números entre paréntesis remiten a [REFERENCIAS](../projects/research/REFERENCIAS.md). El flujo incorpora el [planteamiento del equipo del 2026-11-21](../domain/fuentes/2026-11-21-planteamiento-del-equipo.md). Las líneas punteadas son visión, fuera del alcance del demo.
 
 ## 1. Conectar sin integrar
 
-Sensores inalámbricos pegados al equipo, la cámara del operario y el archivo exportado de OT. Nada toca el PLC ni la red de control.
+Sensores inalámbricos pegados al equipo y la cámara del operario. Nada toca el PLC ni la red de control. El archivo exportado de OT históricas solo hace falta para la visión del paso 7.
 
 - **Evidencia.** Aqueveque et al. pusieron acelerómetros inalámbricos en bulldozers, palas y retroexcavadoras sin tocar su control, y clasificaron la salud del equipo con 85% a 95% de exactitud (24). `Confirmada`.
-- **Construcción.** Partir con una fuente de cada tipo: un sensor, un archivo de OT y la cámara del celular. Un adaptador por fuente se justifica cuando llegue la segunda faena.
+- **Construcción.** Partir con una fuente de cada tipo: un sensor y la cámara del celular. Un adaptador por fuente se justifica cuando llegue la segunda faena.
 - **Leer.** (24). Además ISO 13374 y MIMOSA OSA-CBM, sin enlace verificado.
 - **Por decidir.** Quién autoriza instalar un sensor y una cámara en la faena, y cuánto demora. `Brecha`.
 
@@ -47,14 +47,14 @@ Hay dos entradas. Si el cliente ya tiene el procedimiento, que es el cliente obj
 - **Leer.** (9), (15), (16), (21), (27) y (1).
 - **Por decidir.** Cuántas repeticiones del experto hacen falta para confiar en la pauta. Quién decide, paso por paso, qué evidencia cierra cada uno al cargar un procedimiento existente. `Brecha`.
 
-## 3. Detectar y abrir la OT
+## 3. Generar la OT
 
-El equipo se detiene sin aviso, como una correa transportadora, o un sensor sale de rango. El sistema abre la OT desde la pauta vigente; una persona la confirma.
+La OT es la instancia ejecutable de la pauta vigente: la tarea, el equipo, los pasos en orden y la evidencia que cierra cada uno. El sistema la genera desde la pauta cada vez que hay que ejecutar la tarea, y una persona la confirma. El disparo puede ser el calendario de una mantención preventiva, el pedido de alguien o una falla, como una correa transportadora que se detiene sin aviso o un sensor que sale de rango. Ver [ADR-0006](../decisions/0006-la-ot-nace-del-protocolo.md).
 
-- **Evidencia.** O'Donncha et al. cruzan OT, sensores y FMEA, y ponen un verificador determinista entre el modelo y la respuesta (25). Aqueveque et al. alertaron entre 120 y 170 horas antes de la falla crítica (24). `Confirmada`.
-- **Construcción.** La OT es una fila con un estado. Un umbral sobre la vibración basta para el primer disparo.
-- **Leer.** (25), (26), (29) y (24).
-- **Por decidir.** Si conviene buscar OT parecidas por palabra clave o por similitud. Se prueba en una tarde con OT reales. `Brecha`.
+- **Evidencia.** O'Donncha et al. cruzan OT, sensores y FMEA, y ponen un verificador determinista entre el modelo y la respuesta (25). `Confirmada`.
+- **Construcción.** La OT es una fila con un estado y la versión de la pauta que ejecuta. Para el disparo por falla del demo basta un umbral sobre la vibración.
+- **Leer.** (25), (26) y (29).
+- **Por decidir.** Si una OT disparada por falla necesita pasos de diagnóstico que la pauta no trae, y quién la confirma: el supervisor o el operario. `Brecha`.
 
 ## 4. Ejecutar y verificar
 
@@ -83,9 +83,9 @@ Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta ma
 - **Leer.** (33), (34), (35), (28), (25) y (7).
 - **Por decidir.** Cuándo una desviación es error del operario y cuándo es una pauta mala. `Brecha`.
 
-## 7. Predecir
+## 7. Predecir (visión)
 
-El primer día detecta anomalías. La vida útil remanente llega cuando hay historia limpia por equipo.
+Fuera del alcance del demo y del pitch, salvo como una línea de hacia dónde va ([registro de decisiones](../decisions/decisions.md)). Con historia limpia por equipo, el sistema podría anticipar la falla y disparar la OT antes de que ocurra. La detección de anomalías de la capa 2 sí está en el alcance; la vida útil remanente no.
 
 - **Evidencia.** Aqueveque et al. alertaron entre 120 y 170 horas antes en maquinaria minera móvil (24). Los modelos fundacionales de series de tiempo prometen detectar anomalías sin entrenar por equipo (31), (32), pero no encontramos ninguno probado en esta maquinaria. `Brecha`.
 - **Construcción.** Es lo último. Sale de los pasos verificados más la telemetría, así que depende de que los pasos 4 y 5 funcionen.
@@ -107,7 +107,7 @@ Cada paso se comprueba con la primera capa que puede decidirlo. `Candidata a val
 `Candidata a validar`. Una pasada completa del ciclo sobre una correa transportadora a escala, en vez de cada pieza a medias. El equipo tiene Arduino, Raspberry Pi, ESP, sensores y motores, y quiere una interfaz donde se vea llegar el protocolo, generarse la OT y al operario recibir ayuda cuando se equivoca.
 
 1. Un motor mueve la correa. Un ESP lee vibración o temperatura, un interruptor que corta la energía y un sensor en la guarda.
-2. La correa se detiene sin aviso. El sistema abre la OT desde la pauta, y la pantalla muestra el costo de cada hora detenida.
+2. La correa se detiene sin aviso. El sistema genera la OT desde la pauta, y la pantalla muestra el costo de cada hora detenida. La falla es uno de los disparos posibles; es el que se muestra porque pone el costo en pantalla.
 3. Alguien ejecuta la pauta con el celular como cámara y un auricular. Se salta el bloqueo a propósito y abre la guarda con la energía conectada: el sensor lo detecta y el aviso le llega al oído antes de que meta la mano. Es el momento del demo.
 4. La cámara comprueba que el candado y la tarjeta están puestos. Cada paso verificado entra a la bitácora con su evidencia.
 5. A mitad del trabajo cambia el turno: otra persona lo retoma desde el último paso verificado.

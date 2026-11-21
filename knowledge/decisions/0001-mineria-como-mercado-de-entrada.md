@@ -1,6 +1,6 @@
 # ADR-0001 — Minería como mercado de entrada
 
-> Estado: `proposed` · Fecha: 2026-11-21
+> Estado: `superseded by 0005` · Fecha: 2026-11-21
 
 ## Contexto
 
