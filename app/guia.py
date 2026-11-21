@@ -136,19 +136,28 @@ cada response y los mensajes del stream. Sirve de ejemplo ejecutable de cada rec
 escenarios por industria (`GET /escenarios`): cada forma de ejecutar un paso en minería, eléctrica y
 construcción, corrida en una caja aislada que no toca la bitácora de este servidor.
 
+## Protocolos, pautas y OT: dos servicios
+
+- **Interno (`/interno/...`)**: lo usa el equipo, una vez por protocolo. Carga el documento del cliente
+  (`POST /interno/protocolos`), crea sus pautas (`POST /interno/protocolos/{{protocolo_id}}/pautas`) o atribuye
+  las que ya existen (`PUT /interno/pautas/{{pauta_id}}/protocolos/{{protocolo_id}}`), y las aprueba. Un protocolo da
+  una o más pautas, y una pauta puede salir de más de un protocolo. Con `CLAVE_EQUIPO` pide `X-Clave-Equipo`.
+- **Para clientes (`/cliente/...`)**: `GET /cliente/pautas` lista las pautas listas (aprobadas y atribuidas a un
+  protocolo) y `POST /cliente/ots` genera una OT de una de ellas, de su última versión aprobada.
+
 ## Clave del equipo
 
 Si el servidor tiene `CLAVE_EQUIPO`, dos llamadas piden la cabecera `X-Clave-Equipo`: `POST /ot/{{ot_id}}/sesion` cuando el
 edge ya ejecuta otra OT, y `DELETE /edge/{{edge_id}}/sesion`. Unir un edge libre o repetir la sesión que ya tiene no la pide,
-y el resto de la API tampoco. `GET /clave` dice si este servidor la pide y si la que mandas sirve. En el navegador, el home
+y el resto de la API tampoco, salvo el servicio interno (`/interno/...`), que la pide en cada llamada. `GET /clave` dice si este servidor la pide y si la que mandas sirve. En el navegador, el home
 y el banco la guardan al abrirlos una vez con `?clave=`.
 
 ## Errores
 
 | Código | Cuerpo | Qué significa |
 |---|---|---|
-| 401 | `{{"clave": "..."}}` | El edge ya ejecuta otra OT, o se lo quiere soltar, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
-| 404 | `{{"no_existe": "..."}}` | La OT, pauta, paso, evento o sesión no existe |
+| 401 | `{{"clave": "..."}}` | El edge ya ejecuta otra OT, o se lo quiere soltar, o la llamada es del servicio interno, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
+| 404 | `{{"no_existe": "..."}}` | La OT, pauta, protocolo, paso, evento o sesión no existe |
 | 409 | `{{"regla": "..."}}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
 | 422 | `{{"detail": ...}}` o `{{"cuadro": "..."}}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |
 | 405 | — | Se intentó editar o borrar algo que solo se lee (la bitácora) |

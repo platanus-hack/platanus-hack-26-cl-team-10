@@ -108,6 +108,35 @@ class Asignacion(BaseModel):
     actor: str = "supervisor"
 
 
+class ProtocoloNuevo(BaseModel):
+    id: str
+    nombre: str
+    actor: str
+    industria: str = ""
+    origen: str = ""
+    texto: str = ""
+    pautas: list[str] = []
+
+
+class ProtocoloCambio(BaseModel):
+    nombre: str | None = None
+    industria: str | None = None
+    origen: str | None = None
+    texto: str | None = None
+
+
+class PautaDeProtocolo(BaseModel):
+    pauta: dict
+    actor: str
+    protocolos: list[str] = []
+
+
+class PedidoOt(BaseModel):
+    pauta_id: str
+    solicitante: str
+    ot_id: str | None = None
+
+
 class Sesion(BaseModel):
     edge_id: str = EDGE_POR_DEFECTO
     operario: str
@@ -228,6 +257,121 @@ def _clave_valida(clave: str | None) -> bool:
 def estado_de_la_clave(x_clave_equipo: str | None = Header(default=None)) -> dict:
     """Si este servidor pide clave para mover un edge, y si la que llega en `X-Clave-Equipo` sirve."""
     return {"requerida": bool(os.environ.get("CLAVE_EQUIPO")), "valida": _clave_valida(x_clave_equipo)}
+
+
+# ─── Servicio interno: protocolos y sus pautas (app/catalogo.py) ────────────
+# Lo usa el equipo, una vez por protocolo, al poner en marcha una estación. Con CLAVE_EQUIPO
+# definida pide la cabecera X-Clave-Equipo; sin la variable queda abierto, como en local.
+
+
+def _solo_equipo(clave: str | None) -> None:
+    if not _clave_valida(clave):
+        raise ClaveRequerida("el servicio interno pide la clave del equipo (cabecera X-Clave-Equipo)")
+
+
+@app.post("/interno/protocolos", status_code=201)
+def crear_protocolo(p: ProtocoloNuevo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Carga el protocolo de un cliente. `pautas` lo deja atribuido a pautas que ya existen. 409 si el id ya existe."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.crear_protocolo(cx, p.model_dump(exclude={"actor"}), p.actor)
+
+
+@app.get("/interno/protocolos")
+def listar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    """Cada protocolo con las pautas que salen de él, sin su texto."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.listar_protocolos(cx)
+
+
+@app.post("/interno/protocolos/semilla")
+def sembrar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Deja cargadas y aprobadas las pautas de `datos/`, con sus protocolos atribuidos. Se puede repetir."""
+    _solo_equipo(x_clave_equipo)
+    return protocolos.cargar_semilla(cx)
+
+
+@app.get("/interno/protocolos/{protocolo_id}")
+def leer_protocolo(protocolo_id: str, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Un protocolo con su texto y sus pautas."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.leer_protocolo(cx, protocolo_id)
+
+
+@app.put("/interno/protocolos/{protocolo_id}")
+def cambiar_protocolo(protocolo_id: str, c: ProtocoloCambio, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Corrige nombre, industria, origen o texto. El id no cambia."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.cambiar_protocolo(cx, protocolo_id, c.model_dump(exclude_none=True))
+
+
+@app.delete("/interno/protocolos/{protocolo_id}", status_code=204)
+def borrar_protocolo(protocolo_id: str, x_clave_equipo: str | None = Header(default=None)) -> None:
+    """Solo si ninguna pauta sale de él (409 si tiene)."""
+    _solo_equipo(x_clave_equipo)
+    catalogo.borrar_protocolo(cx, protocolo_id)
+
+
+@app.post("/interno/protocolos/{protocolo_id}/pautas", status_code=201)
+def crear_pauta_de_protocolo(protocolo_id: str, p: PautaDeProtocolo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Crea la versión siguiente de una pauta, atribuida a este protocolo y a los de `protocolos`. Nace sin aprobar."""
+    _solo_equipo(x_clave_equipo)
+    try:
+        return catalogo.crear_pauta_de(cx, [protocolo_id, *p.protocolos], p.pauta, p.actor)
+    except (KeyError, ValueError) as e:
+        if isinstance(e, db.NoExiste):
+            raise
+        raise HTTPException(422, f"pauta mal formada: {e}") from e
+
+
+@app.get("/interno/pautas/{pauta_id}/protocolos")
+def protocolos_de_pauta(pauta_id: str, x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    """De qué protocolos sale una pauta."""
+    _solo_equipo(x_clave_equipo)
+    catalogo.leer_pauta(cx, pauta_id)
+    return catalogo.protocolos_de(cx, pauta_id)
+
+
+@app.put("/interno/pautas/{pauta_id}/protocolos/{protocolo_id}")
+def atribuir_pauta(pauta_id: str, protocolo_id: str, a: Aprobacion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Atribuye una pauta que ya existe a un protocolo. Una pauta puede salir de varios."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.atribuir(cx, pauta_id, protocolo_id, a.actor)
+
+
+@app.delete("/interno/pautas/{pauta_id}/protocolos/{protocolo_id}", status_code=204)
+def quitar_atribucion(pauta_id: str, protocolo_id: str, x_clave_equipo: str | None = Header(default=None)) -> None:
+    """Quita la atribución. 409 si es el único protocolo de una pauta que ya tiene OT."""
+    _solo_equipo(x_clave_equipo)
+    catalogo.quitar_atribucion(cx, pauta_id, protocolo_id)
+
+
+@app.post("/interno/pautas/{pauta_id}/versiones/{version}/aprobar")
+def aprobar_pauta_interno(pauta_id: str, version: int, a: Aprobacion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Lo mismo que aprobar una pauta, dentro del servicio interno: una persona, una sola vez."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.aprobar_pauta(cx, pauta_id, version, a.actor)
+
+
+# ─── Servicio para clientes: pedir OT de las pautas que el equipo dejó listas ─
+
+
+@app.get("/cliente/pautas")
+def pautas_para_clientes() -> list[dict]:
+    """Las pautas que se pueden pedir: con una versión aprobada y al menos un protocolo."""
+    return catalogo.pautas_disponibles(cx)
+
+
+@app.post("/cliente/ots", status_code=201)
+def pedir_ot(p: PedidoOt) -> dict:
+    """Genera una OT de la última versión aprobada de la pauta. Sin `ot_id`, el servicio le pone uno.
+    409 si la pauta no está aprobada, no sale de ningún protocolo o el id ya existe."""
+    return catalogo.generar_ot(cx, p.pauta_id, p.solicitante, p.ot_id)
+
+
+@app.get("/cliente/ots")
+def ots_para_clientes() -> list[dict]:
+    """Cada OT con su avance, su operador y su estado general, como en `/ots`."""
+    return servicios.ots()
 
 
 @app.get("/sesiones")

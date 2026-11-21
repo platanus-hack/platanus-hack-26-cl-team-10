@@ -1,0 +1,102 @@
+{
+  "id": "pauta-brazo-01",
+  "nombre": "Ajuste de pinza en brazo robótico",
+  "version": 1,
+  "equipo": "brazo BR-01, celda del demo",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Cortar la energía del brazo",
+      "instruccion": "Abre el interruptor de los servos y comprueba que el brazo quedó sin energía.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "cortada"
+      }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Poner el bloqueo",
+      "instruccion": "Pon el candado y la tarjeta en el interruptor.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "puesto"
+      }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Entrar a la celda",
+      "instruccion": "Con la energía cortada y el bloqueo puesto, acércate al brazo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "zona",
+        "espera": "ocupada"
+      }
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Ajustar la pinza",
+      "instruccion": "Aprieta el tornillo de la pinza hasta que cierre sobre la pieza.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿La pinza está cerrada y sostiene la pieza?"
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Salir de la celda",
+      "instruccion": "Retira la herramienta y sal de la zona del brazo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "zona",
+        "espera": "libre"
+      }
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Retirar el bloqueo",
+      "instruccion": "Con la celda despejada, saca el candado y la tarjeta.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "retirado"
+      }
+    },
+    {
+      "id": "p7",
+      "orden": 7,
+      "titulo": "Devolver la energía",
+      "instruccion": "Cierra el interruptor de los servos.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "viva"
+      }
+    },
+    {
+      "id": "p8",
+      "orden": 8,
+      "titulo": "Probar un ciclo",
+      "instruccion": "Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1
+    }
+  ]
+}
