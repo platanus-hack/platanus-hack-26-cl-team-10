@@ -79,7 +79,8 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 
 - **Cada color significa una sola cosa.** Rojo es peligro, amarillo es precaución, verde es verificado y azul es acción obligatoria, que en la app es el paso actual y el botón «Hecho».
 - **Lo demás es neutro.** Una OT tranquila se ve gris y blanca, con el paso actual en azul. Cuando algo sale mal, la pantalla cambia de color, y eso es lo que se tiene que notar.
-- **Sin naranjo.** Queda entre el rojo y el amarillo y confunde los dos avisos. Tampoco hay un color de marca aparte.
+- **Sin naranjo.** Queda entre el rojo y el amarillo y confunde los dos avisos.
+- **La marca no dice estados.** El lima y la tinta del logo viven solo en la banda de arriba y en el login (ver «Marca»); nada de lo que avisa los usa.
 - **El color nunca va solo.** Siempre va con un ícono y un texto: con sol, con guantes o con daltonismo rojo-verde, el color no alcanza.
 - **Fondo claro.** Se lee mejor bajo el sol y en el proyector del escenario.
 - **La alerta de capa 1 se ve como una tarjeta de bloqueo:** una franja roja arriba con «Peligro» en blanco, y el cuerpo blanco con el texto en grafito.
@@ -101,7 +102,23 @@ El amarillo de seguridad no se lee como texto sobre blanco (1,5:1): va siempre d
 
 **Gestión:** `sin_asignar` roca · `asignada` y `en_ejecucion` acción · `entregada` precaución, porque espera al supervisor · `completa` verificado.
 
-El tema vive en `web/src/tema.ts` y nadie escribe un hex fuera de ahí:
+### Marca
+
+El logo es `project-logo.png`: una cruz lima y «Factum» en matriz de puntos, sobre tinta. Es el mismo del monitor de Jona.
+
+- **`<Marca>`** (`web/src/Marca.tsx`) lo dibuja en SVG, calcado del PNG punto por punto: no depende de que cargue una letra. La cruz y el nombre van siempre juntos; la cruz sola en una barra se lee como un botón de «agregar».
+- **Vive sobre tinta, y solo arriba.** La banda de arriba (`Encabezado` y `BarraOt`) y el panel del login son tinta; todo lo de trabajo sigue en fondo claro. `SOBRE_TINTA` en `tema.ts` trae el fondo, el texto y el foco del teclado en lima, porque el azul no se ve sobre tinta.
+- **La letra** es Bitcount Prop Single, servida por el front (`@fontsource-variable/bitcount-prop-single`). Se usa solo en la frase del login: «Cada paso verificado queda como un hecho.»
+- **El favicon** (`web/public/favicon.svg`) es la cruz lima sobre tinta, con el trazo más grueso que en el logo para que se lea a 16 px.
+
+| Token | Hex | Uso |
+|---|---|---|
+| Tinta | `#0a0c0a` | Fondo de la banda de arriba y del panel del login |
+| Lima | `#d4ff9e` | La cruz del logo y el foco del teclado sobre tinta |
+| Hueso | `#eef2e9` | «Factum» y el texto sobre tinta |
+| Tenue | `#9ca696` | Texto secundario sobre tinta |
+
+El tema vive en `web/src/tema.ts` y nadie escribe un hex fuera de ahí (las dos excepciones son archivos que no pueden importarlo: `favicon.svg` y el `theme-color` de `index.html`):
 
 ```ts
 import { createTheme, type MantineColorsTuple } from '@mantine/core'

@@ -1,4 +1,5 @@
 import { createTheme, type MantineColorsTuple } from '@mantine/core'
+import type { CSSProperties } from 'react'
 
 // Colores de seguridad industrial (ISO 3864, ANSI Z535). Ver knowledge/architecture/FRONTEND.md §4.
 // Nadie escribe un hex fuera de este archivo.
@@ -22,3 +23,28 @@ export const tema = createTheme({
 
 /** Fondo de la app (Polvo). */
 export const FONDO = '#EDF0F2'
+
+/**
+ * La marca (project-logo.png): la cruz lima y «Factum» en matriz de puntos, sobre tinta.
+ * Vive solo en la banda de arriba y en el login. Nunca dice un estado: eso es de los colores de seguridad.
+ */
+export const MARCA = {
+  tinta: '#0a0c0a',
+  lima: '#d4ff9e',
+  hueso: '#eef2e9',
+  /** Texto secundario sobre tinta. */
+  tenue: '#9ca696',
+} as const
+
+/**
+ * Donde vive la marca: fondo tinta y texto hueso. El foco del teclado va en lima, porque el
+ * azul de acción no se ve sobre tinta.
+ */
+export const SOBRE_TINTA = {
+  background: MARCA.tinta,
+  color: MARCA.hueso,
+  '--mantine-primary-color-filled': MARCA.lima,
+} as CSSProperties
+
+/** La letra de la marca, la misma del monitor: solo para frases grandes sobre tinta. */
+export const TITULAR = "'Bitcount Prop Single Variable', ui-monospace, Menlo, monospace"

@@ -1,5 +1,7 @@
 import '@mantine/core/styles.css'
 import './index.css'
+// La letra de la marca (solo el eje de peso), servida por el front: sin pedirle nada a Google.
+import '@fontsource-variable/bitcount-prop-single/wght.css'
 import { MantineProvider } from '@mantine/core'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import { PaginaOt } from './ejecucion/PaginaOt'

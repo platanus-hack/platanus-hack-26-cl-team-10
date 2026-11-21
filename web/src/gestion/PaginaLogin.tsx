@@ -1,13 +1,15 @@
-import { Alert, Button, Center, Group, Paper, PasswordInput, Stack, Text, TextInput, ThemeIcon, Title, UnstyledButton } from '@mantine/core'
+import { Alert, Button, Flex, Group, Paper, PasswordInput, Stack, Text, TextInput, ThemeIcon, Title, UnstyledButton } from '@mantine/core'
 import { IconChevronRight, IconClipboardList, IconTool } from '@tabler/icons-react'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { ApiError, api } from '../api/cliente'
 import type { Persona } from '../api/tipos'
 import { config } from '../config'
+import { Marca } from '../Marca'
 import { CLAVE_MOCK, PERSONAS } from '../mocks/personas'
 import { guardarSesion, motivoDeSalida, useSesion } from '../sesion/sesion'
 import { usuarioDe } from '../sesion/usuarios'
+import { SOBRE_TINTA, TITULAR } from '../tema'
 import { inicioDe } from './estados'
 
 const ROL = { supervisor: 'Pide y asigna las OT', operador: 'Ejecuta las OT en terreno' } as const
@@ -72,61 +74,67 @@ export function PaginaLogin() {
   }
 
   return (
-    <Center mih="100vh" p="md">
-      <Stack w="100%" maw={420} gap="lg">
-        <Stack gap={4}>
-          <Text fw={900} size="xl" c="accion">
-            Factum
-          </Text>
-          <Title order={1}>Entrar</Title>
-          <Text c="roca.6">Mantenimiento verificado. Entra con el correo y la clave que te dio tu empresa.</Text>
-        </Stack>
-        {vencida && !error && (
-          <Alert color="precaucion" variant="light">
-            Tu sesión venció. Vuelve a entrar.
-          </Alert>
-        )}
-        <form onSubmit={enviar} noValidate>
-          <Stack gap="md">
-            <TextInput
-              label="Correo"
-              type="email"
-              size="lg"
-              autoComplete="username"
-              placeholder="nombre@empresa.cl"
-              value={correo}
-              onChange={(e) => setCorreo(e.currentTarget.value)}
-              required
-            />
-            <PasswordInput
-              label="Clave"
-              size="lg"
-              autoComplete="current-password"
-              value={clave}
-              onChange={(e) => setClave(e.currentTarget.value)}
-              required
-            />
-            {error && (
-              <Text c="peligro" fw={600} role="alert">
-                {error}
+    // La marca a un lado (arriba en el celular), sobre tinta; el formulario, claro como el resto de la app.
+    <Flex mih="100vh" direction={{ base: 'column', md: 'row' }}>
+      <Flex direction="column" justify="space-between" gap={32} w={{ base: '100%', md: '42%' }} p={{ base: 'lg', md: 48 }} style={SOBRE_TINTA}>
+        <Marca alto={26} />
+        <Text component="p" m={0} maw={460} ff={TITULAR} fw={400} fz={{ base: 26, md: 44 }} lh={1.15}>
+          Cada paso verificado queda como un hecho.
+        </Text>
+      </Flex>
+      <Flex flex={1} justify="center" align={{ base: 'flex-start', md: 'center' }} px="md" py="xl">
+        <Stack w="100%" maw={420} gap="lg">
+          <Stack gap={4}>
+            <Title order={1}>Entrar</Title>
+            <Text c="roca.6">Con el correo y la clave que te dio tu empresa.</Text>
+          </Stack>
+          {vencida && !error && (
+            <Alert color="precaucion" variant="light">
+              Tu sesión venció. Vuelve a entrar.
+            </Alert>
+          )}
+          <form onSubmit={enviar} noValidate>
+            <Stack gap="md">
+              <TextInput
+                label="Correo"
+                type="email"
+                size="lg"
+                autoComplete="username"
+                placeholder="nombre@empresa.cl"
+                value={correo}
+                onChange={(e) => setCorreo(e.currentTarget.value)}
+                required
+              />
+              <PasswordInput
+                label="Clave"
+                size="lg"
+                autoComplete="current-password"
+                value={clave}
+                onChange={(e) => setClave(e.currentTarget.value)}
+                required
+              />
+              {error && (
+                <Text c="peligro" fw={600} role="alert">
+                  {error}
+                </Text>
+              )}
+              <Button type="submit" size="lg" fullWidth loading={enviando} disabled={!correo.trim() || !clave}>
+                Entrar
+              </Button>
+            </Stack>
+          </form>
+          {config.MOCK && (
+            <Stack gap="xs">
+              <Text size="sm" c="roca.7" fw={600}>
+                Datos de prueba: entra con un toque, o con su correo y la clave «{CLAVE_MOCK}».
               </Text>
-            )}
-            <Button type="submit" size="lg" fullWidth loading={enviando} disabled={!correo.trim() || !clave}>
-              Entrar
-            </Button>
-          </Stack>
-        </form>
-        {config.MOCK && (
-          <Stack gap="xs">
-            <Text size="sm" c="roca.7" fw={600}>
-              Datos de prueba: entra con un toque, o con su correo y la clave «{CLAVE_MOCK}».
-            </Text>
-            {PERSONAS.map((p) => (
-              <OpcionPersona key={p.id} persona={p} disabled={enviando} onElegir={() => void entrar(p.usuario, CLAVE_MOCK)} />
-            ))}
-          </Stack>
-        )}
-      </Stack>
-    </Center>
+              {PERSONAS.map((p) => (
+                <OpcionPersona key={p.id} persona={p} disabled={enviando} onElegir={() => void entrar(p.usuario, CLAVE_MOCK)} />
+              ))}
+            </Stack>
+          )}
+        </Stack>
+      </Flex>
+    </Flex>
   )
 }

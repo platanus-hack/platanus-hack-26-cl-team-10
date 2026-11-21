@@ -1,6 +1,6 @@
 // Piezas comunes de las pantallas de gestión.
 
-import { Alert, Badge, Box, Button, Center, Container, Group, Loader, Paper, Stack, Text } from '@mantine/core'
+import { Alert, Badge, Box, Button, Center, Container, Group, Loader, Paper, Stack, Text, UnstyledButton } from '@mantine/core'
 import {
   IconAlertTriangle,
   IconArrowsExchange,
@@ -14,12 +14,14 @@ import {
   IconWifiOff,
 } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { api } from '../api/cliente'
 import type { EstadoGeneral, Nivel } from '../api/tipos'
 import { cerrarSesion } from '../sesion/sesion'
 import type { Usuario } from '../sesion/usuarios'
-import { ESTADOS, VERIFICACION } from './estados'
+import { Marca } from '../Marca'
+import { MARCA, SOBRE_TINTA } from '../tema'
+import { ESTADOS, inicioDe, VERIFICACION } from './estados'
 
 const ICONOS: Record<EstadoGeneral, typeof IconCheck> = {
   sin_asignar: IconCircleDashed,
@@ -67,33 +69,41 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
     navigate('/login', { replace: true })
   }
   return (
-    <Paper component="header" radius={0} shadow="xs" px="md" py="sm">
-      <Group justify="space-between" wrap="nowrap" maw={1200} mx="auto">
-        <Group gap="sm" wrap="nowrap">
-          <Text fw={900} size="lg" c="accion">
-            Factum
-          </Text>
-          <Text c="roca.6" fw={600} visibleFrom="xs">
-            {seccion}
-          </Text>
-        </Group>
-        <Group gap="sm" wrap="nowrap">
-          <Stack gap={0} align="flex-end">
-            <Text fw={700} lh={1.2}>
-              {usuario.nombre}
+    // La banda de la marca: tinta arriba, y todo lo de trabajo sigue claro debajo.
+    <Box component="header" style={SOBRE_TINTA}>
+      {/* El mismo ancho que <Pagina>: la marca cae sobre el título y «Salir» sobre el borde derecho. */}
+      <Container size={1200} px="md">
+        <Group justify="space-between" wrap="nowrap" gap="sm" h={56}>
+          <Group gap="md" wrap="nowrap">
+            <UnstyledButton component={Link} to={inicioDe(usuario.rol)} aria-label="Factum, ir al inicio" py={6} style={{ borderRadius: 4 }}>
+              <Marca alto={20} />
+            </UnstyledButton>
+            <Text c={MARCA.tenue} fw={600} visibleFrom="xs">
+              {seccion}
             </Text>
-            {usuario.cliente && (
-              <Text size="xs" c="roca.6" lh={1.2}>
-                {usuario.cliente.nombre}
+          </Group>
+          <Group gap="sm" wrap="nowrap" miw={0}>
+            <Stack gap={0} align="flex-end" miw={0}>
+              <Text fw={700} lh={1.2} maw="100%" truncate>
+                {usuario.nombre}
               </Text>
-            )}
-          </Stack>
-          <Button variant="default" size="xs" leftSection={<IconLogout size={16} />} onClick={salir}>
-            Salir
-          </Button>
+              {usuario.cliente && (
+                <Text size="xs" c={MARCA.tenue} lh={1.2} maw="100%" truncate>
+                  {usuario.cliente.nombre}
+                </Text>
+              )}
+            </Stack>
+            {/* En el celular queda solo el ícono, para que quepa el nombre completo. */}
+            <Button variant="outline" color={MARCA.hueso} size="xs" px={8} aria-label="Salir" onClick={salir} style={{ flexShrink: 0 }}>
+              <IconLogout size={16} />
+              <Text span inherit ml={6} visibleFrom="xs">
+                Salir
+              </Text>
+            </Button>
+          </Group>
         </Group>
-      </Group>
-    </Paper>
+      </Container>
+    </Box>
   )
 }
 
