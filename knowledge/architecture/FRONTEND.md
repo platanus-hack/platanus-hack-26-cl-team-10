@@ -22,12 +22,13 @@ El front no verifica nada. Muestra lo que decide la API, deja al operario respon
 | Demo en vivo | Corre sobre el back real, con el supervisor en un computador y el operador en un celular. Los warns y la alerta de seguridad los disparan los sensores reales del ESP32 |
 | Captura | El front no captura nada. La cámara y los sensores van por el dispositivo de borde, directo a la API |
 | Relevo de turno | Entra al MVP. El reporte final y el conteo de warns por operario quedan en P1 |
-| Botón «Ya lo hice» (el *skip* de la pizarra) | No sirve para saltarse trabajo. Aparece solo cuando la API avisa que un paso no se hizo, y el operario lo usa para decir que sí lo hizo: es un falso positivo. Funciona en cualquier paso, incluso los críticos. La palabra del operario manda, y la API registra la sobrescritura a su nombre como +1 warn |
+| Cuándo actúa el operario | Los pasos se cierran solos con su evidencia: el sensor o la cámara del edge. No hay un «Hecho» permanente. El operario solo actúa cuando la API lo necesita: «Hecho» en un paso que se cierra declarando (confirmación, o cámara sin detección), y «Ya lo hice» cuando la API avisa que el paso se saltó, cuando hay un conflicto o cuando la evidencia no llega (decidido por Dani, 2026-11-21) |
+| Botón «Ya lo hice» (el *skip* de la pizarra) | No sirve para saltarse trabajo: el operario lo usa para decir que sí lo hizo, aunque la evidencia no lo muestre. Llama a `POST /ot/{id}/pasos/{paso}/confirmar` con un motivo obligatorio. El paso queda verificado por una persona, a su nombre, y la OT queda en `warning`. No sirve en un paso de confirmación, que se cierra declarando, ni apaga una alerta de seguridad, que se resuelve con el sensor |
 | Aviso por voz | Cuando la API avisa que un paso no se hizo, el aviso se convierte en voz con ElevenLabs y suena en la app del operario casi al instante. Ver [sección 7](#7-aviso-por-voz-elevenlabs) |
 | Endpoints que faltan | Los hacen Diego y Dani después de las pantallas, como capa de servicios, con lo mínimo. No se invierte tiempo en el back: el equipo de Francisco lo va a cambiar |
 | Dispositivo | La app del operario se diseña para celular con audífonos, y el celular queda con la pantalla encendida y la app abierta durante todo el trabajo. La del supervisor se diseña para computador |
 
-**Choque por resolver con el equipo de Francisco.** [LOGICA](./LOGICA.md) y la API desplegada dicen lo contrario de «Ya lo hice»: un paso en conflicto no se cierra, y un paso de sensor nunca se cierra hablando (regla 2 de `/agente`). Para el front manda «Ya lo hice», que decidió Dani. Falta acordar con ellos un evento de sobrescritura que cierre el paso a nombre del operario; mientras tanto, el mock lo imita.
+**Resuelto con el equipo de Francisco.** Hablar sigue sin cerrar un paso de sensor (regla 2 de `/agente`), pero ahora una persona puede confirmarlo explícitamente, con quién y por qué: `POST /ot/{id}/pasos/{paso}/confirmar` (rama `dreamxist/services`, [LOGICA](./LOGICA.md)). «Ya lo hice» usa ese endpoint.
 
 ## 3. Reparto
 
@@ -35,7 +36,7 @@ El front no verifica nada. Muestra lo que decide la API, deja al operario respon
 |---|---|
 | Login falso y sesión con rol | Vista de ejecución de la OT |
 | Dashboard del supervisor | Máquina de estados del paso |
-| Dashboard del operador | Warns, alerta de seguridad y botón «Ya lo hice» |
+| Dashboard del operador | Alertas, «Hecho» donde hace falta y «Ya lo hice» |
 | Listado y display de OT | Aviso por voz con ElevenLabs |
 | Asignar y reasignar operador | Entregar turno y briefing del que llega |
 | Estado general de la OT (lo trae la API) | Pantalla de OT completa |
@@ -89,12 +90,12 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 | Blanco | `#FFFFFF` | Superficies: tarjetas, banner, barra inferior |
 | Acción | `#004C97` | Paso actual, «Hecho» y botones principales |
 | Verificado | `#00843D` | Paso verificado |
-| Precaución | `#FFD100` de relleno, `#7A5C00` para texto | Avisos de nivel `warning` (cámara y anomalías de señal), sin señal, sin conexión y la marca de sobrescrito |
+| Precaución | `#FFD100` de relleno, `#7A5C00` para texto | Avisos de nivel `warning` (cámara y anomalías de señal), sin señal, sin conexión y la marca de un paso confirmado por una persona |
 | Peligro | `#C8102E` | Lo de nivel `error`: el warn de capa 1 que suena y la alerta de seguridad |
 
 El amarillo de seguridad no se lee como texto sobre blanco (1,5:1): va siempre de relleno con texto grafito (10,5:1), y el texto amarillo usa `#7A5C00` (6,3:1). Los demás pasan AA con texto blanco: rojo 5,9:1, verde 4,8:1, azul 8,5:1.
 
-**Ejecución:** `pendiente` roca · `en_curso` y `comprobando` acción · `verificado` verificado · `warn` peligro si es capa 1 y precaución si no · `sin_senal` precaución · `sobrescrito` verificado con un borde izquierdo de precaución, porque está cerrado pero cuenta como warn.
+**Ejecución:** `pendiente` roca · `en_curso` y `comprobando` acción · `verificado` verificado · `warn` peligro si es capa 1 y precaución si no · `sin_senal` precaución · `confirmado` verificado con un borde izquierdo de precaución, porque está cerrado pero cuenta como warn.
 
 **Gestión:** `sin_asignar` roca · `asignada` y `en_ejecucion` acción · `entregada` precaución, porque espera al supervisor · `completa` verificado.
 
@@ -146,21 +147,26 @@ Estados generales *(propuesta)*:
 
 ```
 ┌──────────────────────────────┐
-│ OT-12 · Correa CT-01   00:14 │
-│ Cambio de rodillo        1/6 │
+│ ← Mis OT          Factum OP1 │
 ├──────────────────────────────┤
-│ ✓ 1 Cortar energía y bloquear│
-│ ✗ 2 Retirar la guarda        │
-│   ⚠ El sensor no ve la guarda│
-│     abierta                  │
+│ OT-12 [Peligro]          0/6 │
+│ Cambio de rodillo      00:04 │
+│ ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ │
+├──────────────────────────────┤
+│ ┃ Paso saltado               │
+│ ┃ Hiciste «Retirar la guarda»│
+│ ┃ antes de «Cortar la…».     │
+│ ⚠ 1 Cortar energía y bloquear│
+│   Te saltaste este paso…     │
 │   [ Ya lo hice ]             │
+│ · 2 Retirar la guarda        │
 │ · 3 Cambiar el rodillo       │
-│ · 4 Reinstalar la guarda     │
-├──────────────────────────────┤
-│ [          Hecho           ] │
-│              Entregar turno  │
+│ ──────────────────────────── │
+│ [       Entregar turno     ] │
 └──────────────────────────────┘
 ```
+
+No hay un «Hecho» fijo abajo. El paso actual dice cómo se cierra: «Se cierra solo cuando el sensor lo marque», «…cuando la cámara lo vea», o un botón «Hecho» si es de los que se cierran declarando. Si la cámara del edge manda detecciones, el paso de cámara en curso muestra qué ve ahora.
 
 ### Estados de un paso
 
@@ -168,57 +174,70 @@ Estados generales *(propuesta)*:
 stateDiagram-v2
   [*] --> pendiente
   pendiente --> en_curso: la API lo marca como paso actual
-  en_curso --> verificado: el sensor lo cierra solo
-  en_curso --> comprobando: el operario toca Hecho
-  en_curso --> warn: los sensores avisan antes
+  en_curso --> verificado: su sensor o la cámara lo cierran solos
+  en_curso --> comprobando: Hecho (confirmación, o cámara sin detección)
+  en_curso --> warn: la API avisa que se saltó
+  en_curso --> sin_senal: pasan 20 s sin evidencia
   comprobando --> verificado: la evidencia lo confirma
   comprobando --> warn: la evidencia lo contradice
   comprobando --> sin_senal: la API responde no_verificado o pasan 10 s
   sin_senal --> verificado: llega la evidencia
-  sin_senal --> sobrescrito: Ya lo hice
-  warn --> verificado: lo corrige y la evidencia lo confirma
-  warn --> sobrescrito: Ya lo hice
-  verificado --> warn: la API avisa después
+  sin_senal --> confirmado: Ya lo hice, con motivo
+  warn --> verificado: lo hace y la evidencia lo confirma
+  warn --> confirmado: Ya lo hice, con motivo
 ```
 
-| Estado en pantalla | De dónde sale |
-|---|---|
-| `pendiente`, `en_curso` | `no_verificado` en la API; es `en_curso` si es el `paso_actual` |
-| `comprobando`, `sin_senal` | Solo del front: el operario tocó «Hecho» y la evidencia todavía no cierra el paso |
-| `verificado` | `verificado` en la API |
-| `warn` | `en_conflicto` en la API |
-| `sobrescrito` | Estado nuevo en la API. Se ve distinto de `verificado`: cerrado por la palabra de OP1, no por la evidencia |
+| Estado en pantalla | De dónde sale | Qué puede hacer el operario |
+|---|---|---|
+| `pendiente`, `en_curso` | `no_verificado` en la API; es `en_curso` si es el `paso_actual` | Nada si se cierra solo; «Hecho» si se cierra declarando |
+| `comprobando` | Solo del front: tocó «Hecho» y espera la respuesta | Nada |
+| `warn` | `en_conflicto` en la API, o una alerta de orden activa cuyo `evidencia.pendiente` es este paso | Hacerlo, o «Ya lo hice»; en un paso de cámara sin detección, también «Hecho» de nuevo |
+| `sin_senal` | Solo del front: la evidencia no llega (20 s esperando, o `declarar` respondió `no_verificado`) | «Ya lo hice» |
+| `verificado` | `verificado` en la API, con evidencia de sensor o cámara | Nada; dice «por sensor» o «por la cámara» |
+| `confirmado` | `verificado` en la API con `evidencia.tipo = persona` | Nada; dice «Confirmado por OP1: «motivo»» |
 
-- **La API manda.** El front nunca cierra un paso ni decide el orden: muestra el `paso_actual` que le llega. Cuando el stream trae un `evento` con `paso_id`, el front vuelve a pedir `GET /ot/{id}` en vez de calcular el estado de los pasos.
-- Un paso de sensor se cierra solo cuando llega la lectura: el operario no tiene que tocar nada. «Hecho» sirve sobre todo para los pasos de cámara y de confirmación, y llama a `POST /ot/{id}/declarar`.
-- «Ya lo hice» llama a `POST /ot/{id}/sobrescribir`, con una nota opcional.
-- Un warn puede caer en cualquier paso, no solo en el actual. La API dice en cuál.
-- En `sin_senal` el front no inventa un warn ni lo hace sonar: solo muestra que no llega la señal y ofrece «Ya lo hice». Se entra cuando `declarar` responde `no_verificado` (por ejemplo «sin lectura de reed_bloqueo») o cuando pasan 10 s sin respuesta *(propuesta)*.
+- **La API manda.** El front nunca cierra un paso ni decide el orden: muestra el `paso_actual` que le llega. Cuando el stream trae un `evento` con `paso_id`, el front vuelve a pedir `GET /ot/{id}`.
+- **Cuándo un paso se cierra solo** (`web/src/api/pauta.ts`): si es de sensor, o de cámara con `deteccion`. La pauta LOTO del demo se cierra entera sola; en la de la correa, «Hecho» aparece en el paso de cámara sin detección y en el de confirmación.
+- «Hecho» llama a `POST /ot/{id}/declarar` con el `paso_id` que la pantalla mostraba.
+- «Ya lo hice» pide un motivo (con atajos de un toque: «El sensor no lo marca», «La cámara no lo ve», «Lo revisé en persona») y llama a `POST /ot/{id}/pasos/{paso}/confirmar`. No aparece en un paso de confirmación.
+- En `sin_senal` el front no inventa un warn ni lo hace sonar: solo ofrece confirmarlo.
+- Sin conexión, los botones que escriben se deshabilitan.
 
-### Alerta de seguridad
+### Alertas
 
-«Guarda abierta con energía viva» no es un paso: llega en cualquier momento, vaya el operario en el paso que vaya. Se ve como un banner rojo arriba de todo, suena, y tiene las mismas dos salidas: corregirlo, y la API la resuelve sola cuando el sensor vuelve a estar bien (llega un evento `alerta_resuelta`), o «Ya lo hice», que queda registrado como sobrescritura.
+Llegan en cualquier momento, vaya el operario en el paso que vaya. Se ven arriba de los pasos y dicen qué clase de alerta son (por su `evidencia.clave` en la API: `seguridad:`, `orden:`, `control:`, `senal:`):
 
-El banner muestra las alertas activas: las `alertas_activas` del snapshot, más cada evento `alerta` nuevo, menos las que cierra un `alerta_resuelta` (por su `evidencia.resuelve`). Se usan los eventos y no `calificacion.avisos` porque «Ya lo hice» necesita el `id` de la alerta. `calificacion.nivel` pinta el indicador general de la OT.
+| Alerta | Se ve | Se apaga |
+|---|---|---|
+| Seguridad («Guarda abierta con energía viva») | Tarjeta de bloqueo roja: «Peligro» | Sola, con un `alerta_resuelta` cuando el sensor se corrige. Confirmar a mano no la apaga |
+| Orden («ORDEN INVERTIDO…») | Tarjeta roja: «Paso saltado», con qué se hizo antes de qué | Haciendo el paso saltado, o confirmándolo con «Ya lo hice» en el paso |
+| Control perdido | Tarjeta roja: «Control perdido», con el paso que se deshizo | Sola, cuando el sensor vuelve |
+| Señal (capa 2) | Franja amarilla: «Precaución» | Sola |
+
+El banner no tiene botones: informa. Lo que el operario puede hacer está en el paso. Muestra las `alertas_activas` del snapshot, más cada evento `alerta` nuevo, menos las que cierra un `alerta_resuelta` (por su `evidencia.resuelve`). `calificacion.nivel` pinta el indicador general de la OT.
 
 ### Qué suena y qué no
 
-Suena lo que llega con nivel `error`, y solo la capa 1 (sensores y reglas) llega a `error`. Lo que dice la cámara (capa 3) y las anomalías de señal (capa 2) llegan a lo más a `warning`: se muestran pero no suenan, como fija [LOGICA](./LOGICA.md#qué-puede-interrumpir-al-operario). Con tantas falsas alarmas, un aviso que suena de más le enseña al operario a ignorarlo.
+Suena lo que llega con nivel `error`, y solo la capa 1 (sensores y reglas) llega a `error`: un salto, un control perdido, una alerta de seguridad. Lo que dice la cámara (capa 3) y las anomalías de señal (capa 2) llegan a lo más a `warning`: se muestran pero no suenan, como fija [LOGICA](./LOGICA.md#qué-puede-interrumpir-al-operario). Con tantas falsas alarmas, un aviso que suena de más le enseña al operario a ignorarlo.
 
 ### Relevo de turno
 
-1. OP1 toca «Entregar turno» y confirma. El front llama a `POST /ot/{id}/relevo/entregar` y vuelve a `/operador`.
+1. OP1 toca «Entregar turno» (al final de la lista) y confirma. El front llama a `POST /ot/{id}/relevo/entregar` y vuelve a `/operador`.
 2. El supervisor reasigna la OT a OP2 (Diego).
-3. OP2 entra y ve el **briefing** antes de la ejecución: el resumen, qué pasos están cerrados y cómo (verificado o sobrescrito y por quién), los warns heredados y desde qué paso sigue. No hace falta endpoint: hay un relevo pendiente si el último `relevo_entregado` de la bitácora no tiene un `relevo_recibido` después, y el resumen viene en su `detalle`.
+3. OP2 entra y ve el **briefing** antes de la ejecución: el resumen, qué pasos están cerrados y cómo (por sensor, por la cámara, o confirmado por quién), los avisos heredados y desde qué paso sigue. Hay un relevo pendiente si el último `relevo_entregado` de la bitácora no tiene un `relevo_recibido` después, y el resumen viene en su `detalle`.
 4. OP2 toca «Recibido». El front llama a `POST /ot/{id}/relevo/recibir` y abre la ejecución en el paso actual.
+
+### Navegación
+
+Todas las pantallas de una OT tienen arriba «← Mis OT», para volver a la lista sin entregar el turno. Una OT completa muestra el cierre con «Volver a mis OT»; una que no existe lo dice y ofrece lo mismo. Una ruta desconocida lleva al inicio del rol, o al login.
 
 ### OT completa
 
-Pantalla de cierre con los pasos verificados, los sobrescritos y los warns. El reporte con KPIs de desempeño es P1.
+Pantalla de cierre con los pasos verificados, los confirmados por una persona y los avisos. El reporte con KPIs de desempeño es P1.
 
 ### Si la API falla
 
-Banner «Sin conexión, reintentando». Se mantiene el último estado conocido, los botones que escriben se deshabilitan y el WebSocket reintenta con espera creciente, volviendo con `?desde=`.
+Banner «Sin conexión, reintentando». Se mantiene el último estado conocido, los botones que escriben se deshabilitan y el WebSocket reintenta con espera creciente, volviendo con `?desde=`. Si vuelve la red, o la pantalla vuelve después de 10 s oculta, reconecta al tiro.
 
 Un 409 trae en `regla` la regla de negocio que se violó: se le muestra al operario tal cual y no se reintenta igual.
 
@@ -229,7 +248,7 @@ Cuando la API avisa que un paso no se hizo, el aviso se convierte en voz con Ele
 **Cómo llega:**
 
 1. Al tocar «Comenzar» o «Continuar», el front abre la sesión (`POST /ot/{id}/sesion`) y se conecta a `wss://…/ot/{id}/stream`. Solo escucha. Si se corta, vuelve con `?desde=<último evento.id>`.
-2. Cuando llega un mensaje `evento` nuevo cuya `calificacion.nivel` es `error`, el front pide el audio de su `detalle` a `GET /voz?texto=…` y lo reproduce mientras se descarga.
+2. Cuando llega un mensaje `evento` nuevo cuya `calificacion.nivel` es `error`, el front arma la frase y pide su audio a `GET /voz?texto=…`. Si el audio no empieza en 2,5 s, lo dice la voz del navegador.
 3. El `evento.id` es la llave: un evento suena una sola vez, también al reconectar. La bitácora que trae el snapshot al conectar **no** suena: es lo que ya pasó.
 4. `/voz` es un endpoint nuestro que llama a ElevenLabs con una voz fija en español y devuelve el audio. Vive en su propio archivo, `app/voz.py`, para no chocar con los cambios del equipo de Francisco *(propuesta)*.
 
@@ -242,7 +261,7 @@ Por qué la voz sale del evento y no de `calificacion.avisos`: un aviso no trae 
 - Los textos de los avisos del demo se generan una vez y se guardan, para que en el escenario suenen sin esperar a ElevenLabs.
 - Si `/voz` falla, el front dice el mismo texto con la voz del navegador (`speechSynthesis`). El aviso nunca queda mudo.
 - Si llegan dos eventos, suenan en orden, sin pisarse.
-- Lo que se dice es el `detalle` del evento. El tono, como en la pizarra: «Oye, el candado no aparece puesto. Bloquea antes de seguir.» Si el `detalle` de la API suena muy técnico, se le pide al equipo de Francisco o se arma el texto en el front.
+- Lo que se dice es una frase armada en el front (`textoParaVoz`), con el tono de la pizarra: un salto suena «Oye, te saltaste el paso 1: Cortar la energía y bloquear con candado. Hazlo antes de seguir.»; un control perdido, «Oye, se deshizo el paso 1: …»; lo demás, el `detalle` de la API sin las mayúsculas gritadas.
 - El navegador del celular no reproduce sonido hasta que el usuario toca algo. El toque en «Comenzar» o «Continuar» desbloquea el audio: Diego llama a `desbloquearAudio()` de `web/src/ejecucion/voz.ts` en ese botón. Si se entra a `/ot/:id` sin ese toque (una recarga o un enlace directo), la pantalla pide un toque antes de empezar. Muestra si el audio está activo, con un botón «Probar audio». Probarlo en el celular del demo, sobre todo si es iPhone.
 - Con la pantalla bloqueada, el celular corta el WebSocket y deja de sonar. La vista de ejecución le pide al navegador que mantenga la pantalla encendida (Wake Lock API) mientras la OT está abierta.
 - Con el mock, la voz es la del navegador, salvo que `/voz` esté corriendo.
@@ -259,10 +278,11 @@ La API está desplegada en `https://34-176-44-192.sslip.io`. La guía completa e
 |---|---|---|
 | `GET /ots` → `[{ot, pauta, version, equipo, abierta_en, paso_actual, completa}]` | Diego | El id viene en `ot`, no en `id`. No trae operador ni avance |
 | `GET /ot/{id}` → `{pauta, equipo, paso_actual, completa, pasos, verificados, en_conflicto, pendientes}` | los dos | Cada paso: `id, orden, titulo, estado, control_critico, capa, evidencia, detalle`. El avance es `verificados.length` sobre `pasos.length` |
-| `GET /pautas/{pauta_id}?version=` | Dani | La pauta completa, con `instruccion` y `tipo_evidencia` de cada paso. Se pide una vez |
+| `GET /pautas/{pauta_id}?version=` | Dani | La pauta completa, con `instruccion`, `tipo_evidencia` y `deteccion` de cada paso: con eso se sabe si un paso se cierra solo. Se pide una vez |
 | `POST /ot/{id}/sesion` `{edge_id, operario}` | Dani | Une la OT con el edge. Sin sesión, las lecturas no llegan a ninguna OT. El demo tiene un solo edge, `edge-1`, que va en `VITE_EDGE_ID` |
-| `WS /ot/{id}/stream?desde=` | Dani | Primero un `snapshot` (estado, calificación, alertas activas, sesión, sensores y bitácora) y después `lectura`, `evento`, `calificacion_ot` y `sesion` |
-| `POST /ot/{id}/declarar` `{actor, texto}` | Dani | «Hecho». Un paso de cámara se juzga con el último cuadro del edge |
+| `WS /ot/{id}/stream?desde=` | Dani | Primero un `snapshot` (estado, calificación, alertas activas, sesión, sensores y bitácora) y después `lectura`, `evento`, `calificacion_ot`, `sesion` y `detecciones` (lo que ve la cámara del edge) |
+| `POST /ot/{id}/declarar` `{actor, texto, paso_id}` | Dani | «Hecho». `paso_id` es el paso que la pantalla mostraba: si su evidencia ya lo cerró, no se evalúa el siguiente. Un paso de cámara se juzga con el último cuadro del edge |
+| `POST /ot/{id}/pasos/{paso_id}/confirmar` `{actor, motivo}` | Dani | «Ya lo hice». Solo el paso en curso, nunca uno de confirmación, nunca sin motivo (409). Deja un `veredicto` `verificado`, capa nula, con `evidencia: {tipo: persona, motivo, contra}`. En la rama `dreamxist/services` de Francisco |
 | `POST /ot/{id}/relevo/entregar?actor=` y `/relevo/recibir?actor=` | Dani | El relevo pendiente se lee de la bitácora (sección 6) |
 | `GET /edge/{edge_id}/video.mjpg` | Diego, P1 | Video en vivo en un `<img>`, por si el supervisor quiere ver la estación. Ya existe una página `/monitor` con video, avisos y bitácora |
 
@@ -273,7 +293,6 @@ Un aviso de `calificacion.avisos` es `{nivel, certeza, capa, motivos}`: sin `id`
 | Qué | Para | Quién |
 |---|---|---|
 | Asignar operador: `POST /ot/{id}/asignar` `{operador}`, que también reasigna, y `operador` más `estado_general` en `GET /ots` | Diego | Diego y Dani, como capa de servicios |
-| Sobrescribir: `POST /ot/{id}/sobrescribir` `{actor, paso_id?, alerta_id?, nota?}`, con uno de los dos ids. Cierra el paso como `sobrescrito`, o la alerta, y entra a la bitácora como un evento `sobrescritura` | Dani | Por acordar con el equipo de Francisco, porque choca con su regla 2 (sección 2) |
 | Voz: `GET /voz?texto=` | Dani | Dani |
 
 Respaldo si el ESP32 falla en el escenario: la lectura se puede escribir a mano en `POST /edge/edge-1/lecturas` o en `POST /sensores`.
@@ -282,17 +301,18 @@ El login falso no necesita endpoint: los usuarios están escritos en el front.
 
 ## 9. Escenarios del mock
 
-Ejecución (Dani):
+Ejecución (Dani). Todos sirven para las dos pautas del repo: la correa (por defecto) y LOTO, la del demo con ESP32 y cámara (`?pauta=loto`).
 
 | Escenario | `?escenario=` | Qué hace la API |
 |---|---|---|
-| Camino feliz | `feliz` | Cada paso se verifica en orden y la OT termina |
-| Warn y el operario corrige | `warn-corregido` | El paso queda en warn y se verifica cuando llega la evidencia |
-| Warn y el operario sobrescribe | `warn-sobrescrito` | El paso queda en warn, el operario toca «Ya lo hice» y queda `sobrescrito` |
-| Alerta de seguridad | `alerta-seguridad` | La guarda se abre con energía viva a mitad del trabajo, sin que el operario toque nada |
-| La cámara dice que no | `camara-no` | Conflicto que se muestra pero no suena |
-| Sin evidencia | `sin-senal` | El operario toca «Hecho» y la lectura del sensor nunca llega |
-| Relevo | `relevo` | OT en 3/6 con una sobrescritura en su historia; OP2 entra y la termina |
+| Camino feliz | `feliz` | Los pasos de sensor (4 s) y de cámara con detección (5 s) se cierran solos; «Hecho» cierra los demás; la OT termina |
+| Salto corregido | `warn-corregido` | Al llegar al primer control crítico, la API avisa que se saltó (un paso posterior se hizo antes); 5 s después el operario lo hace y el aviso se resuelve solo |
+| Salto confirmado | `warn-sobrescrito` | El mismo salto, pero nada lo cierra hasta que el operario toca «Ya lo hice» con un motivo |
+| Alerta de seguridad | `alerta-seguridad` | La guarda se abre con energía viva a mitad del trabajo; se resuelve sola 10 s después |
+| Control perdido | `control-perdido` | El primer control crítico ya verificado se deshace y vuelve 8 s después |
+| La cámara dice que no | `camara-no` | El primer «Hecho» en un paso de cámara da un conflicto que se muestra pero no suena |
+| Sin evidencia | `sin-senal` | Nada se cierra solo: a los 20 s el paso ofrece «Ya lo hice» |
+| Relevo | `relevo` | OT en 3/6 con un paso confirmado por OP1; OP2 entra y la termina |
 | API caída | `api-caida` | Errores y timeouts con el operario a mitad de un paso |
 | Ya completa | `completa` | La OT está terminada cuando el operario la abre |
 
@@ -321,13 +341,13 @@ Gestión (Diego):
 **Dani**
 - [ ] Base compartida y mock.
 - [ ] Vista de ejecución con la máquina de estados.
-- [ ] Warns, alerta de seguridad y «Ya lo hice».
+- [ ] Alertas, «Hecho» donde hace falta y «Ya lo hice» con motivo.
 - [ ] Voz: `/voz` con ElevenLabs y reproducción en el celular.
 - [ ] Entregar turno y briefing.
 - [ ] Pantalla de OT completa.
 - [ ] Escenarios de ejecución.
 
-**Los dos, después de las pantallas:** lo que falta de la sección 8 (asignar, sobrescribir y voz), lo mínimo para que el demo corra contra el back real. Es camino crítico, porque el demo no corre sobre el mock: tiene que estar listo con tiempo para ensayar, a más tardar a las 05:00 del domingo 2026-11-22 *(propuesta)*.
+**Los dos, después de las pantallas:** lo que falta de la sección 8 (asignar y voz), lo mínimo para que el demo corra contra el back real. Es camino crítico, porque el demo no corre sobre el mock: tiene que estar listo con tiempo para ensayar, a más tardar a las 05:00 del domingo 2026-11-22 *(propuesta)*.
 
 ### P1
 
@@ -346,7 +366,7 @@ En el escenario corre sobre el back real, con el supervisor en un computador, el
 1. El supervisor entra y asigna la OT a OP1.
 2. OP1 entra, ve solo sus OT y comienza.
 3. Un sensor muestra que un paso no se hizo, la API avisa y OP1 lo oye en menos de 2 s.
-4. OP1 toca «Ya lo hice» y el paso queda sobrescrito a su nombre.
+4. OP1 toca «Ya lo hice» con un motivo y el paso queda confirmado a su nombre.
 5. Alguien abre la guarda con la energía viva y suena la alerta de seguridad.
 6. OP1 entrega el turno y el supervisor reasigna a OP2.
 7. OP2 lee el briefing, confirma y termina la OT.
