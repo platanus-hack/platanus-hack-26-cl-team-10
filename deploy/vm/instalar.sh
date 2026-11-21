@@ -25,7 +25,11 @@ After=network-online.target
 [Service]
 User=factum
 WorkingDirectory=/srv/factum/codigo
-# Secretos fuera del repo (p. ej. GEMINI_API_KEY=...). El "-" lo hace opcional.
+# Capa 3 de cámara: Gemini en Vertex AI con la service account de la VM (sin secretos).
+Environment=GOOGLE_GENAI_USE_VERTEXAI=true
+Environment=GOOGLE_CLOUD_PROJECT=loyal-venture-448814-f7
+Environment=GOOGLE_CLOUD_LOCATION=global
+# Secretos u overrides fuera del repo (p. ej. GEMINI_MODELO=...). El "-" lo hace opcional.
 EnvironmentFile=-/srv/factum/entorno
 ExecStart=/srv/factum/codigo/.venv/bin/uvicorn app.api:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1
 Restart=always

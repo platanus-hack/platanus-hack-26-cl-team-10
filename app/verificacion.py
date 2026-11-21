@@ -6,9 +6,13 @@ Capa 2 de cámara: el modelo del edge (YOLO) decide cuando está seguro
 (reglas.por_deteccion). Cuando no le alcanza la certeza, el paso sube acá.
 
 Capa 3 de cámara: un VLM (Gemini) mira el último cuadro del edge y responde la
-pregunta visual del paso con (respuesta, confianza). Se activa con la variable
-GEMINI_API_KEY; el modelo se cambia con GEMINI_MODELO. Sin key, o sin cuadro,
-queda el stub de ensayo de siempre, para poder ensayar el demo sin red.
+pregunta visual del paso con (respuesta, confianza). Se activa de una de dos formas,
+ambas leídas por el SDK google-genai desde el entorno:
+- Vertex AI (la VM del demo): GOOGLE_GENAI_USE_VERTEXAI=true, GOOGLE_CLOUD_PROJECT y
+  GOOGLE_CLOUD_LOCATION; las credenciales son las de la service account de la máquina.
+- API de Gemini: GEMINI_API_KEY.
+El modelo se cambia con GEMINI_MODELO. Sin ninguna de las dos, o sin cuadro, queda
+el stub de ensayo de siempre, para poder ensayar el demo sin red.
 
 La capa 2 de señales todavía no cierra pasos. Detecta anomalías y abre la OT.
 """
@@ -64,13 +68,17 @@ def juez_camara(pregunta: str, cuadro: bytes | None = None) -> tuple[bool, float
     """
     if pregunta in _FORZAR:
         return _FORZAR[pregunta], 0.91
-    if cuadro is None or not os.environ.get("GEMINI_API_KEY"):
+    if cuadro is None or not vlm_configurado():
         return True, 0.55  # stub de ensayo: sin VLM conectado
     try:
         return preguntar_gemini(pregunta, cuadro)
     except Exception:  # noqa: BLE001 - cualquier falla del VLM se trata igual: no verifica
         log.exception("el VLM no pudo juzgar «%s»", pregunta)
         return False, 0.0
+
+
+def vlm_configurado() -> bool:
+    return bool(os.environ.get("GEMINI_API_KEY")) or os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true")
 
 
 def preguntar_gemini(pregunta: str, cuadro: bytes, cliente=None) -> tuple[bool, float]:
@@ -80,7 +88,8 @@ def preguntar_gemini(pregunta: str, cuadro: bytes, cliente=None) -> tuple[bool, 
     if cliente is None:
         if _cliente is None:
             from google import genai
-            _cliente = genai.Client(http_options=types.HttpOptions(timeout=TIMEOUT_MS))  # lee GEMINI_API_KEY
+            # lee del entorno: Vertex (GOOGLE_GENAI_USE_VERTEXAI...) o GEMINI_API_KEY
+            _cliente = genai.Client(http_options=types.HttpOptions(timeout=TIMEOUT_MS))
         cliente = _cliente
     r = cliente.models.generate_content(
         model=os.environ.get("GEMINI_MODELO", MODELO_POR_DEFECTO),

@@ -50,6 +50,12 @@ class JuezGemini(unittest.TestCase):
 
 
 class SinVLM(unittest.TestCase):
+    def test_vertex_tambien_activa_el_vlm(self):
+        with mock.patch.dict(os.environ, {"GOOGLE_GENAI_USE_VERTEXAI": "true"}, clear=True):
+            self.assertTrue(verificacion.vlm_configurado())
+        with mock.patch.dict(os.environ, {"GOOGLE_GENAI_USE_VERTEXAI": "false"}, clear=True):
+            self.assertFalse(verificacion.vlm_configurado())
+
     def test_sin_key_o_sin_cuadro_queda_el_stub_de_ensayo(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             self.assertEqual(verificacion.juez_camara("p", JPEG), (True, 0.55))
