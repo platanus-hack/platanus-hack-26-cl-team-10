@@ -707,8 +707,7 @@ const CASOS = [
       c.observar("Las demás alertas de la OT 1", deClase(a1.cuerpo, "orden").map(e => e.detalle),
         "La guarda se abrió con el bloqueo pendiente: además entra la alerta de orden invertido (escenario B1).");
       c.comprobar("Por el stream de la OT 2 no llega nada", ["snapshot"], tipos(s2.mensajes));
-      c.observar("Calificación de la OT 2 mientras dura la condición", cal2.cuerpo.nivel,
-        "La alerta no entra a su bitácora, pero la calificación se calcula con los sensores de ahora, que son globales (PRD §9, «Sensores globales»).");
+      c.comprobar("La OT 2 sigue en ok mientras dura la condición", "ok", cal2.cuerpo.nivel);
     },
   },
   {
