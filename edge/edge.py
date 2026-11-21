@@ -145,6 +145,7 @@ def main():
     ap.add_argument("--calidad", type=int, default=65, help="calidad JPEG 1-100")
     ap.add_argument("--clases", nargs="+", default=["mouse", "pencil"])
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
+    ap.add_argument("--sin-yolo", action="store_true", help="solo video y sensores: el modelo corre en el servidor")
     ap.add_argument("--puerto", default="/dev/cu.usbserial-0001", help="'' para no leer sensores")
     ap.add_argument("--dist-max", type=float, default=60, help="cm: más cerca = operario presente")
     ap.add_argument("--temp-max", type=float, default=30, help="°C: bajo esto = equipo frío")
@@ -160,7 +161,8 @@ def main():
     if not cam.isOpened():
         raise SystemExit(f"No pude abrir la cámara {a.camara}: corre esto en Terminal.app (permiso de cámara)")
 
-    threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats), daemon=True).start()
+    if not a.sin_yolo:
+        threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats), daemon=True).start()
     if a.puerto:
         threading.Thread(target=hilo_sensores, args=(servidor, a.edge, a.puerto, stats, a.dist_max, a.temp_max),
                          daemon=True).start()

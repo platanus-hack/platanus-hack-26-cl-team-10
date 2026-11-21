@@ -36,6 +36,23 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 cx = db.conectar()
 servicios = Servicios(cx)
+detector = None  # experimento: YOLO en el servidor (app/detector.py), solo con DETECTOR_ONNX
+
+
+@app.on_event("startup")
+def iniciar_detector() -> None:
+    global detector
+    from app import detector as modulo_detector
+    detector = modulo_detector.desde_entorno(servicios)
+
+
+@app.get("/detector")
+def estado_detector() -> dict:
+    """Si el detector corre en el servidor, con qué modelo y cuánto tardó el último cuadro."""
+    if detector is None:
+        return {"en_servidor": False}
+    return {"en_servidor": True, "modelo": detector.modelo, "clases": detector.clases,
+            "ms_ultimo_cuadro": round(detector.ms_ultimo)}
 
 EDGE_POR_DEFECTO = "edge-1"
 PAUTA_DEMO = "pauta-correa-ct-01"

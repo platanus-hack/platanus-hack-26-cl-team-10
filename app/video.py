@@ -113,6 +113,11 @@ class Video:
             self._cuadros[edge_id].append(cuadro)
         return cuadro
 
+    def edges(self) -> list[str]:
+        """Los edges que mandaron video alguna vez desde que arrancó el servidor."""
+        with self._lock:
+            return list(self._cuadros)
+
     def ultimo(self, edge_id: str) -> Cuadro | None:
         with self._lock:
             cola = self._cuadros.get(edge_id)
