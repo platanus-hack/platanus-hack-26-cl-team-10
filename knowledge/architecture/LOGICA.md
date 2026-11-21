@@ -93,10 +93,11 @@ Y hay reglas de seguridad que **no dependen del paso en curso**: se evalúan con
 
 | Regla | Industria | Dispara | Por qué |
 |---|---|---|---|
-| Guarda abierta con energía viva | Minería | Alerta crítica, capa 1 | Es el momento del demo. Mantener solo con la energía cortada y la máquina bloqueada, con guardas puestas mientras opera (44, 45). El aislamiento de energía es uno de los peligros de alta consecuencia que ICMM nombra (40) |
+| Guarda abierta con energía viva | Minería | Alerta crítica, capa 1 | Era el momento del demo de la correa. Mantener solo con la energía cortada y la máquina bloqueada, con guardas puestas mientras opera (44, 45). El aislamiento de energía es uno de los peligros de alta consecuencia que ICMM nombra (40) |
 | Puesta a tierra con tensión presente | Eléctrica | Alerta crítica, capa 1 | Se verifica la ausencia de tensión antes de poner cualquier tierra (48, 49, 50) |
 | Cierre del seccionador con tierras puestas | Eléctrica | Alerta crítica, capa 1 | No se repone el servicio mientras haya tierras (48, 49, 50) |
 | Persona en la zona con los implementos levantados | Construcción | Alerta crítica, capa 1 | Nadie trabaja bajo una parte levantada que no esté calzada (52) |
+| Persona en la zona con energía viva | Celda robotizada, el demo | Alerta crítica, capa 1, y el ESP32 corta la energía por su cuenta | Es el momento del demo ([ADR-0010](../decisions/0010-demo-brazo-robotico-en-una-celda-con-corte-local.md)). El corte es local porque una función de seguridad no puede depender de la red. `Candidata a validar`: no está construida y no se buscó su norma |
 
 Y dos reglas que **sí dependen de la pauta**, porque leen qué pasos están cerrados. También son capa 1 e interrumpen:
 
