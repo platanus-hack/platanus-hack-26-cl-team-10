@@ -10,7 +10,9 @@ Dos modos de detección (--deteccion):
   detecciones  (modo edge) YOLO-World sobre el último cuadro, por el mismo WS (texto):
                {"tipo": "detecciones", "modelo", "ts", "objetos": [{"clase", "conf", "caja"}]}
                caja = x1, y1, x2, y2 normalizada 0-1. Se manda todo lo que pase --conf:
-               qué es "alta certeza" lo decide el servidor.
+               qué es "alta certeza" lo decide el servidor. Las clases que busca son las
+               que pide la pauta de la OT en sesión (GET /edge/{id}/clases, cada 2 s);
+               --clases las fija a mano.
   sensores     líneas JSON del ESP32 por serial → POST /edge/{id}/lecturas, con seq
 
 Correr en Terminal.app (permiso de cámara): correr_edge.command, o
@@ -25,6 +27,7 @@ import websocket
 
 MODELO = "yolov8s-worldv2.pt"
 SIN_DATOS_S = 10  # el ESP32 manda 1 línea/s: tanto silencio es un puerto muerto
+CLASES_CADA_S = 2  # cada cuánto se pregunta qué clases pide la OT en sesión
 
 
 class Canal:
@@ -64,20 +67,37 @@ def objetos_de(r, clases):
             for c, p, caja in zip(r.boxes.cls, r.boxes.conf, r.boxes.xyxyn)]
 
 
-def hilo_detecciones(canal, ultimo, clases, conf, stats):
+def clases_de_la_ot(servidor, edge_id):
+    """Las clases que pide la pauta de la OT en sesión en este edge. None si el servidor no responde."""
+    try:
+        with urllib.request.urlopen(f"{servidor}/edge/{edge_id}/clases", timeout=3) as r:
+            return list(json.load(r)["clases"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def hilo_detecciones(canal, ultimo, clases_fijas, conf, stats, servidor, edge_id):
     import torch
     from ultralytics import YOLOWorld
-    modelo = YOLOWorld(MODELO)
-    modelo.set_classes(clases)  # antes de predecir en MPS: después falla
     device = "mps" if torch.backends.mps.is_available() else "cpu"
-    visto = None
+    modelo, clases, visto, t_clases = None, [], None, 0.0
     while True:
+        if time.time() - t_clases >= CLASES_CADA_S:
+            t_clases = time.time()
+            nuevas = clases_fijas or clases_de_la_ot(servidor, edge_id)
+            if nuevas is not None and nuevas != clases:  # sin respuesta se sigue con las que había
+                clases = nuevas
+                modelo = YOLOWorld(MODELO) if clases else None  # uno nuevo por lista: set_classes después de predecir falla en MPS
+                if modelo:
+                    modelo.set_classes(clases)
+                print(f"[detector] clases: {', '.join(clases) or 'ninguna: la OT en sesión no pide detector'}")
         cuadro = ultimo["img"]
-        if cuadro is None or cuadro is visto:
+        if modelo is None or cuadro is None or cuadro is visto:
             time.sleep(0.01); continue
         visto = cuadro
         r = modelo.predict(cuadro, conf=conf, device=device, imgsz=640, verbose=False)[0]
-        msg = {"tipo": "detecciones", "modelo": MODELO, "ts": time.time(), "objetos": objetos_de(r, clases)}
+        msg = {"tipo": "detecciones", "modelo": MODELO, "ts": time.time(), "objetos": objetos_de(r, clases),
+               "clases": clases}  # el servidor solo cree "ya no está" de un detector que buscaba la clase
         if canal.mandar(json.dumps(msg), binario=False):
             stats["det"] += 1
 
@@ -158,7 +178,7 @@ def main():
     ap.add_argument("--fps", type=float, default=20)
     ap.add_argument("--ancho", type=int, default=960, help="ancho del JPEG enviado (alto en 16:9)")
     ap.add_argument("--calidad", type=int, default=65, help="calidad JPEG 1-100")
-    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil"])
+    ap.add_argument("--clases", nargs="+", help="por defecto, las que pide la pauta de la OT en sesión")
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
     ap.add_argument("--deteccion", choices=["servidor", "edge"], default="servidor",
                     help="dónde corre YOLO: servidor (por defecto, el edge solo manda video y sensores) o edge (acá)")
@@ -178,7 +198,8 @@ def main():
         raise SystemExit(f"No pude abrir la cámara {a.camara}: corre esto en Terminal.app (permiso de cámara)")
 
     if a.deteccion == "edge":
-        threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats), daemon=True).start()
+        threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats, servidor, a.edge),
+                         daemon=True).start()
     if a.puerto:
         threading.Thread(target=hilo_sensores, args=(servidor, a.edge, a.puerto, stats, a.dist_max, a.temp_max),
                          daemon=True).start()

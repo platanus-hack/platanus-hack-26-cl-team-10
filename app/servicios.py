@@ -38,6 +38,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 
 from app import acceso, catalogo, db, verificacion
+from app.analisis import requiere
 from app.bus import Bus, canal_edge, canal_ot
 from app.catalogo import ReglaDeNegocio
 from app.cerebro import estado_de_ot
@@ -153,6 +154,15 @@ class Servicios:
     def sesion_de_ot(self, ot_id: str) -> dict | None:
         f = self.cx.execute("SELECT * FROM sesiones WHERE ot_id = ?", (ot_id,)).fetchone()
         return dict(f) if f else None
+
+    def clases_de_edge(self, edge_id: str) -> dict:
+        """Lo que el detector de ese edge tiene que buscar: las clases de la pauta de la OT en sesión."""
+        sesion = self.sesion(edge_id)
+        if sesion is None:
+            return {"ot": None, "clases": []}
+        fila = db.leer_ot(self.cx, sesion["ot_id"])
+        pauta = db.leer_pauta(self.cx, fila["pauta_id"], fila["pauta_version"])
+        return {"ot": sesion["ot_id"], "clases": requiere(pauta)["clases"]}
 
     # ─── Gestión: la lista de OT y a quién le toca cada una ───────────────
 
