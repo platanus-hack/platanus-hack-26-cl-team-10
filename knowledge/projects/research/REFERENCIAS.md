@@ -1,6 +1,6 @@
 # Referencias
 
-> Documento vivo. Las 39 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
+> Documento vivo. Las 43 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
 >
 > De casi todas se leyó solo el resumen. Las leídas completas tienen nota en [notas/](./notas/).
 
@@ -58,6 +58,13 @@
 38. Reporte Minero (2026-07-01). [Ingemerca: sistemas de transferencia minera que reducen paradas millonarias](https://www.reporteminero.cl/noticia/entrevistas/2026/07/ingemerca-soluciones-transferencia-minera-paradas-planta). Entrevista a Ricardo Segovia, gerente general de Ingemerca: una parada de planta no programada cuesta entre USD 100.000 y 300.000 por hora y suele durar 4 o 5 horas. Es la estimación de un proveedor que vende la solución, sin estudio detrás. El mismo ejecutivo dijo USD 150.000 a 200.000 por hora en [REDIMIN, 2025-04-29](https://www.redimin.cl/innovaciones-de-ingemerca-en-2025-reducen-riesgos-y-costos-en-transporte-de-minerales-por-correas), la única nota que liga la cifra a las correas. Leídas completas.
 39. CNN Chile. [Hasta $200.000 USD: Los pequeños errores en terreno que pueden costar millones a la minería](https://www.cnnchile.com/pais/hasta-200-000-usd-los-pequenos-errores-en-terreno-que-pueden-costar-millones-a-la-mineria/). Sin fecha visible en la página. Una hora de detención no planificada cuesta entre USD 40.000 y más de 200.000 «según estimaciones del sector»; menciona estudios de ABB sin título ni año. No habla de correas. Leída completa.
 
+## Fatalidades y controles críticos
+
+40. ICMM (2026). [Safety Performance: Benchmarking progress of ICMM company members in 2025](https://www.icmm.com/en-gb/research/health-safety/benchmarking-2025-safety-data). Fuente primaria, leída el 2026-11-21. **La «ejecución inefectiva del control» fue la falla de control más común en los incidentes fatales de 2025: 19 de 26.** De 28 incidentes fatales, dos quedaron en investigación y se excluyeron de esa clasificación. El reporte pide foco continuo en la identificación, implementación y **verificación** de los controles críticos, y entre los peligros de alta consecuencia nombra el **aislamiento de energía**, que es el bloqueo y etiquetado. La página ofrece un PDF que no se abrió.
+41. ICMM (2026). [ICMM reports 2025 safety performance of members](https://www.icmm.com/en-gb/news/2026/2025-safety-performance). Fuente primaria, leída el 2026-11-21. 39 fallecidos en 2025, 43 en 2024 y 35 en 2023. De 26 miembros, 14 sin fallecidos. Caída de roca y equipo móvil, diez cada uno; dos incidentes catastróficos explican 13. Sudamérica y África, once cada una. 6.183 lesiones registrables, la cifra más baja desde que ICMM mide, en 2008.
+42. Mining Weekly (2026-07-30). [ICMM calls for reinforcement of risk prevention efforts as fatalities among members remains high](https://www.miningweekly.com/article/icmm-calls-for-further-action-as-fatalities-among-members-remain-relatively-high-2026-07-30). Leída completa el 2026-11-21. Aporta lo que no está en las páginas de ICMM: trabajo en altura e irrupción, siete cada uno, con lo que esos cuatro peligros explican 34 de los 39; Chile tuvo seis fallecidos y uno de los dos incidentes catastróficos del año fue en Chile, por caída de roca; la tendencia sube desde 2021 y revierte una baja anterior.
+43. Emol (2026-10-14). [Trece fallecidos en 2026: Gobierno convoca a una mesa transversal por la seguridad en la minería](https://www.emol.com/noticias/Economia/2026/10/14/1214147/mineria-fallecimientos-mesa-de-seguridad.html). Verificado el titular el 2026-11-21; el cuerpo de la nota no se pudo extraer de la página. Cifras de Sernageomin vía prensa, igual que (36). Falta la fuente primaria.
+
 ## No encontradas
 
 Venían en la planilla de la revisión IEEE y no aparecieron en la web abierta. No se citan sin abrirlas desde el enlace original de la planilla.
@@ -88,6 +95,11 @@ Aparecieron en la conversación de research o en búsquedas, pero no se confirm�
 - **Tesis del MIT** sobre un [chatbot multimodal para causa raíz](https://dspace.mit.edu/bitstream/handle/1721.1/163337/LorenteAnon-cla6-mgt-2025-thesis.pdf?sequence=1&isAllowed=y), con sensores, OT y video.
 - **Piper Alpha (1988) e informe Cullen**: el caso clásico de un accidente de mantenimiento por un relevo de turno y un permiso de trabajo mal traspasados. Citado de memoria; sirve para el [relevo de turno](../../architecture/FLUJO.md#5-bitácora-y-relevo-de-turno).
 - **Proveedores de verificación de bloqueo con cámara**, no revisados por pares: [Roboflow](https://roboflow.com/ai/lockout-tagout-verification) e [iFactory](https://ifactoryapp.com/ai-vision-camera/ai-vision-lockout-tagout-verification).
+- **«Los miembros de ICMM cubren cerca de un tercio de la industria»**: se afirmó al preparar el pitch y **ninguna** de las fuentes abiertas (40), (41) ni (42) lo dice. No se usa hasta encontrar de dónde sale.
+- **PDF del benchmarking de ICMM 2025**: existe y está enlazado desde (40); no se abrió. Es la fuente más completa si se necesita el detalle por peligro.
+- **Delve / IGF (2020)**, [How unsafe is ASM?](https://delvedatabase.org/uploads/resources/2020-SoS_OHS-1_How-unsafe-is-ASM.pdf): 592 muertes en minería artesanal en 2019, contando solo noticias en inglés. Enlace no abierto.
+- **Prensa del cierre estadístico 2025 de Sernageomin**: [Diario Estrategia](https://www.diarioestrategia.cl/texto-diario/mostrar/6059013/seis-trabajadores-fallecidos-cinco-accidentes-mineros-tres-semanas-anticipar-riesgo-vuelve-centro-debate), [Redimin](https://www.redimin.cl/?p=57859) y [The Clinic](https://www.theclinic.cl/2026/10/14/es-un-fracaso-del-sistema-que-nos-duele-e-indigna-la-critica-de-sernageomin-por-accidentes-fatales-en-minas-tras-siete-muertes-en-21-dias/). Repiten lo que ya sostiene (36); no abiertas.
+- **Más cobertura del reporte ICMM**: [Engineering News](https://engineeringnews.co.za/article/icmm-calls-for-further-action-as-fatalities-among-members-remain-relatively-high-2026-07-30), [Canadian Mining Journal](https://www.canadianminingjournal.com/?p=1003789055) y [Mining.com](https://www.mining.com/?p=1183238). Las dos primeras devolvieron 403; se usó (42) y las fuentes primarias en su lugar.
 
 ## Sin enlace verificado
 
