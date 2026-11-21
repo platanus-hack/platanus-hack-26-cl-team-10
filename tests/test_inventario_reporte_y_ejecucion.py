@@ -132,6 +132,45 @@ class ElValidador(Base):
         self.assertIn(("I2", "p2"), reglas)
 
 
+class ElValidadorConLasComprobacionesDeAnalisis(Base):
+    """Las de app/analisis.py (ADR-0015), por la misma ruta: un solo validador para la API y para las skills."""
+
+    def test_una_regla_de_seguridad_que_dispara_en_una_ejecucion_correcta(self):
+        r = self.validar(pauta("pauta-polin-estacion"))
+        self.assertIn(("A2", "e6"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
+
+    def test_un_paso_que_se_cierra_solo(self):
+        d = pauta("pauta-polin-demo")
+        d["pasos"][1]["sensor"] = {"id": "energia", "espera": "cortada"}
+        self.assertIn(("A1", "p2"), [(h["regla"], h["paso"]) for h in self.validar(d)["hallazgos"]])
+
+    def test_con_una_estacion_dice_que_capa_cierra_cada_paso_y_que_no_puede_cerrar(self):
+        r = self.validar(pauta("pauta-loto"), estacion="solo-camara")
+        capas = {f["paso"]: f["capa"] for f in r["factibilidad"]}
+        self.assertEqual((capas["l2"], capas["l1"]), (3, 1))
+        self.assertIn(("A4", "l1"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
+        self.assertIn("instrumentar", {a["analisis"] for a in r["analisis_que_pedir"]})
+        self.assertEqual(self.c.post("/interno/pautas/validar", json={"pauta": pauta("pauta-loto"), "estacion": "../datos"}).status_code, 404)
+
+    def test_las_citas_se_buscan_literales_en_el_protocolo_guardado(self):
+        d = pauta("pauta-polin")
+        texto = self.c.get("/interno/protocolos/prot-correa-01").json()["texto"]
+        citas = {p["id"]: {"cita": "Pide la parada y espera a que quede quieta y vacía"} for p in d["pasos"]}
+        citas["p2"] = {"cita": "una frase que el protocolo no dice"}
+        self.assertIn("Pide la parada y espera a que quede quieta y vacía", texto)
+        r = self.validar(d, analisis={"pasos": citas}, protocolo_id="prot-correa-01")
+        self.assertEqual(r["citas_sin_respaldo"], ["p2"])
+        self.assertIn(("A3", "p2"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
+
+    def test_el_inventario_muestra_las_estaciones_declaradas_y_lo_que_nunca_llego(self):
+        inv = self.c.get("/interno/inventario").json()
+        declaradas = {e["estacion"]: e for e in inv["estaciones_declaradas"]}
+        self.assertIn("correa-ct-01", declaradas)
+        self.assertEqual(declaradas["correa-ct-01"]["valores_que_nunca_llegaron"], {"correa": ["en_marcha"]})
+        guarda = next(s for s in inv["sensores"] if s["id"] == "guarda")
+        self.assertIn("correa-ct-01", guarda["declarado_en"])
+
+
 class LaConfianzaPorPaso(Base):
     def test_cada_paso_dice_en_que_capa_cerro_con_que_confianza_en_cuantos_intentos_y_cuanto_tardo(self):
         pasos = {p["paso"]: p for p in self.c.get("/cliente/metricas/pautas/pauta-brazo-01/pasos", headers=self.carla).json()}

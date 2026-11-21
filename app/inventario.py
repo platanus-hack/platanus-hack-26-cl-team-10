@@ -14,25 +14,45 @@ Nada de esto se guarda aparte: se lee de lo que ya hay en la base.
 Los sensores son globales en el servidor, no de una estación: eso es una brecha conocida (pantalla 9
 de Factum por dentro), y el inventario lo dice en vez de esconderlo.
 
-El validador (`validar`) junta las reglas que una pauta tiene que cumplir para guardarse y las que
-tiene que cumplir para que la verificación funcione: las cuatro de la pantalla 10 de Factum por
-dentro y las del inventario.
+Además del inventario visto, están las estaciones declaradas en `datos/estaciones/` (ADR-0015): lo que
+una persona dice que hay instalado. El inventario muestra las dos cosas y en qué no coinciden.
+
+El validador (`validar`) es uno solo para la API y para las skills: junta las reglas que una pauta tiene
+que cumplir para guardarse, las cuatro de la pantalla 10 de Factum por dentro, las del inventario, y las
+comprobaciones de `app/analisis.py` (ADR-0015): pasos que se cierran solos, reglas de seguridad que
+disparan en una ejecución correcta, factibilidad en una estación, citas literales del protocolo y qué
+análisis vale la pena pedir.
 """
 
 from __future__ import annotations
 
+import json
+import re
 import sqlite3
 import statistics
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
+from pathlib import Path
 
-from app import catalogo, db
+from app import analisis, catalogo, db
 from app.catalogo import ReglaDeNegocio
 from app.contratos import Pauta, TipoEvidencia, TipoEvento
 from app.reglas import _PELIGROS, CONF_ALTA
 
+ESTACIONES = Path(__file__).resolve().parent.parent / "datos" / "estaciones"
 NO_SON_SENSORES = {"tipo", "fuente", "clave", "resuelve", "sensores", "certeza", "id", "valor", "espera", "sensor",
                    "adelantado", "pendiente", "paso", "cuadro", "semilla"}
+
+
+def estaciones() -> dict[str, dict]:
+    """Las estaciones declaradas en datos/estaciones/, por su nombre de archivo."""
+    return {f.stem: json.loads(f.read_text(encoding="utf-8")) for f in sorted(ESTACIONES.glob("*.json"))}
+
+
+def estacion(nombre: str) -> dict:
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", nombre or "") or nombre not in (todas := estaciones()):
+        raise db.NoExiste(f"estación {nombre}; hay {', '.join(estaciones())}")
+    return todas[nombre]
 
 
 def _numero(valor) -> float | None:
@@ -139,8 +159,22 @@ def inventario(cx: sqlite3.Connection, detector=None, sesiones: list[dict] | Non
                          "si": sum(1 for e in es if e.get("respuesta")),
                          "confianza_media": round(sum(confs) / len(confs), 3) if confs else None})
 
+    declaradas = estaciones()
+    for s in sensores:
+        s["declarado_en"] = sorted(n for n, e in declaradas.items() if s["id"] in e.get("sensores", {}))
+    vistos_ids = {s["id"]: s for s in sensores}
+    resumen_estaciones = []
+    for nombre, e in declaradas.items():
+        nunca = {sid: [v for v in valores if v not in (vistos_ids.get(sid, {}).get("valores_vistos") or {})]
+                 for sid, valores in e.get("sensores", {}).items()}
+        resumen_estaciones.append({
+            "estacion": nombre, "nombre": e.get("nombre"), "sensores": e.get("sensores", {}),
+            "camara": bool(e.get("camara")), "clases": e.get("clases", []),
+            "valores_que_nunca_llegaron": {k: v for k, v in nunca.items() if v},
+        })
     return {
         "sensores": sensores,
+        "estaciones_declaradas": resumen_estaciones,
         "detector": {"en_servidor": detector is not None, "modelo": getattr(detector, "modelo", None),
                      "clases": sorted(en_modelo), "certeza_para_decidir": CONF_ALTA},
         "clases": clases,
@@ -163,6 +197,10 @@ REGLAS = {
     "I1": "Sensor que el servidor no conoce",
     "I2": "Valor que nunca se vio en ese sensor",
     "I3": "Clase que el detector no conoce",
+    "A1": "Paso que se cierra solo",
+    "A2": "Regla de seguridad que dispara en una ejecución correcta",
+    "A3": "Cita que no está en el protocolo",
+    "A4": "Paso que la estación no puede cerrar",
 }
 
 
@@ -182,8 +220,14 @@ def _reposo(pauta: Pauta, dado: dict[str, str]) -> dict[str, str]:
     return {**{s: v for s, v in ultimo.items() if veces[s] > 1}, **dado}
 
 
-def validar(cx: sqlite3.Connection, d: dict, inv: dict | None = None, reposo: dict[str, str] | None = None) -> dict:
-    """Si la pauta se puede guardar (`errores`) y qué le va a fallar a la verificación (`hallazgos`)."""
+def validar(cx: sqlite3.Connection, d: dict, inv: dict | None = None, reposo: dict[str, str] | None = None,
+            estacion_: dict | None = None, borrador: dict | None = None, protocolo_id: str | None = None) -> dict:
+    """Si la pauta se puede guardar (`errores`) y qué le va a fallar a la verificación (`hallazgos`).
+
+    `estacion_` es una estación declarada (datos/estaciones/): con ella dice qué capa puede cerrar cada paso.
+    `borrador` es el `analisis` del borrador de la skill reconocer-proceso: con él y `protocolo_id`, comprueba
+    que cada cita esté literal en el texto del protocolo guardado, y pide análisis por sus «no puede pasar».
+    """
     try:
         pauta = catalogo.pauta_desde_dict(d)
     except (ReglaDeNegocio, KeyError, ValueError, TypeError) as e:
@@ -228,6 +272,12 @@ def validar(cx: sqlite3.Connection, d: dict, inv: dict | None = None, reposo: di
                 hallazgos.append(_hallazgo("V3", None, f"{a} se pone antes que {b} y también se repone antes: lo que se "
                                            "pone en un orden se retira en el contrario (REFERENCIAS 48 y 50)"))
 
+    for paso_id in analisis.se_cierran_solos(pauta):
+        hallazgos.append(_hallazgo("A1", paso_id, "espera el valor que un paso anterior ya dejó en su sensor: se cierra "
+                                   "sin que nadie haga nada"))
+    for a in analisis.alertas_en_ejecucion_correcta(pauta):
+        hallazgos.append(_hallazgo("A2", a["paso"], f"ejecutada al pie de la letra, dispara una regla de seguridad: {a['aviso']}"))
+
     inv = inv or inventario(cx)
     conocidos = {s["id"]: s for s in inv["sensores"]}
     for paso in pasos:
@@ -245,5 +295,15 @@ def validar(cx: sqlite3.Connection, d: dict, inv: dict | None = None, reposo: di
         if paso.deteccion and inv["detector"]["en_servidor"] and paso.deteccion.clase not in inv["detector"]["clases"]:
             hallazgos.append(_hallazgo("I3", paso.id, f"el detector no conoce «{paso.deteccion.clase}»: el paso irá "
                                        "siempre a la capa 3"))
+    sin_respaldo = None
+    if borrador is not None and protocolo_id:
+        texto = catalogo.leer_protocolo(cx, protocolo_id)["texto"]
+        sin_respaldo = analisis.citas_sin_respaldo({"pauta": d, "analisis": borrador}, texto)
+        hallazgos += [_hallazgo("A3", p, "su cita no aparece literal en el protocolo") for p in sin_respaldo]
+    factibilidad = analisis.factibilidad(pauta, estacion_) if estacion_ is not None else None
+    if factibilidad:
+        hallazgos += [_hallazgo("A4", f["paso"], f["falta"]) for f in factibilidad if f["falta"]]
+    pedidos = analisis.criterio(pauta, estacion_, (borrador or {}).get("no_puede_pasar", []))
     return {"valida": not errores, "errores": errores, "hallazgos": hallazgos, "reposo": en_reposo,
+            "factibilidad": factibilidad, "citas_sin_respaldo": sin_respaldo, "analisis_que_pedir": pedidos,
             "pauta": catalogo.resumen_pauta(cx, pauta) | {"version": pauta.version}}

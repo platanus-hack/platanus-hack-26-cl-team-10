@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Res
 from pydantic import BaseModel, Field
 
 from app import (acceso, catalogo, cerebro, db, escenarios, inventario, mejora, metricas, protocolos, referencia, reporte,
-                 semilla, verificacion)
+                 semilla, skills, verificacion)
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -198,6 +198,11 @@ class PautaAValidar(BaseModel):
     pauta: dict = Field(description="La pauta como se crearía en `POST /interno/protocolos/{id}/pautas`.")
     reposo: dict[str, str] = Field(default={}, description="El valor de cada sensor antes de empezar. Sin él, se toma el "
                                    "que deja el último paso que usa ese sensor.")
+    estacion: str | None = Field(default=None, description="Una estación de `datos/estaciones/` (`correa-ct-01`, "
+                                 "`solo-camara`…): con ella dice qué capa puede cerrar cada paso.")
+    analisis: dict | None = Field(default=None, description="El `analisis` del borrador de la skill `reconocer-proceso`, "
+                                  "con la cita de cada paso y lo que no puede pasar.")
+    protocolo_id: str | None = Field(default=None, description="El protocolo guardado contra cuyo texto se buscan las citas.")
 
 
 class LecturaEdge(BaseModel):
@@ -786,9 +791,14 @@ def validar_pauta(v: PautaAValidar, x_clave_equipo: str | None = Header(default=
     """Valida una pauta sin guardarla. `errores` impide crearla (mal formada o versión equivocada); `hallazgos` dice qué
     le va a fallar a la verificación: un control crítico que no cierra un sensor (V1), un paso que espera el valor de
     reposo de su sensor (V2), una reposición fuera de orden inverso (V3), una capa_minima que no calza (V4), y sensores,
-    valores o clases que el servidor no conoce (I1 a I3)."""
+    valores o clases que el servidor no conoce (I1 a I3). Con las comprobaciones de `app/analisis.py`: pasos que se
+    cierran solos (A1), reglas de seguridad que disparan en una ejecución correcta (A2), citas que no están literales en
+    el protocolo (A3) y pasos que la estación no puede cerrar (A4); y qué análisis vale la pena pedir. 404 si la
+    estación o el protocolo no existen."""
     _solo_equipo(x_clave_equipo)
-    return inventario.validar(cx, v.pauta, inventario.inventario(cx, detector, servicios.sesiones()), v.reposo)
+    estacion = inventario.estacion(v.estacion) if v.estacion else None
+    return inventario.validar(cx, v.pauta, inventario.inventario(cx, detector, servicios.sesiones()), v.reposo,
+                              estacion, v.analisis, v.protocolo_id)
 
 
 @app.get("/interno/mejoras")
@@ -993,10 +1003,29 @@ async def video_salida(edge_id: str, request: Request, limite: int | None = None
 
 
 @app.get("/agente")
-@app.get("/llms.txt", include_in_schema=False)
+@app.get("/llms-full.txt", include_in_schema=False)
 def guia_para_el_agente(request: Request) -> Response:
     """La guía en Markdown para el agente que se conecta: recorrido, WebSocket, errores y endpoints."""
     return Response(texto_de_la_guia(app, str(request.base_url)), media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/llms.txt", include_in_schema=False)
+def indice_para_agentes(request: Request) -> Response:
+    """El índice del estándar llms.txt: qué es Factum, cómo se entra, las skills y la documentación."""
+    return Response(skills.llms_txt(str(request.base_url)), media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/skills", include_in_schema=False)
+def skills_publicadas(request: Request) -> list[dict]:
+    """Las skills de cliente, con su nombre, su descripción y dónde leerlas."""
+    return skills.publicadas(str(request.base_url))
+
+
+@app.get("/skills/{nombre}/SKILL.md", include_in_schema=False)
+def skill(nombre: str) -> Response:
+    if nombre not in skills.DE_CLIENTE:
+        raise db.NoExiste(f"skill {nombre}; hay {', '.join(skills.DE_CLIENTE)}")
+    return Response(skills.para_publicar(nombre), media_type="text/markdown; charset=utf-8")
 
 
 @app.get("/referencia", include_in_schema=False)
