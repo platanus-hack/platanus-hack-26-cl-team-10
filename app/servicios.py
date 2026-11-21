@@ -270,12 +270,19 @@ class Servicios:
     def _vigentes(self, ot_id: str):
         """Lo vigente: veredictos, seguridad con los sensores de ahora, y las alertas abiertas
         que no se recalculan de los sensores (orden, control, señal). La seguridad no se suma
-        acá porque vigentes() ya la evalúa con los sensores actuales."""
+        acá porque vigentes() ya la evalúa con los sensores actuales.
+
+        Los sensores son los de la estación que un edge está ejecutando. Una OT sin sesión no
+        tiene sensores de ahora: si se le aplicaran, la lectura de otra estación la pondría en
+        error. Se queda con lo último que su bitácora dejó abierto, seguridad incluida."""
         evs = db.eventos(self.cx, ot_id)
+        en_vivo = self.sesion_de_ot(ot_id) is not None
         abiertas = [
             c for clave, ev in self.alertas_activas(ot_id).items()
-            if not clave.startswith("seguridad:") and (c := calificar_evento(ev)) is not None
+            if not (en_vivo and clave.startswith("seguridad:")) and (c := calificar_evento(ev)) is not None
         ]
+        if not en_vivo:
+            return vigentes(evs, {}, abiertas)
         return vigentes(evs, db.estado_sensores(self.cx), [*abiertas, *self._frescura(ot_id, evs)])
 
     def _frescura(self, ot_id: str, evs) -> list:
