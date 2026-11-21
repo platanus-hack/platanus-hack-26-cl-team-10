@@ -104,7 +104,7 @@ Cada paso se comprueba con la primera capa que puede decidirlo. `Candidata a val
 
 ## Demo propuesto
 
-`Candidata a validar`; ver [ADR-0010](../decisions/0010-demo-brazo-robotico-en-una-celda-con-corte-local.md). Un brazo robótico con pinza, dentro de una caja que simula la celda de trabajo. Se ve peligroso sin explicarlo, y el sistema ayuda a que no lo sea.
+`Confirmada` por el equipo el 2026-11-21; ver [ADR-0010](../decisions/0010-demo-brazo-robotico-en-una-celda-con-corte-local.md). Un brazo robótico con pinza, dentro de una caja que simula la celda de trabajo. Se ve peligroso sin explicarlo, y el sistema ayuda a que no lo sea.
 
 **La celda.**
 

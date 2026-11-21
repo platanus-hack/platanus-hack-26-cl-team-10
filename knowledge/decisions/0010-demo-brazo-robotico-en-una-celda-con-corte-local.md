@@ -1,6 +1,6 @@
 # ADR-0010 — El demo es un brazo robótico en una celda, y el corte de energía es local en el edge
 
-> Estado: `proposed` · Fecha: 2026-11-21 · Reemplaza la correa a escala del [Demo propuesto](../architecture/FLUJO.md#demo-propuesto)
+> Estado: `accepted` · Fecha: 2026-11-21 · Aceptado por el equipo el 2026-11-21 · Reemplaza la correa a escala del [Demo propuesto](../architecture/FLUJO.md#demo-propuesto)
 
 ## Contexto
 
@@ -35,7 +35,6 @@ El equipo tiene un brazo robótico impreso con servomotores y pinza, un ESP32, u
 - Si el detector distingue la pinza, la pieza y la herramienta con la cámara cenital. Hoy reconoce mouse y lápiz. `Brecha`.
 - La norma de seguridad que respalda la regla de persona en la zona con energía viva en celdas robotizadas. No se buscó. `Brecha`.
 - Cuánto tarda el ESP32 en abrir el relé desde que alguien entra a la zona. Sin medir. `Brecha`.
-- Falta que el equipo lo acepte.
 
 ## Referencias
 
