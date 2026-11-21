@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factum · del protocolo a la OT ejecutada</title>
+<!-- El flujo completo en una sola pantalla: protocolo, pautas, OT y ejecución, con lo que pasa por detrás
+     en cada etapa. Tres casos: el brazo del demo, una celda de media tensión y una excavadora.
+     Lo que responde cada llamada y cada tramo del guion sale de correr app/ en una base en memoria;
+     las pautas de energía y construcción son las de datos/. Lo que no está construido va marcado.
+     Un solo archivo, sin build ni red. Si el código cambia, se corrige en el mismo commit. -->
+<style>
+:root{--ink:#16202b;--muted:#5b6673;--line:#d9dee5;--soft:#f1f3f6;--bg:#f7f8fa;--paper:#fff;--brand:#2f5f9e;--brand-soft:#e7eef8;
+  --ok:#2f7d5b;--ok-bg:#e3f3ea;--warn:#9a6400;--warn-bg:#fdf3d6;--err:#b42318;--err-bg:#fdeceb;--deep:#141c26;--teal:#0f6e6a;--teal-bg:#e0f2f1;
+  --persona:#8a5a2b;--persona-bg:#f6ede3;--stub:#6b7482;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+.wrap{max-width:1280px;margin:0 auto;padding:0 22px}
+button,input{font:inherit} button{cursor:pointer}
+code{font-family:var(--mono);font-size:15px;background:var(--soft);padding:1px 5px;border-radius:5px}
+h1{font-size:27px;margin:0 0 4px;letter-spacing:-.01em} h2{font-size:19px;margin:0 0 10px} h3{font-size:19px;margin:0 0 6px} h4{font-size:15px;margin:10px 0 4px;color:var(--muted);font-weight:600}
+p{margin:0 0 8px}
+header{background:var(--deep);color:#eef2f7;padding:20px 0 16px}
+header p{color:#b8c2cf;margin:0;max-width:880px}
+.barra{background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.barra .wrap{display:flex;gap:10px 18px;align-items:center;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+#casos{display:flex;gap:8px;flex-wrap:wrap}
+#casos button{border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:6px 14px;text-align:left;color:var(--ink);line-height:1.25}
+#casos button b{display:block;font-size:15px} #casos button small{color:var(--muted);font-size:15px}
+#casos button[aria-pressed=true]{background:var(--deep);border-color:var(--deep);color:#fff} #casos button[aria-pressed=true] small{color:#b8c2cf}
+#flujo{list-style:none;margin:0 0 0 auto;padding:0;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+#flujo .fl{color:var(--muted)}
+#flujo button{border:1px solid var(--line);border-bottom:4px solid var(--line);background:var(--paper);border-radius:10px;padding:5px 12px;text-align:left;color:var(--ink);line-height:1.25;min-width:132px}
+#flujo button b{display:block;font-size:15px} #flujo button small{color:var(--muted);font-size:15px}
+#flujo button.hecha{border-bottom-color:#8fa3bd} #flujo button.actual{border-color:var(--ink);border-bottom-color:var(--brand);background:#fbfcfd}
+main{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;padding-top:18px;padding-bottom:40px;align-items:start}
+@media (max-width:1040px){main{grid-template-columns:1fr} #flujo{margin-left:0}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.mandos{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.boton{background:var(--paper);color:var(--ink);border:1px solid #b9c2ce;border-radius:9px;padding:7px 14px;font-weight:600}
+.boton.primario{background:var(--deep);border-color:var(--deep);color:#fff} .boton:disabled{opacity:.4;cursor:not-allowed}
+#cuenta{font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)}
+.visor{position:relative;border-radius:14px;overflow:hidden;background:var(--deep);margin-top:12px}
+.visor canvas{display:block;width:100%;height:440px;touch-action:none;cursor:grab} .visor canvas:active{cursor:grabbing}
+.visor .pie-v{position:absolute;left:10px;right:10px;bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;color:#b8c2cf;font-size:15px;pointer-events:none}
+.visor .pie-v>*{background:rgba(20,28,38,.84);border-radius:8px;padding:3px 10px;pointer-events:auto;display:flex;align-items:center;gap:8px}
+.visor .pie-v button{background:none;border:0;color:#b8c2cf;padding:0;text-decoration:underline}
+.visor input{width:110px;accent-color:#7fa6dd}
+.papel{background:#fffdf6;border:1px solid #e6dfc8;border-radius:6px;padding:14px 18px;font-family:Georgia,"Times New Roman",serif;max-height:300px;overflow:auto;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.papel b{font-size:17px} .papel small{display:block;color:var(--muted);margin-bottom:6px;font-size:15px} .papel ol{margin:0;padding-left:22px} .papel li{margin:0 0 4px}
+.pasos-p{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
+.pasos-p li{border:1px solid var(--line);border-left:5px solid #c4ccd6;border-radius:9px;padding:6px 10px;margin:0 0 6px;font-size:15px}
+.pasos-p li.critico{border-left-color:var(--err)} .pasos-p li>span:last-child{display:block;color:var(--muted)}
+.ev{display:inline-block;font-size:15px;font-weight:700;border-radius:6px;padding:0 7px}
+.ev.sensor{background:var(--brand-soft);color:var(--brand)} .ev.camara{background:var(--teal-bg);color:var(--teal)} .ev.persona{background:var(--persona-bg);color:var(--persona)} .ev.critico{background:var(--err-bg);color:var(--err)}
+.ot-card{border:1.5px solid var(--ink);border-radius:12px;padding:12px 14px;display:grid;gap:4px} .ot-card b{font-family:var(--mono);font-size:18px} .ot-card span{color:var(--muted)}
+.badge{display:inline-block;font-size:15px;font-weight:700;padding:1px 9px;border-radius:999px;white-space:nowrap}
+.badge.ok{background:var(--ok-bg);color:var(--ok)} .badge.warning{background:var(--warn-bg);color:var(--warn)} .badge.error{background:var(--err-bg);color:var(--err)} .badge.gris{background:var(--soft);color:var(--muted)}
+aside h2{display:flex;align-items:center;gap:10px}
+.pieza{position:relative;background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:12px;padding:12px 14px 10px;margin:0 0 10px;font-size:15px}
+.pieza.no{border:2px dashed var(--stub);border-left:5px solid var(--stub);background:repeating-linear-gradient(135deg,#eceff3 0 12px,#f7f8fa 12px 24px)}
+.pieza h4:first-of-type{margin-top:0;color:var(--ink);font-size:16px}
+.pieza .tag{float:right;font-size:15px;font-weight:800;letter-spacing:.03em;color:#fff;background:var(--ok);border-radius:6px;padding:0 8px;margin-left:8px}
+.pieza.no .tag{background:var(--stub)}
+.pieza pre{font-family:var(--mono);font-size:14.5px;background:var(--deep);color:#dfe7f1;border-radius:9px;padding:8px 10px;margin:6px 0 0;white-space:pre-wrap;word-break:break-word}
+.nota{color:var(--muted);font-size:15px} .nota.borde{border-left:4px solid var(--stub);padding-left:10px;margin-top:10px}
+.inventario{list-style:none;margin:4px 0 8px;padding:0} .inventario li{margin:0 0 4px} .inventario i{font-style:normal;font-family:var(--mono);background:var(--soft);border-radius:5px;padding:0 5px}
+.inventario small{display:block;color:var(--muted);font-size:15px}
+.lecturas{display:flex;flex-wrap:wrap;gap:6px} .lecturas span{font-family:var(--mono);font-size:15px;background:var(--soft);border-radius:6px;padding:1px 8px;color:var(--muted)}
+.lecturas span.cambio{background:var(--brand-soft);color:var(--brand);font-weight:700;outline:1.5px solid var(--brand)}
+.revisiones{list-style:none;margin:0;padding:0;counter-reset:r} .revisiones li{counter-increment:r;padding:4px 10px 4px 34px;margin:0 0 4px;border-radius:8px;background:var(--soft);color:var(--muted);position:relative}
+.revisiones li::before{content:counter(r);position:absolute;left:9px;top:5px;width:18px;height:18px;border-radius:50%;background:#c4ccd6;color:#fff;font-size:13px;font-weight:700;text-align:center;line-height:18px}
+.revisiones li b{color:var(--ink)} .revisiones li.ok{background:var(--ok-bg);color:var(--ink)} .revisiones li.err{background:var(--err-bg);color:var(--ink)}
+.revisiones li.ok::before{background:var(--ok)} .revisiones li.err::before{background:var(--err)}
+.bitacora{list-style:none;margin:0;padding:0} .bitacora li{padding:5px 10px;border-radius:8px;margin:0 0 4px;background:var(--soft);border-left:4px solid #c4ccd6}
+.bitacora li.ok{border-left-color:var(--ok)} .bitacora li.warning{border-left-color:var(--warn);background:var(--warn-bg)} .bitacora li.error{border-left-color:var(--err);background:var(--err-bg)}
+.bitacora b{font-family:var(--mono)}
+.tel{background:var(--deep);border-radius:14px;padding:12px;color:#eef2f7;margin:0 0 10px}
+.tel .barra-t{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;color:#b8c2cf;font-size:15px}
+.tel ol{list-style:none;margin:0;padding:0;font-size:15px}
+.tel li{display:flex;gap:8px;align-items:center;margin:0 0 4px;padding:4px 9px;border-radius:8px;background:#1d2734;color:#aeb9c7;border-left:4px solid #3a475a}
+.tel li .num{font-family:var(--mono);font-weight:700;color:#7d8a9b} .tel li .tit{flex:1} .tel li .tit i{font-style:normal;color:#f0a09a}
+.tel li .cap{font-family:var(--mono);font-size:14px;color:#8fa0b5;white-space:nowrap}
+.tel li.verificado{background:#173326;color:#a6e9c5;border-left-color:#3fbf85} .tel li.en_conflicto{background:#3b1717;color:#ffb4ad;border-left-color:#f0655a} .tel li.actual{outline:2px solid #7fa6dd;color:#fff}
+.tel .aviso{font-size:15px;padding:7px 10px;border-radius:9px;margin:6px 0 0} .tel .aviso.error{background:#3b1717;color:#ffb4ad} .tel .aviso.warning{background:#3a2e10;color:#ffd97a}
+.tel .aviso small{display:block;opacity:.9} .tel .sin{font-size:15px;color:#8fe0b4;margin-top:6px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Del protocolo a la OT ejecutada</h1>
+  <p>El flujo completo de Factum en cuatro etapas, y lo que pasa por detrás en cada una. Elige un caso y avanza.</p>
+</div></header>
+<div class="barra"><div class="wrap"><div id="casos" role="group" aria-label="Casos"></div><ol id="flujo" aria-label="Etapas"></ol></div></div>
+<main class="wrap">
+  <section>
+    <div class="card"><div id="vista"></div>
+      <div class="mandos"><button class="boton" id="atras">← Atrás</button><button class="boton primario" id="sigue">Siguiente →</button><span id="cuenta"></span><button class="boton" id="cero" style="margin-left:auto">Volver al inicio</button></div>
+    </div>
+    <div class="visor"><canvas id="c3d" aria-label="La estación en tres dimensiones"></canvas>
+      <div class="pie-v"><span>Arrastra para girar · <button id="vista-cero">volver a la vista inicial</button></span><span><label for="zoom">Distancia</label><input type="range" id="zoom" min="10" max="400" value="100"></span></div>
+    </div>
+  </section>
+  <aside><h2>Por detrás</h2><div id="detras"></div></aside>
+</main>
+<script>
+"use strict";
+// Datos sacados del repo al generar la página: las pautas, lo que respondió cada llamada y los guiones.
+const F = {"casos":{"brazo":{"nombre":"Demo · brazo robótico","sub":"ajuste de la pinza","pauta":{"id":"pauta-brazo-01","nombre":"Ajuste de pinza en brazo robótico","version":1,"equipo":"brazo BR-01, celda del demo","pasos":[{"id":"p1","orden":1,"titulo":"Cortar la energía del brazo","instruccion":"Abre el interruptor de los servos y comprueba que el brazo quedó sin energía.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"energia","espera":"cortada"}},{"id":"p2","orden":2,"titulo":"Poner el bloqueo","instruccion":"Pon el candado y la tarjeta en el interruptor.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"bloqueo","espera":"puesto"}},{"id":"p3","orden":3,"titulo":"Entrar a la celda","instruccion":"Con la energía cortada y el bloqueo puesto, acércate al brazo.","tipo_evidencia":"sensor","capa_minima":1,"sensor":{"id":"zona","espera":"ocupada"}},{"id":"p4","orden":4,"titulo":"Ajustar la pinza","instruccion":"Aprieta el tornillo de la pinza hasta que cierre sobre la pieza.","tipo_evidencia":"camara","capa_minima":3,"pregunta_visual":"¿La pinza está cerrada y sostiene la pieza?"},{"id":"p5","orden":5,"titulo":"Salir de la celda","instruccion":"Retira la herramienta y sal de la zona del brazo.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"zona","espera":"libre"}},{"id":"p6","orden":6,"titulo":"Retirar el bloqueo","instruccion":"Con la celda despejada, saca el candado y la tarjeta.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"bloqueo","espera":"retirado"}},{"id":"p7","orden":7,"titulo":"Devolver la energía","instruccion":"Cierra el interruptor de los servos.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"energia","espera":"viva"}},{"id":"p8","orden":8,"titulo":"Probar un ciclo","instruccion":"Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.","tipo_evidencia":"confirmacion","capa_minima":1}]},"regla":true,"ot":"ot-brazo","edge":"edge-celda","orden":["energia","bloqueo","zona"],"reposo":{"energia":"viva","bloqueo":"retirado","zona":"libre"},"valores":{"energia":["viva","cortada"],"bloqueo":["retirado","puesto"],"zona":["libre","ocupada"]},"mide":{"energia":"relé de los servos","bloqueo":"pulsador en el candado","zona":"ultrasonido en la entrada"},"guion":[{"t":"Empieza la ejecución","x":"El operario abre la sesión y el edge manda el estado de la celda una vez por segundo: energía viva, bloqueo retirado y zona libre. Ninguna lectura adelanta un paso.","pon":{}},{"t":"Se salta el corte y se acerca","x":"Entra a la zona con el brazo energizado. Cortar la energía, el paso en curso, es un control crítico, y llegó la lectura que cierra «Entrar a la celda»: la capa 1 lo lee como orden invertido. La regla de persona en la zona con energía viva también dispara.","pon":{"zona":"ocupada"}},{"t":"El ESP32 corta los servos","x":"Abre el relé por su cuenta, sin esperar al servidor, y después lo informa. Esa lectura cierra el paso 1 y resuelve las dos alertas. Como el operario sigue dentro y falta el bloqueo, se abre otra alerta de orden.","pon":{"energia":"cortada"},"marca":"esp"},{"t":"Pone el bloqueo","x":"El pulsador marca el candado puesto: se cierra el paso 2 y la alerta se resuelve. La misma tanda trae la zona ocupada, que ahora sí es el paso en curso, y lo cierra.","pon":{"bloqueo":"puesto"}},{"t":"Ajusta la pinza y la cámara lo confirma","x":"El paso es de cámara. El operario declara y el juez responde la pregunta visual del paso sobre el cuadro de la cámara cenital.","dice":"pinza ajustada"},{"t":"Sale de la celda","x":"La zona vuelve a estar libre y cierra el paso 5: nadie adentro antes de retirar el bloqueo.","pon":{"zona":"libre"}},{"t":"Retira el bloqueo","x":"Es el paso de la pauta que deshace ese control a propósito, así que no cuenta como control perdido.","pon":{"bloqueo":"retirado"}},{"t":"Devuelve la energía","x":"El relé cierra y el brazo vuelve a moverse. La reposición fue en el orden inverso al de la puesta.","pon":{"energia":"viva"}},{"t":"Prueba un ciclo y lo confirma","x":"El último paso lo cierra la palabra del operario, y la bitácora deja dicho que fue una persona. La OT queda completa.","dice":"el brazo completó un ciclo"}],"real":{"crear":{"id":"pauta-brazo-01","nombre":"Ajuste de pinza en brazo robótico","version":1,"equipo":"brazo BR-01, celda del demo","pasos":8,"aprobada":false},"aprobar":{"id":"pauta-brazo-01","nombre":"Ajuste de pinza en brazo robótico","version":1,"equipo":"brazo BR-01, celda del demo","pasos":8,"aprobada":true},"abrir":{"ot":"ot-brazo","pauta":"pauta-brazo-01","version":1,"nombre":"Ajuste de pinza en brazo robótico"},"asignar":{"ot":"ot-brazo","pauta":"pauta-brazo-01","version":1,"equipo":"brazo BR-01, celda del demo","paso_actual":"p1","completa":false,"operador":"operario:1","estado_general":"asignada","entregada_por":null,"cerrados":0,"total":8},"sesion":{"edge_id":"edge-celda","ot_id":"ot-brazo","operario":"operario:1"},"final":{"ot":"ot-brazo","pauta":"pauta-brazo-01","version":1,"equipo":"brazo BR-01, celda del demo","paso_actual":null,"completa":true,"operador":"operario:1","estado_general":"completa","entregada_por":null,"cerrados":8,"total":8}},"apertura":[["ot_abierta","OT abierta desde Ajuste de pinza en brazo robótico v1 sobre brazo BR-01, celda del demo","supervisor:X"],["ot_asignada","OT asignada a operario:1","supervisor:X"]]},"electrica":{"nombre":"Energía · celda de media tensión","sub":"mantenimiento del interruptor","pauta":{"id":"pauta-celda-mt-01","nombre":"Mantenimiento de interruptor en celda de media tensión","version":1,"equipo":"celda MT-07, subestación S-1","pasos":[{"id":"p1","orden":1,"titulo":"Abrir el interruptor y el seccionador","instruccion":"Abre el interruptor de la celda y después el seccionador, hasta tener corte visible.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"seccionador","espera":"abierto"}},{"id":"p2","orden":2,"titulo":"Bloquear y etiquetar el mando","instruccion":"Pon el candado y la tarjeta en el mando del seccionador.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"candado_mando","espera":"cerrado"}},{"id":"p3","orden":3,"titulo":"Verificar ausencia de tensión","instruccion":"Comprueba con el detector, en las tres fases, que no hay tensión.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"tension","espera":"ausente"}},{"id":"p4","orden":4,"titulo":"Poner a tierra y en cortocircuito","instruccion":"Conecta el equipo de puesta a tierra primero a tierra y después a las tres fases.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"tierra","espera":"puesta"}},{"id":"p5","orden":5,"titulo":"Delimitar y señalizar la zona de trabajo","instruccion":"Cierra la zona con barrera o cinta y cuelga el letrero de trabajo en curso.","tipo_evidencia":"camara","capa_minima":3,"pregunta_visual":"¿Está la zona cerrada con barrera o cinta y el letrero de trabajo en curso a la vista?"},{"id":"p6","orden":6,"titulo":"Retirar las tierras","instruccion":"Terminado el trabajo, desconecta la puesta a tierra, primero las fases y después la tierra.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"tierra","espera":"retirada"}},{"id":"p7","orden":7,"titulo":"Retirar el bloqueo","instruccion":"Saca el candado y la tarjeta del mando.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"candado_mando","espera":"abierto"}},{"id":"p8","orden":8,"titulo":"Reponer el servicio","instruccion":"Cierra el seccionador y el interruptor, y confirma con el centro de control que la celda quedó en servicio.","tipo_evidencia":"confirmacion","capa_minima":1}]},"regla":false,"ot":"ot-celda","edge":"edge-subestacion","orden":["seccionador","candado_mando","tension","tierra"],"reposo":{"seccionador":"cerrado","candado_mando":"abierto","tension":"presente","tierra":"retirada"},"valores":{"seccionador":["cerrado","abierto"],"candado_mando":["abierto","cerrado"],"tension":["presente","ausente"],"tierra":["retirada","puesta"]},"mide":{"seccionador":"posición de las cuchillas","candado_mando":"candado en el mando","tension":"detector de tensión","tierra":"equipo de puesta a tierra"},"guion":[{"t":"Empieza la ejecución","x":"La celda está en servicio: seccionador cerrado, tensión presente, sin candado y sin tierras. El edge lo manda una vez por segundo y ninguna lectura adelanta un paso.","pon":{}},{"t":"Abre el seccionador","x":"Las cuchillas quedan abiertas, con corte visible. Es el sensor del paso en curso: la capa 1 lo cierra sin que nadie hable.","pon":{"seccionador":"abierto"}},{"t":"Se salta dos pasos y pone la tierra","x":"Sin bloquear el mando y sin verificar la ausencia de tensión, conecta la puesta a tierra. La regla de peligro de la industria dispara, y además es la lectura de un paso posterior con un control crítico pendiente: orden invertido.","pon":{"tierra":"puesta"}},{"t":"Retira la tierra","x":"Las dos alertas se resuelven: la condición de peligro terminó y lo adelantado se deshizo. No se borran: quedan en la bitácora con su principio y su fin.","pon":{"tierra":"retirada"}},{"t":"Bloquea y etiqueta el mando","x":"El candado en el mando cierra el paso 2.","pon":{"candado_mando":"cerrado"}},{"t":"Verifica la ausencia de tensión","x":"El detector marca ausencia en las tres fases y cierra el paso 3.","pon":{"tension":"ausente"}},{"t":"Pone la tierra, ahora en su orden","x":"La misma acción que antes disparó dos alertas ahora cierra el paso 4: lo que cambió es que los controles anteriores están hechos.","pon":{"tierra":"puesta"}},{"t":"Delimita la zona y la cámara lo confirma","x":"El paso es de cámara: el operario declara y el juez responde si la barrera y el letrero están a la vista.","dice":"zona señalizada"},{"t":"Termina el trabajo y retira las tierras","x":"Es el paso de la pauta que deshace ese control a propósito.","pon":{"tierra":"retirada"}},{"t":"Retira el bloqueo","x":"Sale el candado del mando. La reposición va en el orden inverso al de la puesta.","pon":{"candado_mando":"abierto"}},{"t":"Repone el servicio y lo confirma","x":"Cierra el seccionador y vuelve la tensión. Solo queda el paso de confirmación, así que esas lecturas ya no cuentan como control perdido. La OT queda completa.","pon":{"seccionador":"cerrado","tension":"presente"},"dice":"celda en servicio"}],"real":{"crear":{"id":"pauta-celda-mt-01","nombre":"Mantenimiento de interruptor en celda de media tensión","version":1,"equipo":"celda MT-07, subestación S-1","pasos":8,"aprobada":false},"aprobar":{"id":"pauta-celda-mt-01","nombre":"Mantenimiento de interruptor en celda de media tensión","version":1,"equipo":"celda MT-07, subestación S-1","pasos":8,"aprobada":true},"abrir":{"ot":"ot-celda","pauta":"pauta-celda-mt-01","version":1,"nombre":"Mantenimiento de interruptor en celda de media tensión"},"asignar":{"ot":"ot-celda","pauta":"pauta-celda-mt-01","version":1,"equipo":"celda MT-07, subestación S-1","paso_actual":"p1","completa":false,"operador":"operario:1","estado_general":"asignada","entregada_por":null,"cerrados":0,"total":8},"sesion":{"edge_id":"edge-subestacion","ot_id":"ot-celda","operario":"operario:1"},"final":{"ot":"ot-celda","pauta":"pauta-celda-mt-01","version":1,"equipo":"celda MT-07, subestación S-1","paso_actual":null,"completa":true,"operador":"operario:1","estado_general":"completa","entregada_por":null,"cerrados":8,"total":8}},"apertura":[["ot_abierta","OT abierta desde Mantenimiento de interruptor en celda de media tensión v1 sobre celda MT-07, subestación S-1","supervisor:X"],["ot_asignada","OT asignada a operario:1","supervisor:X"]]},"construccion":{"nombre":"Construcción · excavadora","sub":"cambio de manguera hidráulica","pauta":{"id":"pauta-excavadora-01","nombre":"Cambio de manguera hidráulica en excavadora","version":1,"equipo":"excavadora EX-12, obra","pasos":[{"id":"p1","orden":1,"titulo":"Bajar los implementos al suelo","instruccion":"Apoya el balde y la pluma en el suelo antes de detener la máquina.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"implementos","espera":"en_suelo"}},{"id":"p2","orden":2,"titulo":"Apagar el motor y retirar la llave","instruccion":"Detén el motor y guarda la llave contigo.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"motor","espera":"apagado"}},{"id":"p3","orden":3,"titulo":"Bloquear la palanca de seguridad hidráulica","instruccion":"Sube la palanca de bloqueo de los mandos hidráulicos y pon el candado.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"palanca_seguridad","espera":"bloqueada"}},{"id":"p4","orden":4,"titulo":"Aliviar la presión hidráulica","instruccion":"Mueve los mandos con el motor detenido hasta que el circuito quede sin presión.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"presion_hidraulica","espera":"aliviada"}},{"id":"p5","orden":5,"titulo":"Cambiar la manguera","instruccion":"Retira la manguera dañada e instala la nueva con sus dos conexiones apretadas.","tipo_evidencia":"camara","capa_minima":3,"pregunta_visual":"¿Está la manguera nueva instalada, con sus dos conexiones apretadas y sin fugas a la vista?"},{"id":"p6","orden":6,"titulo":"Retirar el bloqueo de la palanca","instruccion":"Saca el candado y baja la palanca de bloqueo.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"palanca_seguridad","espera":"desbloqueada"}},{"id":"p7","orden":7,"titulo":"Arrancar y probar sin fugas","instruccion":"Arranca, mueve cada mando dos veces y confirma que no hay fugas.","tipo_evidencia":"confirmacion","capa_minima":1}]},"regla":false,"ot":"ot-excavadora","edge":"edge-obra","orden":["implementos","motor","palanca_seguridad","presion_hidraulica","zona"],"reposo":{"implementos":"levantados","motor":"encendido","palanca_seguridad":"desbloqueada","presion_hidraulica":"con_presion","zona":"libre"},"valores":{"implementos":["levantados","en_suelo"],"motor":["encendido","apagado"],"palanca_seguridad":["desbloqueada","bloqueada"],"presion_hidraulica":["con_presion","aliviada"],"zona":["libre","ocupada"]},"mide":{"implementos":"posición de la pluma y el balde","motor":"motor en marcha","palanca_seguridad":"palanca de bloqueo hidráulico","presion_hidraulica":"presión del circuito","zona":"persona bajo la pluma"},"guion":[{"t":"Empieza la ejecución","x":"La excavadora está trabajando: implementos levantados, motor encendido, circuito con presión y nadie en la zona. Ninguna lectura adelanta un paso.","pon":{}},{"t":"El mecánico se mete bajo la pluma levantada","x":"Quiere mirar la manguera antes de que bajen los implementos. La regla de peligro de la industria dispara: persona bajo una parte levantada que no está calzada.","pon":{"zona":"ocupada"}},{"t":"Sale de la zona","x":"La condición de peligro terminó y la alerta se resuelve.","pon":{"zona":"libre"}},{"t":"Baja los implementos al suelo","x":"Balde y pluma apoyados. Es el sensor del paso en curso: la capa 1 lo cierra.","pon":{"implementos":"en_suelo"}},{"t":"Apaga el motor","x":"Motor detenido y la llave afuera: paso 2.","pon":{"motor":"apagado"}},{"t":"Bloquea la palanca de seguridad","x":"La palanca de los mandos hidráulicos queda arriba, con candado: paso 3.","pon":{"palanca_seguridad":"bloqueada"}},{"t":"Alivia la presión hidráulica","x":"El circuito queda sin presión: paso 4. Ahora sí se puede abrir una conexión.","pon":{"presion_hidraulica":"aliviada"}},{"t":"Cambia la manguera y la cámara lo confirma","x":"El mecánico entra con los implementos en el suelo, así que la regla de peligro no dispara. El paso es de cámara: declara y el juez responde si la manguera nueva está puesta y sin fugas.","pon":{"zona":"ocupada"},"dice":"manguera cambiada"},{"t":"Alguien arranca el motor con el mecánico adentro","x":"El motor apagado era un control crítico ya verificado, y se deshizo antes del paso que lo permite. La capa 1 avisa que el control se perdió.","pon":{"motor":"encendido"}},{"t":"Apagan el motor","x":"El control está repuesto y la alerta se resuelve. El paso 2 nunca dejó de estar verificado; la bitácora guarda que el control se perdió y cuándo volvió.","pon":{"motor":"apagado"}},{"t":"Sale y desbloquea la palanca","x":"Con la zona libre, saca el candado y baja la palanca: paso 6.","pon":{"zona":"libre","palanca_seguridad":"desbloqueada"}},{"t":"Arranca, prueba y lo confirma","x":"Solo queda el paso de confirmación, así que arrancar el motor ya no cuenta como control perdido. Mueve cada mando, no hay fugas, y lo confirma. La OT queda completa.","pon":{"motor":"encendido","presion_hidraulica":"con_presion"},"dice":"sin fugas"}],"real":{"crear":{"id":"pauta-excavadora-01","nombre":"Cambio de manguera hidráulica en excavadora","version":1,"equipo":"excavadora EX-12, obra","pasos":7,"aprobada":false},"aprobar":{"id":"pauta-excavadora-01","nombre":"Cambio de manguera hidráulica en excavadora","version":1,"equipo":"excavadora EX-12, obra","pasos":7,"aprobada":true},"abrir":{"ot":"ot-excavadora","pauta":"pauta-excavadora-01","version":1,"nombre":"Cambio de manguera hidráulica en excavadora"},"asignar":{"ot":"ot-excavadora","pauta":"pauta-excavadora-01","version":1,"equipo":"excavadora EX-12, obra","paso_actual":"p1","completa":false,"operador":"operario:1","estado_general":"asignada","entregada_por":null,"cerrados":0,"total":7},"sesion":{"edge_id":"edge-obra","ot_id":"ot-excavadora","operario":"operario:1"},"final":{"ot":"ot-excavadora","pauta":"pauta-excavadora-01","version":1,"equipo":"excavadora EX-12, obra","paso_actual":null,"completa":true,"operador":"operario:1","estado_general":"completa","entregada_por":null,"cerrados":7,"total":7}},"apertura":[["ot_abierta","OT abierta desde Cambio de manguera hidráulica en excavadora v1 sobre excavadora EX-12, obra","supervisor:X"],["ot_asignada","OT asignada a operario:1","supervisor:X"]]}},"regla":[{"zona":"ocupada","energia":"viva"},"PERSONA EN LA ZONA CON ENERGÍA VIVA. Salir de la zona; cortar la energía y poner el bloqueo antes de acercarse.","Celda robotizada: ADR-0010. La norma que la respalda no se buscó (Brecha)"],"peligros":[[{"guarda":"abierta","energia":"viva"},"GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.","Minería: DS 132 art. 52 (44); 30 CFR 56.14105 y 56.14112(b) (45)"],[{"tierra":"puesta","tension":"presente"},"PUESTA A TIERRA CON TENSIÓN PRESENTE. Retirar y verificar ausencia de tensión antes de volver a poner tierra.","Eléctrica: 29 CFR 1910.269(n)(5) (50); RD 614/2001 anexo II (48); RPTD N°15 9.1.5 (49)"],[{"tierra":"puesta","seccionador":"cerrado"},"CIERRE CON TIERRAS PUESTAS. Abrir el seccionador: no se repone el servicio mientras haya tierras.","Eléctrica: 29 CFR 1910.269(m)(3)(xiii) (50); RD 614/2001 anexo II A.2 (48); RPTD N°15 9.1.7 (49)"],[{"zona":"ocupada","implementos":"levantados"},"PERSONA BAJO LOS IMPLEMENTOS LEVANTADOS. Salir de la zona o bajar y calzar los implementos.","Construcción: 29 CFR 1926.600(a)(3)(i) (52)"]],"dist_max":60};
+const K = {"CONF_FORZADA":0.91,"CONFIANZA_CAMARA_MIN":0.75};
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const corto = x => String(Math.round(x * 100) / 100).replace(".", ",");
+const RAPIDO = new URLSearchParams(location.search).has("rapido") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+window.addEventListener("error", e => { document.body.dataset.error = e.message; });
+const GRAVEDAD = {ok: 0, warning: 1, error: 2};
+function peor(partes) {
+  if (!partes.length) return {nivel: "ok", certeza: 1, capa: null, motivos: ["sin nada que calificar"]};
+  return partes.reduce((a, b) => (GRAVEDAD[b.nivel] > GRAVEDAD[a.nivel] || (GRAVEDAD[b.nivel] === GRAVEDAD[a.nivel] && b.certeza < a.certeza)) ? b : a);
+}
+const avisosDe = partes => partes.filter(p => p.nivel !== "ok").sort((a, b) => GRAVEDAD[b.nivel] - GRAVEDAD[a.nivel] || a.certeza - b.certeza);
+
+function Motor(pauta, peligros) {
+  const pasos = [...pauta.pasos].sort((a, b) => a.orden - b.orden);
+  const eventos = [], sensores = {};
+  let nuevos = [];
+  const agregar = ev => { ev.id = eventos.length + 1; eventos.push(ev); nuevos.push(ev); return ev; };
+  const estados = () => { const e = {}; eventos.forEach(ev => { if (ev.estado && ev.paso_id) e[ev.paso_id] = ev.estado; }); return e; };
+  const actual = (e = estados()) => pasos.find(p => e[p.id] !== "verificado") || null;
+  function activas() {
+    let a = {};
+    eventos.forEach(ev => {
+      const clave = (ev.evidencia || {}).clave;
+      if (ev.tipo === "alerta" && clave) a[clave] = ev;
+      else if (ev.tipo === "alerta_resuelta") a = Object.fromEntries(Object.entries(a).filter(([, e]) => e.id !== ev.evidencia.resuelve));
+    });
+    return a;
+  }
+  const alerta = (detalle, evidencia) => agregar({tipo: "alerta", paso_id: null, estado: "en_conflicto", capa: 1, actor: "sistema", detalle, evidencia});
+  const resolver = (abierta, detalle) => agregar({tipo: "alerta_resuelta", paso_id: null, estado: null, capa: abierta.capa, actor: "sistema", detalle, evidencia: {resuelve: abierta.id, clave: abierta.evidencia.clave}});
+  const peligrosAhora = () => peligros.filter(([cond]) => Object.entries(cond).every(([k, v]) => sensores[k] === v));
+
+  function seguridad(sensor, valor) {
+    const ahora = Object.fromEntries(peligrosAhora().map(([, aviso]) => ["seguridad:" + aviso, aviso]));
+    const abiertas = Object.entries(activas()).filter(([k]) => k.startsWith("seguridad:"));
+    Object.entries(ahora).forEach(([clave, aviso]) => { if (!abiertas.some(([k]) => k === clave)) alerta(aviso, {tipo: "sensor", clave}); });
+    abiertas.forEach(([clave, ab]) => { if (!(clave in ahora)) resolver(ab, `Se normalizó con ${sensor} = ${valor}: ${ab.detalle}`); });
+  }
+  function pasoPorSensor(sensor) {
+    const p = actual();
+    if (!p || p.tipo_evidencia !== "sensor" || p.sensor.id !== sensor || sensores[sensor] !== p.sensor.espera) return;
+    agregar({tipo: "veredicto", paso_id: p.id, estado: "verificado", capa: 1, actor: "sistema", detalle: `${sensor} = ${sensores[sensor]}, que es lo que el paso exige`, evidencia: {tipo: "sensor"}});
+  }
+  function controlesDeshechos() {
+    const e = estados(), a = actual(e);
+    if (!a || pasos.filter(p => p.orden >= a.orden).every(p => p.tipo_evidencia === "confirmacion")) return [];
+    const ultimo = {};
+    pasos.forEach(p => { if (p.sensor && e[p.id] === "verificado") ultimo[p.sensor.id] = p; });
+    return Object.entries(ultimo).filter(([sid, p]) => p.control_critico && sensores[sid] !== undefined && sensores[sid] !== p.sensor.espera);
+  }
+  function controles(sensor, valor) {
+    const ahora = Object.fromEntries(controlesDeshechos().map(([sid, p]) => ["control:" + p.id, [sid, p]]));
+    const abiertas = Object.entries(activas()).filter(([k]) => k.startsWith("control:"));
+    Object.entries(ahora).forEach(([clave, [sid, p]]) => {
+      if (!abiertas.some(([k]) => k === clave)) alerta(`CONTROL PERDIDO: «${p.titulo}» se deshizo (${sid} = ${sensores[sid]}, exige ${p.sensor.espera}).`, {tipo: "control", paso: p.id, sensor: sid, clave});
+    });
+    abiertas.forEach(([clave, ab]) => { if (!(clave in ahora)) resolver(ab, `Control repuesto con ${sensor} = ${valor}: ${ab.detalle}`); });
+  }
+  function orden(sensor, valor) {
+    const e = estados();
+    Object.entries(activas()).forEach(([clave, ab]) => {
+      if (!clave.startsWith("orden:")) return;
+      const ev = ab.evidencia;
+      const motivo = e[ev.pendiente] === "verificado" ? `se hizo el paso saltado (${ev.pendiente})`
+        : sensores[ev.sensor] !== ev.valor ? `se deshizo lo adelantado (${ev.sensor} = ${sensores[ev.sensor]})` : null;
+      if (motivo) resolver(ab, `Orden resuelto: ${motivo}. ${ab.detalle}`);
+    });
+    if (Object.entries(activas()).some(([k, ev]) => k.startsWith("control:") && ev.evidencia.sensor === sensor)) return;
+    const a = actual(e);
+    if (!a || !a.control_critico) return;
+    const ad = pasos.find(p => p.sensor && p.sensor.id === sensor && e[p.id] !== "verificado");
+    if (!ad || ad.orden <= a.orden || ad.sensor.espera !== valor) return;
+    const clave = "orden:" + ad.id;
+    if (!(clave in activas())) alerta(`ORDEN INVERTIDO: «${ad.titulo}» (${sensor} = ${valor}) antes de «${a.titulo}».`, {tipo: "orden", adelantado: ad.id, pendiente: a.id, sensor, valor, clave});
+  }
+  function calificarEvento(ev) {
+    if (ev.tipo === "alerta_resuelta") return {nivel: "ok", certeza: 1, capa: ev.capa, motivos: [ev.detalle]};
+    if (ev.tipo !== "veredicto" && ev.tipo !== "alerta") return null;
+    if (ev.capa === 1) return {nivel: ev.tipo === "alerta" || ev.estado === "en_conflicto" ? "error" : "ok", certeza: 1, capa: 1, motivos: [ev.detalle]};
+    if (ev.capa === 3) {
+      const c = ev.evidencia.confianza;
+      if (ev.estado === "en_conflicto") return {nivel: "warning", certeza: c, capa: 3, motivos: [ev.detalle, "se muestra, no interrumpe"]};
+      if (ev.estado === "verificado" && c < K.CONFIANZA_CAMARA_MIN) return {nivel: "warning", certeza: c, capa: 3, motivos: [ev.detalle, `confianza bajo ${Math.round(K.CONFIANZA_CAMARA_MIN * 100)}%: conviene que alguien mire`]};
+      return {nivel: "ok", certeza: c, capa: 3, motivos: [ev.detalle]};
+    }
+    return {nivel: "ok", certeza: 1, capa: null, motivos: [ev.detalle, "lo cerró una persona, no un sensor"]};
+  }
+  return {
+    eventos, sensores, pasos, estados, actual, activas, calificarEvento,
+    lectura(sensor, valor) {
+      nuevos = []; sensores[sensor] = valor;
+      seguridad(sensor, valor); pasoPorSensor(sensor); controles(sensor, valor); orden(sensor, valor);
+      return nuevos;
+    },
+    declarar(texto, si, confianza) {
+      nuevos = [];
+      const p = actual();
+      if (!p) return nuevos;
+      agregar({tipo: "declaracion", paso_id: p.id, estado: null, capa: null, actor: "operario:1", detalle: `declara sobre «${p.titulo}»`, declarado: texto});
+      let v;
+      if (p.tipo_evidencia === "sensor") {
+        const leido = sensores[p.sensor.id];
+        v = leido === undefined ? ["no_verificado", `sin lectura de ${p.sensor.id}`]
+          : leido === p.sensor.espera ? ["verificado", `${p.sensor.id} = ${leido}, que es lo que el paso exige`]
+          : ["en_conflicto", `el operario declaró «${texto}» y ${p.sensor.id} = ${leido}, se esperaba ${p.sensor.espera}`];
+        agregar({tipo: "veredicto", paso_id: p.id, estado: v[0], capa: 1, actor: "sistema", detalle: v[1], evidencia: {tipo: "sensor"}});
+      } else if (p.tipo_evidencia === "camara") {
+        const pct = Math.round(confianza * 100) + "%";
+        v = si ? ["verificado", `la cámara responde que sí (${pct})`] : ["en_conflicto", `el operario declaró «${texto}» y la cámara responde que no (${pct})`];
+        agregar({tipo: "veredicto", paso_id: p.id, estado: v[0], capa: 3, actor: "sistema", detalle: v[1], evidencia: {tipo: "camara", confianza}});
+      } else {
+        agregar({tipo: "veredicto", paso_id: p.id, estado: "verificado", capa: null, actor: "sistema", detalle: `lo cerró una persona declarando «${texto}»`, evidencia: null});
+      }
+      return nuevos;
+    },
+    calificacion() {
+      const ultimo = {};
+      eventos.forEach(ev => { if (ev.tipo === "veredicto" && ev.paso_id) ultimo[ev.paso_id] = ev; });
+      const partes = Object.values(ultimo).map(calificarEvento)
+        .concat(peligrosAhora().map(([, aviso]) => ({nivel: "error", certeza: 1, capa: 1, motivos: [aviso]})))
+        .concat(Object.entries(activas()).filter(([k]) => !k.startsWith("seguridad:")).map(([, ev]) => calificarEvento(ev)));
+      return {...peor(partes), avisos: avisosDe(partes)};
+    },
+  };
+}
+
+
+const m4 = {
+  mul(a, b) { const o = new Array(16); for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) o[r * 4 + c] = a[r * 4] * b[c] + a[r * 4 + 1] * b[4 + c] + a[r * 4 + 2] * b[8 + c] + a[r * 4 + 3] * b[12 + c]; return o; },
+  t: (x, y, z) => [1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, 0, 0, 0, 1],
+  s: k => [k, 0, 0, 0, 0, k, 0, 0, 0, 0, k, 0, 0, 0, 0, 1],
+  ry: a => { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, 0, 0, 0, 1]; },
+  rz: a => { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, 0, s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; },
+  rx: a => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0, 1]; },
+  ap: (m, p) => [m[0] * p[0] + m[1] * p[1] + m[2] * p[2] + m[3], m[4] * p[0] + m[5] * p[1] + m[6] * p[2] + m[7], m[8] * p[0] + m[9] * p[1] + m[10] * p[2] + m[11]],
+  de: (...ms) => ms.reduce((a, b) => m4.mul(a, b)),
+};
+const v3 = {
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+};
+function caja(w, h, d) {   // apoyada en y = 0, centrada en x y z
+  const x = w / 2, z = d / 2;
+  return {v: [[-x, 0, -z], [x, 0, -z], [x, h, -z], [-x, h, -z], [-x, 0, z], [x, 0, z], [x, h, z], [-x, h, z]],
+    f: [[0, 1, 2, 3], [4, 5, 6, 7], [0, 4, 7, 3], [1, 5, 6, 2], [3, 2, 6, 7], [0, 1, 5, 4]]};
+}
+function prisma(r, h, n = 14) {
+  const v = [], f = [];
+  for (let i = 0; i < n; i++) { const a = i / n * 2 * Math.PI; v.push([r * Math.cos(a), 0, r * Math.sin(a)]); }
+  for (let i = 0; i < n; i++) v.push([v[i][0], h, v[i][2]]);
+  for (let i = 0; i < n; i++) f.push([i, (i + 1) % n, n + (i + 1) % n, n + i]);
+  f.push([...Array(n).keys()], [...Array(n).keys()].map(i => n + i));
+  return {v, f};
+}
+const COL = {blanco: [244, 244, 238], servo: [44, 44, 56], mesa: [128, 140, 158], piso: [246, 247, 249], pcb: [38, 92, 150], plata: [196, 200, 206],
+  piel: [224, 168, 120], azul: [47, 95, 158], bandeja: [242, 200, 60], pieza: [200, 70, 50], negro: [30, 34, 40], oro: [214, 170, 60], verde: [63, 191, 133],
+  gris: [150, 158, 170], rojo: [220, 70, 60], fantasma: [150, 158, 170]};
+
+
+Object.assign(COL, {jean: [52, 72, 112], chaleco: [240, 130, 40], casco: [250, 212, 60], cobre: [205, 125, 62], gabinete: [158, 168, 180], tierraC: [58, 172, 92],
+  amarillo: [240, 188, 40], suelo: [150, 132, 106], oruga: [42, 44, 50], vidrio: [96, 136, 166], humo: [208, 208, 214], cinta: [228, 62, 50], hormigon: [128, 140, 158], naranja: [236, 140, 40]});
+
+function persona(pon, x, z, k = 1.8, giro = 0) {
+  const M = m4.de(m4.t(x, 0, z), m4.ry(giro));
+  pon("persona", caja(2.2 * k, 4.2 * k, 1.3 * k), M, COL.jean);
+  pon("persona", caja(2.6 * k, 3.4 * k, 1.5 * k), m4.de(M, m4.t(0, 4.2 * k, 0)), COL.chaleco);
+  pon("persona", prisma(0.85 * k, 1.5 * k, 10), m4.de(M, m4.t(0, 7.7 * k, 0)), COL.piel);
+  pon("persona", prisma(1.05 * k, 0.6 * k, 10), m4.de(M, m4.t(0, 9.1 * k, 0)), COL.casco);
+}
+const candado = (pon, M) => {
+  pon("candado", caja(1.5, 1.4, 0.7), M, COL.oro);
+  pon("candado", caja(0.22, 1, 0.22), m4.de(M, m4.t(-0.45, 1.4, 0)), COL.plata); pon("candado", caja(0.22, 1, 0.22), m4.de(M, m4.t(0.45, 1.4, 0)), COL.plata);
+  pon("candado", caja(1.12, 0.22, 0.22), m4.de(M, m4.t(0, 2.4, 0)), COL.plata);
+};
+
+// ─── Las tres estaciones ────────────────────────────────────────────────────
+// Cada una recibe el estado de sus sensores y devuelve qué dibujar. `e.hecho(paso)` dice si ese paso ya está verificado.
+function escenaBrazo(e) {
+  const o = [], pon = (id, malla, M, c, fantasma) => o.push({id, malla, M, c, fantasma}), s = e.s, viva = s.energia === "viva", dentro = s.zona === "ocupada";
+  pon("tablero", caja(190, 1.2, 96), m4.t(34, -1.2, 0), COL.hormigon);
+  const giro = 0.9 * Math.cos(2 * Math.PI * e.fase), baja = Math.abs(Math.cos(2 * Math.PI * e.fase)), a1 = -(0.34 + 0.22 * baja), a2 = -(1.1 + 0.42 * baja);
+  const lleva = e.fase < 0.5, falla = e.ot && !e.hecho("p4"), abre = !viva || falla ? 1.5 : (lleva ? 0.7 : 1.7), E = m4.s(1.5);
+  pon("brazo", prisma(8.5, 1.6), E, COL.blanco);
+  const Mcol = m4.de(E, m4.t(0, 1.6, 0), m4.ry(giro));
+  pon("brazo", caja(5.4, 7, 5.4), Mcol, COL.blanco); pon("brazo", caja(2.6, 2.6, 6.2), m4.de(Mcol, m4.t(0, 5.6, 0)), COL.servo);
+  const M1 = m4.de(Mcol, m4.t(0, 7, 0), m4.rz(a1));
+  pon("brazo", caja(3, 13, 3.6), M1, COL.blanco); pon("brazo", caja(2.6, 2.6, 5.6), m4.de(M1, m4.t(0, 11.4, 0)), COL.servo);
+  const M2 = m4.de(M1, m4.t(0, 13, 0), m4.rz(a2));
+  pon("brazo", caja(2.6, 12, 3.2), M2, COL.blanco);
+  const Mg = m4.de(M2, m4.t(0, 12, 0));
+  pon("brazo", caja(3.6, 2.6, 5), Mg, COL.blanco); pon("brazo", caja(2.4, 2.4, 2.4), m4.de(Mg, m4.t(-2.6, 0.2, 0)), COL.servo);
+  pon("brazo", caja(1, 5.4, 1.1), m4.de(Mg, m4.t(0, 2.6, abre)), COL.blanco); pon("brazo", caja(1, 5.4, 1.1), m4.de(Mg, m4.t(0, 2.6, -abre)), COL.blanco);
+  const punta = m4.ap(Mg, [0, 6.4, 0]), R = 23.2, zA = R * Math.sin(-0.9), xA = R * Math.cos(0.9);
+  pon("util", caja(9, 0.6, 9), m4.t(xA, 0, -zA), COL.bandeja); pon("util", caja(9, 0.6, 9), m4.t(xA, 0, zA), COL.bandeja);
+  pon("util", caja(3.4, 3.4, 3.4), falla ? m4.de(m4.t(19, 0, 3), m4.ry(0.5)) : (viva && lleva ? m4.t(punta[0], punta[1] - 3.4, punta[2]) : m4.t(xA, 0.6, zA)), COL.pieza);
+  [[-24, -24], [24, -24], [-24, 24], [24, 24]].forEach(([x, z]) => pon("celda", caja(1, 46, 1), m4.t(x, 0, z), COL.fantasma, true));
+  pon("celda", caja(49, 1, 1), m4.t(0, 46, -24), COL.fantasma, true); pon("celda", caja(49, 1, 1), m4.t(0, 46, 24), COL.fantasma, true);
+  pon("celda", caja(1, 1, 49), m4.t(-24, 46, 0), COL.fantasma, true); pon("celda", caja(1, 1, 49), m4.t(24, 46, 0), COL.fantasma, true);
+  pon("celda", caja(1, 46, 49), m4.t(-24, 0, 0), COL.fantasma, true);
+  const Mu = m4.t(24.6, 9, -19);
+  pon("us", caja(0.5, 2.6, 5.4), Mu, COL.pcb); pon("us", caja(0.6, 9, 0.6), m4.t(24.6, 0, -19), COL.gris);
+  pon("us", prisma(1.05, 1.5, 10), m4.de(Mu, m4.t(0.25, 1.3, -1.4), m4.rz(-Math.PI / 2)), COL.plata); pon("us", prisma(1.05, 1.5, 10), m4.de(Mu, m4.t(0.25, 1.3, 1.4), m4.rz(-Math.PI / 2)), COL.plata);
+  pon("rele", caja(9, 5, 7), m4.t(-40, 0, -8), COL.fantasma, true); pon("rele", caja(2, 1, 2), m4.t(-42.6, 5, -8), viva ? COL.verde : COL.negro);
+  pon("puls", caja(1.6, 1.1, 1.6), m4.t(-37.8, 5, -8), COL.negro);
+  if (s.bloqueo === "puesto") candado(pon, m4.de(m4.t(-37.8, 6.1, -8), m4.s(2.6)));
+  pon("esp", caja(17, 1, 5.6), m4.t(-40, 0, -32), COL.blanco); pon("esp", caja(5.2, 0.7, 2.7), m4.t(-43, 1, -32), COL.negro);
+  pon("cam", caja(0.8, 60, 0.8), m4.t(-27, 0, -27), COL.gris); pon("cam", caja(27, 0.8, 0.8), m4.t(-13.5, 60, -27), COL.gris);
+  pon("cam", caja(0.8, 0.8, 27), m4.t(0, 60, -13.5), COL.gris); pon("cam", caja(8, 0.9, 15.5), m4.t(0, 59, 0), COL.negro);
+  const x0 = 24 + (dentro ? 26 : 100);
+  pon("operario", caja(34, 4.6, 5.4), m4.t(x0 + 22, 8, 2), COL.azul); pon("operario", caja(6.5, 2, 6), m4.t(x0 + 2, 9.4, 2), COL.piel);
+  [3.6, 2, 0.4].forEach(z => pon("operario", caja(3.6, 1.1, 1.3), m4.t(x0 - 2.7, 10, z), COL.piel));
+  return {objetos: o, zonas: [{pts: [[24, 0.05, -22], [24 + F.dist_max, 0.05, -34], [24 + F.dist_max, 0.05, 34], [24, 0.05, 22]], roja: dentro}],
+    lineas: [[0, 59, 0], [[-22, 0, -22], [22, 0, -22], [22, 0, 22], [-22, 0, 22]]],
+    rotulos: [[[-5, 41, 0], "brazo"], [[24.6, 15, -19], "zona"], [[-47, 9, -4], "energia"], [[-40, 24, -8], "bloqueo"], [[0, 64, 0], "cámara cenital"]]
+      .concat(e.marca === "esp" ? [[[8, 52, 0], "el ESP32 cortó los servos", null, true]] : [])};
+}
+
+function escenaElectrica(e) {
+  const o = [], pon = (id, malla, M, c, fantasma) => o.push({id, malla, M, c, fantasma}), s = e.s;
+  const abierto = s.seccionador === "abierto", tension = s.tension === "presente", tierra = s.tierra === "puesta";
+  pon("tablero", caja(76, 1, 66), m4.t(4, -1, 8), COL.hormigon);
+  // el gabinete de la celda, con el frente abierto para ver adentro
+  pon("celda", caja(11.2, 22, 0.5), m4.t(0, 0, -6), COL.gabinete); pon("celda", caja(0.5, 22, 12), m4.t(-5.6, 0, 0), COL.gabinete);
+  pon("celda", caja(0.5, 22, 12), m4.t(5.6, 0, 0), COL.gabinete); pon("celda", caja(11.7, 0.6, 12.4), m4.t(0, 22, 0), COL.gabinete);
+  pon("celda", caja(11.2, 1.4, 12), m4.t(0, 0, 0), COL.gris); pon("celda", caja(10.6, 21, 0.4), m4.t(-11.2, 0.6, 6.2), COL.fantasma, true);
+  [-3.2, 0, 3.2].forEach(x => {
+    pon("barras", prisma(0.42, 6.6, 8), m4.t(x, 15, -1), COL.cobre); pon("barras", prisma(0.42, 6.4, 8), m4.t(x, 1.6, -1), COL.cobre);
+    pon("barras", caja(1.1, 0.8, 1.1), m4.t(x, 14.2, -1), COL.plata); pon("barras", caja(1.1, 0.8, 1.1), m4.t(x, 8, -1), COL.plata);
+    pon("secc", caja(0.7, 6.2, 0.45), m4.de(m4.t(x, 8.8, -1), m4.rx(abierto ? 1.05 : 0)), tension && !abierto ? COL.rojo : COL.plata);
+    pon("lamp", caja(1.3, 1.3, 0.5), m4.t(x, 20.2, 6), tension ? COL.rojo : COL.negro);
+    if (tierra) pon("tierra", caja(1.4, 1, 1.4), m4.t(x, 5.4, -1), COL.tierraC);
+  });
+  if (tierra) { pon("tierra", caja(8.2, 0.5, 0.5), m4.t(0, 5.7, 0.2), COL.tierraC); pon("tierra", caja(0.5, 5.7, 0.5), m4.t(4.3, 0, 0.6), COL.tierraC); pon("tierra", caja(3, 0.6, 3), m4.t(4.3, 0, 2.4), COL.tierraC); }
+  else { pon("tierra", caja(6, 0.9, 2.2), m4.t(-13, 0, 14), COL.tierraC); pon("tierra", prisma(1.2, 0.8, 10), m4.t(-9.4, 0, 14), COL.tierraC); }
+  // el mando del seccionador, por fuera, con su candado
+  pon("mando", caja(0.8, 2.4, 2.4), m4.t(6.2, 9.6, 3), COL.negro);
+  pon("mando", caja(0.5, 4.4, 0.6), m4.de(m4.t(6.8, 10.8, 3), m4.rx(abierto ? 2.1 : 0.5)), COL.rojo);
+  if (s.candado_mando === "cerrado") candado(pon, m4.de(m4.t(7.2, 7.4, 3), m4.ry(Math.PI / 2), m4.s(1.25)));
+  // la zona delimitada: postes y cinta, cuando la cámara ya lo confirmó
+  if (e.hecho("p5")) {
+    const P = [[-11, 10], [11, 10], [11, 24], [-11, 24]];
+    P.forEach(([x, z]) => pon("barrera", prisma(0.4, 7.4, 8), m4.t(x, 0, z), COL.amarillo));
+    pon("barrera", caja(22, 0.9, 0.2), m4.t(0, 5.8, 24), COL.cinta); pon("barrera", caja(0.2, 0.9, 14), m4.t(-11, 5.8, 17), COL.cinta); pon("barrera", caja(0.2, 0.9, 14), m4.t(11, 5.8, 17), COL.cinta);
+    pon("barrera", caja(5, 3.2, 0.3), m4.t(-5.5, 2, 24.2), COL.amarillo);
+  }
+  pon("cam", prisma(0.25, 13, 6), m4.t(-15, 0, 20), COL.gris); pon("cam", caja(1.5, 2.8, 0.5), m4.t(-15, 13, 20), COL.negro);
+  const lejos = !e.ot || e.completa;
+  persona(pon, lejos ? 17 : 12.5, lejos ? 5 : 9, 1.8, lejos ? -1.4 : -1.1);
+  return {objetos: o, zonas: [], lineas: null,
+    rotulos: [[[-1, 12.2, 3], "seccionador"], [[9, 15.5, 3], "candado_mando"], [[0, 24.6, 6], "tension"], [tierra ? [0, 3.4, 4] : [-12, 3.6, 14], "tierra"], [[-15, 17.6, 20], "cámara"]]};
+}
+
+function escenaExcavadora(e) {
+  const o = [], pon = (id, malla, M, c, fantasma) => o.push({id, malla, M, c, fantasma}), s = e.s;
+  const arriba = s.implementos === "levantados", marcha = s.motor === "encendido", dentro = s.zona === "ocupada";
+  pon("tablero", caja(150, 1, 100), m4.t(14, -1, 4), COL.suelo);
+  [-9, 9].forEach(z => { pon("orugas", caja(36, 4.2, 6), m4.t(0, 0, z), COL.oruga); pon("orugas", caja(32, 1, 6.6), m4.t(0, 4.2, z), COL.negro); });
+  pon("cuerpo", caja(24, 7, 17), m4.t(-2, 5.2, 0), COL.amarillo); pon("cuerpo", caja(7, 7.4, 17.4), m4.t(-14.5, 5, 0), COL.gris);
+  pon("cuerpo", caja(8.4, 9.6, 7.4), m4.t(4.4, 12.2, -4.6), COL.amarillo); pon("cuerpo", caja(0.3, 5.6, 5.6), m4.t(8.7, 14.6, -4.6), COL.vidrio);
+  pon("cuerpo", caja(6, 5.6, 0.3), m4.t(4.4, 14.6, -0.8), COL.vidrio);
+  pon("motor", prisma(0.7, 4.6, 8), m4.t(-9, 12.2, 5), COL.negro);
+  if (marcha) [[0, 17.4, 1.5], [0.8, 20, 2], [1.9, 23, 2.6]].forEach(([dx, y, k]) => pon("motor", caja(k, k, k), m4.t(-9 + dx, y, 5), COL.humo));
+  // la pluma, el brazo y el balde
+  const e1 = arriba ? 0.96 : 0.38, baja = arriba ? 2.0 : 1.7;
+  const M1 = m4.de(m4.t(8, 10, 3.6), m4.rz(-(Math.PI / 2 - e1)));
+  pon("pluma", caja(2.6, 26, 2.8), M1, COL.amarillo);
+  pon("manguera", caja(0.8, 17, 0.8), m4.de(M1, m4.t(-1.9, 4, 0)), e.hecho("p5") ? COL.tierraC : COL.naranja);
+  const M2 = m4.de(M1, m4.t(0, 26, 0), m4.rz(-baja));
+  pon("pluma", caja(2.2, 16, 2.4), M2, COL.amarillo);
+  pon("pluma", caja(5, 4.4, 5.6), m4.de(M2, m4.t(0, 15, 0), m4.rz(0.9)), COL.oruga);
+  const balde = m4.ap(M2, [0, 17, 0]);
+  // la palanca de seguridad y el manómetro, a la vista en el costado
+  pon("palanca", caja(1.4, 1, 1.4), m4.t(2, 12.2, 3), COL.negro);
+  pon("palanca", caja(0.5, 4, 0.5), m4.de(m4.t(2, 13, 3), m4.rz(s.palanca_seguridad === "bloqueada" ? 0 : -0.95)), COL.rojo);
+  if (s.palanca_seguridad === "bloqueada") candado(pon, m4.de(m4.t(2, 13.6, 4.4), m4.s(1.15)));
+  pon("presion", prisma(1.7, 0.6, 14), m4.de(m4.t(-5, 9, 8.6), m4.rx(Math.PI / 2)), s.presion_hidraulica === "con_presion" ? COL.rojo : COL.verde);
+  pon("cam", prisma(0.3, 20, 6), m4.t(46, 0, -26), COL.gris); pon("cam", caja(0.6, 3, 1.6), m4.t(46, 20, -26), COL.negro);
+  persona(pon, dentro ? 26 : 30, dentro ? 3.6 : 26, 1.8, dentro ? -1.2 : 0.3);
+  return {objetos: o, zonas: [{pts: [[13, 0.05, -6], [42, 0.05, -6], [42, 0.05, 13], [13, 0.05, 13]], roja: dentro && arriba, tenue: !arriba}], lineas: null,
+    rotulos: [[[balde[0] + 4, balde[1] + 9, 3.6], "implementos"], [[-17, 21, 10], "motor"], [[6, 27, -6], "palanca_seguridad"], [[-9, 2.2, 15], "presion_hidraulica"],
+      [[30, 1.2, 19], "zona"], [[46, 25, -26], "cámara"]]};
+}
+const ESCENAS = {brazo: [escenaBrazo, {az: -0.62, el: 0.4, dist: 142, obj: [8, 21, 0]}], electrica: [escenaElectrica, {az: 0.42, el: 0.22, dist: 50, obj: [1.5, 11.5, 4]}],
+  construccion: [escenaExcavadora, {az: 0.5, el: 0.27, dist: 92, obj: [14, 13, 3]}]};
+
+// ─── Dibujar ────────────────────────────────────────────────────────────────
+const vista = {az: 0, el: 0.4, dist: 100, obj: [0, 0, 0]};
+let fase = 0.25;
+function dibujar() {
+  const cv = $("c3d"); if (!cv.clientWidth) return;
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const T0 = vista.obj, cam = [T0[0] + vista.dist * Math.cos(vista.el) * Math.sin(vista.az), T0[1] + vista.dist * Math.sin(vista.el), T0[2] + vista.dist * Math.cos(vista.el) * Math.cos(vista.az)];
+  const fwd = v3.norm(v3.sub(T0, cam)), der = v3.norm(v3.cross(fwd, [0, 1, 0])), arr = v3.cross(der, fwd), f = H * 1.25;
+  const proy = p => { const d = v3.sub(p, cam), z = v3.dot(d, fwd); return z < 1 ? null : [W / 2 + f * v3.dot(d, der) / z, H / 2 - f * v3.dot(d, arr) / z, z]; };
+  const fondo = g.createLinearGradient(0, 0, 0, H); fondo.addColorStop(0, "#1b2634"); fondo.addColorStop(1, "#111822");
+  g.fillStyle = fondo; g.fillRect(0, 0, W, H);
+  const E = estadoActual(), escena = ESCENAS[caso][0]({s: E.sensores, hecho: p => E.estados[p] === "verificado", ot: pos >= 3, completa: E.completa, fase, marca: E.marca});
+  const luz = v3.norm([0.35, 0.85, 0.4]), caras = [];
+  escena.objetos.forEach(o => {
+    const vs = o.malla.v.map(p => m4.ap(o.M, p)), centro = vs.reduce((a, p) => [a[0] + p[0], a[1] + p[1], a[2] + p[2]], [0, 0, 0]).map(x => x / vs.length);
+    o.malla.f.forEach(idx => {
+      const pts = idx.map(i => vs[i]), c = pts.reduce((a, p) => [a[0] + p[0], a[1] + p[1], a[2] + p[2]], [0, 0, 0]).map(x => x / pts.length);
+      let n = v3.norm(v3.cross(v3.sub(pts[1], pts[0]), v3.sub(pts[2], pts[0])));
+      if (v3.dot(n, v3.sub(c, centro)) < 0) n = n.map(x => -x);
+      if (!o.fantasma && v3.dot(n, v3.sub(cam, c)) <= 0) return;
+      const p2 = pts.map(proy); if (p2.some(p => !p)) return;
+      const k = 0.5 + 0.5 * Math.max(0, v3.dot(n, luz));
+      caras.push({id: o.id, p2, z: p2.reduce((a, p) => a + p[2], 0) / p2.length, color: o.c.map(x => Math.round(x * k)), fantasma: o.fantasma});
+    });
+  });
+  caras.sort((a, b) => (b.id === "tablero") - (a.id === "tablero") || b.z - a.z);
+  const trazo = (p2, relleno, borde, dash) => { g.beginPath(); p2.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); if (relleno) { g.fillStyle = relleno; g.fill(); } if (borde) { g.setLineDash(dash || []); g.strokeStyle = borde; g.stroke(); g.setLineDash([]); } };
+  let zonasPintadas = false;
+  const pintarZonas = () => { if (zonasPintadas) return; zonasPintadas = true; escena.zonas.forEach(z => { const p2 = z.pts.map(proy); if (p2.some(p => !p)) return; g.lineWidth = 2; trazo(p2, z.roja ? "rgba(240,101,90,.38)" : z.tenue ? "rgba(255,255,255,.05)" : "rgba(63,191,133,.2)", z.roja ? "#f0655a" : z.tenue ? "rgba(255,255,255,.3)" : "#3fbf85", [7, 5]); }); };
+  g.lineWidth = 1;
+  caras.forEach(c => {
+    if (c.id !== "tablero") pintarZonas();
+    g.lineWidth = 1;
+    if (c.fantasma) trazo(c.p2, "rgba(200,208,222,.13)", "rgba(214,222,234,.5)"); else trazo(c.p2, `rgb(${c.color})`, "rgba(0,0,0,.25)");
+  });
+  pintarZonas();
+  if (escena.lineas) { g.setLineDash([5, 6]); g.strokeStyle = "rgba(127,166,221,.55)"; const a = proy(escena.lineas[0]); escena.lineas[1].forEach(p => { const q = proy(p); if (a && q) { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(q[0], q[1]); g.stroke(); } }); g.setLineDash([]); }
+  g.font = "600 13px Inter, -apple-system, sans-serif"; g.textBaseline = "middle"; g.textAlign = "center";
+  escena.rotulos.forEach(([p3, sensor, apodo, alarma]) => {
+    const p = proy(p3); if (!p) return;
+    const esSensor = sensor in E.sensores, texto = esSensor ? `${sensor} = ${E.sensores[sensor]}` : sensor;
+    const rojo = alarma || (esSensor && E.enAlerta.has(sensor)), cambio = esSensor && E.sensores[sensor] !== F.casos[caso].reposo[sensor];
+    const w = g.measureText(texto).width + 14;
+    g.fillStyle = rojo ? "rgba(180,35,24,.95)" : cambio ? "rgba(47,95,158,.95)" : "rgba(20,28,38,.86)"; g.beginPath(); g.roundRect(p[0] - w / 2, p[1] - 11, w, 22, 7); g.fill();
+    g.fillStyle = "#fff"; g.fillText(texto, p[0], p[1] + 0.5);
+  });
+  document.body.dataset.caras = caras.length;
+}
+
+// ─── El recorrido: tres etapas y después los tramos de la ejecución ─────────
+let caso = "brazo", pos = 0;
+const ETAPAS = [["protocolo", "1 · Protocolo", "el procedimiento del cliente"], ["pautas", "2 · Pautas", "las crea un modelo"], ["ot", "3 · OT", "la genera un servicio"], ["ejecucion", "4 · Ejecución", "verificada paso a paso"]];
+const C = () => F.casos[caso];
+const total = () => 3 + C().guion.length;
+const memoria = {};
+// Vuelve a correr el guion desde el principio hasta el tramo pedido: así ir hacia atrás es exacto.
+function estadoEn(k, hasta) {
+  const clave = `${k}:${hasta}`; if (memoria[clave]) return memoria[clave];
+  const c = F.casos[k], sensores = {...c.reposo};
+  const r = {sensores, estados: {}, completa: false, marca: null, enAlerta: new Set(), tramos: [], motor: null, cal: null, actual: c.pauta.pasos[0]};
+  if (hasta >= 3) {
+    const m = Motor(c.pauta, c.regla ? [...F.peligros, F.regla] : F.peligros); r.motor = m;
+    for (let i = 0; i <= hasta - 3; i++) {
+      const t = c.guion[i], antes = {...sensores}, evs = [];
+      if (t.pon) { Object.assign(sensores, t.pon); c.orden.forEach(s => evs.push(...m.lectura(s, sensores[s]))); }
+      if (t.dice) evs.push(...m.declarar(t.dice, true, K.CONF_FORZADA));
+      r.tramos.push({eventos: evs, cambios: Object.keys(sensores).filter(s => sensores[s] !== antes[s])});
+      r.marca = t.marca || null;
+    }
+    r.estados = m.estados(); r.actual = m.actual(); r.completa = !r.actual; r.cal = m.calificacion();
+    Object.entries(m.activas()).forEach(([clave2, ev]) => {
+      if (clave2.startsWith("seguridad:")) { const p = (c.regla ? [...F.peligros, F.regla] : F.peligros).find(x => x[1] === ev.detalle); if (p) Object.keys(p[0]).forEach(s => r.enAlerta.add(s)); }
+      else if (ev.evidencia.sensor) r.enAlerta.add(ev.evidencia.sensor);
+    });
+  }
+  return memoria[clave] = r;
+}
+const estadoActual = () => estadoEn(caso, pos);
+const evidenciaDe = p => p.sensor ? `<span class="ev sensor">sensor</span> <code>${p.sensor.id} = ${p.sensor.espera}</code>` : p.tipo_evidencia === "camara" ? `<span class="ev camara">cámara</span> ${esc(p.pregunta_visual)}` : '<span class="ev persona">confirmación</span> la palabra del operario';
+const jsonCorto = (o, campos) => esc(JSON.stringify(campos ? Object.fromEntries(campos.map(k => [k, o[k]])) : o).replace(/","/g, '", "').replace(/":/g, '": ').replace(/,"/g, ', "'));
+const bloque = (hecho, titulo, cuerpo) => `<div class="pieza ${hecho ? "si" : "no"}"><span class="tag">${hecho ? "construido" : "no construido"}</span><h4>${titulo}</h4>${cuerpo}</div>`;
+
+function pintar() {
+  const c = C(), E = estadoActual(), n = total(), etapa = Math.min(pos, 3), p = c.pauta;
+  $("casos").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.caso === caso));
+  $("flujo").innerHTML = ETAPAS.map(([id, t, sub], i) => `<li><button data-etapa="${i}" class="${i === etapa ? "actual" : i < etapa ? "hecha" : ""}"><b>${t}</b><small>${i === 3 && pos >= 3 ? `tramo ${pos - 2} de ${c.guion.length}` : sub}</small></button></li>`).join('<li class="fl">→</li>');
+  $("atras").disabled = pos === 0; $("sigue").disabled = pos === n - 1; $("cuenta").textContent = `${pos + 1} de ${n}`;
+  let v = "", d = "";
+  if (etapa === 0) {
+    v = `<h3>El protocolo que el cliente ya tiene</h3><p>Es el punto de partida: el procedimiento estandarizado de la operación, tal como está escrito hoy. No se le pide que lo reescriba.</p>
+      <div class="papel"><b>${esc(p.nombre)}</b><small>Equipo: ${esc(p.equipo)}</small><ol>${p.pasos.map(x => `<li><b>${esc(x.titulo)}.</b> ${esc(x.instruccion)}</li>`).join("")}</ol></div>`;
+    d = bloque(false, "<code>POST /protocolos</code>", "<p>Recibe el documento y le da un id. Se guarda una fila en una tabla <code>protocolos</code>, y el archivo va a disco.</p>")
+      + bloque(true, "Lo que hay hoy", `<p><code>app/protocolos.py</code> lleva el nombre, pero solo lee un JSON de <code>datos/</code>. El repo no tiene protocolos de clientes: el texto de la izquierda está armado con los títulos y las instrucciones de ${caso === "brazo" ? "un borrador de pauta escrito para este documento" : `la pauta <code>${p.id}</code>`}.</p>`);
+  } else if (etapa === 1) {
+    v = `<h3>Un modelo de lenguaje crea la pauta</h3><p>Lee el protocolo y le agrega lo que el documento no dice: qué evidencia cierra cada paso, y cuáles son controles críticos. Una persona la aprueba antes de que se use.</p>
+      <ol class="pasos-p">${p.pasos.map(x => `<li class="${x.control_critico ? "critico" : ""}"><b>${x.orden}. ${esc(x.titulo)}</b>${x.control_critico ? ' <span class="ev critico">control crítico</span>' : ""}<span>${evidenciaDe(x)}</span></li>`).join("")}</ol>`;
+    d = bloque(false, "<code>POST /protocolos/{id}/pautas</code>", `<p>Una llamada a un modelo, con la salida obligada a la forma de una pauta. Para elegir la evidencia recibe el inventario de la estación:</p><ul class="inventario">${Object.entries(c.valores).map(([s, vs]) => `<li><code>${s}</code> ${vs.map(x => `<i>${x}</i>`).join(" · ")}<small>${esc(c.mide[s])}</small></li>`).join("")}<li><code>cámara</code><small>responde una pregunta de sí o no sobre lo que se ve</small></li></ul>
+        <p class="nota">${caso === "brazo" ? "Hoy esta pauta es un borrador escrito a mano para este documento." : `Hoy esta pauta está escrita a mano, en <code>datos/</code>.`}</p>`)
+      + bloque(true, "El contrato valida lo que entre", "<p>Un paso de sensor tiene que nombrar su sensor, uno de cámara su pregunta, y no se repiten ni el orden ni el id. Lo mal formado se rechaza, venga de una persona o de un modelo.</p>")
+      + bloque(true, "<code>POST /pautas</code>", `<p>Guarda la versión. Nace sin aprobar.</p><pre>${jsonCorto(c.real.crear, ["id", "version", "pasos", "aprobada"])}</pre>`)
+      + bloque(true, `<code>POST /pautas/{id}/versiones/${p.version}/aprobar</code>`, `<p>Una persona, una sola vez. El sistema no puede aprobar.</p><pre>${jsonCorto(c.real.aprobar, ["id", "version", "aprobada"])}</pre>`);
+  } else if (etapa === 2) {
+    const a = c.real.asignar;
+    v = `<h3>Un servicio genera la OT</h3><p>La OT es la pauta aprobada puesta a ejecutar. Guarda qué versión corre, se asigna a un operador, y la sesión la une a la estación donde se va a trabajar.</p>
+      <div class="ot-card"><b>${esc(c.ot)}</b><span>${esc(c.real.abrir.nombre)} · versión ${c.real.abrir.version}</span><span>${esc(a.equipo)}</span>
+      <span><span class="badge gris">${a.operador}</span> <span class="badge warning">en_ejecucion</span> <span class="badge gris">${a.cerrados} de ${a.total} pasos</span> <span class="badge gris">${esc(c.edge)}</span></span></div>`;
+    d = bloque(false, "<code>POST /protocolos/{id}/ots</code>", "<p>El sistema del cliente pide una OT de una pauta de su protocolo, sin conocer ids internos. Falta que la pauta sepa de qué protocolo es: una columna en su tabla.</p>")
+      + bloque(true, `<code>POST /ot/${c.ot}/abrir</code>`, `<p>Solo desde una pauta aprobada. Guarda la versión y escribe la primera fila de la bitácora: «${esc(c.apertura[0][1])}».</p><pre>${jsonCorto(c.real.abrir)}</pre>`)
+      + bloque(true, `<code>POST /ot/${c.ot}/asignar</code>`, `<p>Un supervisor la deja en manos de un operador. Quién la tiene se lee de la bitácora, no de una columna.</p><pre>${jsonCorto(a, ["operador", "estado_general", "cerrados", "total"])}</pre>`)
+      + bloque(true, `<code>POST /ot/${c.ot}/sesion</code>`, `<p>Une el edge de la estación con la OT. Desde aquí cada lectura de ese edge entra a esta OT y solo a esta.</p><pre>${jsonCorto(c.real.sesion)}</pre>`);
+  } else {
+    const i = pos - 3, t = c.guion[i], tr = E.tramos[i], cal = E.cal;
+    v = `<h3>${esc(t.t)}</h3><p>${esc(t.x)}</p>`;
+    const de = pre => tr.eventos.filter(ev => (ev.evidencia || {}).clave && ev.evidencia.clave.startsWith(pre));
+    const fila = (nombre, lista, calma) => { const ab = lista.find(ev => ev.tipo === "alerta"), re = lista.find(ev => ev.tipo === "alerta_resuelta"); return `<li class="${ab ? "err" : re ? "ok" : ""}"><b>${nombre}</b> ${ab ? "abre una alerta" : re ? "resuelve la alerta" : calma}</li>`; };
+    const cierre = tr.eventos.filter(ev => ev.tipo === "veredicto" && ev.capa === 1 && ev.estado === "verificado");
+    let entro = "", revisa = "";
+    if (t.pon) {
+      entro += `<p><code>POST /edge/${c.edge}/lecturas</code></p><p class="lecturas">${c.orden.map(s => `<span class="${tr.cambios.includes(s) ? "cambio" : ""}">${s} = ${E.sensores[s]}</span>`).join("")}</p>`;
+      revisa += `<ol class="revisiones">${fila("Seguridad", de("seguridad:"), "sin peligro")}<li class="${cierre.length ? "ok" : ""}"><b>Paso actual</b> ${cierre.length ? "cierra " + cierre.map(ev => ev.paso_id).join(" y ") : "ninguna lectura lo cierra"}</li>${fila("Controles", de("control:"), "ninguno deshecho")}${fila("Orden", de("orden:"), "nada adelantado")}<li><b>Señal</b> no hay lecturas numéricas</li></ol>`;
+    }
+    if (t.dice) {
+      const v2 = tr.eventos.filter(ev => ev.tipo === "veredicto").at(-1);
+      entro += `<p><code>POST /ot/${c.ot}/declarar</code> «${esc(t.dice)}»</p>`;
+      revisa += v2.capa === 3 ? `<ol class="revisiones"><li><b>Detector</b> el paso no trae una clase que conozca: no decide</li><li class="ok"><b>Juez de cámara</b> responde sí con ${corto(K.CONF_FORZADA)} a «${esc(E.motor.pasos.find(x => x.id === v2.paso_id).pregunta_visual)}»</li></ol><p class="nota">La respuesta del juez está fijada para esta corrida. En vivo responde el modelo de visión sobre el cuadro.</p>`
+        : `<ol class="revisiones"><li class="ok"><b>Confirmación</b> el paso se cierra con la palabra del operario</li></ol>`;
+    }
+    d = `<div class="tel"><div class="barra-t"><span>${esc(c.ot)} · ${c.real.asignar.operador}</span><span><span class="badge ${cal.nivel}">${cal.nivel}</span></span></div>
+      <ol>${E.motor.pasos.map(x => { const est = E.estados[x.id] || "no_verificado"; return `<li class="${est} ${E.actual && E.actual.id === x.id ? "actual" : ""}"><span class="num">${x.orden}</span><span class="tit">${esc(x.titulo)}${x.control_critico ? " <i>crítico</i>" : ""}</span><span class="cap">${x.sensor ? `${x.sensor.id} = ${x.sensor.espera}` : x.tipo_evidencia === "camara" ? "cámara" : "confirmación"}</span></li>`; }).join("")}</ol>
+      ${cal.avisos.map(a => `<div class="aviso ${a.nivel}"><b>${a.nivel.toUpperCase()}</b> · capa ${a.capa}${a.nivel === "error" ? " · interrumpe" : ""}<small>${esc(a.motivos[0])}</small></div>`).join("") || `<div class="sin">${E.completa ? "OT completa, sin avisos." : "Sin avisos activos."}</div>`}</div>
+      <div class="pieza si"><span class="tag">construido</span><h4>Lo que entró</h4>${entro}<h4>Qué lo revisó</h4>${revisa}
+      <h4>Lo que quedó en la bitácora</h4><ol class="bitacora">${tr.eventos.map(ev => { const q = E.motor.calificarEvento(ev); return `<li class="${q ? q.nivel : ""}"><b>${ev.tipo}</b>${ev.paso_id ? " " + ev.paso_id : ""}${ev.capa ? " · capa " + ev.capa : ev.tipo === "veredicto" ? " · persona" : ""}<br>${esc(ev.detalle)}</li>`; }).join("") || "<li>Nada: ninguna lectura cambió algo.</li>"}</ol>
+      <p class="nota">Cada fila sale al instante por <code>WS /ot/${c.ot}/stream</code>, con la calificación de la OT.</p></div>`
+      + (caso === "brazo" ? `<p class="nota borde">En este caso no están construidos el relé, el corte local del ESP32 ni la regla «${esc(F.regla[1].split(".")[0].toLowerCase())}». La pauta es un borrador. La lógica que responde sí es la del servidor.</p>` : "");
+  }
+  $("vista").innerHTML = v; $("detras").innerHTML = d;
+  dibujar();
+  document.body.dataset.flujo = [caso, pos, pos >= 3 ? E.cal.nivel : "-", pos >= 3 ? (E.actual ? E.actual.id : "completa") : "-"].join(":");
+}
+function ir(k, p) { caso = k in F.casos ? k : "brazo"; pos = Math.max(0, Math.min(total() - 1, p | 0)); const h = `#${caso}/${pos}`; if (location.hash !== h) history.replaceState(null, "", h); pintar(); }
+function elegirCaso(k) { Object.assign(vista, ESCENAS[k][1]); $("zoom").value = vista.dist; $("zoom").min = Math.round(vista.dist * 0.45); $("zoom").max = Math.round(vista.dist * 1.9); ir(k, 0); }
+
+$("casos").innerHTML = Object.entries(F.casos).map(([k, c]) => `<button data-caso="${k}" aria-pressed="false"><b>${esc(c.nombre)}</b><small>${esc(c.sub)}</small></button>`).join("");
+$("casos").addEventListener("click", e => { const b = e.target.closest("[data-caso]"); if (b) elegirCaso(b.dataset.caso); });
+$("flujo").addEventListener("click", e => { const b = e.target.closest("[data-etapa]"); if (b) ir(caso, +b.dataset.etapa); });
+$("atras").addEventListener("click", () => ir(caso, pos - 1)); $("sigue").addEventListener("click", () => ir(caso, pos + 1)); $("cero").addEventListener("click", () => ir(caso, 0));
+document.addEventListener("keydown", e => { if (e.target.closest("input")) return; if (e.key === "ArrowRight") ir(caso, pos + 1); if (e.key === "ArrowLeft") ir(caso, pos - 1); });
+(function visor() {
+  const cv = $("c3d"); let a = null;
+  cv.addEventListener("pointerdown", e => { a = [e.clientX, e.clientY, vista.az, vista.el]; try { cv.setPointerCapture(e.pointerId); } catch (_) { /* puntero sintético */ } });
+  cv.addEventListener("pointermove", e => { if (!a) return; vista.az = a[2] - (e.clientX - a[0]) * 0.008; vista.el = Math.min(1.5, Math.max(0.05, a[3] + (e.clientY - a[1]) * 0.008)); dibujar(); });
+  cv.addEventListener("pointerup", () => { a = null; });
+  $("zoom").addEventListener("input", e => { vista.dist = +e.target.value; dibujar(); });
+  $("vista-cero").addEventListener("click", () => { Object.assign(vista, ESCENAS[caso][1]); $("zoom").value = vista.dist; dibujar(); });
+  window.addEventListener("resize", dibujar);
+  let antes = 0;
+  (function cuadro(t) { if (!RAPIDO && caso === "brazo" && estadoActual().sensores.energia === "viva") { fase = (fase + Math.min(0.1, (t - antes) / 1000 || 0) / 7) % 1; dibujar(); } antes = t; requestAnimationFrame(cuadro); })(0);
+})();
+(function arranque() {
+  const [k, p] = location.hash.replace(/^#/, "").split("/");
+  const inicial = k in F.casos ? k : "brazo";
+  Object.assign(vista, ESCENAS[inicial][1]); $("zoom").value = vista.dist; $("zoom").min = Math.round(vista.dist * 0.45); $("zoom").max = Math.round(vista.dist * 1.9);
+  ir(inicial, parseInt(p, 10) || 0);
+  document.body.dataset.listo = "1";
+})();
+</script>
+</body>
+</html>
