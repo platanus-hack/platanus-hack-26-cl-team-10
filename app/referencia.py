@@ -37,6 +37,7 @@ PAGINAS = {"/", "/ensayo", "/camara", "/monitor", "/casos", "/agente"}
 EJEMPLOS = json.loads(Path(__file__).with_name("referencia_ejemplos.json").read_text())
 
 ENTRAR, CLIENTE, EJECUCION, ESTACION = "Entrar", "Cliente", "Ejecución de la OT", "Estación"
+MEJORA = "Mejora continua y métricas"
 INTERNO, INTERNO_CLIENTES = "Interno · protocolos y pautas", "Interno · clientes y personas"
 ABIERTAS, ESCENARIOS, SIN_GRUPO = "Abiertas del demo", "Escenarios", "Sin clasificar"
 
@@ -46,6 +47,10 @@ GRUPOS = {
     CLIENTE: "Lo que hace una empresa cliente con su token. El supervisor pide OT de las pautas que su empresa "
              "tiene habilitadas y las asigna; el operador ve las suyas y las une a una estación. Cada empresa ve "
              "solo lo suyo: una OT de otra empresa responde 404.",
+    MEJORA: "Lo que la empresa saca de cada ejecución. El operario deja observaciones mientras trabaja; con ellas y "
+            "con las desviaciones de cada paso nacen propuestas para mejorar la pauta, que el supervisor valida, y "
+            "cuando sale la versión nueva se comprueba si el paso dejó de desviarse. Las métricas se leen de la "
+            "bitácora al pedirlas, por pauta, equipo, paso o día, nunca por persona.",
     EJECUCION: "El avance paso a paso de una OT: su estado, lo que declara el operario, la confirmación de una "
                "persona, el relevo de turno y la bitácora. **Estas rutas todavía no piden token**: quien llama "
                "dice quién es en `actor`, y sirven para la OT de cualquier empresa. Está anotado como brecha en "
@@ -62,12 +67,13 @@ GRUPOS = {
     ESCENARIOS: "El banco por industria: cada forma de ejecutar un paso, corrida en una caja aislada que no "
                 "toca la bitácora del servidor.",
 }
-PARA_CLIENTES = (ENTRAR, CLIENTE, EJECUCION)
+PARA_CLIENTES = (ENTRAR, CLIENTE, MEJORA, EJECUCION)
 
 # La primera regla que calza decide el grupo. Una ruta que no calza con ninguna queda en
 # «Sin clasificar», y la prueba falla hasta que alguien le ponga grupo.
 _REGLAS = [(re.compile(patron), grupo) for patron, grupo in (
     (r"/(auth/.+|yo)", ENTRAR),
+    (r"/cliente/(mejoras|metricas).*|/cliente/ots/\{ot_id\}/observaciones", MEJORA),
     (r"/cliente/.+", CLIENTE),
     (r"/interno/(clientes|personas).*", INTERNO_CLIENTES),
     (r"/interno/.+", INTERNO),
@@ -91,6 +97,15 @@ TITULOS = {
     "POST /cliente/ots/{ot_id}/sesion": "Unir la OT a una estación",
     "GET /cliente/operadores": "Operadores de la empresa",
     "GET /cliente/personas": "Nombres de las personas de la empresa",
+    "POST /cliente/ots/{ot_id}/observaciones": "Dejar una observación",
+    "GET /cliente/mejoras": "Propuestas de mejora de las pautas",
+    "POST /cliente/mejoras/{propuesta_id}/revision": "Aceptar o descartar una propuesta",
+    "GET /cliente/metricas": "Resumen de la empresa",
+    "GET /cliente/metricas/pautas": "Métricas por pauta",
+    "GET /cliente/metricas/pautas/{pauta_id}/pasos": "Métricas por paso de una pauta",
+    "GET /cliente/metricas/equipos": "Métricas por equipo",
+    "GET /cliente/metricas/serie": "Métricas en el tiempo",
+    "GET /interno/mejoras": "Propuestas de mejora de todas las empresas",
     "GET /ot/{ot_id}": "Estado de la OT, paso por paso",
     "POST /ot/{ot_id}/declarar": "Declarar un paso",
     "POST /ot/{ot_id}/pasos/{paso_id}/confirmar": "Confirmar un paso por una persona",
@@ -112,6 +127,11 @@ ERRORES_DE = {
     "POST /cliente/ots/{ot_id}/asignar": (403, 404, 409),
     "POST /cliente/ots/{ot_id}/sesion": (403, 404, 409),
     "GET /cliente/operadores": (403,),
+    "POST /cliente/ots/{ot_id}/observaciones": (404, 409),
+    "GET /cliente/mejoras": (403,),
+    "POST /cliente/mejoras/{propuesta_id}/revision": (403, 404, 409),
+    "GET /cliente/metricas": (403,),
+    "GET /cliente/metricas/pautas/{pauta_id}/pasos": (403, 404),
 }
 
 _CUERPOS = {
@@ -169,8 +189,8 @@ se pega una vez en «Authentication» y sirve para probar todas las rutas.
 
 | Rol | Qué puede |
 |---|---|
-| Supervisor | Ver las pautas habilitadas, pedir OT, ver todas las OT de su empresa y asignarlas a un operador |
-| Operador | Ver las OT que tiene asignadas, unir una a una estación y ejecutarla |
+| Supervisor | Ver las pautas habilitadas, pedir OT, ver todas las OT de su empresa y asignarlas a un operador; validar las propuestas de mejora y leer las métricas |
+| Operador | Ver las OT que tiene asignadas, unir una a una estación, ejecutarla y dejar observaciones |
 
 ## El recorrido
 
@@ -179,7 +199,14 @@ se pega una vez en «Authentication» y sirve para probar todas las rutas.
 3. El operador la ve en `GET /cliente/ots` y la une a su estación con `POST /cliente/ots/{{ot_id}}/sesion`.
 4. El operador ejecuta: `GET /ot/{{ot_id}}` dice el paso en curso, los sensores de la estación cierran los pasos que
    miden, y `POST /ot/{{ot_id}}/declarar` cierra los que dependen de la cámara o de la palabra.
-5. Cualquiera de los dos sigue el avance y la calificación en `GET /cliente/ots/{{ot_id}}`.
+5. Cualquiera de los dos sigue el avance y la calificación en `GET /cliente/ots/{{ot_id}}`, y deja lo que vio en
+   `POST /cliente/ots/{{ot_id}}/observaciones`.
+6. El supervisor mide en `GET /cliente/metricas` y sus detalles por pauta, paso, equipo y día, y valida las
+   propuestas de `GET /cliente/mejoras`. Lo que acepta lo lleva el equipo de Factum a la versión siguiente de la
+   pauta, y la misma propuesta dice después si el paso dejó de desviarse.
+
+Las métricas y las propuestas agrupan por pauta, equipo, paso y día, nunca por persona: Factum mira el paso, no a
+quien lo ejecuta.
 
 ## Lo que todavía no pide login
 

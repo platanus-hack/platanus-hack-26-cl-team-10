@@ -305,5 +305,333 @@
         "calificacion": null
       }
     ]
+  },
+  "POST /cliente/ots/{ot_id}/observaciones": {
+    "pedido": {
+      "texto": "El punto de bloqueo queda lejos del tablero.",
+      "categoria": "pauta",
+      "paso_id": "p2"
+    },
+    "respuesta": {
+      "ot_id": "ot-0017",
+      "tipo": "observacion",
+      "ts": "2026-11-21T22:07:45+00:00",
+      "actor": "operario:1",
+      "detalle": "operario:1 observa sobre «Poner tu candado» (pauta): El punto de bloqueo queda lejos del tablero.",
+      "id": 152,
+      "paso_id": "p2",
+      "estado": null,
+      "capa": null,
+      "declarado": "El punto de bloqueo queda lejos del tablero.",
+      "evidencia": {
+        "tipo": "observacion",
+        "categoria": "pauta"
+      },
+      "calificacion": null
+    }
+  },
+  "GET /cliente/metricas": {
+    "respuesta": {
+      "periodo": {
+        "desde": null,
+        "hasta": null
+      },
+      "ots": {
+        "total": 17,
+        "por_estado": {
+          "sin_asignar": 2,
+          "asignada": 3,
+          "en_ejecucion": 3,
+          "entregada": 0,
+          "completa": 9
+        }
+      },
+      "cumplimiento": {
+        "completas": 9,
+        "sin_desviaciones": 5,
+        "porcentaje": 55.6
+      },
+      "pasos": {
+        "verificados": 75,
+        "por_evidencia": {
+          "sensor": 53,
+          "camara": 14,
+          "persona": 0,
+          "palabra": 8
+        },
+        "con_evidencia_objetiva_pct": 89.3
+      },
+      "desviaciones": {
+        "total": 8,
+        "por_clase": {
+          "seguridad": 4,
+          "orden": 3,
+          "control": 1,
+          "conflicto": 0,
+          "persona": 0
+        },
+        "alertas_abiertas": 1,
+        "minutos_medios_para_resolver": 2.6
+      },
+      "sensores": {
+        "anomalias": 2,
+        "pegados": 0
+      },
+      "minutos_medios_de_ejecucion": 14.6,
+      "relevos": {
+        "entregados": 0,
+        "recibidos": 0
+      },
+      "observaciones": {
+        "total": 5,
+        "por_categoria": {
+          "pauta": 3,
+          "equipo": 1,
+          "seguridad": 1
+        }
+      },
+      "mejoras": {
+        "abierta": 1,
+        "aceptada": 0,
+        "descartada": 0,
+        "aplicada": 0,
+        "superada": 0
+      }
+    }
+  },
+  "GET /cliente/metricas/pautas": {
+    "respuesta": [
+      {
+        "pauta": "pauta-polin-ct-01",
+        "nombre": "Cambio de polín en correa transportadora",
+        "versiones": [
+          1
+        ],
+        "protocolos": [
+          {
+            "id": "prot-aislamiento-01",
+            "nombre": "Aislamiento y bloqueo de energías"
+          },
+          {
+            "id": "prot-correa-01",
+            "nombre": "Mantención de polines y rodillos en correa transportadora"
+          }
+        ],
+        "ots": 2,
+        "cumplimiento": {
+          "completas": 1,
+          "sin_desviaciones": 0,
+          "porcentaje": 0.0
+        },
+        "desviaciones": 3,
+        "por_clase": {
+          "seguridad": 1,
+          "orden": 1,
+          "control": 1,
+          "conflicto": 0,
+          "persona": 0
+        },
+        "minutos_medios_de_ejecucion": 26.0,
+        "observaciones": 1,
+        "paso_mas_desviado": {
+          "paso": "p5",
+          "titulo": "Sacar la tapa protectora",
+          "desviaciones": 1
+        }
+      }
+    ]
+  },
+  "GET /cliente/metricas/pautas/{pauta_id}/pasos": {
+    "respuesta": [
+      {
+        "paso": "p3",
+        "orden": 3,
+        "titulo": "Acercarte a la correa",
+        "control_critico": false,
+        "tipo_evidencia": "sensor",
+        "ejecuciones": 3,
+        "verificado": 2,
+        "verificado_por": {
+          "sensor": 2,
+          "camara": 0,
+          "persona": 0,
+          "palabra": 0
+        },
+        "desviaciones": 1,
+        "por_clase": {
+          "orden": 1,
+          "control": 0,
+          "conflicto": 0,
+          "persona": 0
+        },
+        "observaciones": [
+          {
+            "categoria": "pauta",
+            "texto": "Desde el tablero la correa queda a dos pasos: es fácil acercarse antes de tener el candado puesto. Conviene que el punto de bloqueo quede junto al tablero.",
+            "ts": "2026-11-21T09:41:40+00:00"
+          }
+        ]
+      }
+    ]
+  },
+  "GET /cliente/metricas/equipos": {
+    "respuesta": [
+      {
+        "equipo": "correa CT-01, estación de polines 14",
+        "pautas": [
+          "pauta-polin-ct-01"
+        ],
+        "ots": 2,
+        "cumplimiento": {
+          "completas": 1,
+          "sin_desviaciones": 0,
+          "porcentaje": 0.0
+        },
+        "desviaciones": 3,
+        "por_clase": {
+          "seguridad": 1,
+          "orden": 1,
+          "control": 1,
+          "conflicto": 0,
+          "persona": 0
+        },
+        "minutos_medios_de_ejecucion": 26.0,
+        "observaciones": 1,
+        "paso_mas_desviado": {
+          "paso": "p5",
+          "titulo": "Sacar la tapa protectora",
+          "desviaciones": 1
+        },
+        "observaciones_del_equipo": [
+          {
+            "texto": "El polín 14 del retorno suena al girarlo con la mano; revisarlo en la próxima detención.",
+            "ts": "2026-11-16T10:46:00+00:00"
+          }
+        ]
+      }
+    ]
+  },
+  "GET /cliente/metricas/serie": {
+    "respuesta": [
+      {
+        "periodo": "2026-11-19",
+        "ots_abiertas": 1,
+        "ots_completas": 1,
+        "desviaciones": 1,
+        "alertas_de_seguridad": 1,
+        "observaciones": 1
+      },
+      {
+        "periodo": "2026-11-20",
+        "ots_abiertas": 2,
+        "ots_completas": 1,
+        "desviaciones": 0,
+        "alertas_de_seguridad": 0,
+        "observaciones": 0
+      },
+      {
+        "periodo": "2026-11-21",
+        "ots_abiertas": 8,
+        "ots_completas": 1,
+        "desviaciones": 1,
+        "alertas_de_seguridad": 0,
+        "observaciones": 2
+      }
+    ]
+  },
+  "GET /cliente/mejoras": {
+    "respuesta": [
+      {
+        "id": "pauta-polin-demo:v1:p3",
+        "pauta": "pauta-polin-demo",
+        "nombre": "Cambio de polín · demo de 2 minutos",
+        "version": 1,
+        "protocolos": [
+          {
+            "id": "prot-aislamiento-01",
+            "nombre": "Aislamiento y bloqueo de energías"
+          },
+          {
+            "id": "prot-correa-01",
+            "nombre": "Mantención de polines y rodillos en correa transportadora"
+          }
+        ],
+        "paso": "p3",
+        "titulo": "Acercarte a la correa",
+        "control_critico": false,
+        "ejecuciones": 3,
+        "ots_con_senal": 2,
+        "operarios_distintos": 2,
+        "senales": {
+          "orden": 1,
+          "control": 0,
+          "conflicto": 0,
+          "persona": 0,
+          "observacion": 1
+        },
+        "observaciones": [
+          {
+            "categoria": "pauta",
+            "texto": "Desde el tablero la correa queda a dos pasos: es fácil acercarse antes de tener el candado puesto. Conviene que el punto de bloqueo quede junto al tablero."
+          }
+        ],
+        "motivo": "«Acercarte a la correa» tuvo señales en 2 de 3 OT de la versión 1, con 2 operarios distintos",
+        "sugerencia": "El paso se hace antes de su turno: revisar si el orden de la pauta calza con cómo se trabaja en el equipo, o si el paso anterior se puede cumplir antes. Los operarios dejaron observaciones sobre este paso: leerlas antes de escribir la versión siguiente.",
+        "estado": "abierta",
+        "revision": null,
+        "validacion": null
+      }
+    ]
+  },
+  "POST /cliente/mejoras/{propuesta_id}/revision": {
+    "pedido": {
+      "decision": "aceptar",
+      "nota": "Poner el punto de bloqueo junto al tablero."
+    },
+    "respuesta": {
+      "id": "pauta-polin-demo:v1:p3",
+      "pauta": "pauta-polin-demo",
+      "nombre": "Cambio de polín · demo de 2 minutos",
+      "version": 1,
+      "protocolos": [
+        {
+          "id": "prot-aislamiento-01",
+          "nombre": "Aislamiento y bloqueo de energías"
+        },
+        {
+          "id": "prot-correa-01",
+          "nombre": "Mantención de polines y rodillos en correa transportadora"
+        }
+      ],
+      "paso": "p3",
+      "titulo": "Acercarte a la correa",
+      "control_critico": false,
+      "ejecuciones": 3,
+      "ots_con_senal": 2,
+      "operarios_distintos": 2,
+      "senales": {
+        "orden": 1,
+        "control": 0,
+        "conflicto": 0,
+        "persona": 0,
+        "observacion": 1
+      },
+      "observaciones": [
+        {
+          "categoria": "pauta",
+          "texto": "Desde el tablero la correa queda a dos pasos: es fácil acercarse antes de tener el candado puesto. Conviene que el punto de bloqueo quede junto al tablero."
+        }
+      ],
+      "motivo": "«Acercarte a la correa» tuvo señales en 2 de 3 OT de la versión 1, con 2 operarios distintos",
+      "sugerencia": "El paso se hace antes de su turno: revisar si el orden de la pauta calza con cómo se trabaja en el equipo, o si el paso anterior se puede cumplir antes. Los operarios dejaron observaciones sobre este paso: leerlas antes de escribir la versión siguiente.",
+      "estado": "aceptada",
+      "revision": {
+        "decision": "aceptar",
+        "nota": "Poner el punto de bloqueo junto al tablero.",
+        "por": "supervisor:oculta",
+        "ts": "2026-11-21T22:07:45+00:00"
+      },
+      "validacion": null
+    }
   }
 }

@@ -25,6 +25,8 @@ def cuerpo_minimo(esquema: dict, doc: dict):
         return cuerpo_minimo(doc["components"]["schemas"][esquema["$ref"].rsplit("/", 1)[1]], doc)
     if "anyOf" in esquema:
         return cuerpo_minimo(esquema["anyOf"][0], doc)
+    if "enum" in esquema:
+        return esquema["enum"][0]
     tipo = esquema.get("type")
     if tipo == "object":
         return {k: cuerpo_minimo(esquema["properties"][k], doc) for k in esquema.get("required", [])}
@@ -136,6 +138,7 @@ class LaReferencia(unittest.TestCase):
         for o, operador in ((ot, "operario:1"), (otra, "operario:2")):
             self.c.post(f"/cliente/ots/{o}/asignar", json={"operador": operador}, headers=carla)
         self.c.post(f"/cliente/ots/{otra}/sesion", json={"edge_id": "edge-9"}, headers=bruno)
+        propuesta = self.c.get("/cliente/mejoras", headers=carla).json()[0]["id"]
         provocados = {
             ("POST /auth/entrar", 401): self.c.post("/auth/entrar", json={"usuario": SUPERVISORA, "clave": "mala"}),
             ("POST /cliente/ots", 403): self.c.post("/cliente/ots", json=pedido, headers=ana),
@@ -148,6 +151,15 @@ class LaReferencia(unittest.TestCase):
             ("POST /cliente/ots/{ot_id}/sesion", 404): self.c.post(f"/cliente/ots/{otra}/sesion", json={"edge_id": "edge-9"}, headers=ana),
             ("POST /cliente/ots/{ot_id}/sesion", 409): self.c.post(f"/cliente/ots/{ot}/sesion", json={"edge_id": "edge-9"}, headers=ana),
             ("GET /cliente/operadores", 403): self.c.get("/cliente/operadores", headers=ana),
+            ("POST /cliente/ots/{ot_id}/observaciones", 404): self.c.post(f"/cliente/ots/{otra}/observaciones", json={"texto": "x"}, headers=ana),
+            ("POST /cliente/ots/{ot_id}/observaciones", 409): self.c.post(f"/cliente/ots/{ot}/observaciones", json={"texto": " "}, headers=ana),
+            ("GET /cliente/mejoras", 403): self.c.get("/cliente/mejoras", headers=ana),
+            ("POST /cliente/mejoras/{propuesta_id}/revision", 403): self.c.post(f"/cliente/mejoras/{propuesta}/revision", json={"decision": "aceptar"}, headers=ana),
+            ("POST /cliente/mejoras/{propuesta_id}/revision", 404): self.c.post("/cliente/mejoras/no-existe/revision", json={"decision": "aceptar"}, headers=carla),
+            ("POST /cliente/mejoras/{propuesta_id}/revision", 409): self.c.post(f"/cliente/mejoras/{propuesta}/revision", json={"decision": "descartar"}, headers=carla),
+            ("GET /cliente/metricas", 403): self.c.get("/cliente/metricas", headers=ana),
+            ("GET /cliente/metricas/pautas/{pauta_id}/pasos", 403): self.c.get("/cliente/metricas/pautas/pauta-polin-demo/pasos", headers=ana),
+            ("GET /cliente/metricas/pautas/{pauta_id}/pasos", 404): self.c.get("/cliente/metricas/pautas/no-existe/pasos", headers=carla),
         }
         declarados = {(ruta, codigo) for ruta, codigos in self.referencia.ERRORES_DE.items() for codigo in codigos}
         self.assertEqual(set(provocados), declarados)
@@ -191,6 +203,21 @@ class LaReferencia(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         real["POST /ot/{ot_id}/declarar"] = r.json()
         real["GET /ot/{ot_id}/eventos"] = self.c.get(f"/ot/{ot}/eventos").json()
+
+        r = self.c.post(f"/cliente/ots/{ot}/observaciones", headers=ana,
+                        json={"texto": "el punto de bloqueo queda lejos del tablero", "categoria": "pauta", "paso_id": "p2"})
+        self.assertEqual(r.status_code, 201)
+        real["POST /cliente/ots/{ot_id}/observaciones"] = r.json()
+        real["GET /cliente/metricas"] = self.c.get("/cliente/metricas", headers=carla).json()
+        real["GET /cliente/metricas/pautas"] = self.c.get("/cliente/metricas/pautas", headers=carla).json()
+        real["GET /cliente/metricas/pautas/{pauta_id}/pasos"] = self.c.get("/cliente/metricas/pautas/pauta-polin-demo/pasos", headers=carla).json()
+        real["GET /cliente/metricas/equipos"] = self.c.get("/cliente/metricas/equipos", headers=carla).json()
+        real["GET /cliente/metricas/serie"] = self.c.get("/cliente/metricas/serie", headers=carla).json()
+        real["GET /cliente/mejoras"] = self.c.get("/cliente/mejoras", headers=carla).json()
+        r = self.c.post(f"/cliente/mejoras/{real['GET /cliente/mejoras'][0]['id']}/revision", headers=carla,
+                        json={"decision": "aceptar", "nota": "poner el punto de bloqueo junto al tablero"})
+        self.assertEqual(r.status_code, 200)
+        real["POST /cliente/mejoras/{propuesta_id}/revision"] = r.json()
 
         self.assertEqual(self.c.post("/auth/salir", headers=ana).status_code, 204)
         self.assertEqual(self.c.get("/cliente/ots", headers=ana).status_code, 401)

@@ -118,7 +118,7 @@ cada cambio. Para reconectar sin perder bitácora, vuelve con `desde` = el últi
 | `sesion` | Al abrir una sesión | `sesion`, `video` |
 
 `evento.tipo`: `ot_abierta` · `ot_asignada` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` ·
-`relevo_recibido`. `evento.estado`: `verificado` · `no_verificado` · `en_conflicto`.
+`relevo_recibido` · `observacion` (lo que el operario vio; no cierra ningún paso). `evento.estado`: `verificado` · `no_verificado` · `en_conflicto`.
 
 **Los avisos.** `calificacion.avisos` es la lista de lo que está mal AHORA, lo más grave primero. Un aviso
 existe mientras venga en esa lista: cuando el sensor se corrige, el siguiente `calificacion_ot` ya no lo
@@ -164,6 +164,14 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
   `POST /cliente/ots/{{ot_id}}/sesion` (`edge_id`), sin la clave del equipo: si la estación ejecuta otra OT abierta
   responde 409 y se repite con `tomar` en true; la de otra empresa no se toma (403). Las empresas, sus personas y
   sus pautas las crea el equipo en `/interno/clientes`; la clave de cada persona se genera y se ve una sola vez.
+- **Mejora continua y métricas (`/cliente/...`), con login**: el operario o el supervisor deja lo que vio con
+  `POST /cliente/ots/{{ot_id}}/observaciones` (`texto`, `categoria` y, si habla de uno, `paso_id`). Cuando el mismo paso de
+  la misma versión tiene señales en dos o más OT (alertas de orden o de control, conflictos, pasos confirmados por una
+  persona y observaciones de `pauta` o `seguridad`), nace una propuesta en `GET /cliente/mejoras`. El supervisor la acepta
+  o la descarta en `POST /cliente/mejoras/{{propuesta_id}}/revision`; las aceptadas las ve el equipo en `GET /interno/mejoras`
+  y las lleva a la versión siguiente de la pauta, y la propuesta dice después en `validacion` si el paso dejó de desviarse.
+  Las métricas, solo para el supervisor: `GET /cliente/metricas` (el resumen), y `/pautas`, `/pautas/{{pauta_id}}/pasos`,
+  `/equipos` y `/serie` debajo, con `desde`, `hasta` y `orden`. Agrupan por pauta, equipo, paso o día, nunca por persona.
 
 ## Clave del equipo
 
