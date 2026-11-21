@@ -2,11 +2,16 @@
 
 | Término | Definición en este proyecto | Fuente |
 |---|---|---|
+| **Operario aumentado con IA** | La premisa del producto: la IA acompaña al operario como copiloto, comprueba cada paso y le avisa en el momento. No lo reemplaza | [Planteamiento del equipo](./fuentes/2026-11-21-planteamiento-del-equipo.md) |
+| **ICP** | Perfil de cliente ideal: una operación que ya tiene procedimientos estandarizados y no tiene cómo verificarlos | [CONTEXTO](./CONTEXTO.md) |
 | **OT** | Orden de trabajo de mantenimiento. Tiene campos estructurados (equipo, fechas, estado) y un texto libre que escribe el técnico | Uso en SAP PM y CMMS |
 | **Bitácora** | Registro de lo que se hizo en una OT. En este proyecto es la lista de pasos verificados con su evidencia, no un texto escrito después | [CONTEXTO](./CONTEXTO.md) |
-| **Pauta** | Procedimiento paso a paso para ejecutar una tarea de mantenimiento | — |
+| **Pauta** | Procedimiento paso a paso para ejecutar una tarea de mantenimiento. El equipo también le dice protocolo o procedimiento estandarizado | — |
+| **Pauta comprobable** | Pauta en la que cada paso declara qué evidencia lo cierra: un sensor, la cámara o la confirmación del operario | [ADR-0004](../decisions/0004-verificacion-por-capas.md) |
 | **Pauta matriz** | La versión aprobada de una pauta, de la que salen las pautas de cada OT. Se versiona | [ADR-0003](../decisions/0003-patrones-de-arquitectura-para-el-mvp.md) |
 | **Bloqueo y etiquetado** (LOTO, *lockout/tagout*) | Aislar las fuentes de energía de un equipo con candado y tarjeta antes de intervenirlo. Es el paso de seguridad más concreto del mantenimiento | OSHA 29 CFR 1910.147 |
+| **Relevo de turno** | Traspaso de un trabajo que dura más de un turno. El turno siguiente lo retoma desde el último paso verificado | [FLUJO](../architecture/FLUJO.md#5-bitácora-y-relevo-de-turno) |
+| **Capa determinista** | La parte de la verificación que decide con señales de sensores y reglas, sin un modelo. Un modelo nunca la contradice | [ADR-0004](../decisions/0004-verificacion-por-capas.md) |
 | **SAP PM** | Módulo de mantenimiento de SAP, habitual en minería. De ahí sale el archivo exportado de OT | — |
 | **CMMS / EAM** | Sistemas de gestión del mantenimiento y de los activos | — |
 | **PLC / SCADA** | El control del equipo y la supervisión de la planta. El producto no los toca | — |

@@ -44,6 +44,22 @@ Ningún paper cubre la intersección completa, y ahí está la originalidad. `Co
 
 Y lo que todavía no funciona: un VLM general detecta 3 de 12 cambios de orden y rechaza 5 de 12 ejecuciones correctas (9). Eso condiciona el diseño: ver [ADR-0002](../../decisions/0002-la-aplicacion-impone-el-orden-de-la-pauta.md).
 
+## Evidencia frente al planteamiento del equipo
+
+El [planteamiento del 2026-11-21](../../domain/fuentes/2026-11-21-planteamiento-del-equipo.md) agregó ideas que la primera búsqueda no cubría. Esto dice lo que ya tenemos sobre cada una:
+
+| Lo que plantea el equipo | Lo que dice la evidencia | Estado |
+|---|---|---|
+| Avisar en el momento que se saltó un paso | Es lo que un VLM general detecta mejor: 12 de 12, pero sobre el video completo y no en vivo (9). PREGO detecta el error mientras ocurre (11), (12); solo se leyó el resumen | `Candidata a validar` |
+| Avisar un error de orden | Un VLM general lo detecta en 3 de 12 (9). Con sensores con marca de tiempo el orden no depende del modelo: [ADR-0004](../../decisions/0004-verificacion-por-capas.md) | `Candidata a validar` |
+| No depender solo de un LLM | O'Donncha et al. ponen un verificador determinista entre el modelo y la respuesta (25) | `Confirmada` |
+| Entregar un protocolo tras una ejecución observada | Sin pauta, el VLM describió el 54,6% de las fases (9). Es un borrador que el experto corrige | `Confirmada` |
+| Un paso que muchos se saltan apunta a la pauta | Coincide con Peres et al.: muchas desviaciones nacen de pautas mal hechas y de la presión de la jefatura (33). En un paso de seguridad, que se salte seguido no lo vuelve prescindible | `Candidata a validar` |
+| El supervisor va donde más se saltan pasos | Si la presión de la jefatura causa parte de las desviaciones (33), usar el dato para vigilar personas puede empeorarlas | `Candidata a validar` |
+| USD 300.000 por hora de correa detenida | Es el tope del rango que da un proveedor, USD 100.000 a 300.000 (38). El sector habla de USD 40.000 a más de 200.000 (39) | `Candidata a validar` |
+| Relevo de turno con resumen | No se buscó literatura | `Brecha` |
+| Aviso por audio en el oído | No se buscó literatura sobre el canal ni sobre fatiga de alarmas | `Brecha` |
+
 ## Correcciones a la revisión original
 
 Al verificar las referencias, dos no dicen lo que anotó la planilla. `Confirmada`.

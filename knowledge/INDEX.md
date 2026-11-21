@@ -12,10 +12,11 @@
 
 - [CONTEXTO](./domain/CONTEXTO.md): el problema, el operario, las industrias y cómo nos juzgan.
 - [GLOSARIO](./domain/GLOSARIO.md): OT, pauta matriz, bloqueo y etiquetado, VLM y el resto del vocabulario.
+- [fuentes/](./domain/fuentes/): el planteamiento del equipo tal como se dictó, íntegro.
 
 ## Arquitectura
 
-- [FLUJO](./architecture/FLUJO.md): los siete pasos por actor, con evidencia, cómo construirlo y qué falta decidir en cada uno. Incluye el demo propuesto.
+- [FLUJO](./architecture/FLUJO.md): los siete pasos por actor, con evidencia, cómo construirlo y qué falta decidir en cada uno. Incluye las capas de verificación y el demo propuesto.
 
 ## Decisiones
 
@@ -24,10 +25,10 @@
 ## Research
 
 - [research](./projects/research/research.md): hallazgos, vacíos y lectura prioritaria.
-- [REFERENCIAS](./projects/research/REFERENCIAS.md): las 37 referencias verificadas, numeradas y con enlace.
+- [REFERENCIAS](./projects/research/REFERENCIAS.md): las 39 referencias verificadas, numeradas y con enlace.
 - [notas/](./projects/research/notas/): una nota por paper leído completo.
 - [fuentes/](./projects/research/fuentes/): la revisión IEEE original en CSV.
-- [Board interactivo](./projects/research/board-mantenimiento-verificado.html): problema, flujo y referencias en una página. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
+- [Board interactivo](./projects/research/board-mantenimiento-verificado.html): problema, flujo y referencias en una página. Es anterior al planteamiento del equipo del 2026-11-21 y no lo incluye. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
 
 ## Cómo se trabaja
 
