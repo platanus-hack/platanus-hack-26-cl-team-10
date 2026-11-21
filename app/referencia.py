@@ -164,8 +164,10 @@ de la bitácora y la calificación. OpenAPI no describe WebSocket, así que sus 
 [`/agente`](/agente), junto con el video del edge.
 """
 
-INTRO_CLIENTES = f"""Factum comprueba que un procedimiento se ejecutó paso a paso. Cada paso de una orden de trabajo (OT) se
-cierra con la evidencia de un sensor, de la cámara o de una persona, y todo queda en una bitácora que solo agrega.
+INTRO_CLIENTES = f"""Factum es el copiloto de tus operarios. Los acompaña mientras ejecutan una orden de trabajo (OT): comprueba
+cada paso de su pauta con sensores y cámara, y les avisa en el momento si se saltan uno. Como está en cada trabajo, todo
+queda registrado con su evidencia en una bitácora que solo agrega: el reporte no se escribe ni omite nada, la pauta
+mejora con cada ejecución y la operación sabe que cada trabajo se hizo bien sin poner un supervisor encima de cada uno.
 
 Este documento es el de una empresa cliente. El completo, con el servicio interno y la estación, se elige arriba.
 

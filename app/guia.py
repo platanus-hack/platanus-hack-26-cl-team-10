@@ -57,9 +57,10 @@ El servicio para clientes (`/cliente/...`) pide login y el interno (`/interno/..
 
 ## Qué es
 
-Un operario ejecuta una orden de trabajo (OT) siguiendo una pauta, paso a paso. El edge (sensores y
-cámara de la estación) manda lecturas y video. La API atribuye cada lectura a la OT en curso, decide
-qué paso queda verificado, abre y resuelve alertas, y lo registra todo en una bitácora que solo agrega.
+El copiloto del operario. Un operario ejecuta una orden de trabajo (OT) siguiendo una pauta, paso a paso. El edge
+(sensores y cámara de la estación) manda lecturas y video. La API atribuye cada lectura a la OT en curso, decide qué paso
+queda verificado, le avisa al operario si se salta uno, abre y resuelve alertas, y lo registra todo en una bitácora que
+solo agrega. De esa bitácora salen las métricas y las propuestas para mejorar la pauta.
 
 ## Las reglas que no se rompen
 
