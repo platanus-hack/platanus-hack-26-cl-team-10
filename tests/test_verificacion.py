@@ -1,10 +1,9 @@
-"""Capa 3: el juez de cámara con Gemini, sin red (cliente falso).
+"""Capa 3: el juez de cámara con Claude, sin red (cliente falso).
 
-Correr:  uv run python -m unittest tests.test_verificacion
-Sin google-genai instalado se salta, para que `python3 -m unittest discover tests` siga sin dependencias.
+Correr:  python3 -m unittest discover tests
 """
 
-import importlib.util
+import base64
 import os
 import unittest
 from types import SimpleNamespace
@@ -12,54 +11,50 @@ from unittest import mock
 
 from app import verificacion
 
-TIENE_GENAI = importlib.util.find_spec("google.genai") is not None
 JPEG = b"\xff\xd8cuadro\xff\xd9"
 
 
 class ClienteFalso:
-    def __init__(self, texto):
-        self.texto, self.pedidos = texto, []
-        self.models = SimpleNamespace(generate_content=self._generar)
+    def __init__(self, texto, stop_reason="end_turn"):
+        self.pedidos = []
+        respuesta = SimpleNamespace(stop_reason=stop_reason,
+                                    content=[SimpleNamespace(type="thinking", thinking=""),
+                                             SimpleNamespace(type="text", text=texto)])
+        self.messages = SimpleNamespace(create=lambda **kw: self.pedidos.append(kw) or respuesta)
 
-    def _generar(self, **kw):
-        self.pedidos.append(kw)
-        return SimpleNamespace(text=self.texto)
 
-
-@unittest.skipUnless(TIENE_GENAI, "necesita google-genai")
-class JuezGemini(unittest.TestCase):
+class JuezClaude(unittest.TestCase):
     def test_manda_la_foto_y_la_pregunta_y_lee_el_json(self):
         c = ClienteFalso('{"respuesta": true, "confianza": 0.87}')
-        self.assertEqual(verificacion.preguntar_gemini("¿Hay un mouse?", JPEG, c), (True, 0.87))
-        pedido = c.pedidos[0]
-        imagen, pregunta = pedido["contents"]
-        self.assertEqual(imagen.inline_data.data, JPEG)
-        self.assertEqual(imagen.inline_data.mime_type, "image/jpeg")
-        self.assertEqual(pregunta, "¿Hay un mouse?")
-        self.assertEqual(pedido["config"].response_mime_type, "application/json")
-        self.assertEqual(pedido["model"], verificacion.MODELO_POR_DEFECTO)
+        self.assertEqual(verificacion.preguntar_claude("¿Hay un mouse?", JPEG, c), (True, 0.87))
+        p = c.pedidos[0]
+        imagen, texto = p["messages"][0]["content"]
+        self.assertEqual(base64.b64decode(imagen["source"]["data"]), JPEG)
+        self.assertEqual(imagen["source"]["media_type"], "image/jpeg")
+        self.assertEqual(texto["text"], "¿Hay un mouse?")
+        self.assertEqual(p["model"], "claude-haiku-5-5")
+        self.assertEqual(p["output_config"]["format"]["type"], "json_schema")
 
     def test_la_confianza_se_acota_entre_0_y_1(self):
-        self.assertEqual(verificacion.preguntar_gemini("p", JPEG, ClienteFalso('{"respuesta": false, "confianza": 7}')),
-                         (False, 1.0))
+        c = ClienteFalso('{"respuesta": false, "confianza": 7}')
+        self.assertEqual(verificacion.preguntar_claude("p", JPEG, c), (False, 1.0))
+
+    def test_una_negativa_o_un_corte_no_verifica(self):
+        for motivo in ("refusal", "max_tokens"):
+            with self.subTest(motivo=motivo):
+                self.assertEqual(verificacion.preguntar_claude("p", JPEG, ClienteFalso("", motivo)), (False, 0.0))
 
     def test_si_el_vlm_falla_no_verifica(self):
-        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "prueba"}), \
-                mock.patch.object(verificacion, "preguntar_gemini", side_effect=TimeoutError):
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "prueba"}), \
+                mock.patch.object(verificacion, "preguntar_claude", side_effect=TimeoutError):
             self.assertEqual(verificacion.juez_camara("p", JPEG), (False, 0.0))
 
 
 class SinVLM(unittest.TestCase):
-    def test_vertex_tambien_activa_el_vlm(self):
-        with mock.patch.dict(os.environ, {"GOOGLE_GENAI_USE_VERTEXAI": "true"}, clear=True):
-            self.assertTrue(verificacion.vlm_configurado())
-        with mock.patch.dict(os.environ, {"GOOGLE_GENAI_USE_VERTEXAI": "false"}, clear=True):
-            self.assertFalse(verificacion.vlm_configurado())
-
     def test_sin_key_o_sin_cuadro_queda_el_stub_de_ensayo(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             self.assertEqual(verificacion.juez_camara("p", JPEG), (True, 0.55))
-        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "prueba"}):
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "prueba"}):
             self.assertEqual(verificacion.juez_camara("p", None), (True, 0.55))
 
 

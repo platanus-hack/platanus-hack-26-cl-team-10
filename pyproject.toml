@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "Esqueleto del flujo de mantenimiento verificado: team-10, Platanus Hack 26"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=2.12.0",
     "fastapi>=0.115",
-    "google-genai>=3.6.1",
     "uvicorn[standard]>=0.32",
 ]
 
