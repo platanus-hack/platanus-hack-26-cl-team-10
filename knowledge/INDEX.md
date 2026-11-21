@@ -1,6 +1,6 @@
 # Knowledge del equipo 10 — índice
 
-> Mantenimiento verificado en operaciones críticas: qué es, qué evidencia lo respalda, qué se decidió y en qué va. Track Physical AI, Platanus Hack 26 Santiago.
+> Mantenimiento verificado en operaciones críticas: qué es, qué evidencia lo respalda, qué se decidió y en qué va. Track Physical World, Platanus Hack 26 Santiago.
 
 ## Empezar aquí
 
