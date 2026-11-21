@@ -18,7 +18,7 @@ from app import catalogo, db, protocolos
 from app.bus import Bus
 from app.catalogo import ReglaDeNegocio
 from app.protocolos import DATOS, PAUTA_DEMO, SEMILLA
-from app.servicios import Servicios
+from app.servicios import DETECCIONES_MIN, Servicios
 from app.video import Video
 
 TIENE_HTTPX = importlib.util.find_spec("httpx") is not None and importlib.util.find_spec("fastapi") is not None
@@ -319,6 +319,47 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual(alertas, [])
         self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 8))
 
+    def estacion(self, equipo="caliente"):
+        """La estación física: lo que manda edge/edge.py (energia sale del motor del ESP32)."""
+        self.abrir("pauta-polin-estacion.json", ["energia", "operario", "equipo"],
+                   {"energia": "viva", "operario": "ausente", "equipo": equipo})
+        return self.leer()
+
+    def ver(self, *objetos):
+        """Lo que el detector ve en la cinta, los cuadros que la capa 2 pide para decidir."""
+        self.s.video.recibir("edge-1", b"\xff\xd8cuadro\xff\xd9")
+        self.s.video._detecciones.clear()  # como si ya hubiera pasado la ventana de la capa 2
+        for _ in range(DETECCIONES_MIN):
+            self.s._ultimo_juicio.clear()  # en la prueba no se espera el medio segundo entre juicios
+            self.s.recibir_detecciones("edge-1", {"objetos": [{"clase": c, "conf": p, "caja": [0, 0, 1, 1]}
+                                                              for c, p in objetos]})
+
+    def test_estacion_acercarse_sin_apagar_el_motor_avisa(self):
+        self.estacion()
+        alertas = self.leer(operario="presente")
+        self.assertTrue(any(a.startswith("PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO") for a in alertas), alertas)
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "error")
+        self.leer(operario="ausente")
+        self.assertEqual((self.s.calificacion("ot-1")["nivel"], self.cerrados()), ("ok", 0))
+
+    def test_estacion_en_su_orden_se_completa_sin_avisos(self):
+        alertas = self.estacion() + self.leer(energia="cortada") + self.leer(operario="presente")
+        self.assertEqual(self.cerrados(), 2)  # con el equipo caliente no pasa de «esperar»
+        alertas += self.leer(equipo="frio")
+        self.ver(("soda can", 0.7), ("red soda can", 0.9))
+        self.assertEqual(self.cerrados(), 3)  # la lata roja sigue en la cinta
+        self.ver(("soda can", 0.7), ("soda can", 0.6))  # la nueva, de otro color
+        self.assertEqual(self.cerrados(), 4)
+        alertas += self.leer(operario="ausente") + self.leer(energia="viva")
+        self.assertEqual(alertas, [])
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 5))
+
+    def test_estacion_con_el_equipo_ya_frio_no_avisa_al_empezar(self):
+        # shortcut: «Apagar el motor» no lleva control_critico porque, con el paso actual crítico,
+        # desviacion_de_orden toma «equipo = frio» por un paso adelantado y abre la demo con un error.
+        # Marcarlo crítico cuando esa regla distinga una condición de una acción del operario.
+        self.assertEqual(self.estacion(equipo="frio"), [])
+
 
 class LaSemillaDeLosCasos(Base):
     def test_cada_protocolo_de_datos_tiene_su_documento_y_pautas_que_existen(self):
@@ -341,7 +382,7 @@ class LaSemillaDeLosCasos(Base):
 
     def test_un_protocolo_da_dos_pautas_la_del_rodillo_y_la_del_polin(self):
         protocolos.cargar_semilla(self.cx)
-        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01", "pauta-polin-demo"])
+        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01", "pauta-polin-demo", "pauta-polin-estacion"])
 
     def test_se_puede_repetir_sin_duplicar(self):
         a = protocolos.cargar_semilla(self.cx)
@@ -403,7 +444,7 @@ class LasOtDeEjemplo(Base):
         self.assertEqual(db.estado_sensores(self.cx), {"operario": "presente"})
         self.assertEqual(self.s.sesiones(), [])
         otra = self.semilla.cargar(self.cx)
-        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 15))
+        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 16))
 
     def test_la_camara_de_la_semilla_queda_dicha_en_la_evidencia(self):
         ev = next(e for e in db.eventos(self.cx, "ot-1006") if e.tipo.value == "veredicto" and e.capa == 3)
@@ -496,10 +537,10 @@ class PorHTTP(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             self.assertEqual(self.c.post("/interno/ots/semilla").status_code, 401)
             r = self.c.post("/interno/ots/semilla", headers={"X-Clave-Equipo": "secreta"})
-        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 15, 3))
+        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 16, 3))
         carla = next(a for a in r.json()["accesos"] if a["rol"] == "supervisor")
         token = self.c.post("/auth/entrar", json={"usuario": carla["usuario"], "clave": carla["clave"]}).json()["token"]
-        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 15)
+        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 16)
 
     def test_la_semilla_deja_los_casos_listos_para_el_cliente(self):
         r = self.c.post("/interno/protocolos/semilla").json()

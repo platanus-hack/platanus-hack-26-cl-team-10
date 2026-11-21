@@ -1,0 +1,55 @@
+{
+  "id": "pauta-polin-estacion",
+  "nombre": "Cambio de polín en la cinta · estación del demo",
+  "version": 1,
+  "equipo": "cinta a escala (ESP32: motor con botón, distancia y temperatura; cámara)",
+  "pasos": [
+    {
+      "id": "e1",
+      "orden": 1,
+      "titulo": "Apagar el motor",
+      "instruccion": "Aprieta el botón para detener el motor de la cinta. No te acerques mientras siga andando.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": { "id": "energia", "espera": "cortada" }
+    },
+    {
+      "id": "e2",
+      "orden": 2,
+      "titulo": "Acercarte a la cinta",
+      "instruccion": "Recién con el motor detenido, acércate a la cinta.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": { "id": "operario", "espera": "presente" }
+    },
+    {
+      "id": "e3",
+      "orden": 3,
+      "titulo": "Esperar a que baje la temperatura",
+      "instruccion": "Espera a que el equipo esté frío antes de tocar el polín.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": { "id": "equipo", "espera": "frio" }
+    },
+    {
+      "id": "e4",
+      "orden": 4,
+      "titulo": "Cambiar el polín rojo",
+      "instruccion": "Saca el polín rojo, que es el que falló, y pon el nuevo en su lugar. En el demo los polines son latas: la cámara cierra el paso cuando ya no ve la roja.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 2,
+      "pregunta_visual": "¿Ya no hay ninguna lata roja en la cinta?",
+      "deteccion": { "clase": "red soda can", "presente": false }
+    },
+    {
+      "id": "e5",
+      "orden": 5,
+      "titulo": "Dejar la cinta andando",
+      "instruccion": "Aléjate de la cinta y aprieta el botón para encender el motor.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "energia", "espera": "viva" }
+    }
+  ]
+}

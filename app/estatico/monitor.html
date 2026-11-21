@@ -44,7 +44,11 @@
   <span id="conexion" class="muted">desconectado</span>
   <span class="derecha">
     <button id="declarar" title="El operario dice que hizo el paso actual: si el modelo del edge no está seguro, decide el VLM">Declarar paso</button>
-    <button id="nueva" class="principal" title="Abre una OT nueva con la pauta LOTO y la une al edge">Nueva demo LOTO</button>
+    <select id="pauta" title="Qué pauta ejecuta la OT nueva">
+      <option value="polin">Cambio de polín</option>
+      <option value="loto">LOTO</option>
+    </select>
+    <button id="nueva" class="principal" title="Abre una OT nueva con la pauta elegida y la une al edge">Nueva demo</button>
   </span>
 </header>
 <main>
@@ -114,6 +118,7 @@ function video(v) {
 // Las cajas vienen normalizadas 0-1: se escalan al tamaño con que se ve el video.
 // Si deja de llegar detección por 1 s, se borran para no mostrar algo viejo.
 let borrarCajas = null;
+const POLINES = {"soda can": "polín", "red soda can": "polín rojo"};  // en la estación los polines son latas
 function pintarCajas(d) {
   const cv = $("cajas"), img = $("video");
   cv.width = img.clientWidth; cv.height = img.clientHeight;
@@ -124,7 +129,7 @@ function pintarCajas(d) {
     const [x1, y1, x2, y2] = o.caja, x = x1 * cv.width, y = y1 * cv.height;
     const color = o.conf >= 0.8 ? "#2fbf71" : "#f5a524";  // verde: certeza alta; ámbar: dudosa
     g.strokeStyle = color; g.strokeRect(x, y, (x2 - x1) * cv.width, (y2 - y1) * cv.height);
-    const t = `${o.clase} ${Math.round(o.conf * 100)}%`;
+    const t = `${POLINES[o.clase] || o.clase} ${Math.round(o.conf * 100)}%`;
     g.fillStyle = color; g.fillRect(x, Math.max(0, y - 20), g.measureText(t).width + 10, 20);
     g.fillStyle = "#000"; g.fillText(t, x + 5, Math.max(15, y - 5));
   });
@@ -151,7 +156,7 @@ function conectar() {
       if (ultimo === 0) $("bitacora").innerHTML = "";
       m.bitacora.forEach(anotar); pintarPasos(m.estado); pintarCalificacion(m.calificacion); video(m.video);
       if (!m.sesion) $("video-estado").textContent =
-        "Esta OT no tiene un edge unido, así que no hay cámara. Usa «Nueva demo LOTO» para abrir una con el edge.";
+        "Esta OT no tiene un edge unido, así que no hay cámara. Usa «Nueva demo» para abrir una con el edge.";
       edge = m.sesion ? m.sesion.edge_id : edge;
       Object.entries(m.sensores || {}).forEach(([k, v]) => pintarSensor(k, v, false));
     } else if (m.tipo === "evento") {
@@ -171,6 +176,7 @@ function conectar() {
 // ─── Sensores en vivo: llegan como mensajes `lectura` del stream de la OT ───────────────
 const SENSORES = {  // los del edge del demo, en el orden en que se leen; el resto se muestra igual
   operario: ["Operario", v => v === "presente", ""], equipo: ["Equipo", v => v === "frio", ""],
+  motor: ["Motor", v => v === "detenido", ""],
   dist_cm: ["Distancia", null, " cm"], temp_c: ["Temperatura", null, " °C"], hum_pct: ["Humedad", null, " %"],
 };
 let edge = "edge-mac";
@@ -216,13 +222,14 @@ async function llamar(metodo, url, cuerpo) {
   return j;
 }
 
-// Una OT nueva con la pauta LOTO, unida al edge que se venía mirando: para repetir la demo.
+// Una OT nueva con la pauta elegida, unida al edge que se venía mirando: para repetir la demo.
 async function nuevaDemo() {
-  const ot = "ot-loto-" + new Date().toTimeString().slice(0, 8).replaceAll(":", "");
+  const cual = $("pauta").value;
+  const ot = `ot-${cual}-` + new Date().toTimeString().slice(0, 8).replaceAll(":", "");
   $("accion").textContent = "Abriendo una OT nueva…";
   try {
-    await llamar("POST", "/pauta/demo?pauta=loto");
-    await llamar("POST", `/ot/${ot}/abrir?pauta_id=pauta-loto-escritorio`);
+    const {pauta} = await llamar("POST", `/pauta/demo?pauta=${cual}`);
+    await llamar("POST", `/ot/${ot}/abrir?pauta_id=${pauta}`);
     await llamar("POST", `/ot/${ot}/sesion`, {edge_id: edge, operario: "operario:A"});
     $("ot").value = ot; history.replaceState(null, "", `?ot=${ot}`);
     ultimo = 0; $("bitacora").innerHTML = ""; conectar();

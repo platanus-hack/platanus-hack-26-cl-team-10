@@ -27,7 +27,7 @@ User=factum
 WorkingDirectory=/srv/factum/codigo
 # Modo de detección por defecto: YOLO en el servidor (app/detector.py). Para volver a
 # YOLO en el edge, DETECTOR_ONNX= (vacío) en /srv/factum/entorno y el edge con --deteccion edge.
-Environment=DETECTOR_ONNX=/srv/factum/datos/modelos/yolo-mouse-pencil-416.onnx
+Environment=DETECTOR_ONNX=/srv/factum/datos/modelos/yolo-mouse-pencil-soda_can-red_soda_can-416.onnx
 Environment=VENTANA_DETECCION_S=1.5
 # Secretos y overrides fuera del repo: ANTHROPIC_API_KEY=... (capa 3 de cámara). El "-" lo hace opcional.
 EnvironmentFile=-/srv/factum/entorno

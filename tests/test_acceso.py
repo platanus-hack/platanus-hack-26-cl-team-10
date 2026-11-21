@@ -83,7 +83,7 @@ class ElLogin(Base):
 class CadaEmpresaVeLoSuyo(Base):
     def test_el_supervisor_ve_todas_las_de_su_empresa_y_ninguna_de_otra(self):
         carla, pedro = self.entra("carla.munoz@oculta.example"), self.entra("pedro@otra.example")
-        self.assertEqual(len(acceso.ots_de(self.cx, carla)), 15)
+        self.assertEqual(len(acceso.ots_de(self.cx, carla)), 16)
         self.assertEqual(acceso.ots_de(self.cx, pedro), [])
         with self.assertRaises(db.NoExiste):
             acceso.ot_de(self.cx, pedro, "ot-1001")
@@ -145,7 +145,7 @@ class PorHTTP(unittest.TestCase):
     def test_de_entrar_a_pedir_asignar_y_ver_una_ot(self):
         carla = self.cabecera("carla.munoz@oculta.example")
         self.assertEqual(self.c.get("/yo", headers=carla).json()["cliente"]["nombre"], "Oculta")
-        self.assertEqual(len(self.c.get("/cliente/pautas", headers=carla).json()), 8)
+        self.assertEqual(len(self.c.get("/cliente/pautas", headers=carla).json()), 9)
         r = self.c.post("/cliente/ots", json={"pauta_id": "pauta-polin-demo"}, headers=carla)
         self.assertEqual((r.status_code, r.json()["cliente"]), (201, "oculta"))
         ot = r.json()["ot"]
