@@ -115,7 +115,7 @@ Una skill que genera pautas se mide como se mide cualquier capa: con casos cuya 
 |---|---|---|
 | `reconocer-proceso` | Los seis protocolos de la semilla y sus nueve pautas escritas a mano | Pasos recuperados, controles críticos detectados, pares de pasos en el orden correcto, evidencia y capa iguales a las de la pauta a mano, pautas que pasan el validador y citas que existen en el documento |
 | `optimizar-proceso` | Casos con el arreglo conocido, empezando por el de la semilla (`pauta-polin-demo` v1, p3) | Si recomienda lo esperado, y si la versión nueva pasa el validador y la matriz de escenarios |
-| `reportar-ot` | Las 16 OT de la semilla | Citas que existen, desviaciones omitidas (tiene que ser cero) y personas nombradas en el informe del periodo (tiene que ser cero) |
+| `reportar-ot` | Las OT de la semilla | Citas que existen, desviaciones omitidas (tiene que ser cero) y personas nombradas en el informe del periodo (tiene que ser cero) |
 | Todas | Las rutas de la API | Que cada ruta que nombra una skill exista con ese método. Si alguien cambia la API, la prueba falla en vez de dejar la skill mintiendo |
 
 Antes de medir conviene saber qué esperar. Un VLM sin pauta describió por su cuenta el 54,6 % de las fases de un montaje, y el 68 % con la pauta (REFERENCIAS 9). Lo que salga de `reconocer-proceso` es un borrador que una persona corrige, no una pauta lista. `Confirmada` para el VLM; `Candidata a validar` para texto.

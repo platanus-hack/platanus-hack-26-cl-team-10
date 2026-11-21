@@ -124,7 +124,8 @@ class LaReferencia(unittest.TestCase):
 
     def test_donde_la_clave_es_opcional_una_estacion_libre_no_la_pide(self):
         opcional = {(m, r) for m, r, op in self.operaciones() if op.get("security") == [{"ClaveEquipo": []}, {}]}
-        self.assertEqual(opcional, {("get", "/clave"), ("post", "/ot/{ot_id}/sesion"), ("delete", "/edge/{edge_id}/sesion")})
+        self.assertEqual(opcional, {("get", "/clave"), ("post", "/ot/{ot_id}/sesion"), ("delete", "/edge/{edge_id}/sesion"),
+                                    ("get", "/ot/{ot_id}/ficha")})
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             self.assertEqual(self.c.get("/clave").json(), {"requerida": True, "valida": False})
             self.assertEqual(self.c.delete("/edge/edge-libre/sesion").status_code, 204)
