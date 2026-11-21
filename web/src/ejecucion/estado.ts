@@ -22,8 +22,13 @@ export type Ejecucion = {
   sinSenal: string[]
   conexion: Conexion
   mensaje: string | null
-  /** Eventos de nivel error que todavía no suenan. */
+  /** Eventos que tienen que sonar y todavía no suenan (ver `debeSonar`). */
   porSonar: Evento[]
+  /**
+   * Lo que sonó, también en grande sobre la pantalla, hasta que el operario lo cierra o deja
+   * de valer (su alerta se resolvió, o su paso quedó verificado).
+   */
+  enPantalla: Evento[]
 }
 
 export type Accion =
@@ -40,6 +45,7 @@ export type Accion =
   | { tipo: 'mensaje_visto' }
   | { tipo: 'conexion'; conexion: Conexion }
   | { tipo: 'sonado'; ids: number[] }
+  | { tipo: 'aviso_cerrado'; id: number }
 
 export const inicial: Ejecucion = {
   ot: null,
@@ -52,10 +58,26 @@ export const inicial: Ejecucion = {
   conexion: 'conectando',
   mensaje: null,
   porSonar: [],
+  enPantalla: [],
 }
 
-/** Suena lo de nivel error, y solo la capa 1 llega a error. */
-export const debeSonar = (e: Evento): boolean => e.calificacion?.nivel === 'error'
+/**
+ * Qué suena (y aparece en grande): lo de nivel error, que es la capa 1 (seguridad, un conflicto
+ * de sensor), y siempre un paso saltado o un paso que se deshizo, aunque la API lo calificara
+ * más bajo: es el aviso que pidió el equipo. La duda de la cámara no suena: se ve en su paso.
+ */
+export const debeSonar = (e: Evento): boolean =>
+  e.calificacion?.nivel === 'error' || (e.tipo === 'alerta' && ['orden', 'control'].includes(tipoDeAlerta(e)))
+
+/** Sigue en pantalla mientras vale: su alerta sigue activa, o su paso no está verificado. */
+function vigentes(enPantalla: Evento[], alertas: Evento[], ot: EstadoOt | null): Evento[] {
+  return enPantalla.filter((e) => {
+    if (e.tipo === 'alerta') return alertas.some((a) => a.id === e.id)
+    if (e.paso_id) return ot?.pasos.find((p) => p.id === e.paso_id)?.estado !== 'verificado'
+    return true
+  })
+}
+
 const sinRepetir = (lista: string[], id: string) => (lista.includes(id) ? lista : [...lista, id])
 
 /** Qué clase de alerta es: por su clave en la API (`seguridad:…`, `orden:…`), o por su evidencia. */
@@ -97,6 +119,7 @@ function aplicarEvento(s: Ejecucion, ev: Evento): Ejecucion {
     }
   }
 
+  const suena = debeSonar(ev)
   return {
     ...s,
     ot,
@@ -105,7 +128,8 @@ function aplicarEvento(s: Ejecucion, ev: Evento): Ejecucion {
     sinSenal,
     bitacora: [...s.bitacora, ev],
     ultimoId: ev.id,
-    porSonar: debeSonar(ev) ? [...s.porSonar, ev] : s.porSonar,
+    porSonar: suena ? [...s.porSonar, ev] : s.porSonar,
+    enPantalla: vigentes(suena ? [...s.enPantalla, ev] : s.enPantalla, alertas, ot),
   }
 }
 
@@ -115,6 +139,8 @@ export function reducir(s: Ejecucion, a: Accion): Ejecucion {
       const { snapshot, inicial: primero } = a
       const nuevos = snapshot.bitacora.filter((e) => e.id > s.ultimoId).sort((x, y) => x.id - y.id)
       const ultimoId = Math.max(s.ultimoId, ...nuevos.map((e) => e.id))
+      // La bitácora del primer snapshot es lo que ya pasó: ni suena ni aparece.
+      const perdidos = primero ? [] : nuevos.filter(debeSonar)
       return {
         ...s,
         ot: snapshot.estado,
@@ -123,7 +149,8 @@ export function reducir(s: Ejecucion, a: Accion): Ejecucion {
         bitacora: [...s.bitacora, ...nuevos],
         ultimoId,
         conexion: 'en_vivo',
-        porSonar: primero ? s.porSonar : [...s.porSonar, ...nuevos.filter(debeSonar)],
+        porSonar: [...s.porSonar, ...perdidos],
+        enPantalla: vigentes([...s.enPantalla, ...perdidos], snapshot.alertas_activas, snapshot.estado),
       }
     }
     case 'evento':
@@ -131,7 +158,7 @@ export function reducir(s: Ejecucion, a: Accion): Ejecucion {
     case 'calificacion':
       return { ...s, calificacion: a.calificacion }
     case 'estado':
-      return { ...s, ot: a.estado }
+      return { ...s, ot: a.estado, enPantalla: vigentes(s.enPantalla, s.alertas, a.estado) }
     case 'hecho_enviado':
       return s.pendiente ? s : { ...s, pendiente: { pasoId: a.pasoId }, mensaje: null }
     case 'hecho_respondido':
@@ -155,6 +182,8 @@ export function reducir(s: Ejecucion, a: Accion): Ejecucion {
       return { ...s, conexion: a.conexion }
     case 'sonado':
       return { ...s, porSonar: s.porSonar.filter((e) => !a.ids.includes(e.id)) }
+    case 'aviso_cerrado':
+      return { ...s, enPantalla: s.enPantalla.filter((e) => e.id !== a.id) }
   }
 }
 

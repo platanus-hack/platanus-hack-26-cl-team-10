@@ -97,7 +97,7 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     [otId, refrescar],
   )
 
-  // Cada evento de nivel error suena una vez, en orden, dicho como frase.
+  // Cada evento que tiene que sonar (ver debeSonar) suena una vez, en orden, dicho como frase.
   useEffect(() => {
     if (s.porSonar.length === 0) return
     for (const ev of s.porSonar) voz.decir(textoParaVoz(ev, actual.current.ot))
@@ -175,6 +175,12 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     [otId, usuario.id, refrescar],
   )
 
+  /** «Escuchar de nuevo» en el aviso: es un toque, así que también desbloquea el audio si hacía falta. */
+  const escucharAviso = useCallback(async (texto: string) => {
+    if (voz.estado() !== 'activo') await voz.desbloquear()
+    voz.decir(texto)
+  }, [])
+
   /** Devuelve true si el turno quedó entregado. */
   const entregarTurno = useCallback(async (): Promise<boolean> => {
     try {
@@ -212,6 +218,10 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     recibirTurno,
     probarAudio: () => voz.probar(),
     verMensaje: () => dispatch({ tipo: 'mensaje_visto' }),
+    /** El aviso que está en grande sobre la pantalla, si hay uno. */
+    aviso: s.enPantalla[0] ?? null,
+    escucharAviso,
+    cerrarAviso: (id: number) => dispatch({ tipo: 'aviso_cerrado', id }),
   }
 }
 

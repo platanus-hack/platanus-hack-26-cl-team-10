@@ -78,6 +78,7 @@ export function Paso({ paso, pauta, ui, aviso, cerradoPor, habilitado, vistas = 
 
   return (
     <Paper
+      id={`paso-${paso.id}`}
       withBorder
       p="sm"
       bg="white"

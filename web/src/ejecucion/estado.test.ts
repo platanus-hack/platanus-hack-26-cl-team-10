@@ -78,6 +78,47 @@ describe('the stream', () => {
   })
 })
 
+describe('a skipped or undone step always speaks and pops up on screen', () => {
+  const comoWarning = { calificacion: cal('warning') }
+
+  it('a skip or a lost control speaks even if the API grades it warning; a camera doubt does not', () => {
+    const s = correr(
+      inicial,
+      { tipo: 'evento', evento: { ...saltoDeP1(1), ...comoWarning } },
+      { tipo: 'evento', evento: error(2, { ...comoWarning, evidencia: { tipo: 'control', paso: 'p1', clave: 'control:p1' } }) },
+      { tipo: 'evento', evento: ev(3, { paso_id: 'p3', estado: 'en_conflicto', capa: 2, ...comoWarning }) },
+    )
+    expect(s.porSonar.map((e) => e.id)).toEqual([1, 2])
+    expect(s.enPantalla.map((e) => e.id)).toEqual([1, 2])
+  })
+
+  it('what speaks stays on screen until the operator closes it', () => {
+    const s1 = correr(inicial, { tipo: 'evento', evento: saltoDeP1(1) }, { tipo: 'sonado', ids: [1] })
+    expect(s1.enPantalla.map((e) => e.id)).toEqual([1])
+    expect(reducir(s1, { tipo: 'aviso_cerrado', id: 1 }).enPantalla).toEqual([])
+  })
+
+  it('the first snapshot pops nothing up; a reconnect pops up what was missed and still active', () => {
+    const s1 = reducir(inicial, { tipo: 'snapshot', inicial: true, snapshot: snap([error(2)], { alertas_activas: [error(2)] }) })
+    expect(s1.enPantalla).toEqual([])
+    const s2 = reducir(s1, { tipo: 'snapshot', inicial: false, snapshot: snap([error(3), error(4)], { alertas_activas: [error(2), error(4)] }) })
+    expect(s2.enPantalla.map((e) => e.id)).toEqual([4])
+  })
+
+  it('leaves the screen by itself when its alert is resolved', () => {
+    const s = correr(inicial, { tipo: 'evento', evento: error(1) }, { tipo: 'evento', evento: ev(2, { tipo: 'alerta_resuelta', evidencia: { resuelve: 1 } }) })
+    expect(s.enPantalla).toEqual([])
+  })
+
+  it('a step conflict leaves the screen once its step is verified', () => {
+    const conflicto = ev(1, { paso_id: 'p1', estado: 'en_conflicto', capa: 1, calificacion: cal('error') })
+    const s1 = correr(enP1, { tipo: 'evento', evento: conflicto })
+    expect(s1.enPantalla.map((e) => e.id)).toEqual([1])
+    const s2 = reducir(s1, { tipo: 'estado', estado: ot('p2', [paso('p1', 'verificado'), paso('p2'), paso('p3')]) })
+    expect(s2.enPantalla).toEqual([])
+  })
+})
+
 describe('alerts', () => {
   it('alerta_resuelta removes the alert, the snapshot replaces them', () => {
     const s1 = correr(inicial, { tipo: 'evento', evento: error(1) }, { tipo: 'evento', evento: error(2) })

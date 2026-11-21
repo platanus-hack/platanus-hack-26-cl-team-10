@@ -3,6 +3,7 @@ import { IconVolume, IconVolumeOff } from '@tabler/icons-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Nivel } from '../api/tipos'
 import { nombreDe, type Usuario } from '../sesion/usuarios'
+import { AvisoEnPantalla } from './AvisoEnPantalla'
 import { FranjaSinConexion, MensajeError } from './Avisos'
 import { BannerAlertas } from './BannerAlertas'
 import { BarraOt } from './BarraOt'
@@ -96,6 +97,7 @@ export function PantallaEjecucion({ otId, usuario, e, pie }: { otId: string; usu
 
   return (
     <Box pb="xl">
+      <AvisoEnPantalla evento={e.aviso} ot={ot} onEscuchar={(t) => void e.escucharAviso(t)} onEntendido={e.cerrarAviso} />
       <BarraOt usuario={usuario} />
       <Cabecera otId={otId} e={e} />
       {s.conexion === 'reconectando' && <FranjaSinConexion />}

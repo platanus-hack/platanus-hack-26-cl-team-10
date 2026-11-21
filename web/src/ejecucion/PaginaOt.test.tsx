@@ -96,13 +96,19 @@ describe('steps close on their own; Hecho only where the API needs it', () => {
 })
 
 describe('when the API warns that a step was skipped', () => {
-  it('warn-sobrescrito: the skip is shown and spoken once; «Ya lo hice» with a reason confirms the step', async () => {
+  it('warn-sobrescrito: the skip pops up and is spoken once; «Ya lo hice» with a reason confirms the step', async () => {
     abrir('warn-sobrescrito')
     await entrar()
-    const banner = await screen.findByRole('alert', {}, { timeout: 2000 })
+    // Lo mismo que se oye, en grande sobre la pantalla.
+    const aviso = await screen.findByRole('dialog', { name: 'Paso saltado' }, { timeout: 2000 })
+    expect(within(aviso).getByText('Oye, te saltaste el paso 1: Cortar la energía y bloquear con candado. Hazlo antes de seguir.')).toBeInTheDocument()
+    await waitFor(() => expect(dicho).toEqual(['Oye, te saltaste el paso 1: Cortar la energía y bloquear con candado. Hazlo antes de seguir.']))
+    await userEvent.click(within(aviso).getByRole('button', { name: 'Entendido' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    // Cerrado el aviso, el banner y el paso siguen diciendo qué hacer.
+    const banner = screen.getByRole('alert')
     expect(within(banner).getByText('Paso saltado')).toBeInTheDocument()
     expect(enFila('Cortar la energía y bloquear con candado', 'Te saltaste este paso: hiciste «Retirar la guarda» antes.')).not.toBeNull()
-    await waitFor(() => expect(dicho).toEqual(['Oye, te saltaste el paso 1: Cortar la energía y bloquear con candado. Hazlo antes de seguir.']))
     await userEvent.click(within(fila('Cortar la energía y bloquear con candado')).getByRole('button', { name: 'Ya lo hice' }))
     await userEvent.click(screen.getByRole('button', { name: 'El sensor no lo marca' }))
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
@@ -112,10 +118,20 @@ describe('when the API warns that a step was skipped', () => {
     expect(dicho).toHaveLength(1)
   })
 
-  it('warn-corregido: doing the skipped step clears the warning by itself', async () => {
+  it('the warning can be heard again from the pop-up, if the operator missed it', async () => {
+    abrir('warn-sobrescrito')
+    await entrar()
+    const aviso = await screen.findByRole('dialog', { name: 'Paso saltado' }, { timeout: 2000 })
+    await waitFor(() => expect(dicho).toHaveLength(1))
+    await userEvent.click(within(aviso).getByRole('button', { name: 'Escuchar de nuevo' }))
+    expect(dicho).toEqual([dicho[0], dicho[0]])
+  })
+
+  it('warn-corregido: doing the skipped step clears the warning and the pop-up by themselves', async () => {
     abrir('warn-corregido')
     await entrar()
-    await screen.findByRole('alert', {}, { timeout: 2000 })
+    await screen.findByRole('dialog', { name: 'Paso saltado' }, { timeout: 2000 })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 2000 })
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull(), { timeout: 2000 })
     await waitFor(() => expect(enFila('Cortar la energía y bloquear con candado', 'por sensor')).not.toBeNull())
   })
@@ -128,8 +144,11 @@ describe('other alerts', () => {
     const banner = await screen.findByRole('alert', {}, { timeout: 2000 })
     expect(within(banner).getByText('Peligro')).toBeInTheDocument()
     expect(within(banner).queryAllByRole('button')).toEqual([])
+    expect(await screen.findByRole('dialog', { name: 'Peligro' })).toBeInTheDocument()
     await waitFor(() => expect(dicho).toContain('Guarda abierta con energía viva. Detener y aislar la energía antes de continuar.'))
+    // Corregido con el sensor, se van el banner y el aviso, sin tocar nada.
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull(), { timeout: 2000 })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('control-perdido: the undone control is named and spoken, then clears', async () => {
@@ -137,6 +156,7 @@ describe('other alerts', () => {
     await entrar()
     const banner = await screen.findByRole('alert', {}, { timeout: 2000 })
     expect(within(banner).getByText('Control perdido')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Control perdido' })).toBeInTheDocument()
     await waitFor(() => expect(dicho).toEqual(['Oye, se deshizo el paso 1: Cortar la energía y bloquear con candado. Vuelve a dejarlo como estaba.']))
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull(), { timeout: 2000 })
   })
@@ -149,6 +169,7 @@ describe('other alerts', () => {
     expect(within(fila('Cambiar el rodillo')).getByRole('button', { name: 'Hecho' })).toBeInTheDocument()
     expect(within(fila('Cambiar el rodillo')).getByRole('button', { name: 'Ya lo hice' })).toBeInTheDocument()
     expect(dicho).toEqual([])
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('sin-senal: after the wait, a step whose evidence never comes offers «Ya lo hice»', async () => {

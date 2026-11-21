@@ -1,40 +1,7 @@
 import { Box, Group, Paper, Stack, Text } from '@mantine/core'
 import { IconAlertTriangle } from '@tabler/icons-react'
 import type { EstadoOt, Evento } from '../api/tipos'
-import { tipoDeAlerta, type TipoAlerta } from './estado'
-
-const TITULO: Record<TipoAlerta, string> = {
-  seguridad: 'Peligro',
-  orden: 'Paso saltado',
-  control: 'Control perdido',
-  senal: 'Precaución',
-  otra: 'Peligro',
-}
-
-/** Qué pasó, en palabras del operario. Si la alerta no trae lo que hace falta, su detalle tal cual. */
-function queDice(a: Evento, ot: EstadoOt | null): { texto: string; ayuda: string | null } {
-  const paso = (id: unknown) => ot?.pasos.find((p) => p.id === id)
-  switch (tipoDeAlerta(a)) {
-    case 'orden': {
-      const pendiente = paso(a.evidencia?.pendiente)
-      const adelantado = paso(a.evidencia?.adelantado)
-      if (pendiente && adelantado)
-        return {
-          texto: `Hiciste «${adelantado.titulo}» antes de «${pendiente.titulo}».`,
-          ayuda: `Haz el paso ${pendiente.orden} o, si ya lo hiciste, confírmalo en el paso.`,
-        }
-      return { texto: a.detalle, ayuda: null }
-    }
-    case 'control': {
-      const p = paso(a.evidencia?.paso)
-      return { texto: p ? `«${p.titulo}» se deshizo. Vuelve a dejarlo como estaba.` : a.detalle, ayuda: 'Se apaga sola cuando el sensor lo vea de vuelta.' }
-    }
-    case 'seguridad':
-      return { texto: a.detalle, ayuda: 'Se apaga sola cuando el sensor lo vea corregido.' }
-    default:
-      return { texto: a.detalle, ayuda: null }
-  }
-}
+import { queDice, tituloDe } from './alertas'
 
 /**
  * Las alertas activas. Informan; no se apagan desde acá: la de seguridad y la de control se
@@ -47,7 +14,7 @@ export function BannerAlertas({ alertas, ot }: { alertas: Evento[]; ot: EstadoOt
     <Stack gap="sm" role="alert">
       {alertas.map((a) => {
         const { texto, ayuda } = queDice(a, ot)
-        const titulo = TITULO[tipoDeAlerta(a)]
+        const titulo = tituloDe(a)
         const error = (a.calificacion?.nivel ?? (a.capa === 1 ? 'error' : 'warning')) === 'error'
         return error ? (
           <Paper key={a.id} withBorder bg="white" style={{ overflow: 'hidden', borderColor: 'var(--mantine-color-peligro-6)', borderWidth: 3 }}>
