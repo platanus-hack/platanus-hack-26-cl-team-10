@@ -22,6 +22,9 @@
 - **O2 —** La UI recibe cada lectura, evento y calificación sin preguntar, y al reconectar recupera la bitácora que se perdió.
 - **O3 —** Cada evento lleva su calificación por capa, con certeza y motivos, y la OT tiene una calificación vigente.
 - **O4 —** Pautas, aprobaciones, OT, sesiones, eventos y sensores tienen su CRUD, con las reglas de negocio adentro.
+- **O5 —** Un aviso vive mientras su condición dure: cuando el sensor se corrige, el aviso sale de la pantalla y la bitácora registra que se resolvió.
+- **O6 —** El video del edge entra a la API, la UI lo ve en vivo y un paso de cámara se juzga con el último cuadro, que queda como evidencia.
+- **O7 —** Un agente que se conecta encuentra en `/agente` todo lo que necesita para usar la API sin leer el código.
 - **NO1 —** No es un broker ni varios servicios desplegados: una aplicación y una base ([ADR-0003](../../decisions/0003-patrones-de-arquitectura-para-el-mvp.md)).
 - **NO2 —** No redacta la justificación en texto; entrega los motivos y la redacción es del frente 4.
 
@@ -36,6 +39,8 @@ DESPUÉS
 operario elige la OT → POST /ot/{id}/sesion (une OT y edge)
 edge → POST /edge/{id}/lecturas → servicio: dedupe → sesión → seguridad → paso por sensor → capa 2
      → bitácora (solo agrega) → calificación → bus → WS /ot/{id}/stream → UI
+sensor se corrige → alerta_resuelta → el aviso sale de calificacion.avisos
+cámara → WS /edge/{id}/video → último cuadro → juez de cámara al declarar · MJPEG → UI
 ```
 
 ## 5. Datos y reglas
@@ -48,6 +53,8 @@ edge → POST /edge/{id}/lecturas → servicio: dedupe → sesión → seguridad
 | `ots` | Solo desde una pauta aprobada; guarda la versión | [ADR-0006](../../decisions/0006-la-ot-nace-del-protocolo.md) |
 | `eventos` | Solo agrega; sin editar ni borrar por ninguna vía | [LOGICA](../../architecture/LOGICA.md#evento) |
 | Calificación | Se calcula al leer, no se guarda | ADR-0007 |
+| `alerta_resuelta` | Nuevo tipo de evento: apunta a la alerta que cierra en `evidencia.resuelve` | [LOGICA](../../architecture/LOGICA.md#evento), ADR-0007 |
+| Video | Los últimos 10 s por edge, en memoria; el cuadro que juzgó un paso queda en `datos/evidencias/` | ADR-0007 |
 
 ## 6. Contrato de comportamiento
 
@@ -62,13 +69,15 @@ CUANDO llega una lectura del edge
     si es el sensor del paso actual y lo cierra, entra su veredicto
     si es numérica y se aleja de su historia, entra una alerta de capa 2 (una vez)
     todo sale por el stream de esa OT, con su calificación
+CUANDO la condición de una alerta abierta desaparece
+  ENTONCES entra alerta_resuelta que la apunta, y el aviso deja de venir en calificacion.avisos
 
 Promesas: un modelo nunca contradice a un sensor; solo la capa 1 llega a ERROR; la bitácora solo agrega.
 ```
 
 ## 7. Alcance
 
-**Entra:** sesión por edge, ingreso de lecturas en lote, atribución, revisión por capa, calificación, WebSocket por OT con reconexión, CRUD de pautas, aprobaciones, OT, sesiones, eventos (lectura) y sensores.
+**Entra:** sesión por edge, ingreso de lecturas en lote, atribución, revisión por capa, calificación, resolución de alertas, WebSocket por OT con reconexión, video del edge (entrada, MJPEG y cuadro para el juez), CRUD de pautas, aprobaciones, OT, sesiones, eventos (lectura) y sensores, la guía `/agente` y el servidor del demo.
 
 **No entra:** la redacción de la justificación (frente 4), el juez real de cámara (frente 3), la voz del operario (frente 2), varias estaciones con el mismo `sensor_id`.
 
@@ -84,8 +93,12 @@ Promesas: un modelo nunca contradice a un sensor; solo la capa 1 llega a ERROR; 
 - **CA8 —** **Dado** una pauta sin aprobar, **cuando** alguien abre una OT con ella, **entonces** recibe 409.
 - **CA9 —** **Dado** una versión de pauta que existe, **cuando** alguien la vuelve a crear, **entonces** recibe 409.
 - **CA10 —** **Dado** cualquier evento, **cuando** alguien intenta editarlo o borrarlo, **entonces** recibe 405.
+- **CA11 —** **Dado** una alerta de guarda abierta con energía viva, **cuando** la guarda se cierra o la energía se corta, **entonces** entra `alerta_resuelta` y la UI deja de mostrar el aviso.
+- **CA12 —** **Dado** un pico de vibración con alerta abierta, **cuando** la señal vuelve a lo normal, **entonces** la alerta de capa 2 se resuelve.
+- **CA13 —** **Dado** la cámara del edge transmitiendo, **cuando** el operario declara un paso de cámara, **entonces** el juez recibe el último cuadro y ese cuadro queda como evidencia del veredicto.
+- **CA14 —** **Dado** un agente nuevo, **cuando** lee `/agente`, **entonces** encuentra todas las rutas de la API con la URL del servidor.
 
-Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.py`, `tests/test_stream.py` y `tests/test_api_crud.py`.
+Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.py`, `tests/test_stream.py`, `tests/test_api_crud.py` y `tests/test_video.py`.
 
 ## 9. Riesgos y decisiones abiertas
 
@@ -94,6 +107,8 @@ Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.p
 | Umbrales de la calificación | medio | ¿5 s de frescura, 75 % de confianza de cámara y 3,5 desvíos aguantan el ensayo sin falsas alarmas? `Candidata a validar` | Frente 3 | Francisco |
 | Abrir una OT | medio | ADR-0003 pide que una persona la confirme; hoy el endpoint acepta `actor=sistema` | Equipo | Equipo |
 | Sensores globales | bajo | Con dos estaciones que usen el mismo `sensor_id` se pisan. ¿El demo tiene una sola? | Frente 3 | Francisco |
+| Juez de cámara | alto | El stub ya recibe el cuadro pero no lo mira. ¿Qué VLM y con qué latencia? `Brecha` | Frente 3 | Frente 3 |
+| Autenticación | medio | El servidor del demo es abierto: cualquiera con la URL escribe. ¿Basta para el demo? | Equipo | Francisco |
 | Justificación | medio | ¿El frente 4 redacta sobre los motivos de cada evento o solo al cambiar de nivel? `Brecha` | Frente 4 | Frente 4 |
 
 ## Fuentes
