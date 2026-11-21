@@ -76,11 +76,14 @@ export function PaginaLogin() {
   return (
     // La marca a un lado (arriba en el celular), sobre tinta; el formulario, claro como el resto de la app.
     <Flex mih="100vh" direction={{ base: 'column', md: 'row' }}>
-      <Flex direction="column" justify="space-between" gap={32} w={{ base: '100%', md: '42%' }} p={{ base: 'lg', md: 48 }} style={SOBRE_TINTA}>
-        <Marca alto={26} />
-        <Text component="p" m={0} maw={460} ff={TITULAR} fw={400} fz={{ base: 26, md: 44 }} lh={1.15}>
-          Cada paso verificado queda como un hecho.
-        </Text>
+      <Flex w={{ base: '100%', md: '42%' }} px={{ base: 'md', md: 48 }} py={{ base: 'lg', md: 48 }} style={SOBRE_TINTA}>
+        {/* Arriba, la marca ocupa la misma columna que el formulario: los dos parten del mismo borde. */}
+        <Flex direction="column" justify="space-between" gap={32} flex={1} maw={{ base: 420, md: '100%' }} mx="auto">
+          <Marca alto={26} />
+          <Text component="p" m={0} maw={460} ff={TITULAR} fw={400} fz={{ base: 26, md: 44 }} lh={1.15}>
+            Cada paso verificado queda como un hecho.
+          </Text>
+        </Flex>
       </Flex>
       <Flex flex={1} justify="center" align={{ base: 'flex-start', md: 'center' }} px="md" py="xl">
         <Stack w="100%" maw={420} gap="lg">
