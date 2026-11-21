@@ -1,0 +1,11 @@
+{
+  "nombre": "Celda de media tensión. Estación de ejemplo, no instalada: los sensores que supone la pauta de la celda",
+  "sensores": {
+    "seccionador": ["abierto", "cerrado"],
+    "candado_mando": ["abierto", "cerrado"],
+    "tension": ["presente", "ausente"],
+    "tierra": ["puesta", "retirada"]
+  },
+  "camara": true,
+  "clases": []
+}

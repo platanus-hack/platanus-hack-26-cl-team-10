@@ -4,6 +4,7 @@
 
 | ADR | Fecha | Decisión | Estado |
 |---|---|---|---|
+| [0013](./0013-reconocer-procesos-con-skills-de-agente-y-un-criterio.md) | 2026-11-21 | Los procesos los reconoce un agente con skills (reconocer, optimizar, regla, visión); lo comprobable lo comprueba `app/analisis.py`, y un criterio en el código decide qué se analiza | `proposed` |
 | [0012](./0012-login-y-clientes-cada-empresa-ve-lo-suyo.md) | 2026-11-21 | El servicio para clientes pide login; cada empresa ve solo sus OT y las pautas que el equipo le habilitó, con roles supervisor y operador | `proposed` |
 | [0011](./0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md) | 2026-11-21 | Los protocolos y las pautas se cargan por un servicio interno del equipo, atribuidos entre sí de muchos a muchos; el cliente solo pide OT de las pautas aprobadas | `proposed` |
 | [0010](./0010-demo-brazo-robotico-en-una-celda-con-corte-local.md) | 2026-11-21 | El demo es un brazo robótico en una celda; el corte de energía lo hace el ESP32 por su cuenta y se presenta como integración opcional | `accepted` |
