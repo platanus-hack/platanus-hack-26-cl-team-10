@@ -44,7 +44,6 @@
   .marca svg{width:18px;height:18px;stroke:var(--lima)}
   .grupo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .derecha{margin-left:auto}
-  header a{color:var(--tenue);text-decoration:none;padding:10px 4px} header a:hover{color:var(--lima)}
   label{display:flex;align-items:center;gap:8px}
   input,select,button{font:500 13px/1 var(--mono);letter-spacing:.06em;height:36px;padding:0 12px;border-radius:3px;
                       border:1px solid var(--linea-2);background:var(--panel);color:var(--texto)}
@@ -183,6 +182,8 @@
   }
   @media (max-width:520px){header,main{padding-left:16px;padding-right:16px} input{width:14ch}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  .enlace-sim{display:inline-flex;align-items:center;font:500 13px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;height:36px;padding:0 12px;border:1px solid var(--linea-2);border-radius:3px;color:var(--texto);background:var(--panel);text-decoration:none}
+  .enlace-sim:hover{border-color:var(--lima)}
 </style>
 </head>
 <body data-nivel="ok">
@@ -195,7 +196,8 @@
     <span id="conexion" class="rot" role="status">desconectado</span>
   </div>
   <div class="grupo derecha">
-    <a class="rot" href="/analisis" title="Resultados, tiempos y propuestas de mejora de tu empresa">Análisis</a>
+    <a href="/analisis" class="enlace-sim" title="Resultados, tiempos y propuestas de mejora de tu empresa">Análisis</a>
+    <a href="/simulador" class="enlace-sim" title="La ejecución de una OT en 3D, con las pautas y los operarios de esta base">Simulador</a>
     <select id="pauta" title="Qué pauta ejecuta la OT nueva" aria-label="Pauta de la demo">
       <option value="polin">Cambio de polín</option>
       <option value="loto">LOTO</option>

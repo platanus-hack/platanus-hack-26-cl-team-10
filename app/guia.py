@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.routing import WebSocketRoute
 
-OCULTAS = {"/", "/agente", "/llms.txt", "/llms-full.txt", "/camara", "/monitor", "/casos", "/referencia",
+OCULTAS = {"/", "/agente", "/llms.txt", "/llms-full.txt", "/camara", "/monitor", "/simulador", "/casos", "/referencia",
            "/referencia/clientes.json", "/skills", "/skills/{nombre}/SKILL.md"}
 
 # La comparten esta guía y la referencia (app/referencia.py).

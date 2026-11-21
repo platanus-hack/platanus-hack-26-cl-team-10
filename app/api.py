@@ -1093,6 +1093,12 @@ def pagina_analisis() -> FileResponse:
     return FileResponse(ESTATICO / "analisis.html")
 
 
+@app.get("/simulador")
+def pagina_simulador() -> FileResponse:
+    """El simulador: la ejecución de una OT en 3D con las pautas y los operarios de esta base. Las OT son simuladas."""
+    return FileResponse(ESTATICO / "simulador.html")
+
+
 @app.get("/casos")
 def pagina_casos() -> FileResponse:
     """El banco de pruebas: cada criterio del PRD, corrido contra este servidor u otro."""

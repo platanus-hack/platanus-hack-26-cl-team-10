@@ -119,6 +119,12 @@ class StreamDeLaOT(unittest.TestCase):
         self.assertIn("getUserMedia", self.c.get("/camara").text)
         self.assertIn("avisos", self.c.get("/monitor").text)
 
+    def test_el_simulador_se_sirve_y_el_monitor_lleva_a_el(self):
+        r = self.c.get("/simulador")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Factum · simulador", r.text)
+        self.assertIn('href="/simulador"', self.c.get("/monitor").text)
+
     def test_una_ot_que_no_existe_cierra_el_stream(self):
         from starlette.websockets import WebSocketDisconnect
 
