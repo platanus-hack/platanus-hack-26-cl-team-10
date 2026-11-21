@@ -308,16 +308,21 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
       cerrarYa(m, 'ot-13', b)
       veredicto(m, 'ot-13', m.pauta.pasos[2], 'en_conflicto', 2, 'La cámara no ve el rodillo nuevo en su lugar.', { tipo: 'camara' })
     },
-    // La cámara de Bruno reconoce cosas todo el rato: una con certeza y otra dudosa.
+    // La cámara de Bruno reconoce cosas todo el rato, una con certeza y otra dudosa, y su estación
+    // lee la temperatura del equipo, que va bajando, y a qué distancia está él.
     alIniciar(m, t) {
-      const mirar = () => {
+      let i = 0
+      const latir = () => {
         m.ver('edge-1', [
           { clase: 'soda can', conf: 0.91, caja: [0.36, 0.42, 0.6, 0.78] },
           { clase: 'person', conf: 0.62, caja: [0.62, 0.12, 0.93, 0.9] },
         ])
-        t(500, mirar)
+        m.leer('temp_c', Math.max(24, 46 - i * 0.2).toFixed(1))
+        m.leer('dist_cm', String(Math.round(70 + 20 * Math.sin(i / 5))))
+        i++
+        t(500, latir)
       }
-      t(500, mirar)
+      t(500, latir)
     },
   }),
 

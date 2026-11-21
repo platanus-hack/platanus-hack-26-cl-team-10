@@ -159,7 +159,8 @@ export const tema = createTheme({
 - **Arriba,** quién la ejecuta, con su nombre en grande, y en qué estación corre y desde cuándo. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora».
 - **Cámara.** El video de la estación (`GET /edge/{edge}/video.mjpg`, el que el edge manda al servidor). Encima va lo que la cámara reconoce, en cajas: blancas si está segura (80 % o más) y amarillas si duda; se borran si pasa 1 s sin detecciones. También el paso en curso, y el marco toma el color de la verificación. Si la OT no corre en una estación, lo dice.
 - **Verificación.** Por qué la OT dice «Atención» o «Detente»: cada aviso activo de `calificacion.avisos`, quién lo dice (el sensor o la cámara) y con cuánta certeza. Es lo que explica una tarjeta encendida de la lista.
-- **Sensores,** con el que espera el paso en curso marcado, y **pasos.** Un paso en conflicto va en rojo solo si lo dice el sensor; la duda de la cámara va en amarillo.
+- **Sensores,** una ficha por sensor: los de la pauta de esta OT y los que están leyendo ahora (el servidor recuerda sensores de todas las estaciones, y esos no se muestran). El que espera el paso en curso va primero y marcado, y solo una lectura de ahora cuenta como «ya está». Lo que solo trajo el snapshot dice «Última lectura guardada» y va en gris hasta que llega una nueva. Un sensor numérico muestra su unidad y una línea con sus últimas 90 lecturas, para ver hacia dónde va (la temperatura que baja mientras se espera).
+- **Pasos.** Un paso en conflicto va en rojo solo si lo dice el sensor; la duda de la cámara va en amarillo.
 - **Bitácora** completa, abajo y a todo el ancho, lo último arriba.
 
 Todo llega por el mismo WebSocket de la OT que usa la ejecución, pero esta vista no abre sesión ni declara: mirar no cambia la bitácora.
@@ -368,7 +369,7 @@ Ejecución (Dani). Todos sirven para las dos pautas del repo: la correa (por def
 | Sin evidencia | `sin-senal` | Nada se cierra solo: a los 20 s el paso ofrece «Ya lo hice» |
 | Relevo | `relevo` | OT en 3/6 con un paso confirmado por Ana; Bruno entra y la termina |
 | Incidente | `incidente` | Para el supervisor: la OT de Bruno va en la estación y a los 8 s se abre la guarda con la energía viva. Barra roja, campana y vista en vivo. `/supervisor?escenario=incidente&como=supervisor:oculta` |
-| Atención | `atencion` | Para el supervisor: Ana y Bruno ejecutan a la vez, cada uno en su estación, y en la de Bruno la cámara duda del candado. Su tarjeta va primero y encendida en amarillo. `/supervisor?escenario=atencion&como=supervisor:oculta` |
+| Atención | `atencion` | Para el supervisor: Ana y Bruno ejecutan a la vez, cada uno en su estación, y en la de Bruno la cámara duda del rodillo, reconoce cosas y la estación lee temperatura y distancia. Su tarjeta va primero y encendida en amarillo; su vista en vivo muestra las cajas sobre el video y las fichas de los sensores. `/supervisor?escenario=atencion&como=supervisor:oculta` |
 | Estación ocupada | `estacion-ocupada` | `edge-1` ejecuta la OT de Bruno cuando Ana abre la suya: el aviso dice de quién es y «Tomar la estación» se la quita. `/ot/ot-12?escenario=estacion-ocupada&como=operario:1` |
 | API caída | `api-caida` | Errores y timeouts con el operario a mitad de un paso |
 | Ya completa | `completa` | La OT está terminada cuando el operario la abre |

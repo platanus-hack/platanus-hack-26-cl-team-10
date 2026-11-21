@@ -1,4 +1,4 @@
-import { alpha, Badge, Box, Button, Center, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, ThemeIcon, Title } from '@mantine/core'
+import { alpha, Badge, Box, Button, Center, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title } from '@mantine/core'
 import {
   IconAlertTriangle,
   IconArrowLeft,
@@ -21,7 +21,7 @@ import { useSesion } from '../sesion/sesion'
 import { useNombres, type Usuario } from '../sesion/usuarios'
 import { estadoDe } from './estados'
 import { Encabezado, EstadoBadge, Pagina, VerificacionBadge } from './ui'
-import { useOtEnVivo } from './useOtEnVivo'
+import { useOtEnVivo, type Lectura } from './useOtEnVivo'
 
 const hora = (ts: string) => new Date(ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 const horaCorta = (ts: string) => new Date(ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -243,65 +243,112 @@ function Verificacion({ calificacion }: { calificacion: CalificacionOt | null })
 
 const NOMBRE_SENSOR: Record<string, string> = {
   energia: 'Energía',
+  motor: 'Motor',
   guarda: 'Guarda',
   bloqueo: 'Bloqueo',
   reed_bloqueo: 'Candado',
   operario: 'Persona junto a la máquina',
   equipo: 'Equipo',
-  temp_c: 'Temperatura (°C)',
-  hum_pct: 'Humedad (%)',
-  dist_cm: 'Distancia (cm)',
+  temp_c: 'Temperatura',
+  hum_pct: 'Humedad',
+  dist_cm: 'Distancia',
   tierra: 'Puesta a tierra',
   tension: 'Tensión',
   seccionador: 'Seccionador',
   zona: 'Zona',
   implementos: 'Implementos',
 }
+const UNIDAD: Record<string, string> = { temp_c: '°C', hum_pct: '%', dist_cm: 'cm' }
 
-/** Las lecturas de la estación. El sensor que espera el paso en curso va marcado. */
-function Sensores({ sensores, ot, pauta }: { sensores: Record<string, string>; ot: EstadoOt | null; pauta: Pauta | null }) {
+/** Hacia dónde va un sensor numérico: sus últimas lecturas, de la más vieja a la más nueva. */
+function Tendencia({ serie, nombre }: { serie: number[]; nombre: string }) {
+  const min = Math.min(...serie)
+  // Con menos de 2 unidades de diferencia la línea se ve plana: el ruido del sensor no parece un cambio.
+  const tramo = Math.max(Math.max(...serie) - min, 2)
+  const puntos = serie.map((v, i) => `${((100 * i) / (serie.length - 1)).toFixed(1)},${(28 - (26 * (v - min)) / tramo).toFixed(1)}`).join(' ')
+  return (
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label={`Últimas lecturas de ${nombre}`} style={{ display: 'block', width: '100%', height: 28 }}>
+      <polyline points={puntos} fill="none" stroke="var(--mantine-color-roca-6)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/**
+ * Las lecturas de la estación, una ficha por sensor: los de la pauta de esta OT y los que están
+ * leyendo ahora (el servidor recuerda sensores de todas las estaciones). El que espera el paso
+ * en curso va primero y marcado. Lo que solo trajo el snapshot se ve apagado hasta que llega
+ * una lectura nueva.
+ */
+function Sensores({ sensores, ot, pauta }: { sensores: Record<string, Lectura>; ot: EstadoOt | null; pauta: Pauta | null }) {
   const actual = pauta?.pasos.find((p) => p.id === ot?.paso_actual)
   const espera = actual?.sensor ?? null
-  const filas = Object.entries(sensores).sort(([a], [b]) => Number(b === espera?.id) - Number(a === espera?.id) || a.localeCompare(b))
+  // Sin la pauta no se sabe cuáles son de esta OT: se muestran todos.
+  const ids = pauta
+    ? [...new Set([...pauta.pasos.flatMap((p) => (p.sensor ? [p.sensor.id] : [])), ...Object.keys(sensores).filter((id) => sensores[id].enVivo)])]
+    : Object.keys(sensores)
+  const nombreDe = (id: string) => NOMBRE_SENSOR[id] ?? id
+  const fichas = ids.sort(
+    (a, b) =>
+      Number(b === espera?.id) - Number(a === espera?.id) ||
+      Number(sensores[b]?.enVivo ?? false) - Number(sensores[a]?.enVivo ?? false) ||
+      nombreDe(a).localeCompare(nombreDe(b)),
+  )
   return (
     <Paper withBorder radius="md" p="md">
       <Stack gap="sm">
         <Title order={3} size="h4">
           Sensores
         </Title>
-        {filas.length === 0 ? (
+        {fichas.length === 0 ? (
           <Text c="roca.6" size="sm">
             Todavía no llega ninguna lectura de la estación.
           </Text>
         ) : (
-          <Table verticalSpacing={6} aria-label="Lecturas de la estación">
-            <Table.Tbody>
-              {filas.map(([id, valor]) => {
-                const esperado = espera?.id === id
-                const calza = esperado && espera.espera === valor
-                return (
-                  <Table.Tr key={id} bg={esperado ? (calza ? 'verificado.0' : 'precaucion.0') : undefined}>
-                    <Table.Td>
-                      <Text size="sm" fw={600}>
-                        {NOMBRE_SENSOR[id] ?? id}
+          <SimpleGrid cols={{ base: 2, lg: 3 }} spacing="sm" component="ul" style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Lecturas de la estación">
+            {fichas.map((id) => {
+              const l = sensores[id]
+              const esperado = espera?.id === id
+              // Solo cuenta una lectura de ahora: la guardada puede ser de otra OT o de hace horas.
+              const calza = esperado && !!l?.enVivo && l.valor === espera.espera
+              const color = calza ? 'verificado' : 'precaucion'
+              const guardada = l && !l.enVivo
+              return (
+                <Paper
+                  key={id}
+                  component="li"
+                  withBorder
+                  radius="sm"
+                  p="sm"
+                  bg={esperado ? `${color}.0` : undefined}
+                  data-espera={esperado ? (calza ? 'calza' : 'falta') : undefined}
+                  style={esperado ? { borderLeft: `4px solid var(--mantine-color-${color}-6)` } : undefined}
+                >
+                  <Stack gap={2}>
+                    <Text size="xs" fw={700} c="roca.7">
+                      {nombreDe(id)}
+                    </Text>
+                    <Group gap={4} wrap="nowrap">
+                      {esperado && (calza ? <IconCheck size={18} color="var(--mantine-color-verificado-7)" /> : <IconX size={18} color="var(--mantine-color-precaucion-8)" />)}
+                      <Text size="xl" fw={800} lh={1.2} c={!l || guardada ? 'roca.6' : undefined} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {l ? (UNIDAD[id] ? `${l.valor} ${UNIDAD[id]}` : l.valor) : 'Sin dato'}
                       </Text>
-                      {esperado && (
-                        <Text size="xs" c="roca.7">
-                          El paso {actual!.orden} espera «{espera.espera}»
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td ta="right">
-                      <Group gap={4} justify="flex-end" wrap="nowrap">
-                        {esperado && (calza ? <IconCheck size={16} color="var(--mantine-color-verificado-7)" /> : <IconX size={16} color="var(--mantine-color-precaucion-8)" />)}
-                        <Text fw={800}>{valor}</Text>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                )
-              })}
-            </Table.Tbody>
-          </Table>
+                    </Group>
+                    {l && l.serie.length > 1 && <Tendencia serie={l.serie} nombre={nombreDe(id)} />}
+                    {esperado && (
+                      <Text size="xs" c="roca.7">
+                        El paso {actual!.orden} espera «{espera.espera}»
+                      </Text>
+                    )}
+                    {guardada && (
+                      <Text size="xs" c="roca.6">
+                        Última lectura guardada
+                      </Text>
+                    )}
+                  </Stack>
+                </Paper>
+              )
+            })}
+          </SimpleGrid>
         )}
       </Stack>
     </Paper>

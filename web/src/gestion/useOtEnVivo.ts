@@ -14,13 +14,24 @@ export type Acceso = 'verificando' | 'ok' | 'denegado'
 /** Sin detecciones nuevas en este tiempo, lo que se veía es viejo y se borra (como en el monitor). */
 export const VISTAS_VIVEN_MS = 1000
 
+/**
+ * Lo que se sabe de un sensor. `enVivo` es falso mientras el valor sea solo el que trajo el
+ * snapshot: es lo último que el servidor guardó, quizá hace horas. `serie` son sus últimas
+ * lecturas en vivo, si son números, para dibujar hacia dónde va.
+ */
+export type Lectura = { valor: string; enVivo: boolean; serie: number[] }
+/** Cuántas lecturas guarda la serie: lo que el monitor muestra de la temperatura. */
+export const SERIE_MAX = 90
+
+const numero = (valor: string): number | null => (valor.trim() !== '' && Number.isFinite(Number(valor)) ? Number(valor) : null)
+
 export function useOtEnVivo(otId: string) {
   const [s, dispatch] = useReducer(reducir, inicial)
   const [acceso, setAcceso] = useState<Acceso>('verificando')
   const [detalle, setDetalle] = useState<OtDetalle | null>(null)
   const [pauta, setPauta] = useState<Pauta | null>(null)
   const [sesion, setSesion] = useState<Sesion | null>(null)
-  const [sensores, setSensores] = useState<Record<string, string>>({})
+  const [sensores, setSensores] = useState<Record<string, Lectura>>({})
   const [vistas, setVistas] = useState<Deteccion[]>([])
   const borrarVistas = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -79,7 +90,10 @@ export function useOtEnVivo(otId: string) {
             case 'snapshot':
               dispatch({ tipo: 'snapshot', snapshot: m, inicial: esInicial })
               setSesion(m.sesion)
-              setSensores(m.sensores ?? {})
+              // Al reconectar se conserva la serie, pero todo vuelve a ser «guardado» hasta que llegue una lectura.
+              setSensores((antes) =>
+                Object.fromEntries(Object.entries(m.sensores ?? {}).map(([id, valor]) => [id, { valor: String(valor), enVivo: false, serie: antes[id]?.serie ?? [] }])),
+              )
               break
             case 'evento':
               dispatch({ tipo: 'evento', evento: m.evento })
@@ -93,7 +107,15 @@ export function useOtEnVivo(otId: string) {
               setSesion(m.sesion)
               break
             case 'lectura':
-              setSensores((antes) => (antes[m.sensor_id] === m.valor ? antes : { ...antes, [m.sensor_id]: m.valor }))
+              setSensores((antes) => {
+                const valor = String(m.valor)
+                const previa = antes[m.sensor_id]
+                const n = numero(valor)
+                // Un sensor de texto que repite su valor no cambia nada; un número siempre suma a la serie.
+                if (n === null && previa?.enVivo && previa.valor === valor) return antes
+                const serie = n === null ? [] : [...(previa?.serie ?? []), n].slice(-SERIE_MAX)
+                return { ...antes, [m.sensor_id]: { valor, enVivo: true, serie } }
+              })
               break
             case 'detecciones':
               setVistas(m.objetos)

@@ -42,6 +42,9 @@ function abrir(ot: string, escenario: NombreEscenario = 'feliz') {
 }
 
 const bitacora = () => screen.getByRole('list', { name: 'Bitácora de la OT' })
+const sensores = () => screen.getByRole('list', { name: 'Lecturas de la estación' })
+/** La ficha de un sensor, por su nombre. */
+const sensor = (nombre: string) => within(sensores()).getByText(nombre).closest('li')!
 
 it('a running OT: its camera, the sensors with what the step expects, the steps and the log', async () => {
   abrir('ot-13', 'incidente')
@@ -57,9 +60,8 @@ it('a running OT: its camera, the sensors with what the step expects, the steps 
   expect(within(camara).getByText('Paso 3 de 6')).toBeInTheDocument()
   expect(within(camara).getByText('Cambiar el rodillo')).toBeInTheDocument()
 
-  const sensores = screen.getByRole('table', { name: 'Lecturas de la estación' })
-  expect(within(sensores).getByText('Guarda')).toBeInTheDocument()
-  expect(within(sensores).getByText('abierta')).toBeInTheDocument()
+  const guarda = sensor('Guarda')
+  expect(within(guarda).getByText('abierta')).toBeInTheDocument()
 
   expect(screen.getByText('3. Cambiar el rodillo')).toBeInTheDocument()
   expect(screen.getByText('En curso')).toBeInTheDocument()
@@ -72,7 +74,7 @@ it('watching changes nothing: no session, no declaration', async () => {
   expect(m.sesionDe('ot-12')).toBeNull()
   expect(m.eventos('ot-12').map((e) => e.tipo)).toEqual(['ot_abierta'])
   expect(screen.getByText(/no está corriendo en una estación/)).toBeInTheDocument()
-  expect(screen.queryByRole('table', { name: 'Lecturas de la estación' })).toBeNull()
+  expect(screen.queryByRole('list', { name: 'Lecturas de la estación' })).toBeNull()
 })
 
 it('an incident arrives live: red on top, marked open in the log, and «Ver en la bitácora» picks it', async () => {
@@ -90,7 +92,7 @@ it('an incident arrives live: red on top, marked open in the log, and «Ver en l
   expect(within(arriba).getByText('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBeInTheDocument()
   expect(await screen.findByText('Detente')).toBeInTheDocument()
   // La lectura llega por el stream, sin recargar.
-  await waitFor(() => expect(within(screen.getByRole('table', { name: 'Lecturas de la estación' })).getByText('viva')).toBeInTheDocument())
+  await waitFor(() => expect(within(sensor('Energía')).getByText('viva')).toBeInTheDocument())
 
   const item = document.getElementById(`bitacora-${alerta.id}`)!
   expect(item).toHaveTextContent('Peligro (abierta)')
@@ -132,6 +134,46 @@ it('draws what the camera recognizes over the video, and clears it when the dete
   expect(screen.getByText('person 55 %').parentElement).toHaveAttribute('data-seguro', 'false')
   // Sin detecciones nuevas, lo que se veía es viejo: se borra.
   await waitFor(() => expect(screen.queryByText('polín 87 %')).toBeNull(), { timeout: 2500 })
+})
+
+it('a number shows its unit and its trend; a reading that only came saved looks old until a new one arrives', async () => {
+  abrir('ot-13', 'incidente')
+  await screen.findByText('En vivo')
+  // Lo que trajo el snapshot es lo último que el servidor guardó: no se sabe de cuándo.
+  expect(within(sensor('Guarda')).getByText('Última lectura guardada')).toBeInTheDocument()
+
+  for (const t of ['41.5', '40.9', '40.2']) m.leer('temp_c', t)
+  await waitFor(() => expect(within(sensor('Temperatura')).getByText('40.2 °C')).toBeInTheDocument())
+  expect(within(sensor('Temperatura')).getByRole('img', { name: 'Últimas lecturas de Temperatura' })).toBeInTheDocument()
+  expect(within(sensor('Temperatura')).queryByText('Última lectura guardada')).toBeNull()
+
+  m.leer('guarda', 'abierta')
+  await waitFor(() => expect(within(sensor('Guarda')).queryByText('Última lectura guardada')).toBeNull())
+  // Un sensor de texto no tiene tendencia.
+  expect(within(sensor('Guarda')).queryByRole('img')).toBeNull()
+})
+
+it('shows the sensors of this pauta and the ones reading now, not every sensor the server remembers', async () => {
+  abrir('ot-13', 'incidente')
+  // La tabla de sensores del servidor es de todas las estaciones: esto quedó de otra pauta.
+  m.leer('tierra', 'puesta')
+  await screen.findByText('En vivo')
+  expect(within(sensores()).getByText('Candado')).toBeInTheDocument()
+  expect(within(sensores()).queryByText('Puesta a tierra')).toBeNull()
+
+  m.leer('tierra', 'puesta')
+  expect(await within(sensores()).findByText('Puesta a tierra')).toBeInTheDocument()
+})
+
+it('marks the sensor the step under way waits for, and whether it already reads that', async () => {
+  abrir('ot-12', 'estacion-ocupada')
+  m.abrirSesion('ot-12', 'edge-2', 'operario:1')
+  await screen.findByText('En vivo')
+  // El paso 1 espera el candado cerrado. El servidor guarda un «cerrado» de la OT de Bruno: no cuenta.
+  expect(within(sensor('Candado')).getByText('El paso 1 espera «cerrado»')).toBeInTheDocument()
+  expect(sensor('Candado')).toHaveAttribute('data-espera', 'falta')
+  m.leer('reed_bloqueo', 'cerrado')
+  await waitFor(() => expect(sensor('Candado')).toHaveAttribute('data-espera', 'calza'))
 })
 
 it('an OT of another company, or that does not exist, says so', async () => {
