@@ -18,6 +18,7 @@
 
 - [LOGICA](./architecture/LOGICA.md): **las reglas de negocio.** Qué es un paso y un evento, quién decide que un paso está hecho, qué puede interrumpir al operario y cómo se traspasa un turno. Se acuerda antes de escribir código.
 - [Servicios en vivo](./architecture/servicios.html): **el recorrido animado** de una lectura del edge por cada servicio de la API hasta la bitácora, la calificación y la pantalla, más el catálogo de endpoints y qué admite cada recurso. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
+- [Factum por dentro](./architecture/factum-por-dentro.html): **el sistema completo en siete pantallas interactivas**, para entenderlo y para explicarlo en el pitch. Del protocolo a la pauta y a la OT, el recorrido de una lectura, los algoritmos de las tres capas con sus umbrales, la calificación, el diagrama de software y hardware, y la pauta LOTO paso a paso con seis escenarios. Cada número sale del código, y lo diseñado que no está construido va marcado aparte. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
 - [FLUJO](./architecture/FLUJO.md): los pasos por actor, del protocolo a la OT y a la ejecución guiada, con evidencia, cómo construirlo y qué falta decidir en cada uno. Incluye las capas de verificación y el demo propuesto.
 
 ## Decisiones
