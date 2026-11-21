@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tarjeta LOTO</title>
+<style>
+  @page { margin: 1cm; }
+  body { font-family: Helvetica, Arial, sans-serif; margin: 0; }
+  .tarjeta {
+    width: 8cm; height: 14cm; margin: 1cm auto; box-sizing: border-box;
+    background: #d40000; color: #fff; border-radius: 0.6cm; padding: 0.8cm 0.6cm;
+    text-align: center; position: relative;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .hoyo { width: 1.2cm; height: 1.2cm; border-radius: 50%; background: #fff; margin: 0 auto 0.6cm; }
+  h1 { font-size: 1.6cm; margin: 0; line-height: 1; }
+  h2 { font-size: 0.75cm; margin: 0.3cm 0 0.6cm; }
+  .campo { background: #fff; color: #000; text-align: left; font-size: 0.4cm; padding: 0.25cm; margin: 0.2cm 0; border-radius: 0.15cm; }
+</style>
+</head>
+<body>
+  <div class="tarjeta">
+    <div class="hoyo"></div>
+    <h1>PELIGRO</h1>
+    <h2>NO OPERAR<br>EQUIPO BLOQUEADO</h2>
+    <div class="campo">Nombre:</div>
+    <div class="campo">Fecha:</div>
+    <div class="campo">OT N°:</div>
+  </div>
+</body>
+</html>
