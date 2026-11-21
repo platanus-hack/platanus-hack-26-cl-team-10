@@ -70,7 +70,7 @@ El recorrido animado de una lectura está en [servicios.html](../architecture/se
 | Matriz de escenarios | `POST /escenarios/correr` | 72 de 72 pasan, 0 brechas abiertas |
 | Simulación de capa 2 | `python3 scripts/simular_capa2.py` | Sin ciclo de carga (minería), el detector de hoy sostiene un escalón 100 % con 0,9 falsas alarmas cada 1.000. Con ciclo (eléctrica, construcción), lo sostiene 6 % y 30 %; el CUSUM contra el ciclo, 100 % |
 | Eval de capa 3 | `python3 scripts/evaluar_capa3.py` | 24 escenas sin imagen. El juez sin cuadro responde el stub: acepta 15 de 15 pasos mal hechos. Mide al VLM real cuando haya imágenes y `ANTHROPIC_API_KEY` |
-| Banco contra la VM | `uv run python scripts/correr_casos.py https://34-176-44-192.sslip.io` | Pendiente: la VM corre una versión anterior. Hay que desplegar con `deploy/vm/desplegar.sh` (con `CUENTA=francisco@imclabs.com`) |
+| Contra la VM, desplegada el 2026-11-21 a las 12:25 UTC con `CUENTA=francisco@imclabs.com deploy/vm/desplegar.sh` | `/casos` en `https://34-176-44-192.sslip.io` | Las páginas responden 200 y los 72 escenarios pasan. De las tarjetas pasan CA8, CA9, CA10 y CA14, las que no tocan sensores. El resto no se corrió porque había una sesión LOTO activa de otra persona (`edge-mac`) y el banco pisaría sus sensores globales |
 
 **Lo que depende de otros frentes.**
 
