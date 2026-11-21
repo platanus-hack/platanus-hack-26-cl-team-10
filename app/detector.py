@@ -6,8 +6,10 @@ el servidor no necesita PyTorch ni CLIP: solo onnxruntime + OpenCV. Un hilo toma
 las detecciones que manda el edge (servicios.recibir_detecciones). El resto del
 sistema no se entera de dónde corrió el modelo.
 
-Se activa con DETECTOR_ONNX=/ruta/al/modelo.onnx. El edge debe correr con --sin-yolo
-para no mandar detecciones duplicadas.
+Es el modo de detección por defecto en la VM (deploy/vm/instalar.sh pone DETECTOR_ONNX).
+El otro modo, YOLO en el edge (edge.py --deteccion edge), sigue disponible: sin
+DETECTOR_ONNX el servidor no detecta y usa lo que manda el edge. Con el detector activo,
+las detecciones que mande un edge se ignoran, para no mezclar dos modelos.
 """
 
 from __future__ import annotations
@@ -113,6 +115,9 @@ class DetectorServidor:
 def desde_entorno(servicios) -> DetectorServidor | None:
     ruta = os.environ.get("DETECTOR_ONNX")
     if not ruta:
+        return None
+    if not os.path.exists(ruta):  # sin el modelo la API igual parte: queda el modo edge
+        log.warning("DETECTOR_ONNX=%s no existe: detección en el servidor apagada", ruta)
         return None
     d = DetectorServidor(servicios, ruta, int(os.environ.get("DETECTOR_HILOS", "2")))
     d.iniciar()

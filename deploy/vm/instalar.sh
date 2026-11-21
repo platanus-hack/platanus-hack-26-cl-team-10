@@ -13,7 +13,7 @@ id factum >/dev/null 2>&1 || useradd --system --create-home --home-dir /srv/fact
 if ! command -v uv >/dev/null; then curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh >/dev/null; fi
 mkdir -p /srv/factum/app-nueva && tar xzf /tmp/factum.tgz -C /srv/factum/app-nueva
 rm -rf /srv/factum/codigo && mv /srv/factum/app-nueva /srv/factum/codigo
-mkdir -p /srv/factum/datos/evidencias  # destino del enlace datos/evidencias: sin esto queda roto y guardar_evidencia falla
+mkdir -p /srv/factum/datos/evidencias /srv/factum/datos/modelos  # destino del enlace datos/evidencias: sin esto queda roto y guardar_evidencia falla
 ln -sfn /srv/factum/datos/bitacora.sqlite3 /srv/factum/codigo/datos/bitacora.sqlite3
 ln -sfn /srv/factum/datos/evidencias /srv/factum/codigo/datos/evidencias
 chown -R factum:factum /srv/factum
@@ -25,7 +25,11 @@ After=network-online.target
 [Service]
 User=factum
 WorkingDirectory=/srv/factum/codigo
-# Secretos fuera del repo: ANTHROPIC_API_KEY=... (capa 3 de cámara). El "-" lo hace opcional.
+# Modo de detección por defecto: YOLO en el servidor (app/detector.py). Para volver a
+# YOLO en el edge, DETECTOR_ONNX= (vacío) en /srv/factum/entorno y el edge con --deteccion edge.
+Environment=DETECTOR_ONNX=/srv/factum/datos/modelos/yolo-mouse-pencil-416.onnx
+Environment=VENTANA_DETECCION_S=1.5
+# Secretos y overrides fuera del repo: ANTHROPIC_API_KEY=... (capa 3 de cámara). El "-" lo hace opcional.
 EnvironmentFile=-/srv/factum/entorno
 ExecStart=/srv/factum/codigo/.venv/bin/uvicorn app.api:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1 --timeout-graceful-shutdown 3
 Restart=always

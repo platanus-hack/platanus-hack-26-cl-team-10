@@ -285,7 +285,8 @@ async def video_entrada(ws: WebSocket, edge_id: str) -> None:
                 d = json.loads(m["text"])
                 if not isinstance(d, dict) or d.get("tipo") != "detecciones":
                     raise DeteccionInvalida('se espera un objeto con "tipo": "detecciones"')
-                servicios.recibir_detecciones(edge_id, d)
+                if detector is None:  # con detección en el servidor, las del edge se ignoran
+                    servicios.recibir_detecciones(edge_id, d)
         except (CuadroInvalido, DeteccionInvalida, json.JSONDecodeError) as e:
             await ws.send_json({"error": str(e)})
 

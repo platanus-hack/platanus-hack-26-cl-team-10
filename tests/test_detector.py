@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 TIENE = all(importlib.util.find_spec(m) for m in ("numpy", "cv2"))
-MODELO = Path(__file__).resolve().parent.parent / "datos" / "modelos" / "yolo-mouse-lapiz-640.onnx"
+MODELO = Path(__file__).resolve().parent.parent / "datos" / "modelos" / "yolo-mouse-pencil-640.onnx"
 FOTOS = sorted((Path(__file__).resolve().parent.parent / "edge" / "data" / "frames").glob("*.jpg"))
 
 
@@ -37,6 +37,18 @@ class Postproceso(unittest.TestCase):
 
         from app.detector import postproceso
         self.assertEqual(postproceso(np.zeros((1, 6, 10), np.float32), ["a", "b"], 1, 0, 0, 640, 640), [])
+
+
+class Modos(unittest.TestCase):
+    def test_sin_modelo_la_api_igual_parte_en_modo_edge(self):
+        import os
+        from unittest import mock
+
+        from app.detector import desde_entorno
+        with mock.patch.dict(os.environ, {"DETECTOR_ONNX": "/no/existe.onnx"}):
+            self.assertIsNone(desde_entorno(servicios=None))
+        with mock.patch.dict(os.environ, {"DETECTOR_ONNX": ""}):
+            self.assertIsNone(desde_entorno(servicios=None))
 
 
 @unittest.skipUnless(TIENE and MODELO.exists() and FOTOS and importlib.util.find_spec("onnxruntime"),
