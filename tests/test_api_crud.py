@@ -43,6 +43,19 @@ class CrudPorHTTP(unittest.TestCase):
         self.assertEqual(self.c.get("/ot/no-existe").status_code, 404)
         self.assertEqual(self.c.get("/eventos/999").status_code, 404)
 
+    def test_un_bug_no_se_disfraza_de_404(self):
+        from unittest import mock
+
+        from fastapi.testclient import TestClient
+
+        from app import api
+
+        self.c.post("/pauta/demo")
+        self.c.post("/ot/ot-1/abrir")
+        c = TestClient(api.app, raise_server_exceptions=False)
+        with mock.patch.object(api.servicios, "calificacion", side_effect=KeyError("clave_mal_escrita")):
+            self.assertEqual(c.get("/ot/ot-1/calificacion").status_code, 500)
+
     def test_la_bitacora_no_se_edita_ni_se_borra(self):
         self.c.post("/pauta/demo")
         self.c.post("/ot/ot-1/abrir")

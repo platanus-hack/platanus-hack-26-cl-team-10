@@ -49,7 +49,7 @@ from app.reglas import (
     por_deteccion,
     reglas_seguridad,
 )
-from app.contratos import Veredicto
+from app.contratos import Pauta, Paso, Veredicto
 from app.scoring import Nivel, avisos, calificar_evento, capa2, frescura, peor, vigentes
 from app.video import SEGUNDOS_GUARDADOS, Video
 
@@ -87,6 +87,14 @@ def _clave_seguridad(detalle: str) -> str:
 
 def _clave_senal(sensor_id: str) -> str:
     return f"senal:{sensor_id}"
+
+
+def _paso(pauta: Pauta, paso_id: str) -> Paso:
+    """El paso que nombró el cliente: si no es de la pauta, es un 404 y no un bug."""
+    try:
+        return pauta.paso(paso_id)
+    except KeyError:
+        raise db.NoExiste(f"paso {paso_id} de la pauta {pauta.id}") from None
 
 
 def _edad_s(ts: str) -> float:
@@ -275,7 +283,7 @@ class Servicios:
         pauta = db.leer_pauta(self.cx, fila["pauta_id"], fila["pauta_version"])
         estados = estados_desde_eventos(db.eventos(self.cx, ot_id))
         if paso_id is not None:
-            nombrado = pauta.paso(paso_id)
+            nombrado = _paso(pauta, paso_id)
             if estados.get(paso_id) is Estado.VERIFICADO:
                 self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.DECLARACION, ts=db.ahora(), actor=actor,
                                     paso_id=paso_id, declarado=texto,
@@ -328,7 +336,7 @@ class Servicios:
         sensores reales. Solo el paso en curso, y no un paso de confirmación.
         """
         pauta, estados = self._pauta_y_estados(ot_id)
-        paso = pauta.paso(paso_id)
+        paso = _paso(pauta, paso_id)
         actual = paso_actual(pauta, estados)
         if actual is None:
             raise ReglaDeNegocio("la pauta ya está completa")

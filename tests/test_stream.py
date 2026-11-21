@@ -109,6 +109,10 @@ class StreamDeLaOT(unittest.TestCase):
         jpeg = b"\xff\xd8" + b"esp32" + b"\xff\xd9"
         self.assertEqual(self.c.post("/edge/edge-2/cuadro", content=jpeg).json()["cuadro"], 1)
         self.assertEqual(self.c.post("/edge/edge-2/cuadro", content=b"texto").status_code, 422)
+        from app.video import TAMANO_MAX
+        enorme = self.c.post("/edge/edge-2/cuadro", content=b"\xff\xd8" + b"x" * TAMANO_MAX)
+        self.assertEqual(enorme.status_code, 422)
+        self.assertIn("pasa de", enorme.json()["cuadro"])
         self.assertEqual(self.c.get("/edge/edge-9/cuadro.jpg").status_code, 404)
 
     def test_las_paginas_de_camara_y_monitor_se_sirven(self):

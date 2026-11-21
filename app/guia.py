@@ -119,7 +119,8 @@ reglas) llega a `error`. La capa 2 (anomalía de señal) y la capa 3 (cámara) l
 
 - Entrada: `WS {ws}/edge/{{edge_id}}/video`, un JPEG por mensaje binario (máximo 2 MB, hasta 10 por segundo).
   Un cuadro inválido devuelve `{{"error": ...}}` y no corta la conexión. Por HTTP: `POST /edge/{{edge_id}}/cuadro`
-  con el JPEG como cuerpo.
+  con el JPEG como cuerpo. El servidor guarda video de hasta 8 edges a la vez: si llega uno más, sale el
+  que lleva más tiempo sin transmitir.
 - Salida: `GET /edge/{{edge_id}}/video.mjpg` (MJPEG, sirve en un `<img>`), `GET /edge/{{edge_id}}/cuadro.jpg`
   (el último cuadro) y `GET /edge/{{edge_id}}/video` (si hay video, su edad y sus cuadros por segundo).
 - Un paso de cámara se juzga con el último cuadro al llamar `POST /ot/{{ot_id}}/declarar`; el cuadro queda
@@ -139,10 +140,11 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
 
 | Código | Cuerpo | Qué significa |
 |---|---|---|
-| 404 | `{{"no_existe": "..."}}` | La OT, pauta, evento o sesión no existe |
+| 404 | `{{"no_existe": "..."}}` | La OT, pauta, paso, evento o sesión no existe |
 | 409 | `{{"regla": "..."}}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
 | 422 | `{{"detail": ...}}` o `{{"cuadro": "..."}}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |
 | 405 | — | Se intentó editar o borrar algo que solo se lee (la bitácora) |
+| 500 | — | Falló el servidor. No dice nada sobre si lo pedido existe: avisar al equipo |
 
 ## Todos los endpoints
 

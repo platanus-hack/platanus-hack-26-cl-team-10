@@ -49,6 +49,15 @@ class JuezClaude(unittest.TestCase):
                 mock.patch.object(verificacion, "preguntar_claude", side_effect=TimeoutError):
             self.assertEqual(verificacion.juez_camara("p", JPEG), (False, 0.0))
 
+    def test_agotado_el_tope_de_llamadas_el_juez_no_verifica_ni_llama(self):
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "prueba"}), \
+                mock.patch.object(verificacion, "_llamadas", 0), \
+                mock.patch.object(verificacion, "LLAMADAS_MAX", 2), \
+                mock.patch.object(verificacion, "preguntar_claude", return_value=(True, 0.9)) as vlm:
+            respuestas = [verificacion.juez_camara("p", JPEG) for _ in range(3)]
+        self.assertEqual(respuestas, [(True, 0.9), (True, 0.9), (False, 0.0)])
+        self.assertEqual(vlm.call_count, 2)
+
 
 class SinVLM(unittest.TestCase):
     def test_sin_key_o_sin_cuadro_queda_el_stub_de_ensayo(self):

@@ -122,7 +122,7 @@ def leer_pauta(cx: sqlite3.Connection, pauta_id: str, version: int | None = None
         (pauta_id, version) if version is not None else (pauta_id,),
     ).fetchone()
     if fila is None:
-        raise KeyError(f"pauta {pauta_id}" + (f" v{version}" if version is not None else ""))
+        raise db.NoExiste(f"pauta {pauta_id}" + (f" v{version}" if version is not None else ""))
     d = json.loads(fila["json"])
     d["aprobada"] = aprobada(cx, d["id"], d["version"])
     return d
@@ -167,5 +167,5 @@ def listar_ots(cx: sqlite3.Connection) -> list[dict]:
 def leer_evento(cx: sqlite3.Connection, evento_id: int):
     f = cx.execute("SELECT ot_id FROM eventos WHERE id = ?", (evento_id,)).fetchone()
     if f is None:
-        raise KeyError(f"evento {evento_id}")
+        raise db.NoExiste(f"evento {evento_id}")
     return next(e for e in db.eventos(cx, f["ot_id"]) if e.id == evento_id)

@@ -19,11 +19,15 @@ import base64
 import json
 import logging
 import os
+import threading
 
 log = logging.getLogger(__name__)
 
 MODELO_POR_DEFECTO = "claude-haiku-5-5"  # multimodal, $0,10 / $0,50 por millón de tokens
 TIMEOUT_S = 15.0
+# /declarar es público y cada paso de cámara sin certeza llama al modelo: sin tope, cualquiera
+# gasta la key. Al agotarse el juez deja de verificar (warning de capa 3) hasta reiniciar.
+LLAMADAS_MAX = int(os.environ.get("VLM_MAX_LLAMADAS", "3000"))
 
 INSTRUCCION = (
     "Eres el verificador visual de un procedimiento de mantenimiento industrial. "
@@ -44,6 +48,8 @@ ESQUEMA = {
 # Permite forzar la respuesta de la cámara durante un ensayo del demo.
 _FORZAR: dict[str, bool] = {}
 _cliente = None
+_llamadas = 0
+_candado = threading.Lock()
 
 
 def forzar_camara(pregunta: str, respuesta: bool) -> None:
@@ -71,11 +77,23 @@ def juez_camara(pregunta: str, cuadro: bytes | None = None) -> tuple[bool, float
         return _FORZAR[pregunta], 0.91
     if cuadro is None or not vlm_configurado():
         return True, 0.55  # stub de ensayo: sin VLM conectado
+    if not _queda_presupuesto():
+        return False, 0.0
     try:
         return preguntar_claude(pregunta, cuadro)
     except Exception:  # noqa: BLE001 - cualquier falla del VLM se trata igual: no verifica
         log.exception("el VLM no pudo juzgar «%s»", pregunta)
         return False, 0.0
+
+
+def _queda_presupuesto() -> bool:
+    global _llamadas
+    with _candado:
+        if _llamadas >= LLAMADAS_MAX:
+            log.error("el VLM llegó a su tope de %d llamadas por proceso (VLM_MAX_LLAMADAS): no juzga más", LLAMADAS_MAX)
+            return False
+        _llamadas += 1
+        return True
 
 
 def preguntar_claude(pregunta: str, cuadro: bytes, cliente=None) -> tuple[bool, float]:
