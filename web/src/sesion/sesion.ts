@@ -58,3 +58,9 @@ export function useSesion(): Usuario | null {
   const cruda = useSyncExternalStore(suscribir, leerCruda)
   return useMemo(() => desdeCruda(cruda), [cruda])
 }
+
+/** Login falso por URL (?como=operario:1): entra como ese usuario del demo. Sirve con o sin mock. */
+export function sesionDeLaUrl(search: string): Usuario | null {
+  const como = new URLSearchParams(search).get('como')
+  return USUARIOS.find((u) => u.id === como) ?? null
+}

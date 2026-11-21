@@ -1,5 +1,5 @@
 import { PAUTA_DEMO } from './pauta'
-import { ESCENARIOS, escenarioDeLaUrl, sesionDeLaUrl, type Temporizador } from './escenarios'
+import { ESCENARIOS, escenarioDeLaUrl, type Temporizador } from './escenarios'
 import { Mundo } from './mundo'
 
 const pauta = PAUTA_DEMO
@@ -22,12 +22,6 @@ describe('url', () => {
     expect(escenarioDeLaUrl('?escenario=nope')).toBe('feliz')
     expect(escenarioDeLaUrl('')).toBe('feliz')
     expect(escenarioDeLaUrl('?escenario=feliz')).toBe('feliz')
-  })
-
-  it('sesionDeLaUrl signs in a known demo user only', () => {
-    expect(sesionDeLaUrl('?escenario=relevo&como=operario:2')?.nombre).toBe('OP2')
-    expect(sesionDeLaUrl('?como=intruso')).toBeNull()
-    expect(sesionDeLaUrl('')).toBeNull()
   })
 })
 

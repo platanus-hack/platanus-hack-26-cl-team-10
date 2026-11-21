@@ -1,4 +1,4 @@
-import { cerrarSesion, guardarSesion, leerSesion } from './sesion'
+import { cerrarSesion, guardarSesion, leerSesion, sesionDeLaUrl } from './sesion'
 import { USUARIOS, nombreDe } from './usuarios'
 
 it('round-trips the session through localStorage', () => {
@@ -16,4 +16,10 @@ it('returns null on corrupt storage', () => {
 it('names actors', () => {
   expect(nombreDe('operario:2')).toBe('OP2')
   expect(nombreDe('sistema')).toBe('sistema')
+})
+
+it('sesionDeLaUrl signs in a known demo user only, in any mode', () => {
+  expect(sesionDeLaUrl('?escenario=relevo&como=operario:2')?.nombre).toBe('OP2')
+  expect(sesionDeLaUrl('?como=intruso')).toBeNull()
+  expect(sesionDeLaUrl('')).toBeNull()
 })

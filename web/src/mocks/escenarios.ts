@@ -1,8 +1,7 @@
 // Escenarios del mock: qué hace la API en cada caso que el front tiene que aguantar.
-// Se elige con ?escenario=<nombre>; ?como=<actor> entra como ese usuario del demo.
+// Se elige con ?escenario=<nombre>. (?como=<actor> lo maneja sesion/sesion.ts, con o sin mock.)
 
 import type { EstadoPasoApi, Evento, PasoPauta, RespuestaDeclarar } from '../api/tipos'
-import { USUARIOS, type Usuario } from '../sesion/usuarios'
 import type { Mundo } from './mundo'
 
 export type Temporizador = (ms: number, fn: () => void) => void
@@ -228,9 +227,4 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
 export function escenarioDeLaUrl(search: string): NombreEscenario {
   const nombre = new URLSearchParams(search).get('escenario') as NombreEscenario | null
   return nombre && ESCENARIOS[nombre] ? nombre : 'feliz'
-}
-
-export function sesionDeLaUrl(search: string): Usuario | null {
-  const como = new URLSearchParams(search).get('como')
-  return USUARIOS.find((u) => u.id === como) ?? null
 }
