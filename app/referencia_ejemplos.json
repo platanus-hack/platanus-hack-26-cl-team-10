@@ -1,0 +1,309 @@
+{
+  "POST /auth/entrar": {
+    "pedido": {
+      "usuario": "carla.munoz@oculta.example",
+      "clave": "<la clave que entrega el equipo>"
+    },
+    "respuesta": {
+      "token": "<token>",
+      "expira": "2026-11-22T09:34:29+00:00",
+      "persona": {
+        "id": "supervisor:oculta",
+        "nombre": "Carla Muñoz",
+        "usuario": "carla.munoz@oculta.example",
+        "rol": "supervisor",
+        "cliente": {
+          "id": "oculta",
+          "nombre": "Oculta",
+          "industria": "minería"
+        }
+      }
+    }
+  },
+  "GET /yo": {
+    "respuesta": {
+      "id": "supervisor:oculta",
+      "nombre": "Carla Muñoz",
+      "usuario": "carla.munoz@oculta.example",
+      "rol": "supervisor",
+      "cliente": {
+        "id": "oculta",
+        "nombre": "Oculta",
+        "industria": "minería"
+      }
+    }
+  },
+  "GET /cliente/pautas": {
+    "respuesta": [
+      {
+        "id": "pauta-brazo-01",
+        "nombre": "Ajuste de pinza en brazo robótico",
+        "version": 1,
+        "equipo": "brazo BR-01, celda del demo",
+        "pasos": 9,
+        "protocolos": [
+          {
+            "id": "prot-aislamiento-01",
+            "nombre": "Aislamiento y bloqueo de energías"
+          },
+          {
+            "id": "prot-brazo-01",
+            "nombre": "Ajuste de pinza en brazo robótico"
+          }
+        ]
+      }
+    ]
+  },
+  "POST /cliente/ots": {
+    "pedido": {
+      "pauta_id": "pauta-polin-demo"
+    },
+    "respuesta": {
+      "ot": "ot-0017",
+      "pauta": "pauta-polin-demo",
+      "version": 1,
+      "nombre": "Cambio de polín · demo de 2 minutos",
+      "protocolos": [
+        {
+          "id": "prot-aislamiento-01",
+          "nombre": "Aislamiento y bloqueo de energías"
+        },
+        {
+          "id": "prot-correa-01",
+          "nombre": "Mantención de polines y rodillos en correa transportadora"
+        }
+      ],
+      "cliente": "oculta"
+    }
+  },
+  "GET /cliente/ots": {
+    "respuesta": [
+      {
+        "ot": "ot-1014",
+        "pauta": "pauta-loto-escritorio",
+        "version": 1,
+        "equipo": "estación demo (ESP32 + cámara)",
+        "abierta_en": "2026-11-14T12:49:40+00:00",
+        "paso_actual": null,
+        "completa": true,
+        "operador": "operario:1",
+        "estado_general": "completa",
+        "entregada_por": null,
+        "cerrados": 6,
+        "total": 6,
+        "calificacion": {
+          "nivel": "ok",
+          "certeza": 0.9,
+          "capa": 3,
+          "motivos": [
+            "la cámara responde que sí (90%)"
+          ],
+          "avisos": []
+        }
+      }
+    ]
+  },
+  "GET /cliente/ots/{ot_id}": {
+    "respuesta": {
+      "ot": "ot-0017",
+      "pauta": "pauta-polin-demo",
+      "version": 1,
+      "equipo": "correa a escala del demo",
+      "abierta_en": "2026-11-21T21:34:29+00:00",
+      "paso_actual": "p1",
+      "completa": false,
+      "operador": "operario:1",
+      "estado_general": "en_ejecucion",
+      "entregada_por": null,
+      "cerrados": 0,
+      "total": 8,
+      "calificacion": {
+        "nivel": "ok",
+        "certeza": 1.0,
+        "capa": null,
+        "motivos": [
+          "sin nada que calificar"
+        ],
+        "avisos": []
+      }
+    }
+  },
+  "GET /cliente/operadores": {
+    "respuesta": [
+      {
+        "id": "operario:1",
+        "nombre": "Ana Rojas",
+        "usuario": "ana.rojas@oculta.example",
+        "rol": "operador",
+        "cliente": {
+          "id": "oculta",
+          "nombre": "Oculta",
+          "industria": "minería"
+        }
+      }
+    ]
+  },
+  "GET /cliente/personas": {
+    "respuesta": [
+      {
+        "id": "operario:1",
+        "nombre": "Ana Rojas",
+        "rol": "operador"
+      },
+      {
+        "id": "operario:2",
+        "nombre": "Bruno Díaz",
+        "rol": "operador"
+      },
+      {
+        "id": "supervisor:oculta",
+        "nombre": "Carla Muñoz",
+        "rol": "supervisor"
+      }
+    ]
+  },
+  "POST /cliente/ots/{ot_id}/asignar": {
+    "pedido": {
+      "operador": "operario:1"
+    },
+    "respuesta": {
+      "ot": "ot-0017",
+      "pauta": "pauta-polin-demo",
+      "version": 1,
+      "equipo": "correa a escala del demo",
+      "abierta_en": "2026-11-21T21:34:29+00:00",
+      "paso_actual": "p1",
+      "completa": false,
+      "operador": "operario:1",
+      "estado_general": "asignada",
+      "entregada_por": null,
+      "cerrados": 0,
+      "total": 8
+    }
+  },
+  "POST /cliente/ots/{ot_id}/sesion": {
+    "pedido": {
+      "edge_id": "edge-1",
+      "tomar": false
+    },
+    "respuesta": {
+      "edge_id": "edge-1",
+      "ot_id": "ot-0017",
+      "operario": "operario:1",
+      "desde": "2026-11-21T21:34:29+00:00"
+    }
+  },
+  "GET /ot/{ot_id}": {
+    "respuesta": {
+      "pauta": "Cambio de polín · demo de 2 minutos v1",
+      "equipo": "correa a escala del demo",
+      "paso_actual": "p1",
+      "completa": false,
+      "pasos": [
+        {
+          "id": "p1",
+          "orden": 1,
+          "titulo": "Cortar la corriente del motor",
+          "estado": "no_verificado",
+          "control_critico": true,
+          "capa": null,
+          "evidencia": null,
+          "detalle": null
+        },
+        {
+          "id": "p2",
+          "orden": 2,
+          "titulo": "Poner tu candado",
+          "estado": "no_verificado",
+          "control_critico": true,
+          "capa": null,
+          "evidencia": null,
+          "detalle": null
+        }
+      ],
+      "verificados": [],
+      "en_conflicto": [],
+      "pendientes": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7",
+        "p8"
+      ]
+    }
+  },
+  "POST /ot/{ot_id}/declarar": {
+    "pedido": {
+      "actor": "operario:1",
+      "texto": "corté la corriente del motor",
+      "paso_id": "p1"
+    },
+    "respuesta": {
+      "paso": "p1",
+      "estado": "no_verificado",
+      "capa": 1,
+      "detalle": "sin lectura de energia",
+      "interrumpe": false,
+      "evidencia": {
+        "tipo": "sensor",
+        "id": "energia",
+        "valor": null,
+        "espera": "cortada"
+      },
+      "calificacion": {
+        "nivel": "ok",
+        "certeza": 1.0,
+        "capa": 1,
+        "motivos": [
+          "sin lectura de energia"
+        ]
+      },
+      "calificacion_ot": {
+        "nivel": "ok",
+        "certeza": 1.0,
+        "capa": 1,
+        "motivos": [
+          "sin lectura de energia"
+        ],
+        "avisos": []
+      }
+    }
+  },
+  "GET /ot/{ot_id}/eventos": {
+    "respuesta": [
+      {
+        "ot_id": "ot-0017",
+        "tipo": "ot_abierta",
+        "ts": "2026-11-21T21:34:29+00:00",
+        "actor": "supervisor:oculta",
+        "detalle": "OT abierta desde Cambio de polín · demo de 2 minutos v1 sobre correa a escala del demo",
+        "id": 146,
+        "paso_id": null,
+        "estado": null,
+        "capa": null,
+        "declarado": null,
+        "evidencia": null,
+        "calificacion": null
+      },
+      {
+        "ot_id": "ot-0017",
+        "tipo": "ot_asignada",
+        "ts": "2026-11-21T21:34:29+00:00",
+        "actor": "supervisor:oculta",
+        "detalle": "OT asignada a operario:1",
+        "id": 147,
+        "paso_id": null,
+        "estado": null,
+        "capa": null,
+        "declarado": null,
+        "evidencia": {
+          "operador": "operario:1"
+        },
+        "calificacion": null
+      }
+    ]
+  }
+}
