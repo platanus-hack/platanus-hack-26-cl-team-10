@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -41,11 +42,55 @@ def ahora() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+class _Filas:
+    """El resultado de una consulta ya leído entero, para soltar el candado al volver."""
+
+    def __init__(self, cur: sqlite3.Cursor) -> None:
+        self._filas, self._i = cur.fetchall(), 0
+        self.lastrowid, self.rowcount = cur.lastrowid, cur.rowcount
+
+    def fetchone(self):
+        if self._i >= len(self._filas):
+            return None
+        self._i += 1
+        return self._filas[self._i - 1]
+
+    def fetchall(self) -> list:
+        resto, self._i = self._filas[self._i:], len(self._filas)
+        return resto
+
+    def __iter__(self):
+        return iter(self.fetchall())
+
+
+class ConexionCompartida(sqlite3.Connection):
+    """Una conexión que usan a la vez los hilos de los endpoints y el loop de los
+    WebSocket. sqlite3 no admite uso concurrente de una misma conexión (InterfaceError
+    con 18 detecciones por segundo contra /lecturas): cada operación pasa por un candado
+    y devuelve las filas ya leídas."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._candado = threading.RLock()
+
+    def execute(self, sql, parametros=(), /):
+        with self._candado:
+            return _Filas(super().execute(sql, parametros))
+
+    def executescript(self, script, /):
+        with self._candado:
+            return super().executescript(script)
+
+    def commit(self) -> None:
+        with self._candado:
+            super().commit()
+
+
 def conectar(ruta: Path | str | None = None) -> sqlite3.Connection:
     destino = Path(ruta) if ruta else RUTA
     if destino != Path(":memory:"):
         destino.parent.mkdir(parents=True, exist_ok=True)
-    cx = sqlite3.connect(destino, check_same_thread=False)
+    cx = sqlite3.connect(destino, check_same_thread=False, factory=ConexionCompartida)
     cx.row_factory = sqlite3.Row
     cx.executescript(_ESQUEMA)
     return cx
