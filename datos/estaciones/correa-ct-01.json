@@ -1,0 +1,11 @@
+{
+  "nombre": "Correa CT-01, estación de polines 14. Estación de ejemplo, no instalada: los sensores que suponen las pautas de la correa",
+  "sensores": {
+    "correa": ["detenida", "en_marcha"],
+    "energia": ["viva", "cortada"],
+    "bloqueo": ["puesto", "retirado"],
+    "guarda": ["abierta", "cerrada"]
+  },
+  "camara": true,
+  "clases": []
+}

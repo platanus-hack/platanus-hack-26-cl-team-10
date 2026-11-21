@@ -22,6 +22,7 @@ class CrudPorHTTP(unittest.TestCase):
         api.cx = db.conectar(":memory:")
         api.servicios = Servicios(api.cx)
         self.c = TestClient(api.app)
+        self.pauta_ruta = PAUTA_DEMO
         self.pauta = json.loads(PAUTA_DEMO.read_text(encoding="utf-8"))
 
     def test_el_ciclo_de_una_pauta_hasta_su_ot(self):
@@ -31,6 +32,17 @@ class CrudPorHTTP(unittest.TestCase):
         self.assertTrue(r.json()["aprobada"])
         self.assertEqual(self.c.post("/ot/ot-1/abrir").status_code, 200)
         self.assertEqual(self.c.get("/ots").json()[0]["paso_actual"], "p1")
+
+    def test_el_edge_pregunta_que_clases_pide_su_ot(self):
+        from app import api, db
+        from app.protocolos import desde_json
+        loto = desde_json(self.pauta_ruta.parent / "pauta-loto.json")
+        db.guardar_pauta(api.cx, loto)
+        db.abrir_ot(api.cx, "ot-1", loto, "supervisor:X")
+        self.assertEqual(self.c.get("/edge/edge-1/clases").json(), {"ot": None, "clases": [], "detector_no_conoce": []})
+        self.c.post("/ot/ot-1/sesion", json={"edge_id": "edge-1", "operario": "operario:A"})
+        self.assertEqual(self.c.get("/edge/edge-1/clases").json(),
+                         {"ot": "ot-1", "clases": ["mouse", "pencil"], "detector_no_conoce": []})
 
     def test_escribir_encima_de_una_version_es_409(self):
         self.c.post("/pautas", json=self.pauta)
