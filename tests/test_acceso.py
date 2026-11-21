@@ -197,6 +197,61 @@ class PorHTTP(unittest.TestCase):
         personas = self.c.get("/cliente/personas", headers={"Authorization": f"Bearer {token}"}).json()
         self.assertEqual(personas, [{"id": "operario:otra-1", "nombre": "Luis", "rol": "operador"}])
 
+    def otra_empresa_con_una_ot(self):
+        self.assertEqual(self.c.post("/interno/clientes", json={"id": "otra", "nombre": "Otra Minera"}).status_code, 201)
+        r = self.c.post("/interno/clientes/otra/personas", json={"id": "supervisor:otra", "nombre": "Pedro", "usuario": "pedro@otra.example", "rol": "supervisor"})
+        self.assertEqual(self.c.put("/interno/clientes/otra/pautas/pauta-brazo-01").status_code, 200)
+        token = self.c.post("/auth/entrar", json={"usuario": "pedro@otra.example", "clave": r.json()["clave"]}).json()["token"]
+        return self.c.post("/cliente/ots", json={"pauta_id": "pauta-brazo-01"}, headers={"Authorization": f"Bearer {token}"}).json()["ot"]
+
+    def test_el_operador_une_su_ot_a_una_estacion_libre_con_su_token(self):
+        ana = self.cabecera("ana.rojas@oculta.example")
+        with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
+            r = self.c.post("/cliente/ots/ot-1004/sesion", json={"edge_id": "edge-1"}, headers=ana)
+            self.assertEqual((r.status_code, r.json()["ot_id"], r.json()["operario"]), (200, "ot-1004", "operario:1"))
+            self.assertEqual(self.c.post("/cliente/ots/ot-1004/sesion", json={}, headers=ana).status_code, 200)
+        self.assertEqual(self.c.get("/edge/edge-1/sesion").json()["ot_id"], "ot-1004")
+
+    def test_una_estacion_ocupada_se_toma_solo_si_el_operador_lo_pide(self):
+        self.assertEqual(self.c.post("/pauta/demo").status_code, 200)
+        self.assertEqual(self.c.post("/ot/ot-prueba/abrir").status_code, 200)
+        for ocupante in ("ot-1002", "ot-prueba"):  # la de un compañero y una del equipo, sin empresa
+            self.assertEqual(self.c.post(f"/ot/{ocupante}/sesion", json={"edge_id": "edge-1", "operario": "operario:A"}).status_code, 200)
+            ana = self.cabecera("ana.rojas@oculta.example")
+            with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
+                r = self.c.post("/cliente/ots/ot-1004/sesion", json={"edge_id": "edge-1"}, headers=ana)
+                self.assertEqual(r.status_code, 409, ocupante)
+                self.assertIn(ocupante, r.json()["regla"])
+                self.assertIn("tomar", r.json()["regla"])
+                self.assertEqual(self.c.get("/edge/edge-1/sesion").json()["ot_id"], ocupante)
+                r = self.c.post("/cliente/ots/ot-1004/sesion", json={"edge_id": "edge-1", "tomar": True}, headers=ana)
+                self.assertEqual((r.status_code, r.json()["ot_id"], r.json()["operario"]), (200, "ot-1004", "operario:1"))
+                self.assertEqual(self.c.post("/ot/ot-1007/sesion", json={"edge_id": "edge-1", "operario": "operario:1"}).status_code, 401)
+
+    def test_una_estacion_con_una_ot_completa_no_hace_falta_tomarla(self):
+        self.assertEqual(self.c.post("/ot/ot-1005/sesion", json={"edge_id": "edge-1", "operario": "operario:2"}).status_code, 200)
+        r = self.c.post("/cliente/ots/ot-1004/sesion", json={"edge_id": "edge-1"}, headers=self.cabecera("ana.rojas@oculta.example"))
+        self.assertEqual((r.status_code, r.json()["ot_id"]), (200, "ot-1004"))
+
+    def test_la_estacion_que_ejecuta_la_ot_de_otra_empresa_no_se_toma(self):
+        ajena = self.otra_empresa_con_una_ot()
+        self.assertEqual(self.c.post(f"/ot/{ajena}/sesion", json={"edge_id": "edge-1", "operario": "operario:A"}).status_code, 200)
+        r = self.c.post("/cliente/ots/ot-1004/sesion", json={"edge_id": "edge-1", "tomar": True}, headers=self.cabecera("ana.rojas@oculta.example"))
+        self.assertEqual(r.status_code, 403)
+        self.assertNotIn(ajena, r.text)
+        self.assertEqual(self.c.get("/edge/edge-1/sesion").json()["ot_id"], ajena)
+
+    def test_solo_el_operador_de_la_ot_y_solo_si_esta_abierta(self):
+        ana, carla = self.cabecera("ana.rojas@oculta.example"), self.cabecera("carla.munoz@oculta.example")
+        cuerpo = {"edge_id": "edge-1", "tomar": True}
+        self.assertEqual(self.c.post("/cliente/ots/ot-1004/sesion", json=cuerpo).status_code, 401)
+        self.assertEqual(self.c.post("/cliente/ots/ot-1004/sesion", json=cuerpo, headers=carla).status_code, 403)
+        self.assertEqual(self.c.post("/cliente/ots/ot-1002/sesion", json=cuerpo, headers=ana).status_code, 404)  # es de Bruno
+        self.assertEqual(self.c.post("/cliente/ots/ot-1013/sesion", json=cuerpo, headers=ana).status_code, 404)  # sin asignar
+        r = self.c.post("/cliente/ots/ot-1001/sesion", json=cuerpo, headers=ana)
+        self.assertEqual((r.status_code, r.json()["regla"]), (409, "la OT ot-1001 ya está completa"))
+        self.assertEqual(self.c.get("/sesiones").json(), [])
+
     def test_salir_invalida_el_token(self):
         ana = self.cabecera("ana.rojas@oculta.example")
         self.assertEqual(self.c.post("/auth/salir", headers=ana).status_code, 204)

@@ -148,13 +148,15 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
   `GET /cliente/ots` sus OT (el operador, solo las que tiene asignadas), cada una con su `calificacion`. El supervisor
   pide OT con `POST /cliente/ots` y las asigna a un operador de su empresa con `POST /cliente/ots/{{ot_id}}/asignar`.
   `GET /cliente/personas` da el `id`, el `nombre` y el `rol` de las personas de la empresa, a cualquiera de ellas, para
-  mostrar nombres donde la bitácora guarda ids como `operario:1`. Las empresas, sus personas y
+  mostrar nombres donde la bitácora guarda ids como `operario:1`. El operador une su OT a una estación con
+  `POST /cliente/ots/{{ot_id}}/sesion` (`edge_id`), sin la clave del equipo: si la estación ejecuta otra OT abierta
+  responde 409 y se repite con `tomar` en true; la de otra empresa no se toma (403). Las empresas, sus personas y
   sus pautas las crea el equipo en `/interno/clientes`; la clave de cada persona se genera y se ve una sola vez.
 
 ## Clave del equipo
 
 Si el servidor tiene `CLAVE_EQUIPO`, dos llamadas piden la cabecera `X-Clave-Equipo`: `POST /ot/{{ot_id}}/sesion` cuando el
-edge ya ejecuta otra OT, y `DELETE /edge/{{edge_id}}/sesion`. Unir un edge libre o repetir la sesión que ya tiene no la pide,
+edge ya ejecuta otra OT, y `DELETE /edge/{{edge_id}}/sesion`. Un operador con login no la usa: va por `POST /cliente/ots/{{ot_id}}/sesion`. Unir un edge libre o repetir la sesión que ya tiene no la pide,
 y el resto de la API tampoco, salvo el servicio interno (`/interno/...`), que la pide en cada llamada. `GET /clave` dice si este servidor la pide y si la que mandas sirve. En el navegador, el home
 y el banco la guardan al abrirlos una vez con `?clave=`.
 

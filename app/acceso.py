@@ -252,6 +252,29 @@ def ot_de(cx: sqlite3.Connection, p: dict, ot_id: str, en_sesion: Collection[str
     return o
 
 
+def exige_estacion(cx: sqlite3.Connection, p: dict, ot_id: str, edge_id: str, sesion: dict | None, tomar: bool) -> None:
+    """Si esta persona puede dejar la estación `edge_id` ejecutando su OT; `sesion` es lo que la estación ejecuta
+    ahora. La autoriza quién es, no una clave compartida: el operador que tiene la OT asignada. Una estación
+    libre, o con una OT ya completa, se une sin más. Quitársela a una OT abierta hay que pedirlo con `tomar`,
+    porque esa OT deja de recibir sus sensores, y nunca se le quita a la OT de otra empresa."""
+    exige_rol(p, "operador")
+    if ot_de(cx, p, ot_id)["completa"]:
+        raise catalogo.ReglaDeNegocio(f"la OT {ot_id} ya está completa")
+    if sesion is None or sesion["ot_id"] == ot_id:
+        return
+    dueno = cx.execute("SELECT cliente_id FROM ot_cliente WHERE ot_id = ?", (sesion["ot_id"],)).fetchone()
+    if dueno is not None and dueno["cliente_id"] != p["cliente"]["id"]:
+        raise SinPermiso(f"la estación {edge_id} ejecuta la OT de otra empresa")
+    try:
+        if catalogo.resumen_ot(cx, sesion["ot_id"])["completa"]:
+            return
+    except db.NoExiste:
+        return
+    if not tomar:
+        raise catalogo.ReglaDeNegocio(f"la estación {edge_id} ejecuta la OT {sesion['ot_id']} desde {sesion['desde']}, con "
+                                      f"{sesion['operario']}; para quitársela, repetir con `tomar` en true")
+
+
 def operador_de_la_empresa(cx: sqlite3.Connection, p: dict, operador: str) -> None:
     if operador not in {x["id"] for x in personas_de(cx, p["cliente"]["id"], "operador")}:
         raise SinPermiso(f"{operador} no es operador de {p['cliente']['nombre']}")

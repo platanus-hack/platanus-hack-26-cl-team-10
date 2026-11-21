@@ -164,6 +164,11 @@ class Sesion(BaseModel):
     operario: str
 
 
+class SesionCliente(BaseModel):
+    edge_id: str = EDGE_POR_DEFECTO
+    tomar: bool = False
+
+
 class LecturaEdge(BaseModel):
     sensor_id: str
     valor: str
@@ -453,6 +458,16 @@ def ot_para_clientes(ot_id: str, authorization: str | None = Header(default=None
     """Una OT con su avance y su calificación. 404 si no es de su empresa o, para un operador, si no es suya."""
     o = acceso.ot_de(cx, _persona(authorization), ot_id, servicios._ots_en_sesion())
     return {**o, "calificacion": servicios.calificacion(ot_id)}
+
+
+@app.post("/cliente/ots/{ot_id}/sesion")
+def iniciar_sesion_del_cliente(ot_id: str, s: SesionCliente, authorization: str | None = Header(default=None)) -> dict:
+    """El operador que tiene la OT asignada la une a una estación con su token, sin la clave del equipo. El
+    `operario` de la sesión es quien entró. Si la estación ejecuta otra OT abierta responde 409 y hay que repetir
+    con `tomar` en true; 403 si esa OT es de otra empresa o si quien pide no es operador; 404 si la OT no es suya."""
+    p = _persona(authorization)
+    acceso.exige_estacion(cx, p, ot_id, s.edge_id, servicios.sesion(s.edge_id), s.tomar)
+    return servicios.iniciar_sesion(ot_id, s.edge_id, p["id"])
 
 
 @app.get("/cliente/operadores")
