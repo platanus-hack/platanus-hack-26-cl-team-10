@@ -3,7 +3,7 @@
 Implementa [LOGICA.md](../knowledge/architecture/LOGICA.md). Correr:
 
 ```bash
-uv run uvicorn app.api:app --reload   # la UI de ensayo queda en http://localhost:8000
+uv run uvicorn app.api:app --reload   # la demo queda en http://localhost:8000 (ensayo manual en /ensayo)
 python3 -m unittest discover tests    # reglas, calificación y servicios, sin dependencias
 uv run --with httpx python -m unittest discover tests   # además el WebSocket de punta a punta
 python3 scripts/recorrido_demo.py     # los cinco momentos del demo, de punta a punta
