@@ -26,6 +26,17 @@
 | Ensayar pitch de 3 min y preguntas de 2 min | Equipo | pendiente | Con alguien que haga de jurado y las preguntas de [tour-platanus](../projects/research/tour-platanus.md#las-preguntas-que-nos-van-a-hacer) |
 | Preguntar qué espera el jurado del track Physical World | — | pendiente | Ninguna edición anterior tuvo ese track |
 
+## Construcción
+
+| Tarea | Responsable | Estado | Notas |
+|---|---|---|---|
+| Acordar el formato de paso y de evento | Equipo | en curso | Propuesta escrita en [LOGICA](../architecture/LOGICA.md). **Bloquea a los cuatro frentes**: hasta que se acuerde, nadie puede escribir código sin riesgo de rehacerlo |
+| Frente 1 · Protocolo a pasos con tipo de evidencia y pregunta visual | — | pendiente | [ADR-0006](../decisions/0006-la-ot-nace-del-protocolo.md) |
+| Frente 2 · App del operario: voz de ida y vuelta, un paso a la vez | — | pendiente | El orden lo impone la app ([ADR-0002](../decisions/0002-la-aplicacion-impone-el-orden-de-la-pauta.md)). Dejar botones como respaldo |
+| Frente 3 · Verificación: capa 1 con sensores, capa 3 con cámara | — | pendiente | Solo la capa 1 interrumpe ([ADR-0004](../decisions/0004-verificacion-por-capas.md)) |
+| Frente 4 · Registro de eventos, relevo de turno y vista del supervisor | — | pendiente | El relevo es una lectura de los eventos, no un documento aparte |
+| Regla de seguridad del demo: guarda abierta con energía viva | — | pendiente | Es el momento del demo. Capa 1, independiente del paso en curso ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario)) |
+
 ## Decisiones abiertas
 
 | Tarea | Responsable | Estado | Notas |
@@ -34,7 +45,7 @@
 | ¿Hay hardware a mano para el demo? | Equipo | hecho | Sí: Arduino, Raspberry Pi, ESP, sensores, receptores y motores ([planteamiento](../domain/fuentes/2026-11-21-planteamiento-del-equipo.md)) |
 | ¿El demo es la correa a escala con el bloqueo saltado? | Equipo | pendiente | Ver [Demo propuesto](../architecture/FLUJO.md#demo-propuesto). Define qué sensores se montan |
 | ¿La predicción de fallas y la OT automática siguen en el alcance del demo? | Francisco | hecho | 2026-11-21. No: quedan como visión ([registro](../decisions/decisions.md)). Falta que el equipo la acepte |
-| Formato del relevo de turno | Equipo | pendiente | Resumen, consultas o *briefing* |
+| Formato del relevo de turno | Equipo | pendiente | Resumen, consultas o *briefing*. Propuesta en [LOGICA](../architecture/LOGICA.md#relevo-de-turno): lectura de los eventos, registro completo al modelo y sin base vectorial |
 | Canal del aviso al operario | Equipo | pendiente | El equipo propone un auricular. Confirmar qué dispositivo es «la muela» de la transcripción |
 | Algoritmo de la capa de aprendizaje automático | Equipo | pendiente | Para el demo basta un umbral ([ADR-0004](../decisions/0004-verificacion-por-capas.md)) |
 | ¿Hay OT reales de alguna faena? | — | pendiente | Sin ellas, el corpus sale de MaintIE (6) |

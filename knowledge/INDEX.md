@@ -16,6 +16,7 @@
 
 ## Arquitectura
 
+- [LOGICA](./architecture/LOGICA.md): **las reglas de negocio.** Qué es un paso y un evento, quién decide que un paso está hecho, qué puede interrumpir al operario y cómo se traspasa un turno. Se acuerda antes de escribir código.
 - [FLUJO](./architecture/FLUJO.md): los pasos por actor, del protocolo a la OT y a la ejecución guiada, con evidencia, cómo construirlo y qué falta decidir en cada uno. Incluye las capas de verificación y el demo propuesto.
 
 ## Decisiones
