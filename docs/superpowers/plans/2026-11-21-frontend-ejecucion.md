@@ -51,7 +51,6 @@ web/
     sesion/usuarios.ts  USUARIOS
     sesion/sesion.ts    leerSesion/guardarSesion/cerrarSesion/useSesion
     sesion/RequiereRol.tsx
-    gestion/PaginaLogin.tsx PaginaSupervisor.tsx PaginaOperador.tsx   placeholders Diego replaces
     mocks/calificar.ts  calificacion of a mock event (mirrors app/scoring.py)
     mocks/mundo.ts      in-memory world: OTs, append-only events, subscribers
     mocks/escenarios.ts named scenarios
@@ -72,7 +71,7 @@ tests/test_voz.py
 ### Task 1: Scaffold `web/` with Mantine, routes, config and session
 
 **Files:**
-- Create: everything under `web/` listed above except `api/`, `mocks/`, `ejecucion/`
+- Create: everything under `web/` listed above except `api/`, `mocks/`, `ejecucion/`. No pages for `/login`, `/supervisor` or `/operador`: those are Diego's (agreed with Dani)
 - Test: `web/src/sesion/sesion.test.ts`
 
 **Interfaces:**
@@ -82,7 +81,7 @@ tests/test_voz.py
   - `leerSesion(): Usuario | null`, `guardarSesion(u: Usuario): void`, `cerrarSesion(): void`, `useSesion(): Usuario | null` in `sesion/sesion.ts` (localStorage key `factum.sesion`, every access in try/catch)
   - `<RequiereRol rol={Rol}>` redirects to `/login` without a matching session
   - `nombreDe(actor: string): string` in `sesion/usuarios.ts` (`'operario:1'` → `'OP1'`, unknown → the actor itself)
-  - Routes: `/login`, `/supervisor` (supervisor), `/operador` (operador), `/ot/:id` (operador, placeholder until Task 9), `/` → `/login`
+  - Routes: only `/ot/:id` (operador, placeholder until Task 9). Diego adds `/login`, `/supervisor`, `/operador` and `/`; `RequiereRol` already redirects to his `/login`
 
 - [ ] **Step 1: Create the app**
 
@@ -101,9 +100,9 @@ it('names actors', () => { expect(nombreDe('operario:2')).toBe('OP2'); expect(no
 ```
 
 - [ ] **Step 3: Run it** — `cd web && npm test` → FAIL (module not found).
-- [ ] **Step 4: Implement** `tema.ts` (verbatim from FRONTEND.md §4; body background `#EDF0F2`), `config.ts`, `sesion/*`, `App.tsx` with the routes, and three placeholder pages in `gestion/`. The placeholder `/login` lists `USUARIOS` as Mantine `Button`s that `guardarSesion` and navigate to `/supervisor` or `/operador`; the placeholder `/operador` links to `/ot/ot-12`. Add `.env.example` with the four `VITE_*` vars.
-- [ ] **Step 5: Verify** — `npm test` → PASS; `npm run build` → exit 0; `npm run dev`, open `/login`, pick OP1, land on `/operador`.
-- [ ] **Step 6: Commit** — `git add web && git commit -m "feat(web): scaffold Vite app with Mantine, routes and fake session"`
+- [ ] **Step 4: Implement** `tema.ts` (verbatim from FRONTEND.md §4; body background `#EDF0F2`), `config.ts`, `sesion/*`, and `App.tsx` with the `/ot/:id` route. Add `.env.example` with the four `VITE_*` vars and an empty `web/src/gestion/` folder (a `.gitkeep`) for Diego.
+- [ ] **Step 5: Verify** — `npm test` → PASS; `npm run build` → exit 0; `npm run dev`, open `/ot/ot-12` with no session → redirected to `/login`.
+- [ ] **Step 6: Commit** — `git add web && git commit -m "feat(web): scaffold Vite app with Mantine, the safety theme and the fake session"`
 
 ### Task 2: API types and client
 
@@ -210,6 +209,7 @@ Rules the mock must follow:
 - `sobrescribir`: with `paso_id`, only when that step is `en_conflicto` or `no_verificado`, else 409 `{regla:'el paso ya está cerrado'}`; appends `sobrescritura` with `paso_id`, `estado:'sobrescrito'`, `actor`, `declarado: nota ?? null`, detalle `${actor} dice que hizo «${titulo}»`. With `alerta_id`, only when that alert is active; appends `sobrescritura` with `paso_id:null`, `estado:null`, `evidencia:{alerta_id}`, detalle `${actor} dice que ya lo corrigió: ${alerta.detalle}`.
 - WS `ws.link(urlStream(config.API_URL, ':id', 0).split('?')[0])`: on connection send `m.snapshot(id, desde)` (from `client.url.searchParams`), then forward subscriber messages; unknown OT → `client.close(4404)`. While `m.caido`, HTTP → `HttpResponse.error()` and new sockets are closed with 1011; going `caido` closes every open socket.
 - `iniciarMock`: build `Mundo`, run `preparar`, `setupWorker(...crearHandlers(m, e, setTimeout)).start({ onUnhandledRequest: 'bypass' })`. `main.tsx` awaits it only when `config.MOCK`.
+- Mock-only sign-in (there is no login screen until Diego's): `iniciarMock` reads `?como=<actor>` and, when it matches a `USUARIOS` id, calls `guardarSesion` with that user. Export it as `sesionDeLaUrl(search: string): Usuario | null` and test it.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -224,12 +224,17 @@ it('alerta_resuelta removes the alert', () => { /* alerta id=n, then alerta_resu
 it('publishes evento then calificacion_ot', () => { /* suscribir, agregar → tipos ['evento','calificacion_ot'] */ })
 it('snapshot honours desde', () => { /* 3 events, snapshot(ot, 2).bitacora.map(e => e.id) equals [3] */ })
 it('estado_general goes entregada after relevo_entregado with no operator', () => { /* ... */ })
+// escenarios.test.ts (or navegador.test.ts)
+it('sesionDeLaUrl signs in a known demo user only', () => {
+  expect(sesionDeLaUrl('?escenario=relevo&como=operario:2')?.nombre).toBe('OP2')
+  expect(sesionDeLaUrl('?como=intruso')).toBeNull()
+})
 ```
 
 - [ ] **Step 2: Run** — `npm test -- mocks` → FAIL.
 - [ ] **Step 3: Implement** `calificar.ts`, `mundo.ts`, the `feliz` scenario plus helpers in `escenarios.ts`, `handlers.ts`, `navegador.ts`; run `npx msw init public --save`.
 - [ ] **Step 4: Run** — `npm test` → PASS.
-- [ ] **Step 5: Verify in the browser** — `VITE_MOCK=1 npm run dev`; in the console `await (await fetch('https://api.mock/ots')).json()` returns three OTs, and `new WebSocket('wss://api.mock/ot/ot-12/stream?desde=0').onmessage = e => console.log(JSON.parse(e.data).tipo)` logs `snapshot`.
+- [ ] **Step 5: Verify in the browser** — `VITE_MOCK=1 npm run dev`; open `/ot/ot-12?como=operario:1` and confirm `localStorage['factum.sesion']` is OP1; in the console `await (await fetch('https://api.mock/ots')).json()` returns three OTs, and `new WebSocket('wss://api.mock/ot/ot-12/stream?desde=0').onmessage = e => console.log(JSON.parse(e.data).tipo)` logs `snapshot`.
 - [ ] **Step 6: Commit and push** — `git commit -m "feat(web): in-browser mock of the OT API with the happy-path scenario" && git push`. Tell Diego the base is up (message in the conversation).
 
 ### Task 4: The remaining execution scenarios
@@ -397,22 +402,24 @@ it('debeSonar only for error', () => {})
 
 **Interfaces:**
 - Produces: `router: APIRouter` with `GET /voz?texto=` → `audio/mpeg`.
-- Module constants: `MODELO = "eleven_flash_v2_5"`, `URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream?output_format=mp3_44100_128"`, `MAX_TEXTO = 300`, `CARPETA = datos/voz` (tests patch it), `abrir_elevenlabs(texto: str, voice_id: str, llave: str)` returning a readable response (tests patch it). Only stdlib (`urllib.request`); no new dependency.
-- Behaviour: blank or longer than `MAX_TEXTO` → 422 `{"voz": ...}`. Cache key `sha256(f"{voice_id}:{MODELO}:{texto}")`; a cached file → `FileResponse`. Missing `ELEVENLABS_API_KEY` or `ELEVENLABS_VOICE_ID` → 503 `{"voz": "falta ELEVENLABS_API_KEY"}` (or `_VOICE_ID`). Upstream HTTP error → 502 `{"voz": "ElevenLabs respondió <code>"}`. Otherwise stream the body in 4096-byte chunks while writing `<key>.mp3.tmp`, renamed to `<key>.mp3` once complete.
+- The ElevenLabs call is the one Dani already has working in `~/code/Godoy97/elevenlabs-tts/tts.py`: `POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_128`, headers `xi-api-key` and `Content-Type: application/json`, body `{"text": texto, "model_id": MODELO}`, stdlib `urllib.request`, whole body read at once. Only the model changes, to the low-latency one that file's own comment names.
+- Module constants: `API = "https://api.elevenlabs.io/v1"`, `MODELO = "eleven_flash_v2_5"`, `VOZ_POR_DEFECTO = "JBFqnCBsd6RMkjVDRZzb"` (the voice `tts.py` uses), `MAX_TEXTO = 300`, `CARPETA = datos/voz` (tests patch it), and `pedir_audio(texto: str, voice_id: str, llave: str) -> bytes` (tests patch it). No new dependency.
+- Behaviour: blank or longer than `MAX_TEXTO` → 422 `{"voz": ...}`. Voice = `ELEVENLABS_VOICE_ID` or `VOZ_POR_DEFECTO`. Cache key `sha256(f"{voice_id}:{MODELO}:{texto}")`; a cached `<key>.mp3` → `FileResponse` without calling ElevenLabs. Missing `ELEVENLABS_API_KEY` → 503 `{"voz": "falta ELEVENLABS_API_KEY"}`. `urllib.error.HTTPError` → 502 `{"voz": "ElevenLabs respondió <code>"}`; `URLError` → 502 `{"voz": "no se pudo llegar a ElevenLabs"}`. Otherwise write `<key>.mp3.tmp`, rename to `<key>.mp3`, and return the bytes as `audio/mpeg`.
 
 - [ ] **Step 1: Write the failing tests** (`unittest`, skipped without httpx, same pattern as `tests/test_stream.py`)
 
 ```python
 def test_sin_llave_responde_503(self): ...            # env cleared → 503, json["voz"] mentions ELEVENLABS_API_KEY
 def test_texto_vacio_o_largo_responde_422(self): ...  # texto="  " and "x"*301
-def test_transmite_y_guarda_en_cache(self): ...       # patched abrir returns io.BytesIO(b"ID3audio"); 200, audio/mpeg, body; 2nd call does not call abrir
-def test_error_de_elevenlabs_responde_502(self): ...  # patched abrir raises urllib.error.HTTPError(code=401)
+def test_devuelve_audio_y_lo_guarda_en_cache(self): ...  # patched pedir_audio returns b"ID3audio"; 200, audio/mpeg, body; 2nd call does not call it
+def test_usa_la_voz_por_defecto_sin_voice_id(self): ...  # pedir_audio receives VOZ_POR_DEFECTO
+def test_error_de_elevenlabs_responde_502(self): ...     # patched pedir_audio raises urllib.error.HTTPError(code=401)
 ```
 
 - [ ] **Step 2: Run** — `uv run --with httpx python -m unittest tests.test_voz -v` → FAIL.
 - [ ] **Step 3: Implement** `app/voz.py`, add the include line and `.gitignore` entry.
 - [ ] **Step 4: Run** — `uv run --with httpx python -m unittest discover tests -v` → all PASS (Francisco's tests included).
-- [ ] **Step 5: Verify against ElevenLabs** — with Dani's key and a Spanish voice id exported: `uv run uvicorn app.api:app --port 8000 &` then `curl -s -o /tmp/voz.mp3 -w '%{http_code} %{content_type}\n' 'http://localhost:8000/voz?texto=Oye,%20el%20candado%20no%20aparece%20puesto'` → `200 audio/mpeg`, and the file plays. If ElevenLabs answers 4xx, check its current docs for the model id and endpoint before changing anything else.
+- [ ] **Step 5: Verify against ElevenLabs** — load the key from `~/code/Godoy97/elevenlabs-tts/.env` into the environment without printing it (`set -a; . ~/code/Godoy97/elevenlabs-tts/.env; set +a`), then `uv run uvicorn app.api:app --port 8000 &` and `curl -s -o /tmp/voz.mp3 -w '%{http_code} %{content_type}\n' 'http://localhost:8000/voz?texto=Oye,%20el%20candado%20no%20aparece%20puesto'` → `200 audio/mpeg`, and the file plays. If ElevenLabs answers 4xx, check its current docs for the model id and endpoint before changing anything else.
 - [ ] **Step 6: Commit** — `git commit -m "feat(voz): ElevenLabs proxy with disk cache"`. Tell Francisco about the `include_router` line, and ask him to set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` on the VM and redeploy.
 
 ### Task 9: The execution screen
@@ -451,7 +458,7 @@ it('verificado and pendiente offer no Ya lo hice', () => {})
 ```
 
 - [ ] **Step 2: Run** — FAIL. **Step 3: Implement** the hook and components. **Step 4: Run** — `npm test` → PASS.
-- [ ] **Step 5: Verify on the mock** — `VITE_MOCK=1 npm run dev`, log in as OP1, open `/ot/ot-12?escenario=feliz` → gate, «Comenzar», p1 closes alone after ~4 s and the list refreshes. `?escenario=warn-sobrescrito` → «Hecho» on p1 speaks the conflict (browser voice) and shows ✗; «Ya lo hice» with a note → ✓ «a la palabra de OP1» and p2 becomes current. `?escenario=alerta-seguridad` → red banner and speech at ~8 s, gone at ~18 s. `?escenario=camara-no` → p3 conflict shown but silent. `?escenario=sin-senal` → «No llega la señal del sensor». `?escenario=api-caida` → yellow strip at ~5 s, back to live at ~20 s with no repeated speech.
+- [ ] **Step 5: Verify on the mock** — `VITE_MOCK=1 npm run dev`, open `/ot/ot-12?escenario=feliz&como=operario:1` → gate, «Comenzar», p1 closes alone after ~4 s and the list refreshes. `?escenario=warn-sobrescrito` → «Hecho» on p1 speaks the conflict (browser voice) and shows ✗; «Ya lo hice» with a note → ✓ «a la palabra de OP1» and p2 becomes current. `?escenario=alerta-seguridad` → red banner and speech at ~8 s, gone at ~18 s. `?escenario=camara-no` → p3 conflict shown but silent. `?escenario=sin-senal` → «No llega la señal del sensor». `?escenario=api-caida` → yellow strip at ~5 s, back to live at ~20 s with no repeated speech.
 - [ ] **Step 6: Commit** — `git commit -m "feat(web): OT execution screen with warns, overwrite and voice"`
 
 ### Task 10: Handover and completion
@@ -481,7 +488,7 @@ it('Recibido calls onRecibido', async () => {})
 ```
 
 - [ ] **Step 2: Run** — FAIL. **Step 3: Implement.** **Step 4: Run** — `npm test` → PASS.
-- [ ] **Step 5: Verify on the mock** — as OP2 open `/ot/ot-12?escenario=relevo` → briefing → «Recibido» → execution at p4; finish p4–p6 → «OT completa». As OP1 on `feliz`, «Entregar turno» → «Confirmar» → back on `/operador`. `?escenario=completa` opens straight on «OT completa».
+- [ ] **Step 5: Verify on the mock** — open `/ot/ot-12?escenario=relevo&como=operario:2` → briefing → «Recibido» → execution at p4; finish p4–p6 → «OT completa». As OP1 on `feliz`, «Entregar turno» → «Confirmar» → back on `/operador`. `?escenario=completa` opens straight on «OT completa».
 - [ ] **Step 6: Commit** — `git commit -m "feat(web): shift handover briefing and completion screen"`
 
 ### Task 11: Run it on the demo phone against the live API
