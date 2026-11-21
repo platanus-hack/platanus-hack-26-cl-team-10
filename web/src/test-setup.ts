@@ -5,6 +5,7 @@ import { afterEach } from 'vitest'
 afterEach(() => {
   cleanup()
   localStorage.clear()
+  sessionStorage.clear()
 })
 
 // Mantine pregunta por matchMedia y ResizeObserver, que jsdom no trae.

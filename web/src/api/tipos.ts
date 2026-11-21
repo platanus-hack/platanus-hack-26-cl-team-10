@@ -75,8 +75,32 @@ export type PasoPauta = {
 
 export type Pauta = { id: string; nombre: string; version: number; equipo: string; pasos: PasoPauta[] }
 
-/** Un ítem de `GET /pautas`: `pasos` es cuántos tiene. */
-export type PautaResumen = { id: string; nombre: string; version: number; equipo: string; pasos: number; aprobada: boolean }
+/** Un ítem de `GET /cliente/pautas`, lo que la empresa puede pedir: `pasos` es cuántos tiene. */
+export type PautaResumen = {
+  id: string
+  nombre: string
+  version: number
+  equipo: string
+  pasos: number
+  protocolos: { id: string; nombre: string }[]
+}
+
+export type Rol = 'supervisor' | 'operador'
+
+/** Quién entró (`GET /yo`): su `id` es el actor que queda en la bitácora. */
+export type Persona = {
+  id: string
+  nombre: string
+  usuario: string
+  rol: Rol
+  cliente: { id: string; nombre: string; industria: string }
+}
+
+/** `POST /auth/entrar`: el token dura 12 horas y se manda como `Authorization: Bearer`. */
+export type Entrada = { token: string; expira: string; persona: Persona }
+
+/** `POST /cliente/ots`: la OT nueva, de la última versión aprobada de la pauta. */
+export type OtPedida = { ot: string; pauta: string; version: number; nombre: string; cliente: string }
 
 export type EstadoGeneral = 'sin_asignar' | 'asignada' | 'en_ejecucion' | 'entregada' | 'completa'
 

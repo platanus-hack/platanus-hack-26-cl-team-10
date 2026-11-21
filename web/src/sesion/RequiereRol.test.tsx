@@ -1,8 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { RequiereRol } from './RequiereRol'
-import { guardarSesion } from './sesion'
-import { USUARIOS } from './usuarios'
+import { ANA, SUPERVISORA, entrarComo } from '../mocks/personas'
 
 function rutas() {
   return (
@@ -21,13 +20,13 @@ it('sends a visitor without session to /login', () => {
 })
 
 it('sends a supervisor away from an operator route', () => {
-  guardarSesion(USUARIOS[0])
+  entrarComo(SUPERVISORA)
   render(rutas())
   expect(screen.getByText('login')).toBeInTheDocument()
 })
 
 it('lets an operator in', () => {
-  guardarSesion(USUARIOS[2])
+  entrarComo(ANA)
   render(rutas())
   expect(screen.getByText('ejecución')).toBeInTheDocument()
 })

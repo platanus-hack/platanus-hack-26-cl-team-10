@@ -81,6 +81,13 @@ export class Mundo {
     return this.pauta.pasos.find((p) => p.id === pasoId)
   }
 
+  /** El id de una OT pedida sin id, como catalogo._id_de_ot: ot-0004 si ya hay tres. */
+  idNuevo(): string {
+    let n = this.ots.size + 1
+    while (this.ots.has(`ot-${String(n).padStart(4, '0')}`)) n++
+    return `ot-${String(n).padStart(4, '0')}`
+  }
+
   crearOt(id: string, operador: string | null): void {
     this.ots.set(id, { id, eventos: [], operador, sesion: null, abiertaEn: new Date().toISOString() })
     const { nombre, version, equipo } = this.pauta

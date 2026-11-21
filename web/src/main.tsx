@@ -2,12 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { config } from './config'
-import { guardarSesion, sesionDeLaUrl } from './sesion/sesion'
 
 async function arrancar() {
-  // Login falso por URL mientras no esté la pantalla de Diego: /ot/ot-12?como=operario:1
-  const usuario = sesionDeLaUrl(location.search)
-  if (usuario) guardarSesion(usuario)
+  // Con el servidor se entra por el login. Con mock, además, por URL: /ot/ot-12?como=operario:1
   if (config.MOCK) {
     const { iniciarMock } = await import('./mocks/navegador')
     await iniciarMock()

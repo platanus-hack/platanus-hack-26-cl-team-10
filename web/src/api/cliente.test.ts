@@ -69,17 +69,93 @@ it('builds the stream url', () => {
   expect(urlStream('http://localhost:8000', 'ot-1', 0)).toBe('ws://localhost:8000/ot/ot-1/stream?desde=0')
 })
 
-it('posts the operator and who assigns to asignar', async () => {
+it('assigns through the client service: who assigns travels in the token, not the body', async () => {
   const pedidos: { url: string; metodo?: string; cuerpo: unknown }[] = []
   const c = crearCliente('https://x', async (url, init) => {
     pedidos.push({ url: String(url), metodo: init?.method, cuerpo: JSON.parse(String(init?.body)) })
     return json({ ot: 'ot-1', operador: 'operario:2', estado_general: 'asignada' })
   })
-  const r = await c.asignar('ot-1', 'operario:2', 'supervisor:1')
-  expect(pedidos).toEqual([
-    { url: 'https://x/ot/ot-1/asignar', metodo: 'POST', cuerpo: { operador: 'operario:2', actor: 'supervisor:1' } },
-  ])
+  const r = await c.asignar('ot-1', 'operario:2')
+  expect(pedidos).toEqual([{ url: 'https://x/cliente/ots/ot-1/asignar', metodo: 'POST', cuerpo: { operador: 'operario:2' } }])
   expect(r.operador).toBe('operario:2')
+})
+
+it('reads the lists from the client service', async () => {
+  const urls: string[] = []
+  const c = crearCliente('https://x', async (url) => {
+    urls.push(String(url))
+    return json([])
+  })
+  await c.listarOts()
+  await c.listarPautas()
+  await c.listarOperadores()
+  expect(urls).toEqual(['https://x/cliente/ots', 'https://x/cliente/pautas', 'https://x/cliente/operadores'])
+})
+
+it('orders an OT with the pauta id', async () => {
+  let pedido: { url: string; cuerpo: unknown } | null = null
+  const c = crearCliente('https://x', async (url, init) => {
+    pedido = { url: String(url), cuerpo: JSON.parse(String(init?.body)) }
+    return json({ ot: 'ot-0016', pauta: 'pauta-polin-demo', version: 1, nombre: 'Cambio de polín', cliente: 'oculta' }, 201)
+  })
+  expect((await c.pedirOt('pauta-polin-demo')).ot).toBe('ot-0016')
+  expect(pedido).toEqual({ url: 'https://x/cliente/ots', cuerpo: { pauta_id: 'pauta-polin-demo' } })
+})
+
+describe('login and token', () => {
+  const persona = { id: 'operario:1', nombre: 'Ana Rojas', usuario: 'ana@x', rol: 'operador', cliente: { id: 'o', nombre: 'O', industria: '' } }
+
+  it('signs in with usuario and clave', async () => {
+    let cuerpo: unknown = null
+    const c = crearCliente('https://x', async (_url, init) => {
+      cuerpo = JSON.parse(String(init?.body))
+      return json({ token: 't', expira: '2026-11-22T06:00:00+00:00', persona })
+    })
+    const r = await c.entrar('ana@x', 'clave')
+    expect(cuerpo).toEqual({ usuario: 'ana@x', clave: 'clave' })
+    expect(r.persona.nombre).toBe('Ana Rojas')
+  })
+
+  it('sends the token as Authorization: Bearer on every call', async () => {
+    const cabeceras: (string | null)[] = []
+    const c = crearCliente(
+      'https://x',
+      async (_url, init) => {
+        cabeceras.push(new Headers(init?.headers).get('authorization'))
+        return json([])
+      },
+      { token: () => 't-ana', alVencer: () => {} },
+    )
+    await c.listarOts()
+    await c.leerOt('ot-1')
+    expect(cabeceras).toEqual(['Bearer t-ana', 'Bearer t-ana'])
+  })
+
+  it('a wrong clave is a credentials error, not an expired session', async () => {
+    const alVencer = vi.fn()
+    const c = crearCliente('https://x', async () => json({ login: 'usuario o clave incorrectos' }, 401), { token: () => null, alVencer })
+    await expect(c.entrar('ana@x', 'mal')).rejects.toMatchObject({ status: 401, tipo: 'credenciales', message: 'Correo o clave incorrectos.' })
+    expect(alVencer).not.toHaveBeenCalled()
+  })
+
+  it('a rejected token closes the session', async () => {
+    const alVencer = vi.fn()
+    const c = crearCliente('https://x', async () => json({ login: 'el token no existe o venció' }, 401), { token: () => 'viejo', alVencer })
+    await expect(c.listarOts()).rejects.toMatchObject({ status: 401, tipo: 'sesion' })
+    expect(alVencer).toHaveBeenCalledOnce()
+  })
+
+  it('signing out with a dead token is not an expired session', async () => {
+    const alVencer = vi.fn()
+    const c = crearCliente('https://x', async () => json({ login: 'venció' }, 401), { token: () => 'viejo', alVencer })
+    await expect(c.salir()).rejects.toMatchObject({ tipo: 'sesion' })
+    expect(alVencer).not.toHaveBeenCalled()
+  })
+
+  it('maps 403 to ApiError permiso with the reason', async () => {
+    const c = crearCliente('https://x', async () => json({ permiso: 'eso lo hace un supervisor; operario:1 es operador' }, 403))
+    await expect(c.listarOperadores()).rejects.toMatchObject({ status: 403, tipo: 'permiso', message: 'eso lo hace un supervisor; operario:1 es operador' })
+  })
 })
 
 it('confirms a step with actor and motivo', async () => {

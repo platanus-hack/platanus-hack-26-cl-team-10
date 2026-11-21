@@ -7,6 +7,8 @@ import { PAUTA_DEMO } from './pauta'
 import { ESCENARIOS, type Temporizador } from './escenarios'
 import { crearHandlers } from './handlers'
 import { Mundo } from './mundo'
+import { ANA, BRUNO, CLAVE_MOCK, SUPERVISORA, tokenMock } from './personas'
+import type { Persona } from '../api/tipos'
 
 const BASE = 'https://api.mock'
 const pauta = PAUTA_DEMO
@@ -24,7 +26,9 @@ beforeEach(() => {
   server.resetHandlers(...crearHandlers(m, ESCENARIOS.feliz!, t, BASE))
 })
 
-const api = () => crearCliente(BASE)
+/** Un cliente con el token del mock de esa persona (la supervisora, si no se dice). */
+const api = (p: Persona | null = SUPERVISORA, alVencer = () => {}) =>
+  crearCliente(BASE, undefined, { token: () => (p ? tokenMock(p.id) : null), alVencer })
 
 it('serves the OT list, the state and the pauta', async () => {
   expect((await api().listarOts()).map((o) => o.ot)).toEqual(['ot-12', 'ot-13', 'ot-14'])
@@ -32,10 +36,57 @@ it('serves the OT list, the state and the pauta', async () => {
   expect((await api().leerPauta('pauta-correa-ct-01', 1)).pasos).toHaveLength(6)
 })
 
-it('serves the pautas with their names, like GET /pautas', async () => {
+it('serves the pautas the company can order, like GET /cliente/pautas', async () => {
   expect(await api().listarPautas()).toEqual([
-    { id: pauta.id, nombre: pauta.nombre, version: pauta.version, equipo: pauta.equipo, pasos: 6, aprobada: true },
+    {
+      id: pauta.id, nombre: pauta.nombre, version: pauta.version, equipo: pauta.equipo, pasos: 6,
+      protocolos: [{ id: 'prot-aislamiento-01', nombre: 'Aislamiento y bloqueo de energías' }],
+    },
   ])
+})
+
+describe('login and the client service', () => {
+  it('signs in the Oculta people with the mock clave', async () => {
+    const r = await api(null).entrar('Ana.Rojas@oculta.example ', CLAVE_MOCK)
+    expect(r).toMatchObject({ token: tokenMock('operario:1'), persona: { id: 'operario:1', nombre: 'Ana Rojas', rol: 'operador' } })
+    expect(Date.parse(r.expira)).toBeGreaterThan(Date.now())
+    await expect(api(null).entrar(ANA.usuario, 'otra')).rejects.toMatchObject({ status: 401, tipo: 'credenciales' })
+    await expect(api(null).entrar('nadie@oculta.example', CLAVE_MOCK)).rejects.toMatchObject({ tipo: 'credenciales' })
+  })
+
+  it('without a token the client service answers 401 and closes the session', async () => {
+    const alVencer = vi.fn()
+    await expect(api(null, alVencer).listarOts()).rejects.toMatchObject({ status: 401, tipo: 'sesion' })
+    expect(alVencer).toHaveBeenCalledOnce()
+    // Las rutas de la ejecución siguen abiertas, como en el servidor.
+    expect((await api(null).leerOt('ot-12')).paso_actual).toBe('p1')
+  })
+
+  it('an operator sees only their OTs, and only the supervisor lists operators', async () => {
+    expect((await api(ANA).listarOts()).map((o) => o.ot)).toEqual(['ot-12'])
+    expect((await api(BRUNO).listarOts()).map((o) => o.ot)).toEqual(['ot-13'])
+    expect((await api().listarOperadores()).map((p) => p.nombre)).toEqual(['Ana Rojas', 'Bruno Díaz'])
+    await expect(api(ANA).listarOperadores()).rejects.toMatchObject({ status: 403, tipo: 'permiso' })
+  })
+
+  it('one OT carries its grading, and another operator\'s OT does not exist', async () => {
+    const r = await fetch(`${BASE}/cliente/ots/ot-12`, { headers: { authorization: `Bearer ${tokenMock(ANA.id)}` } })
+    expect(await r.json()).toMatchObject({ ot: 'ot-12', calificacion: { nivel: expect.any(String), avisos: [] } })
+    const ajena = await fetch(`${BASE}/cliente/ots/ot-13`, { headers: { authorization: `Bearer ${tokenMock(ANA.id)}` } })
+    expect(ajena.status).toBe(404)
+  })
+
+  it('the supervisor orders an OT, which starts unassigned', async () => {
+    const r = await api().pedirOt(pauta.id)
+    expect(r).toMatchObject({ ot: 'ot-0004', pauta: pauta.id, nombre: pauta.nombre, cliente: 'oculta' })
+    expect((await api().listarOts()).find((o) => o.ot === 'ot-0004')).toMatchObject({ estado_general: 'sin_asignar', operador: null })
+    await expect(api().pedirOt('pauta-ajena')).rejects.toMatchObject({ status: 403, tipo: 'permiso' })
+    await expect(api(ANA).pedirOt(pauta.id)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('signs out with 204', async () => {
+    await expect(api().salir()).resolves.toBeNull()
+  })
 })
 
 it('each OT in the list carries its progress, like GET /ots', async () => {
@@ -156,36 +207,34 @@ it('going down closes the open streams', async () => {
   expect(await cerrado).not.toBe(4404)
 })
 
-it('asignar gives an unassigned OT to an operator and logs who assigned it', async () => {
-  const r = await api().asignar('ot-14', 'operario:1', 'supervisor:1')
+it('asignar gives an unassigned OT to an operator and logs the supervisor of the token', async () => {
+  const r = await api().asignar('ot-14', 'operario:1')
   expect(r).toMatchObject({ ot: 'ot-14', operador: 'operario:1', estado_general: 'asignada' })
   expect((await api().listarOts()).find((o) => o.ot === 'ot-14')?.operador).toBe('operario:1')
   expect(m.eventos('ot-14').at(-1)).toMatchObject({
-    tipo: 'ot_asignada', actor: 'supervisor:1', evidencia: { operador: 'operario:1' }, detalle: 'OT asignada a operario:1',
+    tipo: 'ot_asignada', actor: 'supervisor:oculta', evidencia: { operador: 'operario:1' }, detalle: 'OT asignada a operario:1',
   })
-})
-
-it('asignar without an actor logs it as the supervisor, like the API', async () => {
-  await fetch(`${BASE}/ot/ot-14/asignar`, { method: 'POST', body: JSON.stringify({ operador: 'operario:1' }), headers: { 'content-type': 'application/json' } })
-  expect(m.eventos('ot-14').at(-1)).toMatchObject({ tipo: 'ot_asignada', actor: 'supervisor' })
 })
 
 it('asignar reassigns a handed-over OT', async () => {
   await api().entregarTurno('ot-12', 'operario:1')
-  const r = await api().asignar('ot-12', 'operario:2', 'supervisor:1')
+  const r = await api().asignar('ot-12', 'operario:2')
   expect(r).toMatchObject({ operador: 'operario:2' })
   expect(r.estado_general).not.toBe('entregada')
 })
 
-it('asignar refuses an OT that already has an operator, an unknown operator and an unknown OT', async () => {
-  await expect(api().asignar('ot-12', 'operario:2', 'supervisor:1')).rejects.toMatchObject({ status: 409, regla: 'la OT ya tiene operador' })
-  await expect(api().asignar('ot-14', 'supervisor:1', 'supervisor:1')).rejects.toMatchObject({ status: 409, regla: 'el operador no existe' })
-  await expect(api().asignar('ot-99', 'operario:1', 'supervisor:1')).rejects.toMatchObject({ status: 404 })
+it('asignar refuses an OT with an operator, someone who is not an operator, an unknown OT and an operator', async () => {
+  await expect(api().asignar('ot-12', 'operario:2')).rejects.toMatchObject({ status: 409, regla: 'la OT ot-12 ya tiene operador: operario:1' })
+  await expect(api().asignar('ot-14', 'supervisor:oculta')).rejects.toMatchObject({ status: 403, message: 'supervisor:oculta no es operador de Oculta' })
+  await expect(api().asignar('ot-99', 'operario:1')).rejects.toMatchObject({ status: 404 })
+  await expect(api(ANA).asignar('ot-14', 'operario:1')).rejects.toMatchObject({ status: 403, tipo: 'permiso' })
 })
 
-it('asignar answers 409, not 500, to a body without operator, and names a complete OT', async () => {
-  const r = await fetch(`${BASE}/ot/ot-14/asignar`, { method: 'POST', body: 'null', headers: { 'content-type': 'application/json' } })
-  expect(r.status).toBe(409)
+it('asignar answers 403, not 500, to a body without operator, and names a complete OT', async () => {
+  const r = await fetch(`${BASE}/cliente/ots/ot-14/asignar`, {
+    method: 'POST', body: 'null', headers: { 'content-type': 'application/json', authorization: `Bearer ${tokenMock(SUPERVISORA.id)}` },
+  })
+  expect(r.status).toBe(403)
   for (const p of pauta.pasos) m.agregar('ot-14', { tipo: 'veredicto', actor: 'sistema', paso_id: p.id, estado: 'verificado', detalle: 'ok' })
-  await expect(api().asignar('ot-14', 'operario:1', 'supervisor:1')).rejects.toMatchObject({ status: 409, regla: 'la OT ya está completa' })
+  await expect(api().asignar('ot-14', 'operario:1')).rejects.toMatchObject({ status: 409, regla: 'la OT ot-14 ya está completa' })
 })

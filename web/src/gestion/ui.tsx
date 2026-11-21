@@ -12,6 +12,7 @@ import {
 } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router'
+import { api } from '../api/cliente'
 import type { EstadoGeneral } from '../api/tipos'
 import { cerrarSesion } from '../sesion/sesion'
 import type { Usuario } from '../sesion/usuarios'
@@ -30,7 +31,8 @@ export function EstadoBadge({ estado, size = 'md' }: { estado: EstadoGeneral; si
   const { etiqueta, color } = ESTADOS[estado]
   const Icono = ICONOS[estado]
   return (
-    <Badge color={color} size={size} radius="sm" leftSection={<Icono size={14} stroke={2.5} />}>
+    // Nunca más angosto que su texto: con pautas de nombre largo, la tabla lo cortaba («EN EJECU…»).
+    <Badge color={color} size={size} radius="sm" miw="max-content" leftSection={<Icono size={14} stroke={2.5} />}>
       {etiqueta}
     </Badge>
   )
@@ -39,6 +41,8 @@ export function EstadoBadge({ estado, size = 'md' }: { estado: EstadoGeneral; si
 export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: string }) {
   const navigate = useNavigate()
   const salir = () => {
+    // El token se lee al llamar: primero se avisa al servidor, después se borra la sesión local.
+    api.salir().catch(() => {})
     cerrarSesion()
     navigate('/login', { replace: true })
   }
@@ -54,7 +58,16 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
           </Text>
         </Group>
         <Group gap="sm" wrap="nowrap">
-          <Text fw={700}>{usuario.nombre}</Text>
+          <Stack gap={0} align="flex-end">
+            <Text fw={700} lh={1.2}>
+              {usuario.nombre}
+            </Text>
+            {usuario.cliente && (
+              <Text size="xs" c="roca.6" lh={1.2}>
+                {usuario.cliente.nombre}
+              </Text>
+            )}
+          </Stack>
           <Button variant="default" size="xs" leftSection={<IconLogout size={16} />} onClick={salir}>
             Salir
           </Button>

@@ -4,11 +4,14 @@ import userEvent from '@testing-library/user-event'
 import { ESCENARIOS } from '../mocks/escenarios'
 import { Mundo } from '../mocks/mundo'
 import { PAUTA_DEMO } from '../mocks/pauta'
+import { PERSONAS } from '../mocks/personas'
+import { recordarNombres } from '../sesion/usuarios'
 import { tema } from '../tema'
 import { Briefing } from './Briefing'
 import { relevoPendiente } from './estado'
 
 function pintar(conAlerta = false) {
+  recordarNombres(PERSONAS)
   const m = new Mundo(PAUTA_DEMO)
   ESCENARIOS.relevo!.preparar(m)
   if (conAlerta)
@@ -26,10 +29,10 @@ function pintar(conAlerta = false) {
 it('lists how each step closed and where to resume', () => {
   pintar()
   expect(screen.getByText('Relevo de turno')).toBeInTheDocument()
-  expect(screen.getByText(/Entregado por OP1 a las \d\d:\d\d/)).toBeInTheDocument()
+  expect(screen.getByText(/Entregado por Ana Rojas a las \d\d:\d\d/)).toBeInTheDocument()
   expect(screen.getByText(/por sensor/)).toBeInTheDocument()
   expect(screen.getByText(/por la cámara/)).toBeInTheDocument()
-  expect(screen.getByText(/confirmado por OP1/)).toBeInTheDocument()
+  expect(screen.getByText(/confirmado por Ana Rojas/)).toBeInTheDocument()
   expect(screen.getByText(/Sigue en: 4\. Reinstalar la guarda/)).toBeInTheDocument()
   expect(screen.getByText(/Retomar desde p4/)).toBeInTheDocument()
 })

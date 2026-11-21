@@ -13,8 +13,8 @@ import { ESCENARIOS, type NombreEscenario, type Temporizador } from '../mocks/es
 import { crearHandlers } from '../mocks/handlers'
 import { Mundo } from '../mocks/mundo'
 import { PAUTA_DEMO, PAUTA_LOTO } from '../mocks/pauta'
-import { guardarSesion } from '../sesion/sesion'
-import { USUARIOS } from '../sesion/usuarios'
+import type { Persona } from '../api/tipos'
+import { ANA, BRUNO, entrarComo } from '../mocks/personas'
 import { tema } from '../tema'
 import { PaginaOt } from './PaginaOt'
 import { tiempos } from './useEjecucion'
@@ -37,12 +37,12 @@ afterEach(() => {
 let m: Mundo
 let dicho: string[]
 
-function abrir(escenario: NombreEscenario, { ot = 'ot-12', usuario = USUARIOS[1], pauta = PAUTA_DEMO }: { ot?: string; usuario?: (typeof USUARIOS)[number]; pauta?: Pauta } = {}) {
+function abrir(escenario: NombreEscenario, { ot = 'ot-12', usuario = ANA, pauta = PAUTA_DEMO }: { ot?: string; usuario?: Persona; pauta?: Pauta } = {}) {
   m = new Mundo(pauta)
   const e = ESCENARIOS[escenario]!
   e.preparar(m)
   server.resetHandlers(...crearHandlers(m, e, rapido))
-  guardarSesion(usuario)
+  entrarComo(usuario)
   dicho = []
   vi.spyOn(voz, 'decir').mockImplementation((t) => void dicho.push(t))
   render(
@@ -112,7 +112,7 @@ describe('when the API warns that a step was skipped', () => {
     await userEvent.click(within(fila('Cortar la energía y bloquear con candado')).getByRole('button', { name: 'Ya lo hice' }))
     await userEvent.click(screen.getByRole('button', { name: 'El sensor no lo marca' }))
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
-    await waitFor(() => expect(enFila('Cortar la energía y bloquear con candado', 'Confirmado por OP1: «El sensor no lo marca»')).not.toBeNull())
+    await waitFor(() => expect(enFila('Cortar la energía y bloquear con candado', 'Confirmado por Ana Rojas: «El sensor no lo marca»')).not.toBeNull())
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
     expect(m.eventos('ot-12').some((e) => e.evidencia?.tipo === 'persona' && e.actor === 'operario:1')).toBe(true)
     expect(dicho).toHaveLength(1)
@@ -180,7 +180,7 @@ describe('other alerts', () => {
     await userEvent.click(within(fila('Cortar la energía y bloquear con candado')).getByRole('button', { name: 'Ya lo hice' }))
     await userEvent.type(screen.getByLabelText('Motivo'), 'el reed está dañado; el candado está puesto')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
-    await waitFor(() => expect(enFila('Cortar la energía y bloquear con candado', /^Confirmado por OP1/)).not.toBeNull())
+    await waitFor(() => expect(enFila('Cortar la energía y bloquear con candado', /^Confirmado por Ana Rojas/)).not.toBeNull())
     expect(dicho).toEqual([])
   })
 
@@ -215,20 +215,20 @@ describe('other alerts', () => {
 })
 
 describe('handover and navigation', () => {
-  it('relevo: OP2 reads the briefing, signs it and continues at step 4', async () => {
-    abrir('relevo', { usuario: USUARIOS[2] })
+  it('relevo: Bruno reads the briefing, signs it and continues at step 4', async () => {
+    abrir('relevo', { usuario: BRUNO })
     expect(await screen.findByText('Relevo de turno')).toBeInTheDocument()
-    expect(screen.getByText(/confirmado por OP1/)).toBeInTheDocument()
+    expect(screen.getByText(/confirmado por Ana Rojas/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Recibido' }))
     await screen.findByRole('button', { name: 'Entregar turno' })
     expect(enFila('Reinstalar la guarda', 'Vuelve a montar la guarda y asegúrala.')).not.toBeNull()
-    expect(enFila('Retirar la guarda', /^Confirmado por OP1/)).not.toBeNull()
+    expect(enFila('Retirar la guarda', /^Confirmado por Ana Rojas/)).not.toBeNull()
     expect(m.eventos('ot-12').map((e) => [e.tipo, e.actor])).toContainEqual(['relevo_recibido', 'operario:2'])
     expect(m.resumenes()[0].operador).toBe('operario:2')
   })
 
   it('the operator who handed over does not get the briefing', async () => {
-    abrir('relevo', { usuario: USUARIOS[1] })
+    abrir('relevo', { usuario: ANA })
     await screen.findByRole('button', { name: /^(Comenzar|Continuar|Entregar turno)$/ })
     expect(screen.queryByText('Relevo de turno')).toBeNull()
   })
@@ -263,7 +263,7 @@ describe('handover and navigation', () => {
   })
 
   it('Recibido shows why the handover could not be signed', async () => {
-    abrir('relevo', { usuario: USUARIOS[2] })
+    abrir('relevo', { usuario: BRUNO })
     server.use(http.post(`${config.API_URL}/ot/:id/relevo/recibir`, () => HttpResponse.json({ regla: 'el turno ya fue recibido' }, { status: 409 })))
     await userEvent.click(await screen.findByRole('button', { name: 'Recibido' }))
     expect(await screen.findByText('el turno ya fue recibido')).toBeInTheDocument()

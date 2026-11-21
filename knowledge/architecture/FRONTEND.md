@@ -17,7 +17,7 @@ El front no verifica nada. Muestra lo que decide la API, deja al operario respon
 | Tema | Decisión |
 |---|---|
 | Stack | Vite + React + TypeScript, en `web/`. Una sola app con pantallas separadas por ruta, no una sola pantalla. React Router para las rutas, Mantine para los componentes, MSW para el mock y Vitest para los tests |
-| Login | Falso: se elige un usuario de una lista, sin contraseña. Uno real solo si sobra tiempo |
+| Login | Real, con correo y clave contra `POST /auth/entrar` ([ADR-0012](../decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md)). Con mock, además, un toque por persona de prueba |
 | Datos mientras no hay back | Un mock que imita la forma que la API ya devuelve (`GET /ot/{id}`), más las extensiones de la [sección 8](#8-contrato-con-la-api). El mock es solo para construir |
 | Demo en vivo | Corre sobre el back real, con el supervisor en un computador y el operador en un celular. Los warns y la alerta de seguridad los disparan los sensores reales del ESP32 |
 | Captura | El front no captura nada. La cámara y los sensores van por el dispositivo de borde, directo a la API |
@@ -64,9 +64,10 @@ web/
 | `/ot/:id` | el operador asignado | Dani |
 
 - `api/` y `sesion/` son compartidos: se avisa antes de cambiarlos. Fuera de eso, cada uno trabaja en su carpeta y no hay choques en la rama.
-- El id de la OT viaja en la URL y la sesión (`id`, `nombre`, `rol`) en `localStorage`. Con eso el módulo de ejecución sabe quién es el actor.
-- Los actores usan el formato de la bitácora: `operario:1`, `supervisor:1`.
-- Usuarios del demo: un supervisor y dos operadores, OP1 y OP2, como en la pizarra.
+- El id de la OT viaja en la URL y la sesión (`usuario` con `id`, `nombre`, `rol` y empresa, más el `token` y cuándo `expira`) en `localStorage`, aparte con y sin mock. Con eso el módulo de ejecución sabe quién es el actor. Un token vencido o rechazado (401) cierra la sesión y el login dice «Tu sesión venció».
+- Los actores usan el formato de la bitácora: `operario:1`, `supervisor:oculta`. El nombre de cada uno sale de la sesión y, para el supervisor, de `GET /cliente/operadores`; si el front no lo conoce, se lee del id («Operario 2»).
+- Personas de prueba: las de la minera ficticia Oculta en la semilla del servidor (`datos/ots-semilla.json`): la supervisora Carla Muñoz y los operadores Ana Rojas (`operario:1`) y Bruno Díaz (`operario:2`). El mock usa las mismas, con la clave `demo`; las claves del servidor no van en el repo.
+- Con mock, `?como=operario:1` en la URL entra como esa persona sin pasar por el login. Sin mock no hace nada.
 - El mock corre en el navegador con MSW, que también imita el WebSocket: `npm run dev:mock` (o `VITE_MOCK=1`). Sin mock (`npm run dev`), el cliente apunta a `VITE_API_URL`, que por defecto es el servidor del equipo, `https://34-176-44-192.sslip.io`, y lo que se toque ahí lo ven todos.
 - Dentro de un navegador, el mock es un solo mundo: lo que el supervisor asigna en `/supervisor` aparece en `/operador` y en `/ot/:id`. El escenario solo fija cómo parte ese mundo, y se elige en la URL: `/ot/ot-12?escenario=warn-sobrescrito`. No cruza dispositivos, y no hace falta: el demo corre sobre el back real.
 - Los datos del mock usan la pauta real, [`datos/pauta-correa.json`](../../datos/pauta-correa.json): 6 pasos sobre la correa CT-01.
@@ -123,7 +124,9 @@ export const tema = createTheme({
 
 ## 5. Diego — gestión
 
-**Login falso.** Lista de usuarios; al elegir uno entra a su dashboard según el rol.
+**Login.** Correo y clave; al entrar va a su dashboard según el rol, y el encabezado dice su nombre y su empresa. Si la clave no calza lo dice ahí mismo; si el servidor no responde, también. Con mock, abajo hay un toque por persona de prueba.
+
+**Pedir OT.** El supervisor elige una de las pautas de su empresa y la OT aparece por asignar, con un aviso de cuál pidió.
 
 **Supervisor.** Ve todas las OT con su estado general, su operador y su avance. Asigna las que no tienen operador y reasigna las entregadas. Reasignar es P0: sin eso no hay relevo.
 
@@ -273,17 +276,20 @@ Por qué la voz sale del evento y no de `calificacion.avisos`: un aviso no trae 
 
 > El back va a cambiar con el equipo de Francisco. Esto es solo lo que el front consume, y todo cambio se absorbe en `web/src/api/` sin tocar las pantallas.
 
-La API está desplegada en `https://34-176-44-192.sslip.io`. La guía completa está en [`/agente`](https://34-176-44-192.sslip.io/agente), los esquemas en `/openapi.json`, y el diseño en el [PRD de servicios en vivo](../projects/servicios-en-vivo/PRD.md) y el [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md). Sin autenticación: es un servidor de demo.
+La API está desplegada en `https://34-176-44-192.sslip.io`. La guía completa está en [`/agente`](https://34-176-44-192.sslip.io/agente), los esquemas en `/openapi.json`, y el diseño en el [PRD de servicios en vivo](../projects/servicios-en-vivo/PRD.md), el [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md) y el [ADR-0012](../decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md). Las listas y la asignación van por el servicio para clientes, con login; la ejecución de una OT (`/ot/{id}/...`) sigue abierta. El front manda el token en todas las llamadas.
 
 **Lo que el front usa y ya existe:**
 
 | Qué | Para | Nota |
 |---|---|---|
-| `GET /ots` → `[{ot, pauta, version, equipo, abierta_en, paso_actual, completa, operador, estado_general, entregada_por, cerrados, total}]` | Diego | El id viene en `ot`, no en `id`. El avance es `cerrados` sobre `total`, sin pedir cada OT |
+| `POST /auth/entrar` `{usuario, clave}` → `{token, expira, persona}` | los dos | `persona`: `{id, nombre, usuario, rol, cliente}`. El token dura 12 horas y va como `Authorization: Bearer`. 401 si no calzan. `POST /auth/salir` lo invalida |
+| `GET /cliente/ots` → `[{ot, pauta, version, equipo, abierta_en, paso_actual, completa, operador, estado_general, entregada_por, cerrados, total}]` | Diego | El supervisor ve todas las de su empresa; el operador, las suyas. El id viene en `ot`, no en `id`. El avance es `cerrados` sobre `total`, sin pedir cada OT. 401 sin token |
 | `GET /ot/{id}` → `{pauta, equipo, paso_actual, completa, pasos, verificados, en_conflicto, pendientes}` | los dos | Cada paso: `id, orden, titulo, estado, control_critico, capa, evidencia, detalle`. El dashboard del operador lo pide solo para sus OT abiertas, para mostrar en qué paso siguen |
-| `GET /pautas` → `[{id, nombre, version, equipo, pasos, aprobada}]` | Diego | El nombre legible de cada pauta, para la lista de OT. Se pide una vez |
+| `GET /cliente/pautas` → `[{id, nombre, version, equipo, pasos, protocolos}]` | Diego | Las pautas que la empresa puede pedir: su nombre legible para la lista de OT y las opciones de «Pedir OT» |
+| `GET /cliente/operadores` → `[persona]` | Diego | Los operadores de la empresa, para asignar y para sus nombres. Solo supervisor (403) |
+| `POST /cliente/ots` `{pauta_id}` → `{ot, pauta, version, nombre, cliente}` | Diego | «Pedir OT»: la OT nace sin operador. Solo supervisor; 403 si la pauta no está habilitada para su empresa |
 | `GET /pautas/{pauta_id}?version=` | Dani | La pauta completa, con `instruccion`, `tipo_evidencia` y `deteccion` de cada paso: con eso se sabe si un paso se cierra solo. Se pide una vez |
-| `POST /ot/{id}/asignar` `{operador, actor}` | Diego | Asigna una OT sin operador o reasigna una entregada. `actor` es el supervisor: queda en la bitácora como `ot_asignada`. 409 si está completa, si ya tiene operador o si el operador no existe |
+| `POST /cliente/ots/{id}/asignar` `{operador}` | Diego | Asigna una OT sin operador o reasigna una entregada. Quién asigna sale del token y queda en la bitácora como `ot_asignada`. 403 si el operador no es de la empresa; 409 si está completa o ya tiene operador |
 | `POST /ot/{id}/sesion` `{edge_id, operario}` | Dani | Une la OT con el edge. Sin sesión, las lecturas no llegan a ninguna OT. El demo tiene un solo edge, `edge-1`, que va en `VITE_EDGE_ID` |
 | `WS /ot/{id}/stream?desde=` | Dani | Primero un `snapshot` (estado, calificación, alertas activas, sesión, sensores y bitácora) y después `lectura`, `evento`, `calificacion_ot`, `sesion` y `detecciones` (lo que ve la cámara del edge) |
 | `POST /ot/{id}/declarar` `{actor, texto, paso_id}` | Dani | «Hecho». `paso_id` es el paso que la pantalla mostraba: si su evidencia ya lo cerró, no se evalúa el siguiente. Un paso de cámara se juzga con el último cuadro del edge |
@@ -297,7 +303,7 @@ Un aviso de `calificacion.avisos` es `{nivel, certeza, capa, motivos}`: sin `id`
 
 Respaldo si el ESP32 falla en el escenario: la lectura se puede escribir a mano en `POST /edge/edge-1/lecturas` o en `POST /sensores`.
 
-El login falso no necesita endpoint: los usuarios están escritos en el front.
+`GET /cliente/ots/{id}` trae la OT con su `calificacion` (todo bien, atención o detente); el front todavía no la usa.
 
 ## 9. Escenarios del mock
 
@@ -356,7 +362,7 @@ Gestión (Diego):
 - [ ] Durante la ejecución: notas, reportar una anomalía y pedir apoyo al supervisor (Dani).
 - [ ] Filtros y búsqueda de OT (Diego).
 - [ ] Panel para disparar a mano los eventos del mock en el ensayo (Dani).
-- [ ] Login real.
+- [x] Login real, contra `POST /auth/entrar`.
 - [ ] Estados vacíos y mensajes de error más cuidados.
 
 ## 11. Criterio de éxito
