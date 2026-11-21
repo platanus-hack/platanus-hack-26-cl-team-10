@@ -1,6 +1,6 @@
 # Referencias
 
-> Documento vivo. Las 66 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
+> Documento vivo. Las 77 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
 >
 > De casi todas se leyó solo el resumen. Las leídas completas tienen nota en [notas/](./notas/).
 
@@ -97,6 +97,27 @@ Documentos como los que un cliente entrega: estrategias de controles, manuales d
 64. Resources Safety, Gobierno de Australia Occidental (2016-01-27). [Management of mobile equipment maintenance audit: guide](https://www.worksafe.wa.gov.au/system/files/documents/2025-02/MSH_AuditGuide_ManagementMobileEquip.pdf). 20 páginas. Los puntos que un auditor revisa en la mantención de equipo móvil: registro de equipos, programa de mantención y sistemas clave. Leído el índice.
 65. National Courses. [Rigid Haul Truck: Learner Guide](https://nationalcourses.edu.au/wp-content/uploads/2025/02/2.14.5-Rigid-Haul-Truck-LG.docx.pdf). 43 páginas. Guía de formación para operar un camión de extracción rígido: revisiones previas, partida, estacionar y detener, revisiones posteriores y vuelta a servicio con retiro de candados y tarjetas. Leídas las secciones 2.1, 3.5 y 4.1 a 4.2. De su estructura salen los protocolos de `datos/protocolos/`.
 66. MSHA. [Dragline operation](https://arlweb.msha.gov/safetypro_in_a_box/IG%2043%20OJT%20training%20modules%20surface%20MNM/Module%2009%20Dragline%20operation.PDF), módulo 9 de la guía de instrucción 43. 16 páginas. Seis pasos del trabajo, de la inspección alrededor de la máquina al apagado y la mantención, cada uno con sus peligros y su procedimiento seguro. Leída la introducción.
+
+## Construcción de la API
+
+Los estándares contra los que se revisó la API en [API](../../architecture/API.md). Abiertas el 2026-11-21. De cada una se leyeron solo las secciones que se nombran, con una herramienta de extracción, y las citas se tomaron de ahí.
+
+67. OpenAPI Initiative. [OpenAPI Specification v3.1.0](https://spec.openapis.org/oas/v3.1.0.html). El formato del documento que describe la API. Leídos el objeto de parámetro (una cabecera `Authorization` declarada como parámetro «SHALL be ignored»), el esquema de seguridad (`http` con `scheme`, `apiKey` con `name` e `in`), el requisito de seguridad (un `{}` la vuelve opcional) y el objeto de grupo (`tags`).
+68. IETF (2023-07). [RFC 9457, Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457.html). Reemplaza al RFC 7807. Un error va como `application/problem+json`, con `type`, `title`, `status`, `detail` e `instance`, y admite miembros propios.
+69. IETF. [RFC 6750, The OAuth 2.0 Authorization Framework: Bearer Token Usage](https://www.rfc-editor.org/rfc/rfc6750.html). Leídas las secciones 2.1, 3, 3.1, 5.2 y 5.3. El token va en `Authorization: Bearer`; un pedido sin credenciales recibe `WWW-Authenticate` con el esquema `Bearer`; siempre por TLS; y recomienda tokens de una hora o menos.
+70. IETF. [RFC 9110, HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110.html). Leídas las secciones 15.5.2, 15.5.4, 15.5.5 y 15.5.10. Un 401 lleva `WWW-Authenticate`; un servidor puede responder 404 en vez de 403 para no revelar que algo existe; un 409 trae lo necesario para reconocer el conflicto.
+71. OWASP (2023). [API Security Top 10 2023](https://api-security.owasp.org/editions/2023/en/0x11-t10). Leída la lista con sus descripciones. Las que tocan a esta API: API1, autorización por objeto; API2, autenticación; API4, consumo sin límite; API5, autorización por función; API9, inventario.
+72. MaintainX. [Getting started with the REST API](https://help.getmaintainx.com/build/getting-started). La API de un sistema de órdenes de trabajo, como comparación del rubro. Lleva la versión en la ruta (`/v1`), entra con un token Bearer, publica su OpenAPI y muestra la llave solo al generarla. Leída esa página; la paginación y los límites están en otras, que no se abrieron.
+73. Scalar. [Integración con FastAPI](https://github.com/scalar/scalar/blob/main/documentation/integrations/fastapi.md). La página de referencia se sirve con el paquete `scalar-fastapi`, a partir del OpenAPI de la aplicación. Leídos los ejemplos de instalación y de ruta propia.
+74. Agent Skills. [Specification](https://agentskills.io/specification). El formato abierto de una skill: una carpeta con `SKILL.md`, cuyo encabezado lleva `name` (hasta 64 caracteres, minúsculas, números y guiones, igual al nombre de la carpeta) y `description` (hasta 1.024, qué hace y cuándo usarla). El cuerpo, bajo 500 líneas; lo largo en `references/` y lo que se ejecuta en `scripts/`. El agente carga primero solo el nombre y la descripción. Leída completa el 2026-11-21.
+75. Howard (2024, revisada en 2026). [The /llms.txt file](https://llmstxt.org/). Un archivo en Markdown en la raíz del sitio, o en una ruta: un título, un resumen en cita y listas de enlaces, para que un agente encuentre lo que necesita sin leer el sitio entero. Las páginas que un agente necesita ofrecen además una versión `.md`. Leída completa el 2026-11-21.
+
+## Cómo se gestiona hoy una OT
+
+Cómo una planta pasa del procedimiento a la orden y la cierra en SAP PM, el sistema habitual en minería. Sirven de punto de partida para las [skills](../skills/PRD.md). Abiertas el 2026-11-21; de cada página se leyó el resumen que dio una herramienta de búsqueda, no la página completa.
+
+76. SAP. [Maintenance Plan](https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/e72f747389b340229f7fa343975bfa57/617ac253d0a4b54ce10000000a174cb4.html). La categoría del plan decide qué objeto genera cuando vence: una orden, una notificación o una hoja de servicio. Si es una orden, el trabajo se describe con una lista de tareas asignada al ítem del plan, y al generar la orden el sistema copia en ella las operaciones de esa lista.
+77. SAP. [Completion Confirmation](https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/e72f747389b340229f7fa343975bfa57/18f4b853dcfcb44ce10000000a174cb4.html). La confirmación registra cuánto se avanzó en cada operación de la orden; los datos técnicos del informe de actividad son la confirmación técnica. La orden queda confirmada cuando todas sus operaciones lo están.
 
 ## No encontradas
 

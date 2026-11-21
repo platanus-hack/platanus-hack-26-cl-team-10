@@ -11,10 +11,8 @@ modelo nunca contradice a un sensor.
 from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping, Sequence
-from datetime import datetime
-from statistics import mean, median
 
-from app.contratos import Capa, Estado, Evento, Paso, Pauta, TipoEvento, TipoEvidencia, Veredicto
+from app.contratos import Capa, Estado, Evento, Paso, Pauta, TipoEvidencia, Veredicto
 
 # Un juez de capa 3 recibe la pregunta visual y devuelve (respuesta, confianza).
 # El frente 3 reemplaza el stub por una llamada real a un VLM.
@@ -138,7 +136,9 @@ def por_deteccion(paso: Paso, detecciones: Sequence[Mapping]) -> Veredicto | Non
 
     Recibe las detecciones recientes del edge, de la más vieja a la más nueva. Decide
     solo si TODAS coinciden con certeza (un cuadro dudoso basta para no decidir), y
-    solo puede verificar: nunca abre un conflicto. Si no puede decidir devuelve None,
+    solo puede verificar: nunca abre un conflicto. "Ya no se ve" solo lo decide un detector
+    que buscaba esa clase (`clases` de cada detección): si no la conoce, no verla no dice
+    nada. Si no puede decidir devuelve None,
     y el paso sube a la capa 3 (VLM) cuando el operario declara (ADR-0004: la primera
     capa que puede decidir, decide).
     """
@@ -148,7 +148,7 @@ def por_deteccion(paso: Paso, detecciones: Sequence[Mapping]) -> Veredicto | Non
     confs = [max((o["conf"] for o in d["objetos"] if o["clase"] == clase), default=0.0) for d in detecciones]
     if presente and min(confs) >= CONF_ALTA:
         confianza, detalle = min(confs), f"el modelo del edge ve {clase} en {len(confs)} cuadros seguidos (mín. {min(confs):.0%})"
-    elif not presente and max(confs) < CONF_PISO:
+    elif not presente and max(confs) < CONF_PISO and all(clase in (d.get("clases") or ()) for d in detecciones):
         confianza, detalle = 1 - max(confs), f"el modelo del edge ya no ve {clase} en {len(confs)} cuadros seguidos"
     else:
         return None
@@ -293,87 +293,26 @@ def estados_desde_eventos(eventos: Sequence[Evento]) -> dict[str, Estado]:
     return estados
 
 
-# Sobre esta parte del tiempo de la pauta, un paso es su cuello de botella.
-PARTE_QUE_ES_CUELLO = 0.5
-
-
-def medidas_por_paso(eventos: Sequence[Evento], minimo: int = 2) -> dict[str, dict]:
-    """Lo que el registro dice de cada paso de UNA pauta, sumando sus OT. Agrupa por paso,
-    nunca por persona: un paso que se saltan muchos operarios que normalmente cumplen
-    apunta a la pauta (REFERENCIAS 33).
-
-    `reintentos` son los veredictos sin verificar antes de que el paso cierre, promediados
-    por OT; `segundos`, la mediana de lo que demora en las `mediciones` que hay; `cierres`,
-    qué lo cerró (la capa, "declaracion" o "persona"). `nota` dice qué revisar, y solo se llena cuando
-    algo se repite en `minimo` OT o más: una desviación suelta no es una propuesta.
-    """
-    conflicto: dict[str, set[str]] = {}
-    persona: dict[str, set[str]] = {}
-    fallidos: dict[str, dict[str, int]] = {}  # paso → OT → veredictos sin verificar
-    segundos: dict[str, list[float]] = {}
-    cierres: dict[str, dict[str, int]] = {}
-    cierre: dict[str, datetime] = {}  # OT → cuándo cerró su paso anterior
-    cerrados: set[tuple[str, str]] = set()
-
-    for ev in eventos:
-        if not ev.paso_id:
-            continue
-        if ev.estado is Estado.EN_CONFLICTO:
-            conflicto.setdefault(ev.paso_id, set()).add(ev.ot_id)
-        if ev.tipo is not TipoEvento.VEREDICTO or (ev.ot_id, ev.paso_id) in cerrados:
-            continue
-        intentos = fallidos.setdefault(ev.paso_id, {})
-        intentos.setdefault(ev.ot_id, 0)
-        if ev.estado is not Estado.VERIFICADO:
-            intentos[ev.ot_id] += 1
-            continue
-        cerrados.add((ev.ot_id, ev.paso_id))
-        # Sin capa y sin persona contra la evidencia: un paso de confirmación, que se cierra declarando.
-        por = "persona" if (ev.evidencia or {}).get("tipo") == "persona" else str(ev.capa or "declaracion")
-        cierres.setdefault(ev.paso_id, {}).setdefault(por, 0)
-        cierres[ev.paso_id][por] += 1
-        if por == "persona":
-            persona.setdefault(ev.paso_id, set()).add(ev.ot_id)
-        # shortcut: nadie emite PASO_INICIADO, así que un paso se mide desde el cierre del
-        # anterior y el primero de cada OT queda sin medir; medir desde su inicio cuando exista.
-        ts = datetime.fromisoformat(ev.ts)
-        if ev.ot_id in cierre:
-            segundos.setdefault(ev.paso_id, []).append((ts - cierre[ev.ot_id]).total_seconds())
-        cierre[ev.ot_id] = ts
-
-    # La mediana, no el promedio: una OT que quedó a medias de un turno a otro no mueve el número.
-    medianas = {p: median(s) for p, s in segundos.items() if len(s) >= minimo}
-    # Con menos de tres pasos medidos no hay contra qué comparar: uno siempre sería "la mitad".
-    total = sum(medianas.values()) if len(medianas) >= 3 else 0
-
-    medidas = {}
-    for paso_id in sorted(conflicto.keys() | fallidos.keys()):
-        parte = medianas[paso_id] / total if total and paso_id in medianas else None
-        notas = []
-        if len(conflicto.get(paso_id, ())) >= minimo:
-            notas.append("Revisar la redacción del paso. Si es un paso de seguridad, "
-                         "que se salte seguido no lo vuelve prescindible.")
-        if len(persona.get(paso_id, ())) >= minimo:
-            notas.append("Lo cierra una persona contra la evidencia: revisar el sensor o la "
-                         "cámara de este paso antes que a quien lo ejecuta.")
-        if parte is not None and parte > PARTE_QUE_ES_CUELLO:
-            notas.append("Se lleva más de la mitad del tiempo de la pauta: ver si conviene "
-                         "dividirlo o si la evidencia que pide demora.")
-        medidas[paso_id] = {
-            "paso_id": paso_id,
-            "ots": sorted(conflicto.get(paso_id, ())),
-            "veces": len(conflicto.get(paso_id, ())),
-            "por_persona": len(persona.get(paso_id, ())),
-            "reintentos": round(mean(fallidos.get(paso_id, {}).values() or [0]), 1),
-            "segundos": median(segundos[paso_id]) if paso_id in segundos else None,
-            "mediciones": len(segundos.get(paso_id, ())),
-            "parte_del_tiempo": round(parte, 2) if parte is not None else None,
-            "cierres": cierres.get(paso_id, {}),
-            "nota": " ".join(notas),
-        }
-    return medidas
-
-
 def propuesta_de_mejora(eventos: Sequence[Evento], minimo: int = 2) -> list[dict]:
-    """Los pasos de UNA pauta que tienen algo que revisar, con sus números."""
-    return [m for m in medidas_por_paso(eventos, minimo).values() if m["nota"]]
+    """Una desviación suelta no es una propuesta.
+
+    La propuesta nace cuando el MISMO paso entra en conflicto en ejecuciones
+    distintas. Agrupa por paso, nunca por persona: un paso que se saltan muchos
+    operarios que normalmente cumplen apunta a la pauta (REFERENCIAS 33).
+    """
+    por_paso: dict[str, set[str]] = {}
+    for ev in eventos:
+        if ev.estado is Estado.EN_CONFLICTO and ev.paso_id:
+            por_paso.setdefault(ev.paso_id, set()).add(ev.ot_id)
+
+    return [
+        {
+            "paso_id": paso_id,
+            "ots": sorted(ots),
+            "veces": len(ots),
+            "nota": "Revisar la redacción del paso. Si es un paso de seguridad, "
+            "que se salte seguido no lo vuelve prescindible.",
+        }
+        for paso_id, ots in sorted(por_paso.items())
+        if len(ots) >= minimo
+    ]

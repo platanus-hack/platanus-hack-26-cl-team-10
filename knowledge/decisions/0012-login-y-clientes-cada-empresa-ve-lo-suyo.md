@@ -37,8 +37,10 @@ Oculta queda en la semilla (`datos/ots-semilla.json`) con una supervisora y dos 
 - Quitarle la estación a una OT no queda en la bitácora de ninguna de las dos: la sesión nueva dice quién la tiene y desde cuándo (`GET /edge/{id}/sesion`), pero no a quién se la quitó. Registrarlo pide un tipo de evento nuevo en `app/contratos.py`. `Brecha`.
 - Una estación no es de ninguna empresa: cualquier operador con una OT abierta puede unirla a cualquier estación libre. `Brecha`.
 - La pantalla del operador no usa todavía la ruta nueva ni ofrece tomar la estación. `Brecha`, de `web/`.
-- Las rutas anteriores (`/ots`, `/ot/{id}`, `/ot/{id}/declarar`, `/ot/{id}/asignar`) siguen abiertas y muestran las OT de todos. Hay que llevarlas detrás del login cuando la pantalla del demo lo use. `Brecha`.
+- Las rutas anteriores (`/ots`, `/ot/{id}`, `/ot/{id}/declarar`, `/ot/{id}/asignar`) siguen abiertas y muestran las OT de todos. Desde el 2026-11-21 la ejecución tiene sus versiones con login en `/cliente/ots/{id}/...` ([PRD de skills](../projects/skills/PRD.md)); falta que la pantalla del demo y el banco las usen, y entonces cerrar las abiertas. `Brecha`.
 - No hay límite de intentos de login ni bloqueo por intentos fallidos. `Brecha`.
+- El tiempo de respuesta del login delata si un usuario existe: con uno que existe el servidor deriva la clave (20 ms en local, medido el 2026-11-21) y con uno que no existe responde en 0,01 ms. Se cierra derivando siempre. `Brecha`.
+- La revisión de la API contra los estándares está en [API](../architecture/API.md): ordena estas brechas y suma el formato de los errores y la validación que corre antes que el login.
 - El token vive en la base del servidor: si la base se borra, todos vuelven a entrar. Aceptable para el demo.
 - No hay pantalla de login: hoy se entra por la API. La interfaz es de Daniel (`web/`). `Brecha`.
 - El servidor del demo solo tiene HTTPS si va detrás del dominio de la VM; sin HTTPS, la clave viaja a la vista. `Candidata a validar` en la VM.

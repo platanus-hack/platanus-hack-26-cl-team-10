@@ -218,16 +218,9 @@ def eventos(cx: sqlite3.Connection, ot_id: str) -> list[Evento]:
     return [_fila_a_evento(f) for f in filas]
 
 
-def eventos_por_pauta(cx: sqlite3.Connection) -> dict[tuple[str, int], list[Evento]]:
-    """Los eventos de todas las OT, juntos por la pauta y la versión que ejecutaron:
-    el «p2» de una pauta no es el «p2» de otra, ni el de su versión siguiente."""
-    filas = cx.execute(
-        "SELECT e.*, o.pauta_id, o.pauta_version FROM eventos e JOIN ots o ON o.id = e.ot_id ORDER BY e.id"
-    ).fetchall()
-    por_pauta: dict[tuple[str, int], list[Evento]] = {}
-    for f in filas:
-        por_pauta.setdefault((f["pauta_id"], f["pauta_version"]), []).append(_fila_a_evento(f))
-    return por_pauta
+def todos_los_eventos(cx: sqlite3.Connection) -> list[Evento]:
+    filas = cx.execute("SELECT * FROM eventos ORDER BY id").fetchall()
+    return [_fila_a_evento(f) for f in filas]
 
 
 def _fila_a_evento(f: sqlite3.Row) -> Evento:

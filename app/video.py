@@ -59,11 +59,15 @@ def validar_detecciones(d: dict) -> dict:
         if not 0 <= conf <= 1 or len(caja) != 4 or not all(0 <= v <= 1 for v in caja):
             raise DeteccionInvalida(f"conf y caja van entre 0 y 1 (caja = x1, y1, x2, y2): {str(o)[:200]}")
         limpios.append({"clase": clase, "conf": round(conf, 3), "caja": [round(v, 4) for v in caja]})
+    clases = d.get("clases")
+    if clases is not None and (not isinstance(clases, list) or len(clases) > OBJETOS_MAX):
+        raise DeteccionInvalida(f"'clases' debe ser una lista de hasta {OBJETOS_MAX}")
     try:
         ts_edge = float(d["ts"]) if d.get("ts") is not None else None
     except (TypeError, ValueError) as e:
         raise DeteccionInvalida("'ts' debe ser un número (epoch en segundos)") from e
-    return {"modelo": str(d.get("modelo", ""))[:TEXTO_MAX], "ts_edge": ts_edge, "objetos": limpios}
+    return {"modelo": str(d.get("modelo", ""))[:TEXTO_MAX], "ts_edge": ts_edge, "objetos": limpios,
+            "clases": None if clases is None else [str(c)[:TEXTO_MAX] for c in clases]}
 
 
 @dataclass(frozen=True, slots=True)

@@ -72,6 +72,12 @@ class EntranDetecciones(unittest.TestCase):
     def setUp(self):
         self.v = Video(Path(tempfile.gettempdir()))
 
+    def test_las_clases_que_busca_el_detector_se_validan(self):
+        self.assertEqual(validar_detecciones({"objetos": [], "clases": ["padlock", 7]})["clases"], ["padlock", "7"])
+        self.assertIsNone(validar_detecciones({"objetos": []})["clases"])
+        with self.assertRaises(DeteccionInvalida):
+            validar_detecciones({"objetos": [], "clases": "padlock"})
+
     def test_la_deteccion_apunta_al_ultimo_cuadro(self):
         self.v.recibir("edge-1", JPEG)
         self.v.recibir("edge-1", JPEG)

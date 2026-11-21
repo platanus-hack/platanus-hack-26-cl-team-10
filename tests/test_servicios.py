@@ -248,6 +248,38 @@ class ElWarningSeVaCuandoElSensorSeCorrige(Base):
         self.assertEqual(len(self.alertas("ot-1", "seguridad")), 1)
 
 
+class LaCalificacionSoloMiraLosSensoresDeSuEstacion(Base):
+    """Los sensores son una tabla global; una OT que ningún edge ejecuta no tiene sensores de ahora."""
+
+    def setUp(self):
+        super().setUp()
+        self.s.iniciar_sesion("ot-1", "edge-1", "operario:A")
+
+    def peligro_en_edge_1(self):
+        self.s.recibir_lectura("edge-1", "energia", "viva")
+        self.s.recibir_lectura("edge-1", "guarda", "abierta")
+
+    def test_el_peligro_de_una_estacion_no_pone_en_error_a_otra_ot(self):
+        self.peligro_en_edge_1()
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "error")
+        c = self.s.calificacion("ot-2")
+        self.assertEqual((c["nivel"], c["avisos"]), ("ok", []))
+
+    def test_una_ot_sin_sesion_no_avisa_frescura_por_un_sensor_ajeno(self):
+        self.s.terminar_sesion("edge-1")
+        db.escribir_sensor(self.cx, "reed_bloqueo", "abierto")
+        self.cx.execute("UPDATE sensores SET ts = '2026-01-01T00:00:00+00:00'")
+        self.assertEqual(self.s.calificacion("ot-2")["avisos"], [])
+
+    def test_si_la_sesion_termina_con_el_peligro_abierto_la_ot_sigue_en_error(self):
+        self.peligro_en_edge_1()
+        self.s.terminar_sesion("edge-1")
+        db.escribir_sensor(self.cx, "guarda", "cerrada")
+        c = self.s.calificacion("ot-1")
+        self.assertEqual(c["nivel"], "error")
+        self.assertIn("GUARDA ABIERTA CON ENERGÍA VIVA", c["avisos"][0]["motivos"][0])
+
+
 class ElJuezDeCamaraMiraElCuadroDelEdge(Base):
     JPEG = b"\xff\xd8" + b"cuadro" + b"\xff\xd9"
 

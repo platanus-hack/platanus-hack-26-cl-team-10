@@ -85,6 +85,7 @@
   #propuestas b{font-weight:500;font-size:17px;line-height:1.3}
   #propuestas small{font:400 12px/1.5 var(--mono);letter-spacing:.02em;color:var(--tenue)}
   #propuestas p{max-width:68ch;margin-top:4px}
+  #propuestas q{display:block;max-width:68ch;margin-top:6px;padding-left:14px;border-left:1px solid var(--linea-2);color:var(--tenue);quotes:"«" "»"}
   #sin-propuestas{padding:14px 0;border-top:1px solid var(--linea);color:var(--tenue);max-width:60ch}
 
   /* ─── Qué cerró cada paso: una barra por forma de verificar ─── */
@@ -167,24 +168,26 @@
       <section>
         <h2>Propuestas de mejora <output id="n-propuestas"></output></h2>
         <ol id="propuestas"></ol>
-        <p id="sin-propuestas" hidden>Ningún paso repite un problema todavía. Una propuesta aparece cuando el mismo paso, en dos órdenes o más, entra en conflicto, lo cierra una persona contra la evidencia o se lleva más de la mitad del tiempo de su pauta.</p>
+        <p id="sin-propuestas" hidden>Ningún paso repite una señal todavía. Una propuesta nace cuando el mismo paso de la misma versión, en dos órdenes o más, tiene una alerta de orden o de control, un conflicto, una confirmación por persona o una observación de los operarios.</p>
       </section>
       <section>
         <h2>Qué cerró cada paso <output id="n-cierres"></output></h2>
         <ul id="cierres"></ul>
-        <p class="pie">Un paso que cierra una persona contra la evidencia no queda verificado por el sistema: si se repite, lo primero que se revisa es el sensor o la cámara.</p>
+        <p class="pie" id="objetiva"></p>
       </section>
     </div>
 
     <section>
       <h2>Pauta por pauta</h2>
       <div id="pautas"></div>
-      <p class="pie">El tiempo de un paso va desde que cierra el paso anterior hasta que cierra él, así que el primer paso de cada orden no tiene medida. Se informa la mediana entre las órdenes que lo ejecutaron. Un reintento es un veredicto que no verificó el paso antes de que cerrara.</p>
+      <p class="pie">Los pasos son los de la última versión aprobada de cada pauta. El tiempo de un paso va desde que cierra el paso anterior hasta que cierra él, así que el primer paso de cada orden no tiene medida; se informa el promedio. Los intentos son los veredictos que recibió el paso hasta cerrar: uno es el mínimo.</p>
     </section>
   </div>
 </main>
 
 <script>
+// Esta página no calcula nada: pinta lo que ya entregan /cliente/metricas y /cliente/mejoras
+// (app/metricas.py y app/mejora.py, ADR-0014), que solo ve el supervisor y solo de su empresa.
 const $ = id => document.getElementById(id);
 const el = (tag, clase, texto) => {
   const e = document.createElement(tag);
@@ -192,7 +195,7 @@ const el = (tag, clase, texto) => {
   if (texto != null) e.textContent = texto;
   return e;
 };
-const pct = x => `${Math.round(x * 100)} %`;
+const coma = x => String(Math.round(x * 10) / 10).replace(".", ",");
 const cuantas = (n, una, varias) => `${n} ${n === 1 ? una : varias}`;
 function duracion(s) {
   if (s == null) return "sin medida";
@@ -203,19 +206,28 @@ function duracion(s) {
   return `${r} s`;
 }
 
-// El orden va de la evidencia más dura a la más blanda (ADR-0004): sensor, detector, modelo, palabra.
-const CIERRES = [
-  ["1", "Sensor", "Capa 1 · una regla sobre la lectura"],
-  ["2", "Detector de la cámara", "Capa 2 · el modelo que corre en la estación"],
-  ["3", "Modelo de visión", "Capa 3 · el VLM mira la foto"],
-  ["declaracion", "Declaración del operario", "Pasos de confirmación, que se cierran declarando"],
-  ["persona", "Una persona, contra la evidencia", "El sensor o la cámara decían otra cosa"],
+// El orden va de la evidencia más dura a la más blanda (ADR-0004).
+const EVIDENCIAS = [
+  ["sensor", "Sensor", "Una regla sobre la lectura del sensor"],
+  ["camara", "Cámara", "El detector de la estación o el modelo de visión"],
+  ["palabra", "Palabra del operario", "Pasos de confirmación, que se cierran declarando"],
+  ["persona", "Una persona, contra la evidencia", "El sensor o la cámara no lo vieron"],
 ];
-const ALERTAS = {seguridad: "de seguridad", orden: "de orden de pasos", control: "de control deshecho",
-                 senal: "de señal anómala", pegado: "de sensor pegado"};
+const CLASES = {seguridad: "de seguridad", orden: "de orden de pasos", control: "de control perdido",
+                conflicto: "de conflicto con la evidencia", persona: "de confirmación por persona"};
 const EVIDENCIA = {sensor: "Sensor", camara: "Cámara", confirmacion: "Confirmación"};
+const ESTADOS = {abierta: "Por revisar", aceptada: "Aceptada", descartada: "Descartada", aplicada: "Aplicada", superada: "Superada"};
 
 let token = sessionStorage.getItem("factum-token");
+
+class SinAcceso extends Error {}
+async function leer(ruta) {
+  const r = await fetch(ruta, {headers: {Authorization: `Bearer ${token}`}});
+  if (r.status === 401) throw new SinAcceso("La sesión venció. Vuelve a entrar.");
+  if (r.status === 403) throw new SinAcceso("Este reporte es para supervisores. Entra con una cuenta de supervisor.");
+  if (!r.ok) throw new Error(`${ruta}: ${r.status}`);
+  return r.json();
+}
 
 function barra(parte) {
   const b = el("span", "barra");
@@ -233,45 +245,49 @@ function celda(rotulo, valor, nota, atencion) {
   return c;
 }
 
-function pintarResumen(r) {
-  const conAlertas = r.pautas.filter(p => p.alertas.seguridad).length;
+function pintarResumen(m) {
+  const c = m.cumplimiento, d = m.desviaciones, seguridad = d.por_clase.seguridad;
   $("resumen").replaceChildren(
-    celda("Órdenes completas", `${r.completas} de ${r.ots}`,
-          r.ots === r.completas ? "todas cerraron su pauta" : `${r.ots - r.completas} en curso o sin empezar`),
-    celda("Completas sin observaciones", `${r.sin_observaciones} de ${r.completas}`,
-          "sin alertas, conflictos ni cierres por persona"),
-    celda("Alertas de seguridad", String(r.alertas_seguridad),
-          r.alertas_seguridad ? `en ${cuantas(conAlertas, "pauta", "pautas")}` : "ninguna registrada", r.alertas_seguridad > 0),
-    celda("Pasos por revisar", String(r.propuestas.length),
-          r.propuestas.length ? "repiten un problema en dos órdenes o más" : "ninguno repite un problema", r.propuestas.length > 0),
+    celda("Órdenes completas", `${c.completas} de ${m.ots.total}`,
+          m.ots.total === c.completas ? "todas cerraron su pauta" : `${m.ots.total - c.completas} en curso o sin empezar`),
+    celda("Completas sin desviaciones", `${c.sin_desviaciones} de ${c.completas}`,
+          m.minutos_medios_de_ejecucion == null ? "sin alertas, conflictos ni confirmaciones por persona"
+            : `una orden demora ${duracion(m.minutos_medios_de_ejecucion * 60)} en promedio`),
+    celda("Alertas de seguridad", String(seguridad),
+          d.alertas_abiertas ? `${cuantas(d.alertas_abiertas, "alerta", "alertas")} de ejecución sin resolver`
+            : d.minutos_medios_para_resolver == null ? "ninguna alerta de ejecución registrada"
+            : `una alerta se resuelve en ${duracion(d.minutos_medios_para_resolver * 60)}`, seguridad > 0),
+    celda("Propuestas por revisar", String(m.mejoras.abierta),
+          m.mejoras.abierta ? "pasos con señales en dos órdenes o más"
+            : m.mejoras.aceptada ? `${cuantas(m.mejoras.aceptada, "aceptada espera", "aceptadas esperan")} su versión nueva` : "ninguna abierta",
+          m.mejoras.abierta > 0),
   );
 }
 
-function pintarPropuestas(propuestas) {
-  $("n-propuestas").textContent = propuestas.length || "";
-  $("sin-propuestas").hidden = propuestas.length > 0;
-  $("propuestas").hidden = !propuestas.length;
-  $("propuestas").replaceChildren(...propuestas.map(p => {
-    const li = el("li");
-    const cifras = [
-      p.parte_del_tiempo != null && `${pct(p.parte_del_tiempo)} del tiempo de la pauta`,
-      p.segundos != null && `mediana ${duracion(p.segundos)} en ${cuantas(p.mediciones, "orden", "órdenes")}`,
-      p.reintentos > 0 && `${String(p.reintentos).replace(".", ",")} reintentos por orden`,
-      p.veces > 0 && `conflicto en ${cuantas(p.veces, "orden", "órdenes")}`,
-      p.por_persona > 0 && `cerrado por persona en ${cuantas(p.por_persona, "orden", "órdenes")}`,
-    ].filter(Boolean).join(" · ");
-    li.append(el("b", "", p.titulo), el("small", "", `${p.pauta} · paso ${p.orden}`), el("p", "", p.nota), el("small", "", cifras));
+function pintarPropuestas(mejoras) {
+  const abiertas = mejoras.filter(x => x.estado === "abierta").length;
+  $("n-propuestas").textContent = mejoras.length ? `${abiertas} por revisar` : "";
+  $("sin-propuestas").hidden = mejoras.length > 0;
+  $("propuestas").hidden = !mejoras.length;
+  $("propuestas").replaceChildren(...mejoras.map(x => {
+    const li = el("li"), titulo = el("b", "", x.titulo);
+    if (x.control_critico) titulo.append(el("span", "marca-paso", "Control crítico"));
+    titulo.append(el("span", x.estado === "abierta" ? "marca-paso revisar" : "marca-paso", ESTADOS[x.estado] || x.estado));
+    li.append(titulo, el("small", "", `${x.nombre} · versión ${x.version}`), el("p", "", x.sugerencia));
+    for (const o of x.observaciones) li.append(el("q", "", o.texto));
+    li.append(el("small", "", x.motivo));
     return li;
   }));
 }
 
-function pintarCierres(cierres) {
-  const total = Object.values(cierres).reduce((a, b) => a + b, 0);
-  const mayor = Math.max(1, ...Object.values(cierres));
-  $("n-cierres").textContent = total ? cuantas(total, "paso", "pasos") : "";
-  $("cierres").replaceChildren(...CIERRES.map(([clave, nombre, detalle]) => {
-    const n = cierres[clave] || 0, li = el("li", clave === "persona" ? "persona" : "");
-    li.append(el("span", "", nombre), el("output", "", total ? `${n} · ${pct(n / total)}` : "0"),
+function pintarEvidencia(pasos) {
+  const mayor = Math.max(1, ...Object.values(pasos.por_evidencia));
+  $("n-cierres").textContent = pasos.verificados ? cuantas(pasos.verificados, "paso", "pasos") : "";
+  $("objetiva").textContent = pasos.con_evidencia_objetiva_pct == null ? ""
+    : `${coma(pasos.con_evidencia_objetiva_pct)} % de los pasos se cerró con evidencia objetiva: un sensor o la cámara, no la palabra de alguien.`;
+  $("cierres").replaceChildren(...EVIDENCIAS.map(([clave, nombre, detalle]) => {
+    const n = pasos.por_evidencia[clave] || 0, li = el("li", clave === "persona" ? "persona" : "");
+    li.append(el("span", "", nombre), el("output", "", pasos.verificados ? `${n} · ${Math.round(n / pasos.verificados * 100)} %` : "0"),
               el("small", "", detalle), barra(n / mayor));
     return li;
   }));
@@ -283,49 +299,50 @@ function dato(rotulo, valor) {
   return d;
 }
 
-function numero(n) {
-  return el("td", n > 0 ? "n" : "n cero", String(n).replace(".", ","));
-}
-
-function pintarPauta(p) {
-  const a = el("article", "pauta");
-  const alertas = Object.entries(p.alertas).map(([clase, n]) => `${n} ${ALERTAS[clase] || clase}`).join(", ");
+function pintarPauta(p, pasos, conPropuesta) {
+  const a = el("article", "pauta"), c = p.cumplimiento;
+  const clases = Object.entries(p.por_clase).filter(([, n]) => n).map(([clase, n]) => `${n} ${CLASES[clase] || clase}`).join(", ");
   const datos = el("dl", "datos");
   datos.append(
-    dato("Órdenes", `${p.completas} de ${p.ots} completas`),
-    dato("Sin observaciones", `${p.sin_observaciones} de ${p.completas}`),
-    dato("Ejecución típica", duracion(p.segundos)),
-    dato("Alertas", alertas || "ninguna"),
+    dato("Órdenes", `${c.completas} de ${p.ots} completas`),
+    dato("Sin desviaciones", `${c.sin_desviaciones} de ${c.completas}`),
+    dato("Ejecución media", p.minutos_medios_de_ejecucion == null ? "sin medida" : duracion(p.minutos_medios_de_ejecucion * 60)),
+    dato("Desviaciones", clases || "ninguna"),
   );
-  a.append(el("h3", "", p.nombre), el("p", "rot", `${p.equipo} · versión ${p.version}`), datos);
+  a.append(el("h3", "", p.nombre),
+           el("p", "rot", [`versión ${Math.max(...p.versiones)}`, p.observaciones && cuantas(p.observaciones, "observación", "observaciones")].filter(Boolean).join(" · ")),
+           datos);
 
-  if (!p.pasos.some(s => Object.keys(s.cierres).length)) {
-    a.append(el("p", "sin-ejecutar", "Ninguna orden de esta pauta ha cerrado un paso todavía."));
+  if (!pasos || !pasos.some(s => s.verificado)) {
+    a.append(el("p", "sin-ejecutar", pasos ? "Ninguna orden de esta versión ha cerrado un paso todavía." : "No se pudieron leer los pasos de esta pauta."));
     return a;
   }
-  const mayor = Math.max(1, ...p.pasos.map(s => s.segundos || 0));
+  const mayor = Math.max(1, ...pasos.map(s => s.segundos_medios || 0));
   const tabla = el("table"), cabeza = el("tr");
-  for (const [texto, clase] of [["N.º"], ["Paso"], ["Evidencia"], ["Tiempo"], ["Reintentos", "n"], ["Conflictos", "n"], ["Por persona", "n"]]) {
+  for (const [texto, clase] of [["N.º"], ["Paso"], ["Evidencia"], ["Tiempo medio"], ["Intentos", "n"], ["Desviaciones", "n"], ["Observaciones", "n"]]) {
     const th = el("th", clase, texto);
     th.scope = "col";
     cabeza.append(th);
   }
   const thead = el("thead"), tbody = el("tbody");
   thead.append(cabeza);
-  for (const s of p.pasos) {
-    const tr = el("tr", s.nota ? "revisar" : ""), paso = el("td", "", s.titulo), tiempo = el("td", "tiempo");
+  for (const s of pasos) {
+    const revisar = conPropuesta.has(s.paso);
+    const tr = el("tr", revisar ? "revisar" : ""), paso = el("td", "", s.titulo), tiempo = el("td", "tiempo");
     if (s.control_critico) paso.append(el("span", "marca-paso", "Control crítico"));
-    if (s.nota) { paso.append(el("span", "marca-paso revisar", "Revisar")); tr.title = s.nota; }
-    if (s.segundos == null) {
+    if (revisar) paso.append(el("span", "marca-paso revisar", "Con propuesta"));
+    if (s.segundos_medios == null) {
       tiempo.append(el("small", "", "sin medida"));
     } else {
-      const fila = el("div"), valor = el("span", "", duracion(s.segundos));
-      valor.append(el("small", "", cuantas(s.mediciones, "orden", "órdenes")));
-      fila.append(barra(s.segundos / mayor), valor);
+      const fila = el("div");
+      fila.append(barra(s.segundos_medios / mayor), el("span", "", duracion(s.segundos_medios)));
       tiempo.append(fila);
     }
+    // Un intento es lo normal; más de uno es que el paso no cerró a la primera.
+    const intentos = el("td", s.intentos_medios > 1 ? "n" : "n cero", s.intentos_medios == null ? "sin cierres" : coma(s.intentos_medios));
     tr.append(el("td", "num", String(s.orden).padStart(2, "0")), paso, el("td", "evidencia", EVIDENCIA[s.tipo_evidencia] || s.tipo_evidencia),
-              tiempo, numero(s.reintentos), numero(s.veces), numero(s.por_persona));
+              tiempo, intentos, el("td", s.desviaciones ? "n" : "n cero", String(s.desviaciones)),
+              el("td", s.observaciones.length ? "n" : "n cero", String(s.observaciones.length)));
     tbody.append(tr);
   }
   tabla.append(thead, tbody);
@@ -336,17 +353,6 @@ function pintarPauta(p) {
   marco.append(tabla);
   a.append(marco);
   return a;
-}
-
-function pintar(r) {
-  $("empresa").textContent = [r.cliente.nombre, r.cliente.industria, cuantas(r.ots, "orden de trabajo", "órdenes de trabajo")].filter(Boolean).join(" · ");
-  $("accion").textContent = `Leído a las ${new Date().toLocaleTimeString("es-CL", {hour: "2-digit", minute: "2-digit"})}`;
-  pintarResumen(r);
-  pintarPropuestas(r.propuestas);
-  pintarCierres(r.cierres);
-  $("pautas").replaceChildren(...(r.pautas.length ? r.pautas.map(pintarPauta)
-    : [el("p", "sin-ejecutar", "Tu empresa todavía no tiene órdenes de trabajo. Cuando se ejecute la primera, aquí aparecen sus pasos con el tiempo y los reintentos de cada uno.")]));
-  $("entrada").hidden = true; $("reporte").hidden = false; $("sesion").hidden = false;
 }
 
 function pedirEntrada(motivo) {
@@ -361,12 +367,24 @@ async function cargar() {
   $("accion").textContent = "Leyendo la bitácora…";
   $("actualizar").disabled = true;
   try {
-    const r = await fetch("/cliente/analisis", {headers: {Authorization: `Bearer ${token}`}});
-    if (r.status === 401) return pedirEntrada("La sesión venció. Vuelve a entrar.");
-    if (r.status === 403) return pedirEntrada("Este reporte es para supervisores. Entra con una cuenta de supervisor.");
-    if (!r.ok) throw new Error(r.status);
-    pintar(await r.json());
+    const [yo, metricas, pautas, mejoras] = await Promise.all(
+      ["/yo", "/cliente/metricas", "/cliente/metricas/pautas?orden=ots", "/cliente/mejoras"].map(leer));
+    // Los pasos de una pauta que falla no botan el reporte entero: esa pauta lo dice en su lugar.
+    const pasos = await Promise.all(pautas.map(p =>
+      leer(`/cliente/metricas/pautas/${encodeURIComponent(p.pauta)}/pasos`).catch(e => { if (e instanceof SinAcceso) throw e; return null; })));
+    const vigentes = mejoras.filter(x => x.estado === "abierta" || x.estado === "aceptada");
+
+    $("empresa").textContent = [yo.cliente.nombre, yo.cliente.industria, cuantas(metricas.ots.total, "orden de trabajo", "órdenes de trabajo")].filter(Boolean).join(" · ");
+    $("accion").textContent = `Leído a las ${new Date().toLocaleTimeString("es-CL", {hour: "2-digit", minute: "2-digit"})}`;
+    pintarResumen(metricas);
+    pintarPropuestas(vigentes);
+    pintarEvidencia(metricas.pasos);
+    $("pautas").replaceChildren(...(pautas.length
+      ? pautas.map((p, i) => pintarPauta(p, pasos[i], new Set(vigentes.filter(x => x.pauta === p.pauta && x.version === Math.max(...p.versiones)).map(x => x.paso))))
+      : [el("p", "sin-ejecutar", "Tu empresa todavía no tiene órdenes de trabajo. Cuando se ejecute la primera, aquí aparecen sus pasos con el tiempo y los intentos de cada uno.")]));
+    $("entrada").hidden = true; $("reporte").hidden = false; $("sesion").hidden = false;
   } catch (e) {
+    if (e instanceof SinAcceso) return pedirEntrada(e.message);
     $("accion").textContent = "No se pudo leer el reporte. Revisa la conexión y prueba con Actualizar.";
     $("sesion").hidden = false;
   } finally {

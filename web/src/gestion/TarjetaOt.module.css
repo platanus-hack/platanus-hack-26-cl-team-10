@@ -1,0 +1,36 @@
+/* La tarjeta de una OT en la lista del supervisor. Los colores salen del tema (tema.ts). */
+
+.tarjeta {
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.tarjeta:hover {
+  border-color: var(--mantine-color-roca-4);
+  box-shadow: var(--mantine-shadow-sm);
+}
+
+/* Encendida: la estación avisa algo. Franja a la izquierda y fondo teñido, además del ícono y el texto. */
+.tarjeta[data-nivel] {
+  border-left-width: 6px;
+}
+
+.tarjeta[data-nivel='warning'],
+.tarjeta[data-nivel='warning']:hover {
+  background: var(--mantine-color-precaucion-0);
+  border-color: var(--mantine-color-precaucion-6);
+}
+
+.tarjeta[data-nivel='error'],
+.tarjeta[data-nivel='error']:hover {
+  background: var(--mantine-color-peligro-0);
+  border-color: var(--mantine-color-peligro-6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tarjeta {
+    transition: none;
+  }
+}

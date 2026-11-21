@@ -23,8 +23,9 @@ import sqlite3
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
 
-from app import catalogo, db
+from app import catalogo, db, mejora
 from app.catalogo import ReglaDeNegocio
+from app.contratos import TipoEvento
 
 ROLES = ("supervisor", "operador")
 DURACION_SESION = timedelta(hours=12)
@@ -61,6 +62,7 @@ class SinPermiso(Exception):
 
 def preparar(cx: sqlite3.Connection) -> None:
     catalogo.preparar(cx)
+    mejora.preparar(cx)
     cx.executescript(_ESQUEMA)
 
 
@@ -250,6 +252,21 @@ def ot_de(cx: sqlite3.Connection, p: dict, ot_id: str, en_sesion: Collection[str
     if o is None:
         raise db.NoExiste(f"OT {ot_id}")
     return o
+
+
+def ficha(cx: sqlite3.Connection, ot_id: str, en_sesion: Collection[str] = (), con_empresa: bool = True) -> dict:
+    """Lo que hace falta para ejecutar una OT que ya existe: su resumen, de qué empresa es, quién la pidió y quién
+    la tiene, de qué protocolos sale su pauta y sus pasos completos, en la versión que la OT ejecuta. Sin
+    `con_empresa` no salen la empresa ni los nombres de sus personas: es lo que ve quien no entró."""
+    o = catalogo.resumen_ot(cx, ot_id, en_sesion)
+    f = cx.execute("SELECT cliente_id FROM ot_cliente WHERE ot_id = ?", (ot_id,)).fetchone() if con_empresa else None
+    nombres = {p["id"]: p["nombre"] for p in personas_de(cx, f["cliente_id"])} if f else {}
+    pedida_por = next((e.actor for e in db.eventos(cx, ot_id) if e.tipo is TipoEvento.OT_ABIERTA), None)
+    pauta = catalogo.leer_pauta(cx, o["pauta"], o["version"])
+    return {**o, "nombre": pauta["nombre"], "cliente": _cliente(cx, f["cliente_id"]) if f else None,
+            "operador_nombre": nombres.get(o["operador"]), "pedida_por": pedida_por,
+            "pedida_por_nombre": nombres.get(pedida_por), "protocolos": catalogo.protocolos_de(cx, o["pauta"]),
+            "pasos": sorted(pauta["pasos"], key=lambda p: p["orden"])}
 
 
 def exige_estacion(cx: sqlite3.Connection, p: dict, ot_id: str, edge_id: str, sesion: dict | None, tomar: bool) -> None:

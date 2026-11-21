@@ -1,0 +1,958 @@
+{
+  "POST /auth/entrar": {
+    "pedido": {
+      "usuario": "carla.munoz@oculta.example",
+      "clave": "<la clave que entrega el equipo>"
+    },
+    "respuesta": {
+      "token": "<token>",
+      "expira": "2026-11-22T09:34:29+00:00",
+      "persona": {
+        "id": "supervisor:oculta",
+        "nombre": "Carla Muñoz",
+        "usuario": "carla.munoz@oculta.example",
+        "rol": "supervisor",
+        "cliente": {
+          "id": "oculta",
+          "nombre": "Oculta",
+          "industria": "minería"
+        }
+      }
+    }
+  },
+  "GET /yo": {
+    "respuesta": {
+      "id": "supervisor:oculta",
+      "nombre": "Carla Muñoz",
+      "usuario": "carla.munoz@oculta.example",
+      "rol": "supervisor",
+      "cliente": {
+        "id": "oculta",
+        "nombre": "Oculta",
+        "industria": "minería"
+      }
+    }
+  },
+  "GET /cliente/pautas": {
+    "respuesta": [
+      {
+        "id": "pauta-brazo-01",
+        "nombre": "Ajuste de pinza en brazo robótico",
+        "version": 1,
+        "equipo": "brazo BR-01, celda del demo",
+        "pasos": 9,
+        "protocolos": [
+          {
+            "id": "prot-aislamiento-01",
+            "nombre": "Aislamiento y bloqueo de energías"
+          },
+          {
+            "id": "prot-brazo-01",
+            "nombre": "Ajuste de pinza en brazo robótico"
+          }
+        ]
+      }
+    ]
+  },
+  "POST /cliente/ots": {
+    "pedido": {
+      "pauta_id": "pauta-polin-demo"
+    },
+    "respuesta": {
+      "ot": "ot-0017",
+      "pauta": "pauta-polin-demo",
+      "version": 1,
+      "nombre": "Cambio de polín · demo de 2 minutos",
+      "protocolos": [
+        {
+          "id": "prot-aislamiento-01",
+          "nombre": "Aislamiento y bloqueo de energías"
+        },
+        {
+          "id": "prot-correa-01",
+          "nombre": "Mantención de polines y rodillos en correa transportadora"
+        }
+      ],
+      "cliente": "oculta"
+    }
+  },
+  "GET /cliente/ots": {
+    "respuesta": [
+      {
+        "ot": "ot-1014",
+        "pauta": "pauta-loto-escritorio",
+        "version": 1,
+        "equipo": "estación demo (ESP32 + cámara)",
+        "abierta_en": "2026-11-14T12:49:40+00:00",
+        "paso_actual": null,
+        "completa": true,
+        "operador": "operario:1",
+        "estado_general": "completa",
+        "entregada_por": null,
+        "cerrados": 6,
+        "total": 6,
+        "calificacion": {
+          "nivel": "ok",
+          "certeza": 0.9,
+          "capa": 3,
+          "motivos": [
+            "la cámara responde que sí (90%)"
+          ],
+          "avisos": []
+        }
+      }
+    ]
+  },
+  "GET /cliente/ots/{ot_id}": {
+    "respuesta": {
+      "ot": "ot-0017",
+      "pauta": "pauta-polin-demo",
+      "version": 1,
+      "equipo": "correa a escala del demo",
+      "abierta_en": "2026-11-21T21:34:29+00:00",
+      "paso_actual": "p1",
+      "completa": false,
+      "operador": "operario:1",
+      "estado_general": "en_ejecucion",
+      "entregada_por": null,
+      "cerrados": 0,
+      "total": 8,
+      "calificacion": {
+        "nivel": "ok",
+        "certeza": 1.0,
+        "capa": null,
+        "motivos": [
+          "sin nada que calificar"
+        ],
+        "avisos": []
+      }
+    }
+  },
+  "GET /cliente/operadores": {
+    "respuesta": [
+      {
+        "id": "operario:1",
+        "nombre": "Ana Rojas",
+        "usuario": "ana.rojas@oculta.example",
+        "rol": "operador",
+        "cliente": {
+          "id": "oculta",
+          "nombre": "Oculta",
+          "industria": "minería"
+        }
+      }
+    ]
+  },
+  "GET /cliente/personas": {
+    "respuesta": [
+      {
+        "id": "operario:1",
+        "nombre": "Ana Rojas",
+        "rol": "operador"
+      },
+      {
+        "id": "operario:2",
+        "nombre": "Bruno Díaz",
+        "rol": "operador"
+      },
+      {
+        "id": "supervisor:oculta",
+        "nombre": "Carla Muñoz",
+        "rol": "supervisor"
+      }
+    ]
+  },
+  "POST /cliente/ots/{ot_id}/asignar": {
+    "pedido": {
+      "operador": "operario:1"
+    },
+    "respuesta": {
+      "ot": "ot-0017",
+      "pauta": "pauta-polin-demo",
+      "version": 1,
+      "equipo": "correa a escala del demo",
+      "abierta_en": "2026-11-21T21:34:29+00:00",
+      "paso_actual": "p1",
+      "completa": false,
+      "operador": "operario:1",
+      "estado_general": "asignada",
+      "entregada_por": null,
+      "cerrados": 0,
+      "total": 8
+    }
+  },
+  "POST /cliente/ots/{ot_id}/sesion": {
+    "pedido": {
+      "edge_id": "edge-1",
+      "tomar": false
+    },
+    "respuesta": {
+      "edge_id": "edge-1",
+      "ot_id": "ot-0017",
+      "operario": "operario:1",
+      "desde": "2026-11-21T21:34:29+00:00"
+    }
+  },
+  "POST /cliente/ots/{ot_id}/observaciones": {
+    "pedido": {
+      "texto": "El punto de bloqueo queda lejos del tablero.",
+      "categoria": "pauta",
+      "paso_id": "p2"
+    },
+    "respuesta": {
+      "ot_id": "ot-0017",
+      "tipo": "observacion",
+      "ts": "2026-11-21T22:07:45+00:00",
+      "actor": "operario:1",
+      "detalle": "operario:1 observa sobre «Poner tu candado» (pauta): El punto de bloqueo queda lejos del tablero.",
+      "id": 152,
+      "paso_id": "p2",
+      "estado": null,
+      "capa": null,
+      "declarado": "El punto de bloqueo queda lejos del tablero.",
+      "evidencia": {
+        "tipo": "observacion",
+        "categoria": "pauta"
+      },
+      "calificacion": null
+    }
+  },
+  "GET /cliente/metricas": {
+    "respuesta": {
+      "periodo": {
+        "desde": null,
+        "hasta": null
+      },
+      "ots": {
+        "total": 17,
+        "por_estado": {
+          "sin_asignar": 2,
+          "asignada": 3,
+          "en_ejecucion": 3,
+          "entregada": 0,
+          "completa": 9
+        }
+      },
+      "cumplimiento": {
+        "completas": 9,
+        "sin_desviaciones": 5,
+        "porcentaje": 55.6
+      },
+      "pasos": {
+        "verificados": 75,
+        "por_evidencia": {
+          "sensor": 53,
+          "camara": 14,
+          "persona": 0,
+          "palabra": 8
+        },
+        "con_evidencia_objetiva_pct": 89.3
+      },
+      "desviaciones": {
+        "total": 8,
+        "por_clase": {
+          "seguridad": 4,
+          "orden": 3,
+          "control": 1,
+          "conflicto": 0,
+          "persona": 0
+        },
+        "alertas_abiertas": 1,
+        "minutos_medios_para_resolver": 2.6
+      },
+      "sensores": {
+        "anomalias": 2,
+        "pegados": 0
+      },
+      "minutos_medios_de_ejecucion": 14.6,
+      "relevos": {
+        "entregados": 0,
+        "recibidos": 0
+      },
+      "observaciones": {
+        "total": 5,
+        "por_categoria": {
+          "pauta": 3,
+          "equipo": 1,
+          "seguridad": 1
+        }
+      },
+      "mejoras": {
+        "abierta": 1,
+        "aceptada": 0,
+        "descartada": 0,
+        "aplicada": 0,
+        "superada": 0
+      }
+    }
+  },
+  "GET /cliente/metricas/pautas": {
+    "respuesta": [
+      {
+        "pauta": "pauta-polin-ct-01",
+        "nombre": "Cambio de polín en correa transportadora",
+        "versiones": [
+          1
+        ],
+        "protocolos": [
+          {
+            "id": "prot-aislamiento-01",
+            "nombre": "Aislamiento y bloqueo de energías"
+          },
+          {
+            "id": "prot-correa-01",
+            "nombre": "Mantención de polines y rodillos en correa transportadora"
+          }
+        ],
+        "ots": 2,
+        "cumplimiento": {
+          "completas": 1,
+          "sin_desviaciones": 0,
+          "porcentaje": 0.0
+        },
+        "desviaciones": 3,
+        "por_clase": {
+          "seguridad": 1,
+          "orden": 1,
+          "control": 1,
+          "conflicto": 0,
+          "persona": 0
+        },
+        "minutos_medios_de_ejecucion": 26.0,
+        "observaciones": 1,
+        "paso_mas_desviado": {
+          "paso": "p5",
+          "titulo": "Sacar la tapa protectora",
+          "desviaciones": 1
+        }
+      }
+    ]
+  },
+  "GET /cliente/metricas/pautas/{pauta_id}/pasos": {
+    "respuesta": [
+      {
+        "paso": "p1",
+        "orden": 1,
+        "titulo": "Cortar la corriente del motor",
+        "control_critico": true,
+        "tipo_evidencia": "sensor",
+        "ejecuciones": 3,
+        "verificado": 3,
+        "verificado_por": {
+          "sensor": 2,
+          "camara": 0,
+          "persona": 1,
+          "palabra": 0
+        },
+        "capa_minima": 1,
+        "cerrado_en_capa": {
+          "persona": 1,
+          "1": 2
+        },
+        "confianza": null,
+        "intentos_medios": 1.3,
+        "segundos_medios": 0.0,
+        "desviaciones": 1,
+        "por_clase": {
+          "orden": 0,
+          "control": 0,
+          "conflicto": 0,
+          "persona": 1
+        },
+        "observaciones": []
+      }
+    ]
+  },
+  "GET /cliente/metricas/equipos": {
+    "respuesta": [
+      {
+        "equipo": "correa CT-01, estación de polines 14",
+        "pautas": [
+          "pauta-polin-ct-01"
+        ],
+        "ots": 2,
+        "cumplimiento": {
+          "completas": 1,
+          "sin_desviaciones": 0,
+          "porcentaje": 0.0
+        },
+        "desviaciones": 3,
+        "por_clase": {
+          "seguridad": 1,
+          "orden": 1,
+          "control": 1,
+          "conflicto": 0,
+          "persona": 0
+        },
+        "minutos_medios_de_ejecucion": 26.0,
+        "observaciones": 1,
+        "paso_mas_desviado": {
+          "paso": "p5",
+          "titulo": "Sacar la tapa protectora",
+          "desviaciones": 1
+        },
+        "observaciones_del_equipo": [
+          {
+            "texto": "El polín 14 del retorno suena al girarlo con la mano; revisarlo en la próxima detención.",
+            "ts": "2026-11-16T10:46:00+00:00"
+          }
+        ]
+      }
+    ]
+  },
+  "GET /cliente/metricas/serie": {
+    "respuesta": [
+      {
+        "periodo": "2026-11-19",
+        "ots_abiertas": 1,
+        "ots_completas": 1,
+        "desviaciones": 1,
+        "alertas_de_seguridad": 1,
+        "observaciones": 1
+      },
+      {
+        "periodo": "2026-11-20",
+        "ots_abiertas": 2,
+        "ots_completas": 1,
+        "desviaciones": 0,
+        "alertas_de_seguridad": 0,
+        "observaciones": 0
+      },
+      {
+        "periodo": "2026-11-21",
+        "ots_abiertas": 8,
+        "ots_completas": 1,
+        "desviaciones": 1,
+        "alertas_de_seguridad": 0,
+        "observaciones": 2
+      }
+    ]
+  },
+  "GET /cliente/mejoras": {
+    "respuesta": [
+      {
+        "id": "pauta-polin-demo:v1:p3",
+        "pauta": "pauta-polin-demo",
+        "nombre": "Cambio de polín · demo de 2 minutos",
+        "version": 1,
+        "protocolos": [
+          {
+            "id": "prot-aislamiento-01",
+            "nombre": "Aislamiento y bloqueo de energías"
+          },
+          {
+            "id": "prot-correa-01",
+            "nombre": "Mantención de polines y rodillos en correa transportadora"
+          }
+        ],
+        "paso": "p3",
+        "titulo": "Acercarte a la correa",
+        "control_critico": false,
+        "ejecuciones": 3,
+        "ots_con_senal": 2,
+        "operarios_distintos": 2,
+        "senales": {
+          "orden": 1,
+          "control": 0,
+          "conflicto": 0,
+          "persona": 0,
+          "observacion": 1
+        },
+        "observaciones": [
+          {
+            "categoria": "pauta",
+            "texto": "Desde el tablero la correa queda a dos pasos: es fácil acercarse antes de tener el candado puesto. Conviene que el punto de bloqueo quede junto al tablero."
+          }
+        ],
+        "motivo": "«Acercarte a la correa» tuvo señales en 2 de 3 OT de la versión 1, con 2 operarios distintos",
+        "sugerencia": "El paso se hace antes de su turno: revisar si el orden de la pauta calza con cómo se trabaja en el equipo, o si el paso anterior se puede cumplir antes. Los operarios dejaron observaciones sobre este paso: leerlas antes de escribir la versión siguiente.",
+        "estado": "abierta",
+        "revision": null,
+        "validacion": null
+      }
+    ]
+  },
+  "POST /cliente/mejoras/{propuesta_id}/revision": {
+    "pedido": {
+      "decision": "aceptar",
+      "nota": "Poner el punto de bloqueo junto al tablero."
+    },
+    "respuesta": {
+      "id": "pauta-polin-demo:v1:p3",
+      "pauta": "pauta-polin-demo",
+      "nombre": "Cambio de polín · demo de 2 minutos",
+      "version": 1,
+      "protocolos": [
+        {
+          "id": "prot-aislamiento-01",
+          "nombre": "Aislamiento y bloqueo de energías"
+        },
+        {
+          "id": "prot-correa-01",
+          "nombre": "Mantención de polines y rodillos en correa transportadora"
+        }
+      ],
+      "paso": "p3",
+      "titulo": "Acercarte a la correa",
+      "control_critico": false,
+      "ejecuciones": 3,
+      "ots_con_senal": 2,
+      "operarios_distintos": 2,
+      "senales": {
+        "orden": 1,
+        "control": 0,
+        "conflicto": 0,
+        "persona": 0,
+        "observacion": 1
+      },
+      "observaciones": [
+        {
+          "categoria": "pauta",
+          "texto": "Desde el tablero la correa queda a dos pasos: es fácil acercarse antes de tener el candado puesto. Conviene que el punto de bloqueo quede junto al tablero."
+        }
+      ],
+      "motivo": "«Acercarte a la correa» tuvo señales en 2 de 3 OT de la versión 1, con 2 operarios distintos",
+      "sugerencia": "El paso se hace antes de su turno: revisar si el orden de la pauta calza con cómo se trabaja en el equipo, o si el paso anterior se puede cumplir antes. Los operarios dejaron observaciones sobre este paso: leerlas antes de escribir la versión siguiente.",
+      "estado": "aceptada",
+      "revision": {
+        "decision": "aceptar",
+        "nota": "Poner el punto de bloqueo junto al tablero.",
+        "por": "supervisor:oculta",
+        "ts": "2026-11-21T22:07:45+00:00"
+      },
+      "validacion": null
+    }
+  },
+  "GET /cliente/ots/{ot_id}/pasos": {
+    "respuesta": {
+      "pauta": "Cambio de polín · demo de 2 minutos v1",
+      "equipo": "correa a escala del demo",
+      "paso_actual": "p1",
+      "completa": false,
+      "pasos": [
+        {
+          "id": "p1",
+          "orden": 1,
+          "titulo": "Cortar la corriente del motor",
+          "instruccion": "Aprieta el botón de parada. En el demo, el mismo botón corta el motor y lo deja trabado.",
+          "tipo_evidencia": "sensor",
+          "sensor": {
+            "id": "energia",
+            "espera": "cortada"
+          },
+          "pregunta_visual": null,
+          "estado": "no_verificado",
+          "control_critico": true,
+          "capa": null,
+          "evidencia": null,
+          "detalle": null
+        },
+        {
+          "id": "p2",
+          "orden": 2,
+          "titulo": "Poner tu candado",
+          "instruccion": "Deja trabado el motor: mientras esté trabado, nadie puede encenderlo. En la faena es tu candado; en el demo, el botón.",
+          "tipo_evidencia": "sensor",
+          "sensor": {
+            "id": "bloqueo",
+            "espera": "puesto"
+          },
+          "pregunta_visual": null,
+          "estado": "no_verificado",
+          "control_critico": true,
+          "capa": null,
+          "evidencia": null,
+          "detalle": null
+        }
+      ],
+      "verificados": [],
+      "en_conflicto": [],
+      "pendientes": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7",
+        "p8"
+      ]
+    }
+  },
+  "POST /cliente/ots/{ot_id}/declarar": {
+    "pedido": {
+      "texto": "corté la corriente del motor",
+      "paso_id": "p1"
+    },
+    "respuesta": {
+      "paso": "p1",
+      "estado": "no_verificado",
+      "capa": 1,
+      "detalle": "sin lectura de energia",
+      "interrumpe": false,
+      "evidencia": {
+        "tipo": "sensor",
+        "id": "energia",
+        "valor": null,
+        "espera": "cortada"
+      },
+      "calificacion": {
+        "nivel": "ok",
+        "certeza": 1.0,
+        "capa": 1,
+        "motivos": [
+          "sin lectura de energia"
+        ]
+      },
+      "calificacion_ot": {
+        "nivel": "ok",
+        "certeza": 1.0,
+        "capa": 1,
+        "motivos": [
+          "sin lectura de energia"
+        ],
+        "avisos": []
+      }
+    }
+  },
+  "POST /cliente/ots/{ot_id}/pasos/{paso_id}/confirmar": {
+    "pedido": {
+      "motivo": "el sensor de energía está desconectado; el tablero está abajo y con candado"
+    },
+    "respuesta": {
+      "paso": "p1",
+      "estado": "verificado",
+      "capa": null,
+      "detalle": "supervisor:oculta confirma «Cortar la corriente del motor» contra la evidencia (energia = None, se esperaba cortada): el sensor de energía está desconectado; el tablero está abajo y con candado",
+      "interrumpe": false,
+      "evidencia": {
+        "tipo": "persona",
+        "motivo": "el sensor de energía está desconectado; el tablero está abajo y con candado",
+        "contra": {
+          "sensor": "energia",
+          "valor": null,
+          "espera": "cortada"
+        }
+      },
+      "calificacion": {
+        "nivel": "warning",
+        "certeza": 0.5,
+        "capa": null,
+        "motivos": [
+          "supervisor:oculta confirma «Cortar la corriente del motor» contra la evidencia (energia = None, se esperaba cortada): el sensor de energía está desconectado; el tablero está abajo y con candado",
+          "una persona lo cerró contra la evidencia: conviene revisar el sensor"
+        ]
+      },
+      "calificacion_ot": {
+        "nivel": "warning",
+        "certeza": 0.5,
+        "capa": null,
+        "motivos": [
+          "supervisor:oculta confirma «Cortar la corriente del motor» contra la evidencia (energia = None, se esperaba cortada): el sensor de energía está desconectado; el tablero está abajo y con candado",
+          "una persona lo cerró contra la evidencia: conviene revisar el sensor"
+        ],
+        "avisos": [
+          {
+            "nivel": "warning",
+            "certeza": 0.5,
+            "capa": null,
+            "motivos": [
+              "supervisor:oculta confirma «Cortar la corriente del motor» contra la evidencia (energia = None, se esperaba cortada): el sensor de energía está desconectado; el tablero está abajo y con candado",
+              "una persona lo cerró contra la evidencia: conviene revisar el sensor"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "GET /cliente/ots/{ot_id}/eventos": {
+    "respuesta": [
+      {
+        "ot_id": "ot-0017",
+        "tipo": "veredicto",
+        "ts": "2026-11-21T22:51:08+00:00",
+        "actor": "sistema",
+        "detalle": "bloqueo = puesto, que es lo que el paso exige",
+        "id": 155,
+        "paso_id": "p2",
+        "estado": "verificado",
+        "capa": 1,
+        "declarado": null,
+        "evidencia": {
+          "tipo": "sensor",
+          "id": "bloqueo",
+          "valor": "puesto",
+          "espera": "puesto"
+        },
+        "calificacion": {
+          "nivel": "ok",
+          "certeza": 1.0,
+          "capa": 1,
+          "motivos": [
+            "bloqueo = puesto, que es lo que el paso exige"
+          ]
+        }
+      },
+      {
+        "ot_id": "ot-0017",
+        "tipo": "observacion",
+        "ts": "2026-11-21T22:51:08+00:00",
+        "actor": "operario:1",
+        "detalle": "operario:1 observa sobre «Poner tu candado» (pauta): El punto de bloqueo queda lejos del tablero.",
+        "id": 156,
+        "paso_id": "p2",
+        "estado": null,
+        "capa": null,
+        "declarado": "El punto de bloqueo queda lejos del tablero.",
+        "evidencia": {
+          "tipo": "observacion",
+          "categoria": "pauta"
+        },
+        "calificacion": null
+      }
+    ]
+  },
+  "GET /cliente/ots/{ot_id}/reporte": {
+    "respuesta": {
+      "ot": "ot-0017",
+      "estado": "en_ejecucion",
+      "completa": false,
+      "pauta": {
+        "id": "pauta-polin-demo",
+        "nombre": "Cambio de polín · demo de 2 minutos",
+        "version": 1
+      },
+      "protocolos": [
+        {
+          "id": "prot-aislamiento-01",
+          "nombre": "Aislamiento y bloqueo de energías"
+        },
+        {
+          "id": "prot-correa-01",
+          "nombre": "Mantención de polines y rodillos en correa transportadora"
+        }
+      ],
+      "equipo": "correa a escala del demo",
+      "personas": {
+        "pidio": "Carla Muñoz",
+        "a_cargo": "Ana Rojas",
+        "ejecutaron": [
+          "Ana Rojas",
+          "Carla Muñoz"
+        ]
+      },
+      "tiempos": {
+        "abierta": "2026-11-21T22:51:08+00:00",
+        "inicio": "2026-11-21T22:51:08+00:00",
+        "fin": null,
+        "minutos_de_ejecucion": null
+      },
+      "resultado": {
+        "pasos_verificados": 2,
+        "pasos": 8,
+        "sin_desviaciones": false,
+        "desviaciones": 1,
+        "confirmados_por_persona": 1,
+        "calificacion": {
+          "nivel": "warning",
+          "certeza": 0.5,
+          "capa": null,
+          "motivos": [
+            "supervisor:oculta confirma «Cortar la corriente del motor» contra la evidencia (energia = None, se esperaba cortada): el sensor de energía está desconectado; el tablero está abajo y con candado",
+            "una persona lo cerró contra la evidencia: conviene revisar el sensor"
+          ],
+          "avisos": [
+            {
+              "nivel": "warning",
+              "certeza": 0.5,
+              "capa": null,
+              "motivos": [
+                "supervisor:oculta confirma «Cortar la corriente del motor» contra la evidencia (energia = None, se esperaba cortada): el sensor de energía está desconectado; el tablero está abajo y con candado",
+                "una persona lo cerró contra la evidencia: conviene revisar el sensor"
+              ]
+            }
+          ]
+        }
+      },
+      "pasos": [
+        {
+          "paso": "p1",
+          "orden": 1,
+          "titulo": "Cortar la corriente del motor",
+          "control_critico": true,
+          "estado": "verificado",
+          "cerrado_con": {
+            "con": "persona",
+            "motivo": "el sensor de energía está desconectado; el tablero está abajo y con candado",
+            "contra": {
+              "sensor": "energia",
+              "valor": null,
+              "espera": "cortada"
+            }
+          },
+          "capa": "persona",
+          "hora": "2026-11-21T22:51:08+00:00",
+          "segundos": 0.0,
+          "intentos": 2,
+          "detalle": "supervisor:oculta confirma «Cortar la corriente del motor» contra la evidencia (energia = None, se esperaba cortada): el sensor de energía está desconectado; el tablero está abajo y con candado",
+          "evento": 154,
+          "declaraciones": [
+            {
+              "quien": "Ana Rojas",
+              "dijo": "corté la corriente del motor",
+              "hora": "2026-11-21T22:51:08+00:00",
+              "evento": 152
+            }
+          ]
+        },
+        {
+          "paso": "p2",
+          "orden": 2,
+          "titulo": "Poner tu candado",
+          "control_critico": true,
+          "estado": "verificado",
+          "cerrado_con": {
+            "con": "sensor",
+            "sensor": "bloqueo",
+            "leido": "puesto",
+            "esperado": "puesto"
+          },
+          "capa": 1,
+          "hora": "2026-11-21T22:51:08+00:00",
+          "segundos": 0.0,
+          "intentos": 1,
+          "detalle": "bloqueo = puesto, que es lo que el paso exige",
+          "evento": 155,
+          "declaraciones": []
+        },
+        {
+          "paso": "p3",
+          "orden": 3,
+          "titulo": "Acercarte a la correa",
+          "control_critico": false,
+          "estado": "no_verificado",
+          "cerrado_con": null,
+          "capa": null,
+          "hora": null,
+          "segundos": null,
+          "intentos": 0,
+          "detalle": null,
+          "evento": null,
+          "declaraciones": []
+        }
+      ],
+      "pendientes": [
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7",
+        "p8"
+      ],
+      "desviaciones": [],
+      "confirmados_por_persona": [
+        {
+          "paso": "p1",
+          "quien": "Carla Muñoz",
+          "motivo": "el sensor de energía está desconectado; el tablero está abajo y con candado",
+          "contra": {
+            "sensor": "energia",
+            "valor": null,
+            "espera": "cortada"
+          },
+          "hora": "2026-11-21T22:51:08+00:00",
+          "evento": 154
+        }
+      ],
+      "observaciones": [
+        {
+          "paso": "p2",
+          "categoria": "pauta",
+          "texto": "El punto de bloqueo queda lejos del tablero.",
+          "quien": "Ana Rojas",
+          "hora": "2026-11-21T22:51:08+00:00",
+          "evento": 156
+        }
+      ],
+      "relevos": [],
+      "eventos": {
+        "total": 7,
+        "primero": 150,
+        "ultimo": 156
+      }
+    }
+  },
+  "POST /cliente/ots/{ot_id}/relevo/entregar": {
+    "respuesta": {
+      "resumen": "Cambio de polín · demo de 2 minutos v1 sobre correa a escala del demo. Verificados: p1. Sin iniciar: p2, p3, p4, p5, p6, p7, p8. Retomar desde p2.",
+      "estado": {
+        "pauta": "Cambio de polín · demo de 2 minutos v1",
+        "equipo": "correa a escala del demo",
+        "paso_actual": "p2",
+        "completa": false,
+        "pasos": [
+          {
+            "id": "p1",
+            "orden": 1,
+            "titulo": "Cortar la corriente del motor",
+            "instruccion": "Aprieta el botón de parada. En el demo, el mismo botón corta el motor y lo deja trabado.",
+            "tipo_evidencia": "sensor",
+            "sensor": {
+              "id": "energia",
+              "espera": "cortada"
+            },
+            "pregunta_visual": null,
+            "estado": "verificado",
+            "control_critico": true,
+            "capa": null,
+            "evidencia": {
+              "tipo": "persona",
+              "motivo": "el sensor de energía está desconectado; el tablero está abajo y con candado",
+              "contra": {
+                "sensor": "energia",
+                "valor": null,
+                "espera": "cortada"
+              }
+            },
+            "detalle": "supervisor:oculta confirma «Cortar la corriente del motor» contra la evidencia (energia = None, se esperaba cortada): el sensor de energía está desconectado; el tablero está abajo y con candado"
+          },
+          {
+            "id": "p2",
+            "orden": 2,
+            "titulo": "Poner tu candado",
+            "instruccion": "Deja trabado el motor: mientras esté trabado, nadie puede encenderlo. En la faena es tu candado; en el demo, el botón.",
+            "tipo_evidencia": "sensor",
+            "sensor": {
+              "id": "bloqueo",
+              "espera": "puesto"
+            },
+            "pregunta_visual": null,
+            "estado": "no_verificado",
+            "control_critico": true,
+            "capa": null,
+            "evidencia": null,
+            "detalle": null
+          }
+        ],
+        "verificados": [
+          "p1"
+        ],
+        "en_conflicto": [],
+        "pendientes": [
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7",
+          "p8"
+        ]
+      }
+    }
+  },
+  "POST /cliente/ots/{ot_id}/relevo/recibir": {
+    "respuesta": {
+      "firmado_por": "operario:2"
+    }
+  }
+}

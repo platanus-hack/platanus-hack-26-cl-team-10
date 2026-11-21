@@ -40,6 +40,18 @@ class TipoEvento(StrEnum):
     RELEVO_ENTREGADO = "relevo_entregado"
     RELEVO_RECIBIDO = "relevo_recibido"
     PROPUESTA_PAUTA = "propuesta_pauta"
+    # Lo que el operario deja registrado mientras ejecuta, sin cerrar ningún paso (ADR-0014).
+    OBSERVACION = "observacion"
+
+
+class CategoriaObservacion(StrEnum):
+    """De qué habla una observación. Solo `pauta` y `seguridad` alimentan la mejora de la pauta;
+    `equipo` habla de la máquina y va a las métricas por equipo."""
+
+    PAUTA = "pauta"
+    SEGURIDAD = "seguridad"
+    EQUIPO = "equipo"
+    OTRA = "otra"
 
 
 class Capa(IntEnum):
