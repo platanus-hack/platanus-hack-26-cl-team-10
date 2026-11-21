@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDI 2 · Guía express para el Control 1</title>
+  <style>
+    :root{--ink:#18242b;--muted:#65757b;--paper:#f7f5ef;--card:#fffdf8;--line:#d9dfd8;--teal:#087f78;--teal-dark:#07534f;--coral:#e86f51;--yellow:#f2c14e;--shadow:0 18px 45px #18302a12}
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    a{color:var(--teal-dark);font-weight:700} .shell{max-width:1180px;margin:auto;padding:28px 22px 80px}
+    .hero{background:var(--teal-dark);color:#f4f1e5;padding:52px clamp(26px,6vw,76px);border-radius:26px;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+    .hero:after{content:"∇";position:absolute;right:7%;top:-36px;font:220px Georgia;color:#ffffff10;transform:rotate(16deg)}
+    .eyebrow{letter-spacing:.14em;text-transform:uppercase;font-size:.76rem;font-weight:800;color:#b8e3db}.hero h1{font:clamp(2.4rem,6vw,5.8rem)/.95 Georgia,serif;letter-spacing:-.055em;max-width:760px;margin:14px 0 20px}.hero p{max-width:650px;font-size:1.08rem;color:#d9eeea}.stamp{display:inline-block;border:1px solid #8bc6bb;border-radius:99px;padding:5px 12px;font-size:.82rem;font-weight:800}
+    .quick{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0 36px}.quick a{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;text-decoration:none;box-shadow:0 4px 16px #18302a08}.quick b{display:block;color:var(--coral);font-size:1.3rem}.quick span{color:var(--muted);font-size:.9rem}
+    .notice{border-left:5px solid var(--coral);background:#fff7eb;padding:18px 20px;border-radius:0 14px 14px 0;margin:24px 0}.notice strong{color:#9d3e28}
+    section{margin-top:54px} h2{font:clamp(1.9rem,4vw,3.25rem)/1.05 Georgia,serif;letter-spacing:-.04em;margin:0 0 14px;color:var(--teal-dark)} h3{margin:0 0 8px;color:var(--teal-dark);font-size:1.15rem} h4{margin:18px 0 5px;color:var(--coral)} .lede{color:var(--muted);max-width:760px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 6px 20px #18302a06}.card.wide{grid-column:1/-1}.class-card{border-top:5px solid var(--teal)}
+    ul,ol{padding-left:1.25rem} li+li{margin-top:5px}.pill{display:inline-block;border-radius:999px;background:#e2f1ed;color:var(--teal-dark);padding:2px 9px;font-size:.78rem;font-weight:800;margin:2px 4px 2px 0}.pill.coral{background:#ffe4d9;color:#9d3e28}
+    .formula{background:#132b30;color:#e8f5ee;border-radius:12px;padding:16px 18px;font:1rem/1.6 "SFMono-Regular",Consolas,monospace;overflow:auto;margin:12px 0}.formula em{color:#f2c14e;font-style:normal}.matrix{white-space:pre;text-align:center}
+    table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}th{background:#e9f1ec;color:var(--teal-dark)}tr:last-child td{border:0}
+    .flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0}.step{background:#e8f3ef;border:1px solid #bbd8ce;padding:10px 13px;border-radius:10px;font-weight:800}.arrow{color:var(--coral);font-weight:900}
+    details{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:10px 0;padding:13px 16px}summary{cursor:pointer;font-weight:800;color:var(--teal-dark)}
+    .checklist label{display:block;padding:9px 0;border-bottom:1px solid var(--line)}input{accent-color:var(--teal);margin-right:9px;transform:scale(1.15)}
+    .priority{display:grid;grid-template-columns:80px 1fr;gap:0;margin-top:18px}.priority div{padding:13px;border-bottom:1px solid var(--line)}.priority .rank{font:2rem Georgia;color:var(--coral);font-weight:700}
+    .sources{font-size:.92rem;color:var(--muted)}footer{margin-top:64px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
+    @media(max-width:760px){.quick,.grid{grid-template-columns:1fr}.hero{padding:36px 24px}.hero h1{font-size:3.2rem}.card.wide{grid-column:auto}.priority{grid-template-columns:55px 1fr}th,td{padding:9px}.shell{padding-left:14px;padding-right:14px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero" id="inicio">
+      <span class="stamp">ELO328 · TEL328 · 27 AGO 2026</span>
+      <div class="eyebrow" style="margin-top:22px">Guía de supervivencia · Control 1</div>
+      <h1>Procesar una imagen es convertirla en decisiones.</h1>
+      <p>Resumen estudiable de las seis clases disponibles: desde píxeles y color hasta filtros, bordes, segmentación, cuantización y tracking.</p>
+    </header>
+
+    <nav class="quick" aria-label="Navegación rápida">
+      <a href="#mapa"><b>01</b><span>Mapa de materia</span></a>
+      <a href="#filtros"><b>02</b><span>Filtros y bordes</span></a>
+      <a href="#segmentacion"><b>03</b><span>Segmentación</span></a>
+      <a href="#resueltos"><b>04</b><span>Guía resuelta</span></a>
+    </nav>
+
+    <div class="notice"><strong>Qué entra:</strong> la ayudantía confirma explícitamente “PDI - Clases 1 a 6”. Por tanto, estudia introducción, color, operaciones, ruido, filtros, bordes, segmentación, cuantización y Mean Shift/tracking. <strong>Deep learning y morfología no aparecen en este material.</strong></div>
+
+    <section id="ayudantia">
+      <h2>Lo que confirma la ayudantía</h2>
+      <p class="lede">La ayudantía funciona como una hoja de alcance para el control. No agrega una unidad nueva: condensa las Clases 1 a 6 y confirma qué debes ser capaz de explicar.</p>
+      <div class="grid">
+        <article class="card"><h3>Alcance explícito</h3><ul><li>La presentación se llama <b>“Ayudantía 1 · PDI - Clases 1 a 6”</b>.</li><li>Incluye imagen RGB como matriz <code>m × n × c</code>.</li><li>Incluye Alpha como transparencia: se puede ignorar si no se usa; si se incluye, hay que justificarlo.</li><li>Recorre efectos, ruido, filtros, bordes, segmentación, K-Means, SLIC, Median Cut y Mean Shift.</li></ul><span>Ayudantía 1 (material del curso, no versionado)</span></article>
+        <article class="card"><h3>Correcciones para responder bien</h3><ul><li>En RGB, los canales van de 0 a 255 y el color es <b>aditivo</b>: valores mayores producen más luminosidad.</li><li>En tinta, el modelo es <b>sustractivo</b>: los pigmentos absorben luz.</li><li>La ayudantía resume Canny como Sobel → supresión no máxima → histéresis, pero recuerda el suavizado gaussiano previo.</li><li>En histéresis, un píxel intermedio se conserva si está conectado a un borde fuerte.</li></ul></article>
+      </div>
+      <div class="card wide" style="margin-top:18px"><h3>La respuesta de 30 segundos</h3><p>“Una imagen es una matriz de píxeles. En RGB cada píxel tiene tres canales y opcionalmente Alpha. Para limpiar ruido uso filtros: media o gaussiano si quiero suavizar, mediana contra sal y pimienta. Para bordes uso gradiente/Sobel o Canny, que además adelgaza y conecta bordes. Para separar regiones uso umbral, K-Means o SLIC. Para reducir colores uso Median Cut; Mean Shift busca máximos de densidad y también permite tracking.”</p></div>
+    </section>
+
+    <section id="mapa">
+      <h2>El mapa mental</h2>
+      <p class="lede">En un control escrito, casi todo se puede ordenar con esta pregunta: ¿qué problema tiene la imagen y qué operación lo resuelve?</p>
+      <table>
+        <thead><tr><th>Problema</th><th>Herramienta</th><th>Idea clave</th></tr></thead>
+        <tbody>
+          <tr><td>Representar una imagen</td><td>RGB / HSV / escala de grises</td><td>Un píxel es un vector de valores; una imagen es una matriz de píxeles.</td></tr>
+          <tr><td>Ruido o variaciones pequeñas</td><td>Media, gaussiano, mediana</td><td>Suavizar reduce detalle; la mediana es especialmente buena contra sal y pimienta.</td></tr>
+          <tr><td>Encontrar cambios bruscos</td><td>Laplaciano, Sobel, Canny</td><td>Los bordes son variaciones locales de intensidad.</td></tr>
+          <tr><td>Separar objetos o regiones</td><td>Umbral, K-Means, SLIC</td><td>Agrupar píxeles similares en intensidad, color y/o posición.</td></tr>
+          <tr><td>Reducir colores</td><td>Median Cut, Mean Shift</td><td>Cuantizar reduce valores; Mean Shift busca máximos de densidad.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="clases">
+      <h2>Clase por clase</h2>
+      <div class="grid">
+        <article class="card class-card"><h3>Clase 1 · Conceptos básicos</h3><p>Una imagen digital es la representación numérica, normalmente binaria, de una imagen 2D.</p><ul><li><b>Ráster:</b> matriz de píxeles; adecuado para fotografías.</li><li><b>Vectorial:</b> objetos geométricos definidos matemáticamente; escala sin perder calidad.</li><li><b>Resolución:</b> columnas × filas; más resolución suele permitir más detalle.</li><li><b>Color:</b> percepción producida por la luz. Aditivo = RGB; sustractivo = CMYK.</li><li><b>HSV/HSL:</b> separan matiz, saturación y brillo/valor o luminosidad.</li></ul><span>diapositivas Clase 1 (material del curso, no versionado)</span></article>
+        <article class="card class-card"><h3>Clase 2 · Python y operaciones</h3><p>En RGB, una imagen tiene forma <code>(alto, ancho, 3)</code>; cada píxel es <code>[R,G,B]</code>, usualmente entre 0 y 255.</p><ul><li><code>imread</code> carga la imagen; <code>imshow</code> la muestra.</li><li>Separar canales: <code>imagen[:, :, 0]</code> es rojo.</li><li>Grises: promedio simple o luma ponderada.</li><li>Brillo multiplicativo cambia contraste/escala; sumativo desplaza intensidades.</li><li>Negativo: <code>255 - imagen</code>. Umbral: valores a 0 o 255.</li></ul><span>diapositivas Clase 2 (material del curso, no versionado)</span></article>
+        <article class="card class-card" id="filtros"><h3>Clase 3 · Suavizado</h3><p>Ruido = información no deseada. Puede surgir en adquisición o transmisión.</p><ul><li><b>Gaussiano:</b> perturbación distribuida normalmente.</li><li><b>Sal y pimienta:</b> píxeles blancos y negros aislados.</li><li><b>Filtro lineal:</b> pondera el vecindario con un kernel.</li><li><b>Media:</b> suaviza, pero difumina bordes y crea intensidades nuevas.</li><li><b>Máximo:</b> elimina pimienta; <b>mínimo:</b> elimina sal.</li><li><b>Mediana:</b> ordena el vecindario y toma el central; no es lineal y conserva mejor los bordes.</li></ul><span>diapositivas Clase 3 (material del curso, no versionado)</span></article>
+        <article class="card class-card"><h3>Clase 4 · Bordes</h3><p>Un borde es un cambio local de intensidad. Las derivadas son grandes en el borde y cercanas a cero en zonas constantes.</p><ul><li><b>Laplaciano:</b> segunda derivada; kernel típico con centro -4 y vecinos +1.</li><li><b>Gradiente:</b> <code>∇f = [gx, gy]</code>; magnitud indica cuánto cambia y dirección indica hacia dónde.</li><li><b>Sobel:</b> aproxima <code>gx</code> y <code>gy</code> con kernels ponderados.</li><li><b>Canny:</b> suavizado gaussiano → gradiente/Sobel → supresión no máxima → histéresis con dos umbrales.</li></ul><span>diapositivas Clase 4 (material del curso, no versionado)</span></article>
+        <article class="card class-card" id="segmentacion"><h3>Clase 5 · Segmentación</h3><p>Segmentar es particionar una imagen para localizar objetos o regiones de interés.</p><ul><li><b>Histograma:</b> <code>h(k)=nₖ</code>; versión normalizada <code>p(k)=nₖ/n</code>.</li><li><b>Umbral:</b> intensidad menor a <code>t</code> → 0; mayor o igual → 1.</li><li><b>K-Means:</b> inicializa K centroides, asigna al más cercano, recalcula promedios y repite.</li><li><b>SLIC:</b> K-Means en 5 dimensiones <code>[R,G,B,x,y]</code> para superpíxeles compactos.</li><li>En SLIC, <code>compactness</code> regula el balance entre color y proximidad espacial.</li></ul><span>diapositivas Clase 5 (material del curso, no versionado)</span></article>
+        <article class="card class-card"><h3>Clase 6 · Cuantización y tracking</h3><p>Cuantizar restringe un conjunto continuo de valores a uno discreto.</p><ul><li><b>Median Cut:</b> cubo grande → canal con mayor rango → ordenar → cortar por mediana → repetir.</li><li><b>Mean Shift:</b> desplaza una ventana hacia el centro de masa ponderado hasta converger.</li><li>El <b>kernel</b> asigna más o menos peso según la distancia.</li><li>Para tracking, se construye un histograma de color de la ROI, un mapa de confianza y se aplica Mean Shift frame a frame.</li></ul><span>diapositivas Clase 6 (material del curso, no versionado)</span></article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Las fórmulas que debes poder explicar</h2>
+      <div class="grid">
+        <article class="card"><h3>Convolución / filtro lineal</h3><div class="formula">g(x,y) = Σ Σ w(s,t) · f(x+s,y+t)</div><p>El kernel se desliza por la imagen. Cada salida es una combinación ponderada del vecindario. El tamaño del kernel, stride y padding importan.</p></article>
+        <article class="card"><h3>Laplaciano</h3><div class="formula matrix">[ 0   1   0 ]
+[ 1  -4   1 ]
+[ 0   1   0 ]</div><p>Responde a cambios de segunda derivada. Es sensible al ruido: normalmente conviene suavizar antes.</p></article>
+        <article class="card"><h3>Gradiente</h3><div class="formula">M = √(gx² + gy²)  ≈  |gx| + |gy|
+θ = arctan(gx / gy)</div><p>Magnitud grande suele indicar borde o ruido. La dirección del gradiente sirve para comparar vecinos en Canny.</p></article>
+        <article class="card"><h3>Mean Shift</h3><div class="formula">m(x) = Σ K(xᵢ−x) · xᵢ / Σ K(xᵢ−x)</div><p>Calcula un centro de masa ponderado dentro de la vecindad y mueve la ventana hacia él hasta llegar a un máximo de densidad.</p></article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Comparaciones que suelen preguntar</h2>
+      <table>
+        <thead><tr><th>Comparación</th><th>Respuesta corta</th></tr></thead>
+        <tbody>
+          <tr><td>Media vs mediana</td><td>Media es lineal y sensible a outliers; mediana no lineal, elimina muy bien sal y pimienta y preserva mejor bordes.</td></tr>
+          <tr><td>Máximo vs mínimo</td><td>Máximo reemplaza por el mayor valor del vecindario y combate píxeles negros; mínimo hace lo contrario y combate píxeles blancos.</td></tr>
+          <tr><td>Laplaciano vs Sobel</td><td>Laplaciano usa segunda derivada y no entrega dirección; Sobel usa primeras derivadas, entrega componentes y dirección del gradiente.</td></tr>
+          <tr><td>Sobel vs Canny</td><td>Sobel produce bordes que pueden ser gruesos y ruidosos; Canny agrega adelgazamiento y umbral de histéresis para bordes más limpios.</td></tr>
+          <tr><td>Umbral vs K-Means</td><td>Umbral separa con una regla fija; K-Means aprende K grupos por distancia a centroides.</td></tr>
+          <tr><td>K-Means vs SLIC</td><td>K-Means agrupa por color/intensidad; SLIC agrega coordenadas espaciales para producir superpíxeles.</td></tr>
+          <tr><td>Median Cut vs Mean Shift</td><td>Median Cut divide recursivamente el espacio de colores; Mean Shift sigue la densidad hacia sus máximos.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="practica">
+      <h2>Plan para estudiar ahora</h2>
+      <div class="priority">
+        <div class="rank">A</div><div><b>Domina filtros + bordes.</b> Dibuja un kernel 3×3, explica padding, calcula un promedio/mediana y compara Laplaciano, Sobel y Canny.</div>
+        <div class="rank">B</div><div><b>Domina segmentación.</b> Repite a mano las cuatro etapas de K-Means y explica por qué SLIC usa cinco dimensiones.</div>
+        <div class="rank">C</div><div><b>Repasa representación.</b> RGB, CMYK, HSV/HSL, canales, escala de grises, contraste, negativo y umbral.</div>
+        <div class="rank">D</div><div><b>Lee Clase 6 al final.</b> Median Cut y Mean Shift son posibles por estar en el material, pero el foco formal de la ficha es cuantización de colores.</div>
+      </div>
+      <div class="card checklist" style="margin-top:18px"><h3>Checklist de salida</h3>
+        <label><input type="checkbox">Puedo describir una imagen RGB como matriz y explicar sus tres canales.</label>
+        <label><input type="checkbox">Puedo calcular media, mediana, máximo y mínimo de un vecindario.</label>
+        <label><input type="checkbox">Puedo explicar qué hacen stride, padding y un kernel.</label>
+        <label><input type="checkbox">Puedo escribir las máscaras de Laplaciano y Sobel.</label>
+        <label><input type="checkbox">Puedo ordenar las etapas de Canny y explicar la histéresis.</label>
+        <label><input type="checkbox">Puedo ejecutar K-Means conceptualmente hasta convergencia.</label>
+        <label><input type="checkbox">Puedo diferenciar Median Cut, Mean Shift y SLIC.</label>
+      </div>
+    </section>
+
+    <section id="resueltos">
+      <h2>Guía resuelta, paso a paso</h2>
+      <p class="lede">La forma de estudiar esto es tapar la solución, intentar el ejercicio y luego comparar el razonamiento. En el control no basta con nombrar el algoritmo: hay que poder explicar qué entra, qué operación se hace y qué sale.</p>
+
+      <article class="card wide"><h3>Ejercicio 1 · Canales RGB y escala de grises</h3>
+        <p>Un píxel RGB vale <code>(R,G,B)=(100,150,200)</code>. ¿Qué significa y cómo se obtiene un gris simple?</p>
+        <div class="formula">R = 100       G = 150       B = 200
+gris_promedio = (100 + 150 + 200) / 3 = 150</div>
+        <p><b>Respuesta:</b> el píxel tiene menos rojo, más verde y todavía más azul. En una imagen RGB, cada posición espacial tiene tres valores. El promedio simple entrega gris 150. Una conversión por <i>luma</i> pondera más el verde porque el ojo es más sensible a ese canal; no es exactamente el mismo resultado.</p>
+        <p><b>Ojo:</b> una imagen RGB tiene forma <code>(alto, ancho, 3)</code>. <code>imagen[:, :, 0]</code> es el canal rojo, <code>[:, :, 1]</code> verde y <code>[:, :, 2]</code> azul.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 2 · Brillo, negativo y umbral</h3>
+        <p>Para un píxel de intensidad 80, aplica: (a) aumento multiplicativo por 2, (b) aumento sumativo de 70, (c) negativo y (d) umbral 125.</p>
+        <div class="formula">(a) 80 × 2 = 160
+(b) 80 + 70 = 150
+(c) 255 − 80 = 175
+(d) 80 < 125  →  0</div>
+        <p><b>Respuesta:</b> el multiplicativo escala la intensidad y puede saturar en 255; el sumativo desplaza todos los valores hacia arriba; el negativo invierte cada intensidad; el umbral convierte en blanco/negro según una regla. Para una imagen completa, la operación se aplica componente a componente.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 3 · Convolución y filtro de la media</h3>
+        <p>Calcula el píxel central al aplicar un promedio 3×3 al siguiente vecindario:</p>
+        <div class="formula matrix">10  20  30
+20  40  50
+30  50  60</div>
+        <div class="formula">suma = 10+20+30+20+40+50+30+50+60 = 310
+salida = 310 / 9 = 34,44 ≈ 34</div>
+        <p><b>Respuesta:</b> el nuevo valor central es aproximadamente 34. El filtro reemplaza cada píxel por el promedio de su vecindario, por eso suaviza ruido y también puede borrar bordes. El kernel usado es:</p>
+        <div class="formula matrix">1/9  1/9  1/9
+1/9  1/9  1/9
+1/9  1/9  1/9</div>
+        <p>En los bordes de la imagen faltan vecinos. Ahí hay que decidir un <b>padding</b>: <code>constant</code>, <code>reflect</code>, <code>nearest</code>, <code>mirror</code> o <code>wrap</code>. En <code>same</code> la salida conserva el tamaño de la imagen; en <code>valid</code> no se agregan bordes y la salida es menor.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 4 · Mediana, máximo y mínimo</h3>
+        <p>Para el vecindario ordenado <code>10, 12, 13, 14, 15, 16, 17, 18, 250</code>, calcula media, mediana, máximo y mínimo.</p>
+        <div class="formula">media   = (10+12+13+14+15+16+17+18+250) / 9 = 39,44
+mediana = quinto valor = 15
+máximo  = 250
+mínimo  = 10</div>
+        <p><b>Interpretación:</b> 250 es un outlier. La media se contamina y sube a 39,44, mientras la mediana sigue representando el vecindario con 15. Por eso la mediana es adecuada para ruido sal y pimienta. El máximo elimina puntos negros aislados (pimienta) y el mínimo elimina puntos blancos aislados (sal).</p>
+        <p>La mediana no es lineal: en general, <code>mediana(A+B) ≠ mediana(A)+mediana(B)</code>.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 5 · Laplaciano</h3>
+        <p>El píxel central vale 100 y sus vecinos norte, sur, este y oeste valen 100, 100, 100 y 160. Calcula el Laplaciano discreto.</p>
+        <div class="formula">∇²f = norte + sur + este + oeste − 4·centro
+∇²f = 100 + 100 + 100 + 160 − 4·100
+∇²f = 460 − 400 = 60</div>
+        <p><b>Respuesta:</b> el resultado no es cero porque hay un cambio local de intensidad. Una zona constante habría dado 0. El kernel equivalente de cuatro vecinos es:</p>
+        <div class="formula matrix"> 0   1   0
+ 1  -4   1
+ 0   1   0</div>
+        <p>El Laplaciano usa segunda derivada, no entrega por sí solo la dirección del borde y es sensible al ruido. Por eso suele aplicarse un suavizado antes.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 6 · Sobel y magnitud del gradiente</h3>
+        <p>Supón que al aplicar Sobel a un píxel obtienes <code>gx=30</code> y <code>gy=40</code>. Calcula magnitud y dirección aproximada.</p>
+        <div class="formula">M = √(gx² + gy²) = √(30² + 40²) = √2500 = 50
+aproximación barata: |gx| + |gy| = 30 + 40 = 70
+θ = arctan(gx / gy) = arctan(30/40) ≈ 36,9°</div>
+        <p><b>Respuesta:</b> la magnitud indica la fuerza del cambio; 50 es el valor euclidiano exacto. La suma de valores absolutos, 70, es una aproximación más barata. La dirección sirve para saber en qué dirección comparar vecinos durante la supresión no máxima de Canny.</p>
+        <div class="formula matrix">Sobel horizontal       Sobel vertical
+-1  -2  -1              -1   0  +1
+ 0   0   0              -2   0  +2
++1  +2  +1              -1   0  +1</div>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 7 · Canny completo</h3>
+        <p>Explica qué ocurre si una imagen tiene ruido y quieres obtener bordes delgados y conectados.</p>
+        <div class="flow"><span class="step">1. Gaussiano</span><span class="arrow">→</span><span class="step">2. Gradiente/Sobel</span><span class="arrow">→</span><span class="step">3. No máximo</span><span class="arrow">→</span><span class="step">4. Histéresis</span></div>
+        <ol><li><b>Suavizado gaussiano:</b> reduce ruido antes de derivar, porque derivar amplifica cambios pequeños.</li><li><b>Gradiente:</b> calcula magnitud y dirección, normalmente usando Sobel.</li><li><b>Supresión no máxima:</b> para cada píxel, compara con los dos vecinos que están en la dirección del gradiente. Si no es máximo local, se elimina. Así un borde grueso se adelgaza.</li><li><b>Histéresis:</b> usa umbral alto <code>Th</code> y bajo <code>Tl</code>. Sobre <code>Th</code> es borde fuerte; bajo <code>Tl</code> se descarta; entre ambos se conserva solo si está conectado a un borde fuerte.</li></ol>
+        <p><b>Idea de examen:</b> Canny no es solo “aplicar Sobel”. Canny agrega un proceso completo para controlar ruido, grosor y conectividad.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 8 · Histograma y umbralización</h3>
+        <p>Una imagen en escala de grises tiene cuatro píxeles: <code>[20, 80, 140, 220]</code>. Con umbral <code>t=100</code>, segmenta la imagen.</p>
+        <div class="formula">regla: intensidad < t  →  0
+       intensidad ≥ t →  1
+
+20  → 0       80  → 0       140 → 1       220 → 1
+resultado: [0, 0, 1, 1]</div>
+        <p><b>Respuesta:</b> el umbral divide los píxeles en dos grupos. El histograma cuenta cuántos píxeles caen en cada nivel: <code>h(k)=nₖ</code>. Si hay 4 píxeles, el histograma normalizado es <code>p(k)=nₖ/4</code>, que puede interpretarse como frecuencia o probabilidad estimada.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 9 · K-Means a mano</h3>
+        <p>Hay cuatro puntos de intensidad <code>10, 12, 90, 100</code> y quieres <code>K=2</code> grupos. Comienza con centroides <code>c₁=10</code> y <code>c₂=90</code>.</p>
+        <ol><li><b>Asignación:</b> 10 y 12 quedan cerca de 10; 90 y 100 quedan cerca de 90.</li><li><b>Actualización:</b> <code>c₁=(10+12)/2=11</code> y <code>c₂=(90+100)/2=95</code>.</li><li><b>Repetición:</b> se vuelven a asignar los puntos al centroide más cercano. Las asignaciones no cambian, así que convergió.</li></ol>
+        <div class="formula">cluster 1 = {10, 12}  → centroide 11
+cluster 2 = {90, 100} → centroide 95</div>
+        <p><b>Respuesta:</b> K-Means alterna asignación y promedio. Necesita elegir K y puede depender de los centroides iniciales. En imágenes, cada punto puede ser una intensidad o un vector RGB.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 10 · SLIC y superpíxeles</h3>
+        <p>¿Por qué SLIC puede mantener regiones compactas mientras un K-Means RGB podría agrupar píxeles lejanos pero del mismo color?</p>
+        <div class="formula">píxel SLIC = [R, G, B, x, y]</div>
+        <p><b>Respuesta:</b> SLIC agrega las coordenadas espaciales <code>x,y</code> a los tres canales de color. La distancia considera tanto similitud cromática como cercanía en la imagen. Por eso forma superpíxeles: grupos de píxeles visualmente parecidos y espacialmente compactos.</p>
+        <p>El algoritmo inicializa centroides en una cuadrícula regular, los mueve a una posición de menor gradiente, asigna píxeles en una vecindad local de aproximadamente <code>2S × 2S</code>, recalcula centroides y repite. <code>compactness</code> controla cuánto pesa la proximidad espacial frente al color.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 11 · Median Cut</h3>
+        <p>Explica cómo reducir una imagen a cuatro colores usando Median Cut.</p>
+        <ol><li>Meter todos los píxeles en un cubo del espacio RGB.</li><li>Buscar el canal con mayor rango entre R, G y B.</li><li>Ordenar los píxeles por ese canal.</li><li>Cortar el cubo por la mediana: quedan dos cubos con cantidades similares.</li><li>Repetir la división en cada cubo hasta obtener cuatro cubos.</li><li>Representar cada cubo por un color representativo, normalmente su promedio.</li></ol>
+        <p><b>Respuesta:</b> no busca todos los colores posibles; divide el espacio de colores de forma recursiva y se queda con una paleta discreta. Sirve para mostrar o comprimir imágenes usando menos colores.</p>
+      </article>
+
+      <article class="card wide"><h3>Ejercicio 12 · Mean Shift y tracking</h3>
+        <p>Una ventana contiene puntos cercanos a <code>10</code> y puntos cercanos a <code>50</code>, pero la mayoría está cerca de 50. ¿Hacia dónde se moverá Mean Shift?</p>
+        <p><b>Respuesta:</b> hacia 50, porque calcula un centro de masa ponderado y la mayor densidad está allí. El kernel <code>K(xᵢ−x)</code> da peso a los puntos; los puntos cercanos pesan más que los lejanos.</p>
+        <div class="flow"><span class="step">ROI del primer frame</span><span class="arrow">→</span><span class="step">Histograma de color</span><span class="arrow">→</span><span class="step">Mapa de confianza</span><span class="arrow">→</span><span class="step">Mean Shift</span></div>
+        <p>Para tracking, se toma una región de interés (ROI) del objeto en el primer frame, se calcula su histograma de color y en cada frame nuevo se construye un mapa de probabilidad. Mean Shift mueve la ventana hacia el máximo cercano y actualiza la posición del objeto.</p>
+      </article>
+
+      <article class="card wide"><h3>Respuesta modelo para una pregunta integradora</h3>
+        <p><b>Pregunta:</b> “Tengo una imagen con ruido sal y pimienta y necesito detectar los contornos de un objeto. ¿Qué pipeline usaría y por qué?”</p>
+        <p><b>Respuesta:</b> primero aplicaría un filtro de mediana para quitar los píxeles extremos sin destruir demasiado los bordes. Luego convertiría a escala de grises si la detección no necesita color. Después usaría Canny: suavizado gaussiano, gradiente con Sobel, supresión no máxima y umbral de histéresis. Finalmente interpretaría los píxeles de salida como bordes. No empezaría directamente con Laplaciano porque la segunda derivada es más sensible al ruido.</p>
+      </article>
+    </section>
+
+    <section>
+      <h2>Autoevaluación final</h2>
+      <p class="lede">Respóndelas sin mirar y abre la solución solo después. Si puedes justificar cada una, estás en buena forma.</p>
+      <details><summary>1 · ¿Qué filtro usarías contra ruido sal y pimienta y por qué?</summary><p>La mediana: elimina valores extremos aislados sin promediar tanto los bordes. El máximo ayuda contra pimienta y el mínimo contra sal, pero son menos generales.</p></details>
+      <details><summary>2 · ¿Qué efecto tiene aumentar el tamaño de un kernel de media?</summary><p>Suaviza más y reduce más variaciones locales, pero pierde detalle y puede borrar o engrosar bordes.</p></details>
+      <details><summary>3 · ¿Qué representa la magnitud del gradiente?</summary><p>La tasa máxima de cambio de intensidad en el píxel. Valores altos son candidatos a bordes, aunque también pueden ser ruido.</p></details>
+      <details><summary>4 · Ordena Canny.</summary><p>Suavizado gaussiano → estimación de gradiente, normalmente Sobel → supresión no máxima → umbral de histéresis con umbral alto y bajo.</p></details>
+      <details><summary>5 · ¿Qué pasa en K-Means después de asignar cada píxel?</summary><p>Se recalcula cada centroide como el promedio de los puntos asignados y se repite asignación/re cálculo hasta converger.</p></details>
+      <details><summary>6 · ¿Por qué SLIC no es exactamente K-Means común?</summary><p>Porque cada píxel se representa en cinco dimensiones: R, G, B y sus coordenadas x, y. Así los grupos son visualmente similares y espacialmente compactos.</p></details>
+      <details><summary>7 · ¿Qué hace la histéresis de Canny?</summary><p>Conserva valores sobre el umbral alto, descarta bajo el umbral bajo y conserva los intermedios solo si están conectados a un borde fuerte.</p></details>
+      <details><summary>8 · ¿Qué significa cuantizar color?</summary><p>Reducir el conjunto de colores posibles a un conjunto discreto más pequeño, normalmente para ahorrar memoria o facilitar compresión.</p></details>
+    </section>
+
+    <section>
+      <h2>Chuleta de Python</h2>
+      <div class="formula">from skimage.io import imread
+from skimage.color import rgb2gray
+from scipy.signal import convolve2d
+from scipy.ndimage import median_filter
+from skimage import feature
+
+gray = rgb2gray(image)
+edge = feature.canny(gray)
+red = image[:, :, 0]
+negative = 255 - image</div>
+      <p>En el control importa más explicar qué hace cada operación que memorizar toda la implementación. Recuerda que las imágenes PNG cargadas con Matplotlib pueden venir en flotantes [0,1], mientras otros formatos suelen venir como enteros [0,255].</p>
+    </section>
+
+    <footer>
+      Fuentes locales revisadas: Clases 1–6 de PDI 2, sus PDFs/material de notebook y la ficha TEL328 en el vault. Esta guía resume; las diapositivas enlazadas son la fuente original para revisar figuras, kernels y ejemplos visuales.
+    </footer>
+  </main>
+  <script>
+    const checks = [...document.querySelectorAll('input[type="checkbox"]')];
+    checks.forEach((box, index) => {
+      const key = `pdi2-check-${index}`;
+      box.checked = localStorage.getItem(key) === '1';
+      box.addEventListener('change', () => localStorage.setItem(key, box.checked ? '1' : '0'));
+    });
+  </script>
+</body>
+</html>
