@@ -24,7 +24,7 @@
 | 🦾 Human Enhancement | No se define formalmente. Imagination Lab dice que eligió el track y por eso metió computer vision: «cómo podemos entrar a Real World» [0:51:21] | 10 |
 | 🛡️ Fintech + Digital Security | No se define | 7 |
 
-Ese año no hubo track Physical World.
+Ese año no hubo track Physical AI.
 
 ## Proyectos
 
