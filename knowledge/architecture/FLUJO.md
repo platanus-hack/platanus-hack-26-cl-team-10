@@ -116,7 +116,7 @@ Cada paso se comprueba con la primera capa que puede decidirlo. `Candidata a val
 | Relé en la alimentación de los servos | Corta la energía, y su estado es el sensor de energía | Falta |
 | Pulsador en el bloqueo | Marca que el bloqueo está puesto | El pulsador existe; falta montarlo |
 | Cámara cenital (el celular) | Confirma los pasos que se ven, como el ajuste de la pinza | Existe; falta que el detector reconozca la pinza y la herramienta |
-| Pantalla y voz | Muestran la OT y le hablan al operario | La pantalla existe; la voz está en la rama de Daniel |
+| Pantalla y voz (`web/`) | Muestran la OT y le hablan al operario | Existe en la rama de Daniel; falta integrarla a `main`. El home de `app/estatico/` queda como monitor técnico |
 
 **El guion.**
 
