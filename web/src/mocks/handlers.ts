@@ -4,7 +4,7 @@
 import { http, HttpResponse, ws, type RequestHandler, type WebSocketHandler } from 'msw'
 import type { CuerpoSobrescribir } from '../api/tipos'
 import { config } from '../config'
-import type { Escenario, Temporizador } from './escenarios'
+import { resumenDeRelevo, type Escenario, type Temporizador } from './escenarios'
 import type { Mundo } from './mundo'
 
 const CIERRE_NO_EXISTE = 4404
@@ -29,13 +29,6 @@ export function crearHandlers(
       m.caido ? HttpResponse.error() : fn(info)
 
   const otDe = (params: Record<string, unknown>) => String(params.id)
-
-  function resumenDeRelevo(otId: string): string {
-    const est = m.estado(otId)
-    const con = (e: string) => est.pasos.filter((p) => p.estado === e).map((p) => p.id).join(', ') || 'ninguno'
-    const sigue = est.paso_actual ? `Retomar desde ${est.paso_actual}.` : 'La pauta está completa.'
-    return `${est.pauta} sobre ${est.equipo}. Verificados: ${con('verificado')}. Sobrescritos: ${con('sobrescrito')}. ${sigue}`
-  }
 
   const clientes = new Set<{ close(code?: number, reason?: string): void }>()
   m.alCaer.add(() => {
@@ -107,7 +100,7 @@ export function crearHandlers(
       const id = otDe(params)
       if (!m.existe(id)) return noExiste(`OT ${id}`)
       const actor = new URL(request.url).searchParams.get('actor') ?? 'desconocido'
-      const resumen = resumenDeRelevo(id)
+      const resumen = resumenDeRelevo(m, id)
       m.agregar(id, { tipo: 'relevo_entregado', actor, detalle: resumen })
       m.asignar(id, null)
       return HttpResponse.json({ resumen, estado: m.estado(id) })
