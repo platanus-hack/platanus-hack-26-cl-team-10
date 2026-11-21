@@ -272,11 +272,14 @@ class Servicios:
         que no se recalculan de los sensores (orden, control, señal). La seguridad no se suma
         acá porque vigentes() ya la evalúa con los sensores actuales."""
         evs = db.eventos(self.cx, ot_id)
+        # Los sensores son de la estación: solo la OT que la tiene en sesión hereda su seguridad en vivo.
+        # shortcut: la tabla sensores no guarda el edge; con dos estaciones a la vez, guardar edge_id por lectura.
+        sensores = db.estado_sensores(self.cx) if self.sesion_de_ot(ot_id) else {}
         abiertas = [
             c for clave, ev in self.alertas_activas(ot_id).items()
             if not clave.startswith("seguridad:") and (c := calificar_evento(ev)) is not None
         ]
-        return vigentes(evs, db.estado_sensores(self.cx), [*abiertas, *self._frescura(ot_id, evs)])
+        return vigentes(evs, sensores, [*abiertas, *self._frescura(ot_id, evs)])
 
     def _frescura(self, ot_id: str, evs) -> list:
         """Si el sensor del paso en curso dejó de mandar, lo que dice ya no es seguro."""

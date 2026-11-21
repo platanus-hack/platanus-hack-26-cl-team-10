@@ -49,11 +49,23 @@ class SinSesion(Base):
         self.assertEqual(self.de_tipo("ot-1", TipoEvento.ALERTA), [])
         self.assertEqual(self.de_tipo("ot-2", TipoEvento.ALERTA), [])
 
+    def test_un_peligro_en_la_estacion_no_califica_a_las_ot_sin_sesion(self):
+        self.s.recibir_lectura("edge-1", "guarda", "abierta")
+        self.s.recibir_lectura("edge-1", "energia", "viva")
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
+        self.assertEqual(self.s.calificacion("ot-2")["nivel"], "ok")
+
 
 class Atribucion(Base):
     def setUp(self):
         super().setUp()
         self.s.iniciar_sesion("ot-1", "edge-1", "operario:A")
+
+    def test_el_peligro_califica_a_la_ot_en_sesion_y_a_ninguna_otra(self):
+        self.s.recibir_lectura("edge-1", "guarda", "abierta")
+        self.s.recibir_lectura("edge-1", "energia", "viva")
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "error")
+        self.assertEqual(self.s.calificacion("ot-2")["nivel"], "ok")
 
     def test_la_lectura_va_a_la_ot_del_edge_y_a_ninguna_otra(self):
         self.s.recibir_lectura("edge-1", "guarda", "abierta")
