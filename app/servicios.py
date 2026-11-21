@@ -54,7 +54,7 @@ from app.reglas import (
 )
 from app.contratos import Pauta, Paso, Veredicto
 from app.scoring import Nivel, avisos, calificar_evento, capa2, frescura, peor, vigentes
-from app.video import SEGUNDOS_GUARDADOS, Video
+from app.video import RAIZ, SEGUNDOS_GUARDADOS, Video
 
 log = logging.getLogger(__name__)
 
@@ -71,7 +71,8 @@ VENTANA_DETECCION_S = float(os.environ.get("VENTANA_DETECCION_S", "1.0"))
 DETECCIONES_MIN = 5
 JUICIO_CADA_S = 0.5  # cada cuánto se revisa el paso con lo que llega del edge
 
-# El juez de cámara recibe la pregunta del paso y el cuadro actual (o None si no hay video).
+# El juez de cámara recibe la pregunta del paso y el cuadro actual (o None si no hay video);
+# si el paso compara (Paso.comparar_con), recibe además la foto de antes como tercer argumento.
 JuezConCuadro = Callable[[str, bytes | None], tuple[bool, float]]
 
 _ESQUEMA = """
@@ -223,6 +224,15 @@ class Servicios:
                 log.exception("no se pudo guardar el cuadro de %s %s", ot_id, paso_id)
         return {**evidencia, "cuadro": ruta}
 
+    def _cuadro_de_paso(self, ot_id: str, paso_id: str) -> bytes | None:
+        """La foto con que se verificó ese paso: el «antes» de un paso que compara."""
+        ev = next((e for e in reversed(db.eventos(self.cx, ot_id)) if e.paso_id == paso_id
+                   and e.estado is Estado.VERIFICADO and (e.evidencia or {}).get("cuadro")), None)
+        try:
+            return (RAIZ / ev.evidencia["cuadro"]).read_bytes() if ev else None
+        except OSError:
+            return None
+
     # ─── Bitácora: agregar y repartir ──────────────────────────────────────
 
     def agregar(self, ev: Evento) -> Evento:
@@ -335,9 +345,15 @@ class Servicios:
                 v = Veredicto(Estado.NO_VERIFICADO, Capa.MODELO,
                               f"sin video reciente del edge: no hay cuadro para responder «{paso.pregunta_visual}»")
 
+        antes = self._cuadro_de_paso(ot_id, paso.comparar_con) if paso.comparar_con else None
+        if v is None and paso.comparar_con and antes is None:
+            # Sin la foto de antes no hay con qué comparar: que ahora no se vea no prueba que se hizo.
+            v = Veredicto(Estado.NO_VERIFICADO, Capa.MODELO,
+                          f"falta la foto de «{_paso(pauta, paso.comparar_con).titulo}» para comparar con la de ahora")
         if v is None:
+            ahora = cuadro.jpeg if cuadro else None
             v = evaluar(paso, texto, db.estado_sensores(self.cx),
-                        lambda pregunta: self.juez(pregunta, cuadro.jpeg if cuadro else None))
+                        lambda pregunta: self.juez(pregunta, ahora, antes) if antes is not None else self.juez(pregunta, ahora))
         evidencia = dict(v.evidencia) if v.evidencia else None
         if paso.tipo_evidencia is TipoEvidencia.CAMARA:
             evidencia = self._con_cuadro(evidencia, ot_id, paso.id, edge_id)

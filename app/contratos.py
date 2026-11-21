@@ -82,6 +82,8 @@ class Paso:
     pregunta_visual: str | None = None
     sensor: Sensor | None = None
     deteccion: Deteccion | None = None
+    # id del paso cuya foto es el «antes»: el juez compara esa foto con la de ahora
+    comparar_con: str | None = None
 
     def __post_init__(self) -> None:
         if self.tipo_evidencia is TipoEvidencia.SENSOR and self.sensor is None:
@@ -90,6 +92,8 @@ class Paso:
             raise ValueError(f"paso {self.id}: tipo camara exige pregunta_visual")
         if self.deteccion is not None and self.tipo_evidencia is not TipoEvidencia.CAMARA:
             raise ValueError(f"paso {self.id}: deteccion solo aplica a pasos de camara")
+        if self.comparar_con is not None and self.tipo_evidencia is not TipoEvidencia.CAMARA:
+            raise ValueError(f"paso {self.id}: comparar_con solo aplica a pasos de camara")
 
     @classmethod
     def desde_dict(cls, d: dict) -> Paso:
@@ -105,6 +109,7 @@ class Paso:
             pregunta_visual=d.get("pregunta_visual"),
             sensor=Sensor(s["id"], s["espera"]) if s else None,
             deteccion=Deteccion(det["clase"], bool(det.get("presente", True))) if det else None,
+            comparar_con=d.get("comparar_con"),
         )
 
 

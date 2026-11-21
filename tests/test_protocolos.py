@@ -18,7 +18,7 @@ from app import catalogo, db, protocolos
 from app.bus import Bus
 from app.catalogo import ReglaDeNegocio
 from app.protocolos import DATOS, PAUTA_DEMO, SEMILLA
-from app.servicios import DETECCIONES_MIN, Servicios
+from app.servicios import Servicios
 from app.video import Video
 
 TIENE_HTTPX = importlib.util.find_spec("httpx") is not None and importlib.util.find_spec("fastapi") is not None
@@ -209,7 +209,11 @@ class AislarBloquearYComprobar(Base):
         catalogo.crear_pauta(self.cx, pauta)
         catalogo.aprobar_pauta(self.cx, pauta["id"], 1, "supervisor:X")
         catalogo.abrir_ot(self.cx, "ot-1", pauta["id"], "supervisor:X")
-        self.s = Servicios(self.cx, Bus(), Video(Path(tempfile.mkdtemp())), lambda paso, cuadro: (True, 0.91))
+        self.juez = []  # lo que se le preguntó a la cámara: (pregunta, foto de ahora, foto de antes)
+        self.camara = lambda pregunta, antes: True
+        self.s = Servicios(self.cx, Bus(), Video(Path(tempfile.mkdtemp())),
+                           lambda pregunta, cuadro, antes=None: (self.juez.append((pregunta, cuadro, antes))
+                                                                 or self.camara(pregunta, antes), 0.91))
         self.s.iniciar_sesion("ot-1", "edge-1", "operario:1")
         self.orden, self.estado, self.seq = orden, dict(reposo), 0
 
@@ -222,8 +226,8 @@ class AislarBloquearYComprobar(Base):
             self.s.recibir_lectura("edge-1", sensor, self.estado[sensor], self.seq)
         return [e.detalle for e in db.eventos(self.cx, "ot-1")[antes:] if e.tipo.value == "alerta"]
 
-    def declarar(self, texto):
-        self.s.video.recibir("edge-1", b"\xff\xd8cuadro\xff\xd9")
+    def declarar(self, texto, foto=b"cuadro"):
+        self.s.video.recibir("edge-1", b"\xff\xd8" + foto + b"\xff\xd9")
         self.s.declarar("ot-1", "operario:1", texto)
 
     def cerrados(self):
@@ -326,15 +330,6 @@ class AislarBloquearYComprobar(Base):
                    {"energia": "viva", "operario": "ausente", "equipo": equipo})
         return self.leer()
 
-    def ver(self, *objetos):
-        """Lo que el detector ve en la cinta, los cuadros que la capa 2 pide para decidir."""
-        self.s.video.recibir("edge-1", b"\xff\xd8cuadro\xff\xd9")
-        self.s.video._detecciones.clear()  # como si ya hubiera pasado la ventana de la capa 2
-        for _ in range(DETECCIONES_MIN):
-            self.s._ultimo_juicio.clear()  # en la prueba no se espera el medio segundo entre juicios
-            self.s.recibir_detecciones("edge-1", {"objetos": [{"clase": c, "conf": p, "caja": [0, 0, 1, 1]}
-                                                              for c, p in objetos]})
-
     def test_estacion_acercarse_sin_apagar_el_motor_avisa(self):
         self.estacion()
         alertas = self.leer(operario="presente")
@@ -347,23 +342,33 @@ class AislarBloquearYComprobar(Base):
         alertas = self.estacion() + self.leer(energia="cortada") + self.leer(operario="presente")
         self.assertEqual(self.cerrados(), 2)  # con el equipo caliente no pasa de «esperar»
         alertas += self.leer(equipo="frio")
-        self.ver(("soda can", 0.7), ("red soda can", 0.9))
-        self.assertEqual(self.cerrados(), 4)  # la cámara vio el polín rojo; sigue en la cinta
-        self.ver(("soda can", 0.7), ("soda can", 0.6))  # la nueva, de otro color
-        self.assertEqual(self.cerrados(), 5)
+        self.declarar("este es el polín rojo", foto=b"con el rojo")
+        self.assertEqual(self.cerrados(), 4)
+        self.declarar("lo reemplacé", foto=b"con el nuevo")
+        # para juzgar el reemplazo la cámara recibe la foto de ahora y la de cuando vio el rojo
+        _, ahora, antes = self.juez[-1]
+        self.assertEqual((ahora, antes), (b"\xff\xd8con el nuevo\xff\xd9", b"\xff\xd8con el rojo\xff\xd9"))
         alertas += self.leer(operario="ausente") + self.leer(energia="viva")
         self.assertEqual(alertas, [])
         self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 6))
 
-    def test_estacion_que_no_se_vea_un_polin_rojo_no_prueba_que_se_saco(self):
+    def test_estacion_sacar_el_polin_rojo_sin_poner_otro_no_cierra_el_paso(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
-        self.ver(("soda can", 0.7))  # la cámara nunca vio el rojo
-        self.ver()                   # ni ve nada
-        self.assertEqual(self.cerrados(), 3)
-        self.ver(("red soda can", 0.9))
-        self.assertEqual(self.cerrados(), 4)  # recién ahora lo vio: falta sacarlo
-        self.ver(("soda can", 0.7))
+        self.declarar("este es el polín rojo")
+        self.camara = lambda pregunta, antes: antes is None  # al comparar, la cámara responde que no
+        self.declarar("lo reemplacé")
+        self.assertEqual(self.cerrados(), 4)
+        self.assertEqual(self.s.snapshot("ot-1")["estado"]["en_conflicto"], ["e5"])
+        self.camara = lambda pregunta, antes: True  # ahora sí hay un polín normal en su lugar
+        self.declarar("lo reemplacé")
         self.assertEqual(self.cerrados(), 5)
+
+    def test_estacion_sin_la_foto_del_polin_rojo_no_hay_con_que_comparar(self):
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.s.confirmar_por_persona("ot-1", "e4", "supervisor:X", "la cámara no lo enfoca")  # se cierra sin foto
+        self.declarar("lo reemplacé")
+        self.assertEqual(self.cerrados(), 4)
+        self.assertEqual([p for p, _, _ in self.juez], [])  # ni se le preguntó a la cámara
 
     def test_estacion_con_el_equipo_ya_frio_no_avisa_al_empezar(self):
         # shortcut: «Apagar el motor» no lleva control_critico porque, con el paso actual crítico,
