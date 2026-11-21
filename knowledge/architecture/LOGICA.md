@@ -136,7 +136,7 @@ Una desviación suelta no es una propuesta. La propuesta nace cuando la **misma*
 La vista del supervisor **agrupa por pauta y por área antes que por persona**: un paso que se saltan muchos operarios que normalmente cumplen apunta a la pauta, no a ellos (REFERENCIAS 33). Y dos cuidados que son regla, no consejo:
 
 - **Un paso de seguridad que se salta seguido no se vuelve prescindible.** Que se repita la desviación es señal de que la pauta está mal escrita o es impracticable, no de que el paso sobre.
-- **Si el dato se usa para vigilar personas**, puede aumentar la presión de la jefatura, que es una de las causas de las desviaciones (REFERENCIAS 33). `Candidata a validar`.
+- **Si el dato se usa para vigilar personas**, puede aumentar la presión de la jefatura, que es una de las causas de las desviaciones (REFERENCIAS 33). `Candidata a validar`. Por eso el pitch no presenta a Factum como un supervisor que mira todo el tiempo ([ADR-0013](../decisions/0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md)).
 
 ## Lo que esta lógica todavía no resuelve
 

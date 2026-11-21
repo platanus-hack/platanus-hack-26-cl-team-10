@@ -3,6 +3,9 @@
 | Término | Definición en este proyecto | Fuente |
 |---|---|---|
 | **Operario aumentado con IA** | La premisa del producto: la IA acompaña al operario como copiloto, comprueba cada paso y le avisa en el momento. No lo reemplaza | [Planteamiento del equipo](./fuentes/2026-11-21-planteamiento-del-equipo.md) |
+| **Copiloto** | Cómo se presenta Factum en el pitch: está con el operario en cada trabajo. Mira el paso y la pauta, no a la persona; no es un supervisor que mira todo el tiempo | [ADR-0013](../decisions/0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md) |
+| **Operario** | Quien ejecuta la OT. Es la palabra del knowledge y del pitch. En la API, su rol se llama `operador` | [ADR-0012](../decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md) |
+| **Observación del operario** | Lo que el operario deja registrado mientras ejecuta y que no cierra un paso: una pieza gastada, un paso que no calza con el equipo. Es el conocimiento que promete el pitch. No construido | [Pitch del copiloto](./fuentes/2026-11-21-pitch-del-copiloto.md) |
 | **Flujo operacional** | Cualquier procedimiento que una operación ejecuta paso a paso. Es lo que el producto vuelve verificable; el mantenimiento de maquinaria es el caso de uso | [ADR-0009](../decisions/0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md) |
 | **ICP** | Perfil de cliente ideal: una operación con equipos críticos, de cualquier rubro, que ya tiene procedimientos estandarizados y no tiene cómo verificarlos | [CONTEXTO](./CONTEXTO.md) |
 | **OT** | Orden de trabajo de mantenimiento. Tiene campos estructurados (equipo, fechas, estado) y un texto libre que escribe el técnico. En este proyecto es la instancia ejecutable de la pauta vigente, y se genera por calendario, por pedido o por una falla | Uso en SAP PM y CMMS; [ADR-0006](../decisions/0006-la-ot-nace-del-protocolo.md) |

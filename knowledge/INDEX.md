@@ -12,7 +12,7 @@
 
 - [CONTEXTO](./domain/CONTEXTO.md): el problema, el operario, las industrias y cómo nos juzgan.
 - [GLOSARIO](./domain/GLOSARIO.md): OT, pauta matriz, bloqueo y etiquetado, VLM y el resto del vocabulario.
-- [fuentes/](./domain/fuentes/): el planteamiento del equipo tal como se dictó, íntegro.
+- [fuentes/](./domain/fuentes/): el planteamiento del equipo y el pitch del copiloto tal como se dictaron, íntegros.
 
 ## Arquitectura
 

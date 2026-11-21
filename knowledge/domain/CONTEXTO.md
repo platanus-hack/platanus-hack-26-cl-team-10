@@ -16,6 +16,8 @@ El caso que usa el equipo es la detención no planificada de una correa transpor
 
 **Un operario aumentado con IA.** La IA acompaña al operario como copiloto mientras ejecuta: comprueba cada paso de la pauta y le avisa en el momento si se salta uno, para que el error se corrija ahí y no después. El resultado es un operario que ejecuta bien, con menos accidentes y con una bitácora confiable, gracias a pautas suficientes y verificables. La bitácora no se escribe: es la lista de pasos verificados con su evidencia. `Confirmada` por el equipo ([planteamiento del 2026-11-21](./fuentes/2026-11-21-planteamiento-del-equipo.md)).
 
+**El pitch: el copiloto de tus operarios.** Como el copiloto está en cada trabajo, todo queda registrado con su evidencia: el reporte no se escribe ni omite nada, el turno siguiente retoma sin depender de quien se fue y la pauta mejora con cada ejecución. La operación sabe que cada trabajo se hizo bien **sin poner un supervisor encima de cada uno**, y los datos salen por API hacia sus sistemas. No se dice que Factum mira la operación todo el tiempo: mira el paso y la pauta, no a la persona. La frase completa, y qué se presenta como construido y qué como visión, están en el [ADR-0013](../decisions/0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md) ([transcripción](./fuentes/2026-11-21-pitch-del-copiloto.md)). `Candidata a validar`.
+
 **Qué es.** Factum vuelve verificable cualquier flujo operacional: un procedimiento con pasos en el que cada paso declara qué evidencia lo cierra. El objetivo es reducir el impacto de una ejecución mal hecha. El mantenimiento de maquinaria es el caso de uso, elegido por su alto impacto ([ADR-0009](../decisions/0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md)). `Candidata a validar`.
 
 **Cliente objetivo.** Una operación con equipos críticos, de cualquier rubro, que ya tiene procedimientos estandarizados y no tiene cómo verificarlos. A la que no los tiene, el sistema le redacta el primero observando al operario, y desde ahí sigue el mismo flujo. La minería es el caso del demo, no el límite del producto ([ADR-0005](../decisions/0005-producto-general-mineria-como-caso-del-demo.md)). `Candidata a validar`.
@@ -27,7 +29,9 @@ Lo que entrega, según el planteamiento del equipo. `Candidata a validar`:
 1. **Verificación en el momento.** Cámara y sensores (vibración, temperatura y otros) comprueban cada paso. Si el operario se salta uno, recibe el aviso por un auricular.
 2. **Relevo de turno.** Cuando un trabajo dura más de un turno, el siguiente lo retoma desde el último paso verificado, sin depender de quien se fue. El formato (resumen, consultas o *briefing*) está por definir.
 3. **Mejora de la pauta.** Tras varias ejecuciones del mismo procedimiento, el sistema propone mejoras. Un paso que se saltan muchos operarios que normalmente cumplen apunta a la pauta, no a ellos.
-4. **Foco para el supervisor.** Ve en qué áreas y en qué pautas se saltan más pasos, y supervisa en persona solo los trabajos de mayor riesgo.
+4. **Foco para el supervisor.** Ve en qué áreas y en qué pautas se saltan más pasos, y supervisa en persona solo los trabajos de mayor riesgo. Ve pautas y áreas, no personas ([LOGICA](../architecture/LOGICA.md#cuándo-el-sistema-propone-cambiar-la-pauta)).
+5. **Conocimiento del operario.** Como el copiloto lo acompaña, el operario puede dejar lo que observa mientras ejecuta, como una pieza gastada o un paso que no calza con el equipo, y eso alimenta la mejora de la pauta y el reporte. Viene del [pitch del copiloto](./fuentes/2026-11-21-pitch-del-copiloto.md). No construido: es visión hasta que exista.
+6. **Datos por API.** La OT, su bitácora y su calificación salen por API hacia los sistemas del cliente, y de ahí, métricas por pauta y por área. El pedido y la lista de OT con login están construidos ([ADR-0012](../decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md)); las métricas, no.
 
 La verificación no depende solo de un modelo de lenguaje: hay sensores y reglas deterministas debajo. Ver [ADR-0004](../decisions/0004-verificacion-por-capas.md).
 
@@ -39,7 +43,7 @@ Dos cuidados con el *plug & play*. Una faena no deja conectar nada a su red de c
 
 Un ángulo de impacto adicional: capturar el conocimiento de los técnicos senior antes de que se retiren, grabando cómo ejecutan la tarea. `Candidata a validar`.
 
-Tres cuidados con el planteamiento, que salen de la evidencia; el detalle está en [research](../projects/research/research.md#evidencia-frente-al-planteamiento-del-equipo). Un procedimiento redactado tras observar una sola ejecución es un borrador que el experto corrige, no un protocolo. Un aviso por audio con falsas alarmas se termina ignorando. Y si el dato de quién se salta pasos se usa para vigilar personas, puede aumentar la presión que causa parte de las desviaciones (REFERENCIAS 33). `Candidata a validar`.
+Tres cuidados con el planteamiento, que salen de la evidencia; el detalle está en [research](../projects/research/research.md#evidencia-frente-al-planteamiento-del-equipo). Un procedimiento redactado tras observar una sola ejecución es un borrador que el experto corrige, no un protocolo. Un aviso por audio con falsas alarmas se termina ignorando. Y si el dato de quién se salta pasos se usa para vigilar personas, puede aumentar la presión que causa parte de las desviaciones (REFERENCIAS 33); por eso el pitch no presenta a Factum como un supervisor que mira todo el tiempo ([ADR-0013](../decisions/0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md)). `Candidata a validar`.
 
 **Fuera de alcance:** gemelos digitales basados en física.
 
@@ -73,5 +77,6 @@ Lectura del equipo, `Candidata a validar`: ejecución y aspecto técnico suman 4
 - Criterios y pesos de la hackathon, comunicados por el equipo el 2026-11-21. `Confirmada`.
 - Handoff de la revisión bibliográfica de Francisco Zúñiga, 2026-11-21: objetivo, alcance y búsquedas. `Confirmada`.
 - [Planteamiento del equipo, 2026-11-21](./fuentes/2026-11-21-planteamiento-del-equipo.md): problema, premisa, cliente objetivo, flujo, capas y demo. Transcripción íntegra.
+- [Pitch del copiloto, 2026-11-21](./fuentes/2026-11-21-pitch-del-copiloto.md): la propuesta de Francisco para el pitch de venta. Transcripción íntegra.
 - Reportes de seguridad de ICMM 2025, fuentes primarias abiertas el 2026-11-21: REFERENCIAS 40 y 41. `Confirmada`.
 - Números de referencia: ver [REFERENCIAS](../projects/research/REFERENCIAS.md).
