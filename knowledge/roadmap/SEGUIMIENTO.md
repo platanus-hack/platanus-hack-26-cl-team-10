@@ -19,7 +19,10 @@
 | Buscar literatura de relevo de turno en mantenimiento | — | pendiente | Sin búsqueda todavía. Punto de partida sin verificar: Piper Alpha |
 | Buscar literatura del aviso por audio y de fatiga de alarmas | — | pendiente | Sin búsqueda todavía. Incluye si un auricular convive con la protección auditiva de una planta |
 | Encontrar las seis referencias faltantes | — | pendiente | [Lista](../projects/research/REFERENCIAS.md#no-encontradas). La de Bate, Orchard y Tagle es la más valiosa |
-| Aislar los accidentes en tareas de mantenimiento | — | pendiente | Fuente primaria de Sernageomin, no prensa |
+| Fatalidades y controles críticos: fuentes primarias de ICMM | Daniel | hecho | 2026-11-21. Referencias (40) a (43) y [research](../projects/research/research.md#fatalidades-y-controles-críticos). La ejecución inefectiva del control, 19 de 26 incidentes fatales, sostiene el criterio de impacto |
+| Aislar los accidentes en tareas de mantenimiento | — | pendiente | Fuente primaria de Sernageomin, no prensa. Para el pitch ya no bloquea: el argumento pasa por la ejecución del control (40), no por la proporción de muertes en mantenimiento |
+| Abrir el PDF del benchmarking de ICMM 2025 | — | pendiente | Enlazado desde (40) y no abierto. Es la fuente más completa si se necesita el detalle por peligro |
+| Encontrar el origen de «ICMM cubre un tercio de la industria» | — | pendiente | Se afirmó al preparar el pitch y ninguna fuente abierta lo dice. Hasta entonces, fuera del pitch |
 | Transcribir y analizar las presentaciones del último año | Francisco | hecho | 2026-11-21. Cinco videos y 332 preguntas del jurado en [tour-platanus](../projects/research/tour-platanus.md) |
 | Cerrar las brechas del banco de preguntas del jurado | — | pendiente | Modelo de visión, dónde corre, latencia, privacidad del operario, costo del kit y condiciones de faena. Ver [preguntas](../projects/research/tour-platanus.md#las-preguntas-que-nos-van-a-hacer) |
 | Medir falsos positivos, falsos negativos y latencia del aviso | — | pendiente | Con el número de corridas. Es la pregunta que más le pesó a Veridian en Caracas |

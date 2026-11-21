@@ -60,6 +60,26 @@ El [planteamiento del 2026-11-21](../../domain/fuentes/2026-11-21-planteamiento-
 | Relevo de turno con resumen | No se buscó literatura | `Brecha` |
 | Aviso por audio en el oído | No se buscó literatura sobre el canal ni sobre fatiga de alarmas | `Brecha` |
 
+## Fatalidades y controles críticos
+
+Buscado el 2026-11-21 para sostener el criterio de impacto con algo mejor que una estimación de proveedor. Las cuatro referencias nuevas, (40) a (43), son de ICMM y de prensa.
+
+El dato que más sirve es de la fuente primaria y es casi literal a la tesis del producto: la **«ejecución inefectiva del control» fue la falla más común en los incidentes fatales de 2025, en 19 de 26** (40). `Confirmada`. No es que falte el control: el control existía y se ejecutó mal. Eso es exactamente lo que el flujo verifica paso a paso.
+
+El mismo reporte pide foco en la identificación, implementación y **verificación** de los controles críticos, y entre los peligros de alta consecuencia nombra el **aislamiento de energía** (40). `Confirmada`. El aislamiento de energía es el bloqueo y etiquetado, que es el paso que el demo pone al centro: la línea va de la fuente primaria de la industria al momento que el jurado va a ver.
+
+Escala, para dimensionar: 39 fallecidos en 2025 entre los 26 miembros de ICMM, 43 en 2024 y 35 en 2023, con tendencia al alza desde 2021 (41), (42). Sudamérica y África, once cada una; Chile, seis, y uno de los dos incidentes catastróficos del año fue en Chile (42). `Confirmada`.
+
+### Lo que esto corrige del encuadre
+
+El [CONTEXTO](../../domain/CONTEXTO.md) declaraba `Brecha` cuántas de las muertes mineras ocurren en tareas de mantenimiento. La respuesta honesta es que **no son la mayoría**: caída de roca, equipo móvil, trabajo en altura e irrupción explican 34 de los 39 (42). `Confirmada`.
+
+Por eso el argumento de impacto no es «los malos protocolos matan mineros», que las cifras no sostienen. El argumento es el de ICMM, y pesa más porque viene de la propia industria: los riesgos y sus controles ya se conocen, y lo que falla es **ejecutar y verificar** el control. Ese reencuadre también sirve al [ADR-0005](../../decisions/0005-producto-general-mineria-como-caso-del-demo.md): la ejecución inefectiva de un control no es un problema minero, es un problema de cualquier operación con procedimientos críticos.
+
+### Lo que no se usa
+
+«Los miembros de ICMM cubren cerca de un tercio de la industria» se afirmó al preparar el pitch y ninguna de las fuentes abiertas lo dice. Fuera del pitch hasta encontrar el origen. Lo mismo con las 592 muertes de minería artesanal: el enlace no se abrió. Ver REFERENCIAS, «Mencionadas, sin verificar».
+
 ## Correcciones a la revisión original
 
 Al verificar las referencias, dos no dicen lo que anotó la planilla. `Confirmada`.

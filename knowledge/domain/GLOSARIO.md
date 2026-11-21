@@ -26,6 +26,9 @@
 | ***Zero-shot*** | Usar un modelo sin entrenarlo con datos de la tarea | REFERENCIAS 9 |
 | **Paso saltado** | Un paso de la pauta que no aparece en la ejecución. Un VLM general lo detecta bien | REFERENCIAS 9 |
 | **Cambio de orden** | Pasos hechos en otro orden que el de la pauta. Un VLM general lo detecta mal | REFERENCIAS 9 |
+| **Control crítico** | La barrera cuya falla permite que ocurra un evento de alta consecuencia. ICMM pide identificarlos, implementarlos y **verificarlos**; verificarlos es lo que hace este producto | [REFERENCIAS 40](../projects/research/REFERENCIAS.md) |
+| **Ejecución inefectiva del control** | El control existía y se ejecutó mal. Fue la falla más común en los incidentes fatales de los miembros de ICMM en 2025: 19 de 26. Es el problema que el flujo ataca | [REFERENCIAS 40](../projects/research/REFERENCIAS.md) |
+| **Aislamiento de energía** | Cómo ICMM nombra al bloqueo y etiquetado al listar los peligros de alta consecuencia. Es el paso central del demo | [REFERENCIAS 40](../projects/research/REFERENCIAS.md) |
 
 ## Fuentes
 
