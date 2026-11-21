@@ -6,3 +6,6 @@ datos/evidencias/
 datos/voz/
 data/
 *.pt
+.env
+.env.local
+.env.*.local
