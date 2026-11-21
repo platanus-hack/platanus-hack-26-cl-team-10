@@ -22,7 +22,7 @@ python3 scripts/evaluar_capa3.py      # capa 3: falsa aceptación y falso rechaz
 | `servicios.py` + `bus.py` | Servicios | Atribuye lo del edge a la OT de la sesión y lo reparte por `/ot/{id}/stream` ([ADR-0007](../knowledge/decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md)) |
 | `scoring.py` | Servicios | La calificación ok · warning · error con certeza y motivos, por capa |
 | `acceso.py` | Servicios | Clientes, sus personas y el login del servicio para clientes: token Bearer, roles supervisor y operador, y qué pautas tiene habilitadas cada empresa ([ADR-0012](../knowledge/decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md)) |
-| `semilla.py` | Servicios | Datos de ejemplo: los protocolos con sus pautas y 15 OT en distintos estados (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `uv run python -m app.semilla` o `POST /interno/ots/semilla` |
+| `semilla.py` | Servicios | Datos de ejemplo: los protocolos con sus pautas y 16 OT en distintos estados (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `uv run python -m app.semilla` o `POST /interno/ots/semilla` |
 | `catalogo.py` | Servicios | El CRUD de pautas, aprobaciones, OT y eventos, con las reglas de negocio como 409. También el de protocolos y su atribución a pautas (`/interno/...`, con la clave del equipo) y las OT que pide un cliente (`/cliente/...`): [ADR-0011](../knowledge/decisions/0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md) |
 | `video.py` | Servicios | El video del edge: entra por `WS /edge/{id}/video`, sale como MJPEG y le da al juez de cámara el último cuadro |
 | `escenarios.py` | Servicios | La matriz de industria × patrón de ejecución contra cada barrera, en una caja aislada ([ADR-0008](../knowledge/decisions/0008-escenarios-por-industria-en-una-caja-aislada.md)). Las pautas de eléctrica y construcción están en `datos/` |
@@ -44,7 +44,7 @@ Las detecciones (clase, confianza y caja) entran siempre por `servicios.recibir_
 | **Edge** | `DETECTOR_ONNX=` vacío en `/srv/factum/entorno` y el edge con `--deteccion edge` (`edge/correr_edge_vm_yolo_local.command`) | ~18 en el Mac | El edge tiene CPU/GPU: más rápido, más preciso y no carga la VM |
 
 - Con el detector del servidor activo, las detecciones que mande un edge se ignoran, para no mezclar dos modelos.
-- Los modelos se exportan con `edge/exportar_onnx.py --clases mouse pencil --lado 416` a `datos/modelos/` (no van al repo) y `desplegar.sh` los sube si faltan en la VM. A 416 px el lápiz baja de 0,87 a ~0,67 de confianza frente a 640 px: un paso de cámara que no llega al 80 % se cierra declarando (capa 3).
+- Los modelos se exportan con `edge/exportar_onnx.py --lado 416` (clases por defecto: mouse y pencil para LOTO; soda can y red soda can para los polines, que en la estación son latas) a `datos/modelos/` (no van al repo) y `desplegar.sh` los sube si faltan en la VM. A 416 px el lápiz baja de 0,87 a ~0,67 de confianza frente a 640 px: un paso de cámara que no llega al 80 % se cierra declarando (capa 3).
 - Con ~5 detecciones/s, la ventana de la capa 2 va en `VENTANA_DETECCION_S=1.5` para juntar las 5 que pide.
 
 ## El banco de pruebas

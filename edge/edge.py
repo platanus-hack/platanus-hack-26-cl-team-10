@@ -158,7 +158,8 @@ def main():
     ap.add_argument("--fps", type=float, default=20)
     ap.add_argument("--ancho", type=int, default=960, help="ancho del JPEG enviado (alto en 16:9)")
     ap.add_argument("--calidad", type=int, default=65, help="calidad JPEG 1-100")
-    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil"])
+    # "soda can" va junto a "red soda can" para que una lata de otro color no caiga en la roja
+    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil", "soda can", "red soda can"])
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
     ap.add_argument("--deteccion", choices=["servidor", "edge"], default="servidor",
                     help="dónde corre YOLO: servidor (por defecto, el edge solo manda video y sensores) o edge (acá)")

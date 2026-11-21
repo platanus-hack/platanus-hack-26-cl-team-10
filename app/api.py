@@ -58,7 +58,8 @@ def estado_detector() -> dict:
 
 EDGE_POR_DEFECTO = "edge-1"
 PAUTA_DEMO = "pauta-correa-ct-01"
-PAUTAS_DEMO = {"correa": protocolos.PAUTA_DEMO, "loto": protocolos.PAUTA_DEMO.parent / "pauta-loto.json"}
+PAUTAS_DEMO = {"correa": protocolos.PAUTA_DEMO, "loto": protocolos.DATOS / "pauta-loto.json",
+               "polin": protocolos.DATOS / "pauta-polin-estacion.json"}
 
 
 @app.exception_handler(ReglaDeNegocio)
@@ -184,7 +185,8 @@ def pagina_ensayo() -> FileResponse:
 @app.post("/pauta/demo")
 def cargar_pauta_demo(pauta: str = "correa") -> dict:
     """Frente 1: cuando exista PDF→pasos, este endpoint recibe el PDF.
-    `pauta`: `correa` (cambio de rodillo) o `loto` (bloqueo con cámara y ESP32)."""
+    `pauta`: `correa` (cambio de rodillo), `polin` (cambio de polín en la estación: motor, distancia,
+    temperatura y cámara) o `loto` (bloqueo con cámara y ESP32)."""
     if pauta not in PAUTAS_DEMO:
         raise HTTPException(404, f"pauta de demo desconocida: {pauta}; hay {sorted(PAUTAS_DEMO)}")
     pauta = protocolos.desde_json(PAUTAS_DEMO[pauta])
@@ -332,7 +334,7 @@ def sembrar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> dic
 
 @app.post("/interno/ots/semilla")
 def sembrar_ots(x_clave_equipo: str | None = Header(default=None)) -> dict:
-    """La minera ficticia Oculta con sus personas, los protocolos con sus pautas habilitadas para ella y 15 OT
+    """La minera ficticia Oculta con sus personas, los protocolos con sus pautas habilitadas para ella y 16 OT
     de ejemplo (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `accesos` trae las claves de las
     personas creadas en esta llamada: es la única vez que se ven. Se puede repetir sin duplicar."""
     _solo_equipo(x_clave_equipo)

@@ -12,7 +12,8 @@
       "pauta-celda-mt-01",
       "pauta-excavadora-01",
       "pauta-brazo-01",
-      "pauta-polin-demo"
+      "pauta-polin-demo",
+      "pauta-polin-estacion"
     ]
   },
   {
@@ -24,7 +25,8 @@
     "pautas": [
       "pauta-correa-ct-01",
       "pauta-polin-ct-01",
-      "pauta-polin-demo"
+      "pauta-polin-demo",
+      "pauta-polin-estacion"
     ]
   },
   {
