@@ -9,12 +9,17 @@ pide OT de las pautas que quedaron listas (ADR-0011).
 import importlib.util
 import json
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from app import catalogo, db, protocolos
+from app.bus import Bus
 from app.catalogo import ReglaDeNegocio
 from app.protocolos import DATOS, PAUTA_DEMO, SEMILLA
+from app.servicios import Servicios
+from app.video import Video
 
 TIENE_HTTPX = importlib.util.find_spec("httpx") is not None and importlib.util.find_spec("fastapi") is not None
 EQUIPO = "equipo:factum"
@@ -194,6 +199,94 @@ class ElClientePideOt(Base):
             catalogo.generar_ot(self.cx, "pauta-fantasma", "cliente:planta")
 
 
+class AislarBloquearYComprobar(Base):
+    """Las pautas del polín y del brazo separan aislar, bloquear y comprobar energía cero
+    (REFERENCIAS 56). Se corren contra los servicios, con las reglas de capa 1 que ya hay."""
+
+    def abrir(self, archivo, orden, reposo):
+        pauta = json.loads((DATOS / archivo).read_text(encoding="utf-8"))
+        catalogo.crear_pauta(self.cx, pauta)
+        catalogo.aprobar_pauta(self.cx, pauta["id"], 1, "supervisor:X")
+        catalogo.abrir_ot(self.cx, "ot-1", pauta["id"], "supervisor:X")
+        self.s = Servicios(self.cx, Bus(), Video(Path(tempfile.mkdtemp())), lambda paso, cuadro: (True, 0.91))
+        self.s.iniciar_sesion("ot-1", "edge-1", "operario:1")
+        self.orden, self.estado, self.seq = orden, dict(reposo), 0
+
+    def leer(self, **cambios):
+        """Una tanda del edge con el estado completo; devuelve las alertas nuevas."""
+        antes = len(db.eventos(self.cx, "ot-1"))
+        self.estado.update(cambios)
+        for sensor in self.orden:
+            self.seq += 1
+            self.s.recibir_lectura("edge-1", sensor, self.estado[sensor], self.seq)
+        return [e.detalle for e in db.eventos(self.cx, "ot-1")[antes:] if e.tipo.value == "alerta"]
+
+    def declarar(self, texto):
+        self.s.video.recibir("edge-1", b"\xff\xd8cuadro\xff\xd9")
+        self.s.declarar("ot-1", "operario:1", texto)
+
+    def cerrados(self):
+        return self.s.ots()[0]["cerrados"]
+
+    def polin(self):
+        self.abrir("pauta-polin.json", ["correa", "energia", "bloqueo", "guarda"],
+                   {"correa": "en_marcha", "energia": "viva", "bloqueo": "retirado", "guarda": "cerrada"})
+
+    def test_abrir_la_guarda_sin_aislar_es_peligro_y_orden_invertido(self):
+        self.polin()
+        self.leer(correa="detenida")
+        alertas = self.leer(guarda="abierta")
+        self.assertTrue(any(a.startswith("GUARDA ABIERTA CON ENERGÍA VIVA") for a in alertas), alertas)
+        self.assertTrue(any(a.startswith("ORDEN INVERTIDO") for a in alertas), alertas)
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "error")
+        self.leer(guarda="cerrada")
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
+
+    def test_bloqueado_pero_sin_comprobar_energia_cero_la_guarda_no_se_abre(self):
+        self.polin()
+        self.leer(correa="detenida"), self.leer(energia="cortada"), self.leer(bloqueo="puesto")
+        self.assertEqual(self.cerrados(), 3)
+        alertas = self.leer(guarda="abierta")
+        self.assertTrue(any("Retirar la guarda" in a for a in alertas), alertas)
+        self.declarar("di partida y la correa no se movió")
+        self.assertEqual(self.leer(), [])
+        self.assertEqual((self.cerrados(), self.s.calificacion("ot-1")["nivel"]), (5, "ok"))
+
+    def test_sacar_el_candado_antes_de_reponer_la_guarda_es_control_perdido(self):
+        self.polin()
+        self.leer(correa="detenida"), self.leer(energia="cortada"), self.leer(bloqueo="puesto")
+        self.declarar("energía cero comprobada"), self.leer(guarda="abierta"), self.declarar("polín cambiado")
+        alertas = self.leer(bloqueo="retirado")
+        self.assertTrue(any(a.startswith("CONTROL PERDIDO") for a in alertas), alertas)
+        self.leer(bloqueo="puesto")
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
+
+    def test_la_pauta_del_polin_se_completa_en_su_orden_sin_avisos(self):
+        self.polin()
+        alertas = self.leer(correa="detenida") + self.leer(energia="cortada") + self.leer(bloqueo="puesto")
+        self.declarar("energía cero comprobada")
+        alertas += self.leer(guarda="abierta")
+        self.declarar("polín cambiado")
+        alertas += self.leer(guarda="cerrada") + self.leer(bloqueo="retirado") + self.leer(energia="viva") + self.leer(correa="en_marcha")
+        self.declarar("el polín gira y la correa corre centrada")
+        self.assertEqual(alertas, [])
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 10))
+
+    def test_en_el_brazo_nadie_entra_sin_comprobar_energia_cero(self):
+        self.abrir("pauta-brazo.json", ["energia", "bloqueo", "zona"], {"energia": "viva", "bloqueo": "retirado", "zona": "libre"})
+        self.assertTrue(any("Entrar a la celda" in a for a in self.leer(zona="ocupada")))
+        self.leer(zona="libre"), self.leer(energia="cortada"), self.leer(bloqueo="puesto")
+        self.assertTrue(any("Entrar a la celda" in a for a in self.leer(zona="ocupada")))
+        self.leer(zona="libre")
+        self.declarar("di la orden de partida y el brazo no se movió")
+        alertas = self.leer(zona="ocupada")
+        self.declarar("pinza ajustada")
+        alertas += self.leer(zona="libre") + self.leer(bloqueo="retirado") + self.leer(energia="viva")
+        self.declarar("el brazo completó un ciclo")
+        self.assertEqual(alertas, [])
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 9))
+
+
 class LaSemillaDeLosCasos(Base):
     def test_cada_protocolo_de_datos_tiene_su_documento_y_pautas_que_existen(self):
         pautas = {json.loads(r.read_text(encoding="utf-8"))["id"] for r in DATOS.glob("pauta-*.json")}
@@ -212,6 +305,10 @@ class LaSemillaDeLosCasos(Base):
         protocolos.cargar_semilla(self.cx)
         self.assertEqual([p["id"] for p in catalogo.protocolos_de(self.cx, "pauta-celda-mt-01")], ["prot-aislamiento-01", "prot-celda-mt-01"])
         self.assertGreater(len(catalogo.pautas_de(self.cx, "prot-aislamiento-01")), 1)
+
+    def test_un_protocolo_da_dos_pautas_la_del_rodillo_y_la_del_polin(self):
+        protocolos.cargar_semilla(self.cx)
+        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01"])
 
     def test_se_puede_repetir_sin_duplicar(self):
         a = protocolos.cargar_semilla(self.cx)

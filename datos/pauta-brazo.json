@@ -7,8 +7,8 @@
     {
       "id": "p1",
       "orden": 1,
-      "titulo": "Cortar la energía del brazo",
-      "instruccion": "Abre el interruptor de los servos y comprueba que el brazo quedó sin energía.",
+      "titulo": "Aislar la energía del brazo",
+      "instruccion": "Corta la alimentación de los servos en el tablero de la celda.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
@@ -20,8 +20,8 @@
     {
       "id": "p2",
       "orden": 2,
-      "titulo": "Poner el bloqueo",
-      "instruccion": "Pon el candado y la tarjeta en el interruptor.",
+      "titulo": "Bloquear",
+      "instruccion": "Pon tu candado personal en el punto de bloqueo del tablero y guarda la llave contigo.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
@@ -33,8 +33,17 @@
     {
       "id": "p3",
       "orden": 3,
+      "titulo": "Comprobar energía cero",
+      "instruccion": "Da la orden de partida desde el mando y mira que el brazo no se mueve.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1,
+      "control_critico": true
+    },
+    {
+      "id": "p4",
+      "orden": 4,
       "titulo": "Entrar a la celda",
-      "instruccion": "Con la energía cortada y el bloqueo puesto, acércate al brazo.",
+      "instruccion": "Con la energía aislada, bloqueada y comprobada, acércate al brazo.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "sensor": {
@@ -43,8 +52,8 @@
       }
     },
     {
-      "id": "p4",
-      "orden": 4,
+      "id": "p5",
+      "orden": 5,
       "titulo": "Ajustar la pinza",
       "instruccion": "Aprieta el tornillo de la pinza hasta que cierre sobre la pieza.",
       "tipo_evidencia": "camara",
@@ -52,8 +61,8 @@
       "pregunta_visual": "¿La pinza está cerrada y sostiene la pieza?"
     },
     {
-      "id": "p5",
-      "orden": 5,
+      "id": "p6",
+      "orden": 6,
       "titulo": "Salir de la celda",
       "instruccion": "Retira la herramienta y sal de la zona del brazo.",
       "tipo_evidencia": "sensor",
@@ -65,10 +74,10 @@
       }
     },
     {
-      "id": "p6",
-      "orden": 6,
+      "id": "p7",
+      "orden": 7,
       "titulo": "Retirar el bloqueo",
-      "instruccion": "Con la celda despejada, saca el candado y la tarjeta.",
+      "instruccion": "Con la celda despejada, saca tu candado del punto de bloqueo.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
@@ -78,10 +87,10 @@
       }
     },
     {
-      "id": "p7",
-      "orden": 7,
+      "id": "p8",
+      "orden": 8,
       "titulo": "Devolver la energía",
-      "instruccion": "Cierra el interruptor de los servos.",
+      "instruccion": "Conecta la alimentación de los servos en el tablero.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
@@ -91,8 +100,8 @@
       }
     },
     {
-      "id": "p8",
-      "orden": 8,
+      "id": "p9",
+      "orden": 9,
       "titulo": "Probar un ciclo",
       "instruccion": "Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.",
       "tipo_evidencia": "confirmacion",

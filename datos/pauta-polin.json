@@ -1,0 +1,123 @@
+{
+  "id": "pauta-polin-ct-01",
+  "nombre": "Cambio de polín en correa transportadora",
+  "version": 1,
+  "equipo": "correa CT-01, estación de polines 14",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Detener la correa",
+      "instruccion": "Pide la detención a la sala de control y espera a que la correa quede quieta y sin carga.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "correa",
+        "espera": "detenida"
+      }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Aislar la energía",
+      "instruccion": "El eléctrico autorizado abre el desconectador del motor de la correa.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "cortada"
+      }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Bloquear",
+      "instruccion": "Pon tu candado y tu tarjeta personales en la caja de bloqueo y guarda la llave contigo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "puesto"
+      }
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Comprobar energía cero",
+      "instruccion": "Da partida desde la botonera local y mira que la correa no se mueve.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1,
+      "control_critico": true
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Retirar la guarda",
+      "instruccion": "Saca la guarda de la estación de polines que vas a intervenir.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "guarda",
+        "espera": "abierta"
+      }
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Cambiar el polín",
+      "instruccion": "Levanta la correa, saca el polín dañado, monta el nuevo y aprieta sus pernos. Gíralo con la mano: tiene que girar libre.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿Está el polín nuevo montado en su estación, con sus pernos puestos y sin herramientas sobre la correa?"
+    },
+    {
+      "id": "p7",
+      "orden": 7,
+      "titulo": "Reponer la guarda",
+      "instruccion": "Monta la guarda y asegúrala. Va antes de retirar el bloqueo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "guarda",
+        "espera": "cerrada"
+      }
+    },
+    {
+      "id": "p8",
+      "orden": 8,
+      "titulo": "Retirar el bloqueo",
+      "instruccion": "Con la zona despejada, saca tu candado y tu tarjeta de la caja de bloqueo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "retirado"
+      }
+    },
+    {
+      "id": "p9",
+      "orden": 9,
+      "titulo": "Devolver la energía",
+      "instruccion": "El eléctrico autorizado cierra el desconectador y avisa a la sala de control.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "viva"
+      }
+    },
+    {
+      "id": "p10",
+      "orden": 10,
+      "titulo": "Probar en vacío",
+      "instruccion": "Pide la partida con la correa vacía y confirma que el polín nuevo gira y que la correa corre centrada.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1
+    }
+  ]
+}

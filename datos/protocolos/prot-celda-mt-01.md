@@ -6,33 +6,49 @@
 
 Mantenimiento del interruptor de la celda MT-07 de la subestación S-1, con la celda fuera de servicio. Aplica junto con el protocolo de aislamiento y bloqueo de energías.
 
-## 2. Trabajar seguro
+## 2. Peligros y controles críticos
 
-- **El peligro.** Electrocución y arco eléctrico.
-- **El control.** Las cinco etapas, en orden, y ningún trabajo hasta completarlas: desconectar, prevenir la realimentación, verificar la ausencia de tensión, poner a tierra y en cortocircuito, y proteger la zona (48).
-- **La tierra.** Se conecta primero por el extremo de tierra y se retira al revés. No se pone ninguna tierra sin haber verificado antes la ausencia de tensión (50).
-- **El orden importa al volver.** Retirar las tierras en el orden equivocado fue el factor principal de los accidentes con tierras (51).
+| Lo que no puede pasar | El control | Cómo se comprueba |
+|---|---|---|
+| Electrocución o arco al tocar una parte con tensión | Las cinco etapas, en orden, y ningún trabajo hasta completarlas (48) | Una señal por etapa: cuchillas abiertas, candado en el mando, detector sin tensión, tierras puestas y zona delimitada |
+| Poner una tierra sobre una parte con tensión | No se pone ninguna tierra sin haber verificado antes la ausencia de tensión (50) | El detector marca ausencia antes de que la tierra aparezca puesta |
+| Reponer el servicio con las tierras puestas | Las tierras se retiran antes de cerrar, y no se cierra mientras haya alguna (49, 50) | Tierras retiradas antes de que el seccionador cierre |
+
+Las cinco etapas son las mismas tres acciones del protocolo de aislamiento, más dos propias de la electricidad:
+
+| Etapa (48) | Acción |
+|---|---|
+| 1. Desconectar, con corte visible | Aislar |
+| 2. Prevenir la realimentación | Bloquear |
+| 3. Verificar la ausencia de tensión | Comprobar energía cero |
+| 4. Poner a tierra y en cortocircuito | Propia de la electricidad |
+| 5. Proteger y señalizar la zona | Propia de la electricidad |
 
 ## 3. Antes de empezar
 
-1. Coordina la maniobra con el centro de control.
-2. Prueba el detector de tensión antes de usarlo.
+1. Coordina la maniobra con el centro de control e identifica la celda por su número.
+2. Prueba el detector de tensión sobre una parte que sabes que tiene tensión, antes de usarlo.
+3. Revisa el equipo de puesta a tierra: pinzas, cables y pértiga.
 
-## 4. Procedimiento
+## 4. Detener y aislar
 
 1. Abre el interruptor de la celda y después el seccionador, hasta tener corte visible.
-2. Pon el candado y la tarjeta en el mando del seccionador.
+2. Pon tu candado y tu tarjeta en el mando del seccionador.
 3. Comprueba con el detector, en las tres fases, que no hay tensión.
-4. Conecta el equipo de puesta a tierra, primero a tierra y después a las tres fases.
+4. Conecta el equipo de puesta a tierra, primero a tierra y después a las tres fases (50).
 5. Cierra la zona con barrera o cinta y cuelga el letrero de trabajo en curso.
-6. Haz el mantenimiento del interruptor.
 
-## 5. Volver a servicio
+## 5. El trabajo
 
-1. Retira la puesta a tierra, primero de las fases y después de tierra. No se retira hasta que cesen todos los trabajos (49).
-2. Saca el candado y la tarjeta del mando.
-3. Cierra el seccionador y el interruptor, y confirma con el centro de control que la celda quedó en servicio. No se repone el servicio mientras haya tierras puestas (50).
+Haz el mantenimiento del interruptor según la instrucción del fabricante.
 
-## 6. Registros
+## 6. Volver a servicio
 
-Las maniobras con su hora, quién las hizo, y la confirmación del centro de control.
+1. Retira las herramientas y despeja la zona.
+2. Retira la puesta a tierra, primero de las fases y después de tierra. No se retira hasta que cesen todos los trabajos (49). Retirarlas en el orden equivocado fue el factor principal de los accidentes con tierras (51).
+3. Saca tu candado y tu tarjeta del mando.
+4. Cierra el seccionador y el interruptor, y confirma con el centro de control que la celda quedó en servicio.
+
+## 7. Registros
+
+Las maniobras con su hora, quién las hizo, el resultado de la verificación de ausencia de tensión y la confirmación del centro de control.

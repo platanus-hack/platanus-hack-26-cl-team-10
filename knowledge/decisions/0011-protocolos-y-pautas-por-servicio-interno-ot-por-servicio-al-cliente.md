@@ -20,6 +20,8 @@ Se mantiene lo que ya regía: una pauta nueva nace sin aprobar y la aprueba una 
 
 Los casos que el equipo ya tiene quedan cargados como semilla en `datos/protocolos.json`, con un documento por protocolo en `datos/protocolos/`.
 
+Las pautas nuevas separan tres pasos que antes iban juntos o faltaban: aislar la energía, bloquear y comprobar energía cero, en ese orden (REFERENCIAS 56). El candado va en el punto de bloqueo, no en el mando con que se opera el equipo. Así están escritas la del polín (`pauta-polin-ct-01`) y la del brazo (`pauta-brazo-01`).
+
 ## Alternativas consideradas
 
 - **A — Guardar el protocolo como un campo de la pauta:** es más simple, pero obliga a una pauta por protocolo y repite el mismo documento en cada pauta que sale de él. El protocolo transversal de aislamiento quedaría copiado en cinco pautas.
@@ -38,7 +40,11 @@ Los casos que el equipo ya tiene quedan cargados como semilla en `datos/protocol
 - La extracción de pasos con un modelo sigue siendo un stub (`protocolos.extraer_pasos`): hoy las pautas de la semilla se escribieron a mano a partir de cada documento. `Brecha`.
 - El servicio del cliente no identifica al cliente: cualquiera que llegue a la API puede pedir una OT, y `solicitante` es un texto libre. Falta una credencial por cliente. `Brecha`.
 - Las rutas públicas anteriores (`POST /pautas`, `POST /ot`) siguen abiertas y permiten crear pautas sin protocolo. No se cerraron para no romper la pantalla del demo ni el banco de casos. `Brecha`.
-- Los seis protocolos de la semilla los redactó el equipo; ninguno es el documento real de un cliente. El del camión rígido resume una guía pública de un tercero y guarda su enlace, sin copiar su texto. `Candidata a validar` con un protocolo real.
+- Los seis protocolos de la semilla los redactó el equipo, con la estructura de los manuales de REFERENCIAS 56 a 66; ninguno es el documento real de un cliente. El del camión rígido resume una guía pública de un tercero y guarda su enlace, sin copiar su texto. `Candidata a validar` con un protocolo real.
+- La comprobación de energía cero la cierra hoy la palabra del operario: ninguna estación mide el intento de partida. Es un control crítico cerrado sin sensor. `Brecha`.
+- `pauta-correa-ct-01`, la del demo anterior, sigue juntando aislar y bloquear en un paso y no trae la comprobación. No se cambió porque la usan las pruebas de minería, el recorrido del demo y la pantalla. `Brecha`.
+- Las señales de la pauta del polín (`correa`, `energia`, `bloqueo`, `guarda`) no las mide ninguna estación del equipo. `Brecha`.
+- La estrategia de controles de REFERENCIAS 56 abre con una nota de confidencialidad, aunque está publicada en el sitio de la compañía. Se enlaza y se resume con palabras propias; no se copia su texto. `Candidata a validar` con el equipo si alcanza.
 - La pauta del camión usa señales (`inclinacion`, `marcha`, `freno_estacionamiento`, `enfriamiento`, `motor`) que ninguna estación del equipo mide hoy. `Brecha`.
 
 ## Referencias

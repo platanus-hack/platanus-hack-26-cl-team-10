@@ -3,11 +3,12 @@
     "id": "prot-aislamiento-01",
     "nombre": "Aislamiento y bloqueo de energías",
     "industria": "transversal",
-    "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 44, 45 y 55. No es el procedimiento de un cliente.",
+    "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 44, 45 y 55 y la estrategia de controles de REFERENCIAS 56. No es el procedimiento de un cliente.",
     "documento": "protocolos/prot-aislamiento-01.md",
     "pautas": [
       "pauta-loto-escritorio",
       "pauta-correa-ct-01",
+      "pauta-polin-ct-01",
       "pauta-celda-mt-01",
       "pauta-excavadora-01",
       "pauta-brazo-01"
@@ -15,12 +16,13 @@
   },
   {
     "id": "prot-correa-01",
-    "nombre": "Cambio de rodillo en correa transportadora",
+    "nombre": "Mantención de polines y rodillos en correa transportadora",
     "industria": "minería",
-    "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 44 a 47. No es el procedimiento de un cliente.",
+    "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 44 a 47 y los manuales de REFERENCIAS 56 a 59. No es el procedimiento de un cliente.",
     "documento": "protocolos/prot-correa-01.md",
     "pautas": [
-      "pauta-correa-ct-01"
+      "pauta-correa-ct-01",
+      "pauta-polin-ct-01"
     ]
   },
   {
