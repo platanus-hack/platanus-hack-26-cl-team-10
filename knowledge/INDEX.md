@@ -17,11 +17,16 @@
 ## Arquitectura
 
 - [LOGICA](./architecture/LOGICA.md): **las reglas de negocio.** Qué es un paso y un evento, quién decide que un paso está hecho, qué puede interrumpir al operario y cómo se traspasa un turno. Se acuerda antes de escribir código.
+- [Servicios en vivo](./architecture/servicios.html): **el recorrido animado** de una lectura del edge por cada servicio de la API hasta la bitácora, la calificación y la pantalla, más el catálogo de endpoints y qué admite cada recurso. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
 - [FLUJO](./architecture/FLUJO.md): los pasos por actor, del protocolo a la OT y a la ejecución guiada, con evidencia, cómo construirlo y qué falta decidir en cada uno. Incluye las capas de verificación y el demo propuesto.
 
 ## Decisiones
 
 - [Registro de decisiones](./decisions/decisions.md).
+
+## Proyectos
+
+- [Servicios en vivo · PRD](./projects/servicios-en-vivo/PRD.md): atribuir lo del edge a la OT en curso, calificarlo y llevarlo a la UI por WebSocket, y el CRUD con las reglas de negocio.
 
 ## Research
 
@@ -35,4 +40,4 @@
 ## Cómo se trabaja
 
 - [CONTRIBUTING](./CONTRIBUTING.md): el estándar y cómo sube cada uno su research.
-- [_TEMPLATE](./_TEMPLATE/): plantillas de ADR y de nota de lectura.
+- [_TEMPLATE](./_TEMPLATE/): plantillas de PRD, de ADR y de nota de lectura.

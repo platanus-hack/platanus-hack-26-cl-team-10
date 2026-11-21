@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Servicios en vivo · del edge a la bitácora y la calificación</title>
+<!-- Implementa ADR-0007 y el PRD de knowledge/projects/servicios-en-vivo/. Cada nodo y cada
+     endpoint de esta página existe en app/: si el código cambia, esta página se corrige en el
+     mismo commit (CONTRIBUTING, regla 2). Animación con GSAP 3 (MotionPath y ScrollTrigger);
+     sin conexión la página se lee igual, solo sin movimiento. -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/MotionPathPlugin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<style>
+:root{
+  --ink:#16202b; --muted:#5b6673; --line:#d9dee5; --soft:#f1f3f6; --bg:#f7f8fa; --paper:#fff;
+  --brand:#2f5f9e; --brand-soft:#e7eef8;
+  --ok:#2f7d5b; --ok-bg:#e3f3ea; --warn:#9a6400; --warn-bg:#fdf3d6; --err:#b42318; --err-bg:#fdeceb;
+  --deep:#141c26; --violet:#6b4fa0; --violet-bg:#f1ecfa;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+header{background:var(--deep);color:#eef2f7;padding:44px 0 40px}
+header .chip{display:inline-block;font-size:15px;padding:3px 10px;border-radius:999px;background:#25324a;color:#b9c9e6;margin-right:6px}
+header h1{font-size:34px;line-height:1.18;margin:14px 0 10px;max-width:900px;letter-spacing:-.01em}
+header p{color:#b8c2cf;font-size:18px;max-width:860px;margin:0}
+section{margin:44px 0}
+h2{font-size:24px;margin:0 0 10px}
+h3{font-size:18px;margin:0 0 8px}
+p{max-width:880px}
+code{font-family:var(--mono);font-size:15px;background:var(--soft);padding:1px 5px;border-radius:5px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px}
+
+/* escenarios */
+.escenarios{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.escenarios button{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:8px 14px;cursor:pointer;color:var(--ink)}
+.escenarios button[aria-pressed=true]{background:var(--deep);color:#fff;border-color:var(--deep)}
+.escenarios button small{display:block;color:var(--muted);font-size:15px}
+.escenarios button[aria-pressed=true] small{color:#b8c2cf}
+.flujo{overflow-x:auto}
+.flujo svg{display:block;width:100%;min-width:1000px;height:auto}
+svg .n rect{fill:var(--paper);stroke:#c4ccd6;stroke-width:1.5;transition:fill .3s,stroke .3s}
+svg .n.activo rect{stroke:var(--brand);stroke-width:2.5;fill:var(--brand-soft)}
+svg .n.ok rect{stroke:var(--ok);fill:var(--ok-bg)}
+svg .n.warn rect{stroke:var(--warn);fill:var(--warn-bg)}
+svg .n.err rect{stroke:var(--err);fill:var(--err-bg)}
+svg .n.corta rect{stroke:#8792a2;fill:var(--soft);stroke-dasharray:6 4}
+svg .t{font-size:17px;font-weight:700;fill:var(--ink)}
+svg .s{font-size:15px;fill:var(--muted)}
+svg .estado{font-size:15px;font-weight:700}
+svg .estado.ok{fill:var(--ok)} svg .estado.warn{fill:var(--warn)} svg .estado.err{fill:var(--err)} svg .estado.corta{fill:#5b6673}
+svg .ruta{fill:none;stroke:#b5bfcc;stroke-width:2.5}
+svg .ruta.viva{stroke:var(--brand)}
+svg .grupo{fill:none;stroke:var(--brand);stroke-width:1.5;stroke-dasharray:6 5}
+svg .gl{font-size:15px;font-weight:700;fill:var(--brand)}
+svg .borde{fill:var(--deep)}
+svg .borde-t{fill:#fff;font-size:17px;font-weight:700}
+svg .borde-s{fill:#b8c2cf;font-size:15px}
+#paquete{fill:var(--brand);filter:drop-shadow(0 0 6px rgba(47,95,158,.6))}
+
+.paneles{display:grid;grid-template-columns:1fr 1.4fr 300px;gap:16px;margin-top:16px}
+.paneles>div{min-width:0}
+@media (max-width:1000px){.paneles{grid-template-columns:1fr}}
+.panel h3{font-size:15px;color:var(--muted);font-weight:600;margin:0 0 8px}
+pre{font-family:var(--mono);font-size:15px;line-height:1.45;background:var(--deep);color:#dfe7f1;padding:14px 16px;border-radius:12px;overflow-x:auto;margin:0;min-height:210px;white-space:pre}
+.tel{background:var(--deep);border-radius:22px;padding:14px;color:#eef2f7;min-height:210px}
+.tel .barra{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.tel .ot{font-size:15px;color:#b8c2cf}
+.badge{font-size:15px;font-weight:700;padding:2px 10px;border-radius:999px}
+.badge.ok{background:var(--ok-bg);color:var(--ok)} .badge.warning{background:var(--warn-bg);color:var(--warn)} .badge.error{background:var(--err-bg);color:var(--err)}
+.tel ol{margin:0;padding-left:20px;font-size:15px}
+.tel li{margin:4px 0;color:#c9d3df}
+.tel li.hecho{color:#8fe0b4} .tel li.actual{color:#fff;font-weight:700}
+.tel .aviso{margin-top:10px;font-size:15px;padding:8px 10px;border-radius:10px;display:none}
+.tel .aviso.err{display:block;background:#3b1717;color:#ffb4ad}
+.tel .aviso.warn{display:block;background:#3a2e10;color:#ffd97a}
+.tel .aviso.gris{display:block;background:#253041;color:#b8c2cf}
+.nota{color:var(--muted);font-size:15px}
+
+/* capas */
+.capas{display:grid;gap:10px}
+.capa{display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.capa b{font-size:16px}
+.capa .que{color:var(--muted);font-size:15px;display:block}
+.piezas{display:flex;flex-wrap:wrap;gap:8px}
+.pieza{font-family:var(--mono);font-size:15px;border:1px solid var(--line);border-radius:8px;padding:4px 9px;background:var(--soft)}
+.pieza.nueva{border-color:var(--brand);background:var(--brand-soft)}
+.flecha{text-align:center;color:var(--muted);font-size:15px}
+
+/* secuencia */
+.seq{overflow-x:auto}
+.seq svg{display:block;width:100%;min-width:1000px;height:auto}
+.seq .vida{stroke:#c4ccd6;stroke-width:2;stroke-dasharray:4 6}
+.seq .cab rect{fill:var(--deep)} .seq .cab text{fill:#fff;font-size:16px;font-weight:700}
+.seq .msg{fill:none;stroke:var(--ink);stroke-width:2}
+.seq .msg.vuelta{stroke:var(--brand);stroke-dasharray:7 5}
+.seq .msg.edge{stroke:var(--ok)}
+.seq .ml{font-size:15px;fill:var(--ink)}
+.seq .ml.vuelta{fill:var(--brand)} .seq .ml.edge{fill:var(--ok)}
+.seq .num{font-size:15px;font-weight:700;fill:var(--muted)}
+
+/* endpoints */
+table{width:100%;border-collapse:collapse;background:var(--paper);font-size:15px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--soft)}
+.m{font-family:var(--mono);font-size:15px;font-weight:700;padding:1px 7px;border-radius:6px}
+.m.get{background:var(--ok-bg);color:var(--ok)} .m.post{background:var(--brand-soft);color:var(--brand)}
+.m.del{background:var(--err-bg);color:var(--err)} .m.ws{background:var(--violet-bg);color:var(--violet)}
+td.r{font-weight:700;white-space:nowrap}
+.crud td{text-align:center} .crud td:first-child,.crud th:first-child{text-align:left}
+.si{color:var(--ok);font-weight:700} .no{color:var(--err);font-weight:700}
+
+/* calificación */
+.califs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media (max-width:1000px){.califs{grid-template-columns:1fr 1fr}}
+.calif{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px}
+.calif .tope{margin:6px 0 10px}
+.barra-c{height:10px;border-radius:999px;background:var(--soft);overflow:hidden}
+.barra-c i{display:block;height:100%;width:0;background:var(--brand);border-radius:999px}
+.calif p{font-size:15px;color:var(--muted);margin:10px 0 0}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="chip">Arquitectura</span><span class="chip">ADR-0007 · proposed</span>
+    <h1>Cómo una lectura del edge se vuelve bitácora de la OT y calificación en la pantalla</h1>
+    <p>El edge manda lecturas sin saber de OT. La sesión que abre el operario dice a qué OT pertenecen. El servicio las revisa capa por capa, la bitácora solo agrega, la calificación se calcula al leer y la UI lo recibe todo por un WebSocket, sin preguntar.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section>
+  <h2>El recorrido de una lectura</h2>
+  <p>Elige un caso. El punto azul es la lectura: entra por <code>POST /edge/{id}/lecturas</code>, pasa por las cinco revisiones de <code>servicios.recibir_lectura</code> y, si algo cambió, sale como evento de la bitácora con su calificación hasta la pantalla del operario.</p>
+  <div class="escenarios" role="group" aria-label="Casos">
+    <button data-caso="bloqueo" aria-pressed="true">El candado cierra el paso<small>reed_bloqueo = cerrado</small></button>
+    <button data-caso="guarda" aria-pressed="false">Guarda abierta con energía viva<small>alerta de capa 1</small></button>
+    <button data-caso="vibracion" aria-pressed="false">Vibración fuera de lo normal<small>alerta de capa 2</small></button>
+    <button data-caso="duplicada" aria-pressed="false">El edge reenvía tras un corte<small>mismo seq</small></button>
+    <button data-caso="sinsesion" aria-pressed="false">Edge sin OT en curso<small>sin sesión</small></button>
+  </div>
+
+  <div class="card flujo">
+<svg viewBox="0 0 1200 548" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Recorrido de una lectura por los servicios">
+  <rect class="grupo" x="425" y="12" width="232" height="522" rx="16"/>
+  <text class="gl" x="441" y="34">servicios.py · recibir_lectura</text>
+
+  <g class="borde-g"><rect class="borde" x="20" y="215" width="150" height="100" rx="14"/>
+    <text class="borde-t" x="36" y="252">Edge</text><text class="borde-s" x="36" y="276">ESP32 + cámara</text><text class="borde-s" x="36" y="298">no sabe de OT</text></g>
+
+  <g class="n" id="n-ruta"><rect x="215" y="215" width="180" height="100" rx="14"/>
+    <text class="t" x="231" y="250">POST /edge/{id}</text><text class="t" x="231" y="272">/lecturas</text><text class="s" x="231" y="298">api.py · gateway</text></g>
+
+  <g class="n" id="n-s1"><rect x="440" y="50" width="200" height="60" rx="12"/>
+    <text class="t" x="456" y="76">1 · ¿Ya llegó?</text><text class="s" x="456" y="98">descarta el mismo seq</text></g>
+  <text class="estado" id="e-s1" x="440" y="136"></text>
+
+  <g class="n" id="n-s2"><rect x="440" y="150" width="200" height="60" rx="12"/>
+    <text class="t" x="456" y="176">2 · ¿Qué OT?</text><text class="s" x="456" y="198">tabla sesiones</text></g>
+  <text class="estado" id="e-s2" x="440" y="236"></text>
+
+  <g class="n" id="n-s3"><rect x="440" y="250" width="200" height="60" rx="12"/>
+    <text class="t" x="456" y="276">3 · Seguridad</text><text class="s" x="456" y="298">capa 1 · reglas.py</text></g>
+  <text class="estado" id="e-s3" x="440" y="336"></text>
+
+  <g class="n" id="n-s4"><rect x="440" y="350" width="200" height="60" rx="12"/>
+    <text class="t" x="456" y="376">4 · ¿Cierra el paso?</text><text class="s" x="456" y="398">solo su propio sensor</text></g>
+  <text class="estado" id="e-s4" x="440" y="436"></text>
+
+  <g class="n" id="n-s5"><rect x="440" y="450" width="200" height="60" rx="12"/>
+    <text class="t" x="456" y="476">5 · Señal</text><text class="s" x="456" y="498">capa 2 · desvío</text></g>
+
+  <g class="n" id="n-bit"><rect x="712" y="320" width="186" height="100" rx="14"/>
+    <text class="t" x="728" y="354">eventos</text><text class="s" x="728" y="378">la bitácora de la OT</text><text class="s" x="728" y="400">solo agrega filas</text></g>
+  <text class="estado" id="e-bit" x="712" y="440"></text>
+
+  <g class="n" id="n-sco"><rect x="712" y="120" width="186" height="100" rx="14"/>
+    <text class="t" x="728" y="154">scoring.py</text><text class="s" x="728" y="178">ok · warning · error</text><text class="s" x="728" y="200">con certeza y motivos</text></g>
+  <text class="estado" id="e-sco" x="712" y="104"></text>
+
+  <g class="n" id="n-bus"><rect x="940" y="120" width="120" height="100" rx="14"/>
+    <text class="t" x="956" y="154">bus.py</text><text class="s" x="956" y="178">canal</text><text class="s" x="956" y="200">ot:{id}</text></g>
+
+  <g class="n" id="n-ws"><rect x="940" y="320" width="120" height="100" rx="14"/>
+    <text class="t" x="956" y="354">WS</text><text class="s" x="956" y="378">/ot/{id}</text><text class="s" x="956" y="400">/stream</text></g>
+
+  <g class="borde-g"><rect class="borde" x="1085" y="190" width="105" height="170" rx="18"/>
+    <text class="borde-t" x="1099" y="226">UI</text><text class="borde-s" x="1099" y="252">operario</text><text class="borde-s" x="1099" y="274">y supervisor</text></g>
+
+  <path class="ruta" id="r-edge" d="M170,265 H215"/>
+  <path class="ruta" id="r-s1" d="M395,265 H412 V80 H440"/>
+  <path class="ruta" id="r-12" d="M540,110 V150"/>
+  <path class="ruta" id="r-23" d="M540,210 V250"/>
+  <path class="ruta" id="r-34" d="M540,310 V350"/>
+  <path class="ruta" id="r-45" d="M540,410 V450"/>
+  <path class="ruta" id="r-3b" d="M640,280 H676 V352 H712"/>
+  <path class="ruta" id="r-4b" d="M640,380 H712"/>
+  <path class="ruta" id="r-5b" d="M640,480 H690 V400 H712"/>
+  <path class="ruta" id="r-bs" d="M805,320 V220"/>
+  <path class="ruta" id="r-sb" d="M898,170 H940"/>
+  <path class="ruta" id="r-bw" d="M1000,220 V320"/>
+  <path class="ruta" id="r-wu" d="M1060,370 H1072 V300 H1085"/>
+  <circle id="paquete" r="9" cx="95" cy="265" opacity="0"/>
+</svg>
+  </div>
+
+  <div class="paneles">
+    <div class="panel"><h3>Lo que manda el edge</h3><pre id="p-req"></pre></div>
+    <div class="panel"><h3>Lo que entra a la bitácora y sale por el stream</h3><pre id="p-ev"></pre></div>
+    <div class="panel"><h3>Lo que ve el operario</h3>
+      <div class="tel" id="tel">
+        <div class="barra"><span class="ot">OT ot-1 · correa CT-01</span><span class="badge ok" id="tel-badge">ok</span></div>
+        <ol id="tel-pasos">
+          <li class="actual">Cortar la energía y bloquear</li>
+          <li>Retirar la guarda</li>
+          <li>Cambiar el rodillo</li>
+          <li>Reinstalar la guarda</li>
+          <li>Retirar el bloqueo y energizar</li>
+          <li>Probar la correa</li>
+        </ol>
+        <div class="aviso" id="tel-aviso"></div>
+      </div>
+    </div>
+  </div>
+  <p class="nota">Los valores de los paneles son los que devuelve el código para cada caso; los tests de <code>tests/test_servicios.py</code> y <code>tests/test_stream.py</code> los comprueban.</p>
+</section>
+
+<section>
+  <h2>La API por dentro</h2>
+  <p>Una aplicación y una base (ADR-0003), ordenada en capas: cada una llama solo a la de abajo. En azul, lo que agrega este frente.</p>
+  <div class="capas" id="capas">
+    <div class="capa"><div><b>1 · Gateway</b><span class="que">recibe, valida y enruta</span></div>
+      <div class="piezas"><span class="pieza">api.py</span><span class="pieza nueva">WS /ot/{id}/stream</span><span class="pieza nueva">POST /edge/{id}/lecturas</span><span class="pieza nueva">CRUD /pautas · /ots · /sesiones · /eventos</span><span class="pieza">POST /ot/{id}/declarar</span><span class="pieza">relevo · preguntar · propuestas</span></div></div>
+    <div class="flecha">↓</div>
+    <div class="capa"><div><b>2 · Servicios</b><span class="que">la lógica, sin HTTP</span></div>
+      <div class="piezas"><span class="pieza nueva">servicios.py · atribuye y revisa</span><span class="pieza nueva">scoring.py · califica</span><span class="pieza nueva">catalogo.py · CRUD con reglas</span><span class="pieza nueva">bus.py · reparte en vivo</span><span class="pieza">reglas.py · las tres capas</span><span class="pieza">cerebro.py · relevo</span><span class="pieza">verificacion.py · juez de cámara</span></div></div>
+    <div class="flecha">↓</div>
+    <div class="capa"><div><b>3 · Acceso a datos</b><span class="que">el único lugar con SQL</span></div>
+      <div class="piezas"><span class="pieza">db.py</span><span class="pieza nueva">catalogo.py (aprobaciones)</span><span class="pieza nueva">servicios.py (sesiones)</span></div></div>
+    <div class="flecha">↓</div>
+    <div class="capa"><div><b>4 · Tablas</b><span class="que">SQLite, datos/bitacora.sqlite3</span></div>
+      <div class="piezas"><span class="pieza">pautas</span><span class="pieza nueva">aprobaciones</span><span class="pieza">ots</span><span class="pieza">eventos · solo agrega</span><span class="pieza">sensores</span><span class="pieza nueva">sesiones</span></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Cómo la UI consulta cada servicio</h2>
+  <p>Una OT de punta a punta: el operario abre la sesión, la UI se conecta al stream, el edge manda una lectura y la UI la ve sin preguntar. Las flechas punteadas son lo que vuelve.</p>
+  <div class="card seq">
+<svg viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagrama de secuencia">
+  <g class="cab"><rect x="40" y="14" width="140" height="40" rx="10"/><text x="110" y="40" text-anchor="middle">UI</text></g>
+  <g class="cab"><rect x="300" y="14" width="160" height="40" rx="10"/><text x="380" y="40" text-anchor="middle">api.py</text></g>
+  <g class="cab"><rect x="560" y="14" width="160" height="40" rx="10"/><text x="640" y="40" text-anchor="middle">servicios</text></g>
+  <g class="cab"><rect x="820" y="14" width="160" height="40" rx="10"/><text x="900" y="40" text-anchor="middle">SQLite</text></g>
+  <g class="cab"><rect x="1040" y="14" width="140" height="40" rx="10"/><text x="1110" y="40" text-anchor="middle">Edge</text></g>
+  <path class="vida" d="M110,54 V690"/><path class="vida" d="M380,54 V690"/><path class="vida" d="M640,54 V690"/><path class="vida" d="M900,54 V690"/><path class="vida" d="M1110,54 V690"/>
+  <g id="mensajes"></g>
+</svg>
+  </div>
+</section>
+
+<section>
+  <h2>Los servicios, uno por uno</h2>
+  <table>
+    <thead><tr><th>Recurso</th><th>Método y ruta</th><th>Qué hace</th><th>Regla que aplica</th></tr></thead>
+    <tbody>
+      <tr><td class="r">Stream</td><td><span class="m ws">WS</span> <code>/ot/{id}/stream?desde=</code></td><td>Snapshot y después lectura, evento, sesión y calificación al instante</td><td>Reconectar con el último id recupera la bitácora</td></tr>
+      <tr><td class="r">Edge</td><td><span class="m post">POST</span> <code>/edge/{id}/lecturas</code></td><td>Lecturas en lote con <code>seq</code>; se atribuyen a la OT de la sesión</td><td>Sin sesión no toca ninguna bitácora</td></tr>
+      <tr><td></td><td><span class="m post">POST</span> <code>/sensores</code></td><td>Lo mismo para un solo equipo (el ESP32 del esqueleto)</td><td>Va al edge por defecto</td></tr>
+      <tr><td class="r">Sesión</td><td><span class="m post">POST</span> <code>/ot/{id}/sesion</code></td><td>El operario elige la OT; une OT y edge</td><td>Abrir otra en el mismo edge la reemplaza</td></tr>
+      <tr><td></td><td><span class="m get">GET</span> <code>/sesiones</code> · <code>/edge/{id}/sesion</code></td><td>Qué OT ejecuta cada edge</td><td></td></tr>
+      <tr><td></td><td><span class="m del">DELETE</span> <code>/edge/{id}/sesion</code></td><td>Terminar la sesión</td><td></td></tr>
+      <tr><td class="r">Pauta</td><td><span class="m get">GET</span> <code>/pautas</code> · <code>/pautas/{id}?version=</code> · <code>/pautas/{id}/versiones</code></td><td>Lista, una versión y su historia</td><td></td></tr>
+      <tr><td></td><td><span class="m post">POST</span> <code>/pautas</code></td><td>Crea la versión siguiente, sin aprobar</td><td>Nunca encima de otra ni saltando (409)</td></tr>
+      <tr><td></td><td><span class="m post">POST</span> <code>/pautas/{id}/versiones/{v}/aprobar</code></td><td>Una persona la aprueba</td><td>El sistema no aprueba; una sola vez (409)</td></tr>
+      <tr><td class="r">OT</td><td><span class="m post">POST</span> <code>/ot/{id}/abrir?pauta_id=&amp;version=</code></td><td>Abre la OT y guarda la versión que ejecuta</td><td>Solo desde una pauta aprobada (409)</td></tr>
+      <tr><td></td><td><span class="m get">GET</span> <code>/ots</code> · <code>/ot/{id}</code> · <code>/ot/{id}/calificacion</code></td><td>Lista con paso actual, estado por paso y calificación vigente</td><td>El estado se calcula leyendo eventos</td></tr>
+      <tr><td></td><td><span class="m post">POST</span> <code>/ot/{id}/declarar</code></td><td>Lo que dice el operario, evaluado contra la evidencia</td><td>Un paso de sensor nunca se cierra hablando</td></tr>
+      <tr><td class="r">Evento</td><td><span class="m get">GET</span> <code>/ot/{id}/eventos</code> · <code>/eventos/{id}</code></td><td>La bitácora, cada fila con su calificación</td><td>Editar o borrar: 405</td></tr>
+      <tr><td class="r">Sensor</td><td><span class="m get">GET</span> <code>/sensores</code></td><td>El último valor de cada sensor</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:22px">Qué admite cada recurso</h3>
+  <table class="crud">
+    <thead><tr><th>Recurso</th><th>Crear</th><th>Leer</th><th>Cambiar</th><th>Borrar</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td class="r">Pauta</td><td class="si">sí</td><td class="si">sí</td><td>versión nueva</td><td class="no">no</td><td style="text-align:left">Cada OT guarda qué versión ejecutó (ADR-0003)</td></tr>
+      <tr><td class="r">Aprobación</td><td class="si">sí</td><td class="si">sí</td><td class="no">no</td><td class="no">no</td><td style="text-align:left">Queda quién aprobó y cuándo</td></tr>
+      <tr><td class="r">OT</td><td class="si">sí</td><td class="si">sí</td><td>por eventos</td><td class="no">no</td><td style="text-align:left">Su estado es la lectura de su bitácora</td></tr>
+      <tr><td class="r">Evento</td><td>por el flujo</td><td class="si">sí</td><td class="no">no</td><td class="no">no</td><td style="text-align:left">La bitácora solo agrega (LOGICA)</td></tr>
+      <tr><td class="r">Sesión</td><td class="si">sí</td><td class="si">sí</td><td>se reemplaza</td><td class="si">sí</td><td style="text-align:left">Es atribución, no historia</td></tr>
+      <tr><td class="r">Sensor</td><td>lectura</td><td class="si">sí</td><td>la pisa la siguiente</td><td class="no">no</td><td style="text-align:left">Guarda el último valor; la historia está en los eventos</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>La calificación por capa</h2>
+  <p>La calcula <code>scoring.py</code> al leer, nunca se guarda. Solo la capa 1 llega a ERROR porque es la única que interrumpe; las demás se muestran y no suenan. La OT toma el peor paso vigente más la seguridad evaluada con los sensores de ahora.</p>
+  <div class="califs">
+    <div class="calif"><b>Capa 1 · sensores y reglas</b><div class="tope"><span class="badge error">hasta error</span></div>
+      <div class="barra-c"><i data-ancho="100"></i></div><p>Certeza total mientras la lectura tenga 5 s o menos; después baja y pasa a warning.</p></div>
+    <div class="calif"><b>Capa 2 · señal</b><div class="tope"><span class="badge warning">hasta warning</span></div>
+      <div class="barra-c"><i data-ancho="70"></i></div><p>Desvío robusto contra la historia del sensor; desde 3,5 desvíos. La certeza sube con la historia.</p></div>
+    <div class="calif"><b>Capa 3 · cámara</b><div class="tope"><span class="badge warning">hasta warning</span></div>
+      <div class="barra-c"><i data-ancho="55"></i></div><p>La certeza es la confianza del juez. Bajo 75 % pide que alguien mire.</p></div>
+    <div class="calif"><b>Confirmación</b><div class="tope"><span class="badge ok">ok</span></div>
+      <div class="barra-c"><i data-ancho="100"></i></div><p>La palabra del operario cierra el paso, y el motivo deja dicho que fue una persona.</p></div>
+  </div>
+</section>
+
+</div>
+
+<script>
+const CASOS = {
+  bloqueo: {
+    rutas: ["r-edge","r-s1","r-12","r-23","r-34","r-4b","r-bs","r-sb","r-bw","r-wu"],
+    marcas: {"n-s1":["ok","seq 41 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["ok","sin alerta"],"n-s4":["ok","p1 verificado"],"n-bit":["ok","veredicto p1"],"n-sco":["ok","ok · certeza 1,0"]},
+    req: {edge:"edge-1", lecturas:[{sensor_id:"reed_bloqueo", valor:"cerrado", seq:41}]},
+    ev: {tipo:"evento", evento:{id:2, ot_id:"ot-1", tipo:"veredicto", paso_id:"p1", estado:"verificado", capa:1, actor:"sistema", detalle:"reed_bloqueo = cerrado, que es lo que el paso exige", calificacion:{nivel:"ok", certeza:1.0, capa:1}}},
+    ui: {nivel:"ok", hechos:1, aviso:null}
+  },
+  guarda: {
+    rutas: ["r-edge","r-s1","r-12","r-23","r-3b","r-bs","r-sb","r-bw","r-wu"],
+    marcas: {"n-s1":["ok","seq 57 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["err","alerta: empieza ahora"],"n-bit":["err","alerta capa 1"],"n-sco":["err","error · interrumpe"]},
+    req: {edge:"edge-1", lecturas:[{sensor_id:"guarda", valor:"abierta", seq:57}]},
+    ev: {tipo:"evento", evento:{id:3, ot_id:"ot-1", tipo:"alerta", estado:"en_conflicto", capa:1, detalle:"GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.", calificacion:{nivel:"error", certeza:1.0, capa:1}}},
+    ui: {nivel:"error", hechos:1, aviso:["err","Suena en el auricular: guarda abierta con energía viva. Entra una vez mientras dure."]}
+  },
+  vibracion: {
+    rutas: ["r-edge","r-s1","r-12","r-23","r-34","r-45","r-5b","r-bs","r-sb","r-bw","r-wu"],
+    marcas: {"n-s1":["ok","seq 88 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["ok","sin alerta"],"n-s4":["ok","no es su sensor"],"n-s5":["warn",""],"n-bit":["warn","alerta capa 2"],"n-sco":["warn","warning · certeza 0,4"]},
+    req: {edge:"edge-1", lecturas:[{sensor_id:"vibracion", valor:"6.5", seq:88}]},
+    ev: {tipo:"evento", evento:{id:4, ot_id:"ot-1", tipo:"alerta", capa:2, detalle:"vibracion = 6.5, lejos de su mediana 2 (40.5 desvíos)", evidencia:{tipo:"senal", sensor:"vibracion", valor:6.5, certeza:0.4}, calificacion:{nivel:"warning", certeza:0.4, capa:2}}},
+    ui: {nivel:"warning", hechos:1, aviso:["warn","Se muestra, no suena: vibración fuera de lo normal."]}
+  },
+  duplicada: {
+    rutas: ["r-edge","r-s1"],
+    corta: "n-s1", marcas: {"n-s1":["corta","seq 41 ya llegó: descartada"]},
+    req: {edge:"edge-1", lecturas:[{sensor_id:"reed_bloqueo", valor:"cerrado", seq:41}]},
+    ev: {duplicada:true, ot:null, eventos:[]},
+    ui: {nivel:"ok", hechos:1, aviso:["gris","Nada cambia: el edge reenvió lo que guardó durante un corte."]}
+  },
+  sinsesion: {
+    rutas: ["r-edge","r-s1","r-12"],
+    corta: "n-s2", marcas: {"n-s1":["ok","seq 3 nuevo"],"n-s2":["corta","edge-2 sin sesión: ninguna OT"]},
+    req: {edge:"edge-2", lecturas:[{sensor_id:"guarda", valor:"abierta", seq:3}]},
+    ev: {duplicada:false, ot:null, eventos:[]},
+    ui: {nivel:"ok", hechos:0, aviso:["gris","Ninguna OT recibe nada: el sensor se actualiza y la bitácora no se toca."]}
+  }
+};
+const ESTADO_ID = {"n-s1":"e-s1","n-s2":"e-s2","n-s3":"e-s3","n-s4":"e-s4","n-bit":"e-bit","n-sco":"e-sco"};
+const NODO_DE_RUTA = {"r-edge":"n-ruta","r-s1":"n-s1","r-12":"n-s2","r-23":"n-s3","r-34":"n-s4","r-45":"n-s5",
+  "r-3b":"n-bit","r-4b":"n-bit","r-5b":"n-bit","r-bs":"n-sco","r-sb":"n-bus","r-bw":"n-ws","r-wu":null};
+const ORIGEN_DE_RUTA = {"r-12":"n-s1","r-23":"n-s2","r-34":"n-s3","r-45":"n-s4","r-3b":"n-s3","r-4b":"n-s4","r-5b":"n-s5"};
+const hayGsap = typeof gsap !== "undefined" && typeof MotionPathPlugin !== "undefined";
+if (hayGsap) gsap.registerPlugin(MotionPathPlugin, ScrollTrigger);
+
+let tl = null;
+
+function limpiar(){
+  document.querySelectorAll("svg .n").forEach(n => n.classList.remove("activo","ok","warn","err","corta"));
+  document.querySelectorAll("svg .ruta").forEach(r => r.classList.remove("viva"));
+  document.querySelectorAll("svg .estado").forEach(e => { e.textContent = ""; e.setAttribute("class","estado"); });
+}
+
+function marcar(nodo, caso){
+  const el = document.getElementById(nodo); if (!el) return;
+  el.classList.remove("activo");
+  const m = caso.marcas[nodo];
+  if (m){
+    el.classList.add(m[0]);
+    const e = document.getElementById(ESTADO_ID[nodo]);
+    if (e && m[1]){ e.textContent = m[1]; e.setAttribute("class","estado " + m[0]); }
+  }
+}
+
+function json(o){ return JSON.stringify(o, null, 2); }
+
+function pintarUI(caso){
+  const badge = document.getElementById("tel-badge");
+  badge.className = "badge " + caso.ui.nivel; badge.textContent = caso.ui.nivel;
+  document.querySelectorAll("#tel-pasos li").forEach((li,i) => {
+    li.className = i < caso.ui.hechos ? "hecho" : (i === caso.ui.hechos ? "actual" : "");
+  });
+  const av = document.getElementById("tel-aviso");
+  av.className = "aviso" + (caso.ui.aviso ? " " + caso.ui.aviso[0] : "");
+  av.textContent = caso.ui.aviso ? caso.ui.aviso[1] : "";
+  if (hayGsap) gsap.from("#tel", {scale:.97, duration:.35, ease:"back.out(2)"});
+}
+
+function correr(nombre){
+  const caso = CASOS[nombre];
+  document.querySelectorAll(".escenarios button").forEach(b => b.setAttribute("aria-pressed", b.dataset.caso === nombre));
+  if (tl) tl.kill();
+  limpiar();
+  document.getElementById("p-req").textContent = json(caso.req);
+  document.getElementById("p-ev").textContent = "esperando…";
+  const paquete = document.getElementById("paquete");
+
+  if (!hayGsap){
+    caso.rutas.forEach(r => document.getElementById(r).classList.add("viva"));
+    Object.keys(caso.marcas).forEach(n => marcar(n, caso));
+    document.getElementById("p-ev").textContent = json(caso.ev);
+    pintarUI(caso);
+    return;
+  }
+
+  tl = gsap.timeline();
+  tl.set(paquete, {opacity:1, scale:1, fill:"#2f5f9e"});
+  tl.from("#p-req", {opacity:0, y:8, duration:.3});
+  caso.rutas.forEach(id => {
+    const ruta = document.getElementById(id);
+    const largo = ruta.getTotalLength();
+    const origen = ORIGEN_DE_RUTA[id];
+    if (origen) tl.call(() => marcar(origen, caso));
+    tl.call(() => ruta.classList.add("viva"));
+    tl.to(paquete, {duration: Math.max(.25, largo / 420), ease:"power1.inOut",
+      motionPath:{path: ruta, align: ruta, alignOrigin:[.5,.5]}});
+    const destino = NODO_DE_RUTA[id];
+    if (destino) tl.call(() => document.getElementById(destino).classList.add("activo"));
+    if (destino === "n-bit") tl.call(() => { marcar("n-bit", caso); document.getElementById("p-ev").textContent = json(caso.ev); }).from("#p-ev", {opacity:0, duration:.3});
+    if (destino === "n-sco") tl.call(() => marcar("n-sco", caso));
+    tl.to({}, {duration:.12});
+  });
+  if (caso.corta){
+    tl.call(() => marcar(caso.corta, caso));
+    tl.to(paquete, {fill:"#8792a2", scale:1.6, opacity:0, duration:.6, transformOrigin:"50% 50%"});
+    tl.call(() => { document.getElementById("p-ev").textContent = json(caso.ev); pintarUI(caso); });
+  } else {
+    tl.to(paquete, {opacity:0, duration:.25});
+    tl.call(() => pintarUI(caso));
+  }
+}
+
+document.querySelectorAll(".escenarios button").forEach(b => b.addEventListener("click", () => correr(b.dataset.caso)));
+
+/* secuencia */
+const L = {UI:110, API:380, SRV:640, DB:900, EDGE:1110};
+const MSGS = [
+  ["UI","API","POST /ot/ot-1/sesion  {edge-1, operario:A}",""],
+  ["API","SRV","iniciar_sesion()",""],
+  ["SRV","DB","INSERT sesiones",""],
+  ["UI","API","WS /ot/ot-1/stream?desde=0",""],
+  ["API","SRV","snapshot()",""],
+  ["SRV","DB","SELECT eventos, sensores, sesiones",""],
+  ["API","UI","snapshot: estado, calificación, bitácora","vuelta"],
+  ["EDGE","API","POST /edge/edge-1/lecturas  reed_bloqueo = cerrado","edge"],
+  ["API","SRV","recibir_lectura()  dedupe · sesión · seguridad · paso · señal",""],
+  ["SRV","DB","INSERT eventos  (veredicto p1)",""],
+  ["SRV","API","bus.publicar  lectura · evento · calificacion_ot","vuelta"],
+  ["API","UI","por el WS, sin que la UI pregunte","vuelta"],
+  ["UI","API","POST /ot/ot-1/declarar · GET /ots · GET /pautas",""],
+];
+const g = document.getElementById("mensajes");
+const NS = "http://www.w3.org/2000/svg";
+MSGS.forEach((m,i) => {
+  const y = 96 + i * 46, x1 = L[m[0]], x2 = L[m[1]];
+  const dir = x2 > x1 ? 1 : -1;
+  const p = document.createElementNS(NS, "path");
+  p.setAttribute("d", `M${x1},${y} H${x2 - dir*8}`);
+  p.setAttribute("class", "msg " + m[3]);
+  const head = document.createElementNS(NS, "path");
+  head.setAttribute("d", `M${x2},${y} l${-dir*12},-6 v12 z`);
+  head.setAttribute("fill", m[3] === "vuelta" ? "#2f5f9e" : (m[3] === "edge" ? "#2f7d5b" : "#16202b"));
+  const t = document.createElementNS(NS, "text");
+  const xt = Math.min(x1, x2) + 12;
+  t.setAttribute("x", xt); t.setAttribute("y", y - 9);
+  t.setAttribute("class", "ml " + m[3]); t.textContent = m[2];
+  const n = document.createElementNS(NS, "text");
+  n.setAttribute("x", 14); n.setAttribute("y", y + 5); n.setAttribute("class","num"); n.textContent = i + 1;
+  const grupo = document.createElementNS(NS, "g");
+  grupo.append(p, head, t, n); g.append(grupo);
+});
+
+if (hayGsap){
+  gsap.utils.toArray("#mensajes g").forEach((grupo, i) => {
+    const linea = grupo.querySelector(".msg");
+    const largo = linea.getTotalLength();
+    gsap.set(linea, {strokeDasharray: linea.classList.contains("vuelta") ? "7 5" : largo, strokeDashoffset: largo});
+    gsap.set(grupo.querySelectorAll("text, path:not(.msg)"), {opacity:0});
+  });
+  ScrollTrigger.create({trigger:".seq", start:"top 75%", once:true, onEnter: () => {
+    const t = gsap.timeline();
+    gsap.utils.toArray("#mensajes g").forEach(grupo => {
+      const linea = grupo.querySelector(".msg");
+      t.to(linea, {strokeDashoffset:0, duration:.45, ease:"power2.out"})
+       .to(grupo.querySelectorAll("text, path:not(.msg)"), {opacity:1, duration:.2}, "<.25");
+    });
+  }});
+  gsap.from("#capas .capa, #capas .flecha", {scrollTrigger:{trigger:"#capas", start:"top 80%", once:true}, opacity:0, y:18, stagger:.12, duration:.5});
+  gsap.utils.toArray(".barra-c i").forEach(i => {
+    gsap.to(i, {width: i.dataset.ancho + "%", duration:1.2, ease:"power2.out", scrollTrigger:{trigger:i, start:"top 90%", once:true}});
+  });
+} else {
+  document.querySelectorAll(".barra-c i").forEach(i => i.style.width = i.dataset.ancho + "%");
+}
+
+window.addEventListener("error", e => document.body.dataset.error = e.message);
+const pedido = new URLSearchParams(location.search);
+correr(pedido.get("caso") in CASOS ? pedido.get("caso") : "bloqueo");
+if (pedido.has("fin") && tl) tl.progress(1);
+</script>
+</body>
+</html>
