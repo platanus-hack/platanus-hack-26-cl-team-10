@@ -36,8 +36,8 @@ PAGINAS = {"/", "/ensayo", "/camara", "/monitor", "/casos", "/agente"}
 # Junto al código y no en datos/: desplegar.sh sube app/ entero, y de datos/ solo una lista de archivos.
 EJEMPLOS = json.loads(Path(__file__).with_name("referencia_ejemplos.json").read_text())
 
-ENTRAR, CLIENTE, EJECUCION, ESTACION = "Entrar", "Cliente", "Ejecución de la OT", "Estación"
-MEJORA = "Mejora continua y métricas"
+ENTRAR, CLIENTE, EJECUCION, ESTACION = "Entrar", "Pedir y asignar OT", "Ejecución abierta del demo", "Estación"
+EJECUTAR, MEJORA = "Ejecutar la OT", "Reportes, mejora y métricas"
 INTERNO, INTERNO_CLIENTES = "Interno · protocolos y pautas", "Interno · clientes y personas"
 ABIERTAS, ESCENARIOS, SIN_GRUPO = "Abiertas del demo", "Escenarios", "Sin clasificar"
 
@@ -45,16 +45,19 @@ GRUPOS = {
     ENTRAR: "El login. Una persona entra con su usuario y su clave y recibe un token que dura 12 horas. "
             "El token va en cada llamada como `Authorization: Bearer <token>`.",
     CLIENTE: "Lo que hace una empresa cliente con su token. El supervisor pide OT de las pautas que su empresa "
-             "tiene habilitadas y las asigna; el operador ve las suyas y las une a una estación. Cada empresa ve "
-             "solo lo suyo: una OT de otra empresa responde 404.",
-    MEJORA: "Lo que la empresa saca de cada ejecución. El operario deja observaciones mientras trabaja; con ellas y "
+             "tiene habilitadas y las asigna; el operador ve las suyas. Cada empresa ve solo lo suyo: una OT de "
+             "otra empresa responde 404.",
+    EJECUTAR: "El operario ejecuta su OT con su token: la une a una estación, ve el paso en curso, declara, deja "
+              "observaciones y entrega el turno; el supervisor puede confirmar un paso que la evidencia no vio. Quien "
+              "actúa sale del token, no del cuerpo, y queda así en la bitácora.",
+    MEJORA: "Lo que la empresa saca de cada ejecución. El reporte de cada OT se arma desde su bitácora, por paso y "
+            "con evidencia, sin que lo redacte un modelo. El operario deja observaciones mientras trabaja; con ellas y "
             "con las desviaciones de cada paso nacen propuestas para mejorar la pauta, que el supervisor valida, y "
             "cuando sale la versión nueva se comprueba si el paso dejó de desviarse. Las métricas se leen de la "
             "bitácora al pedirlas, por pauta, equipo, paso o día, nunca por persona.",
-    EJECUCION: "El avance paso a paso de una OT: su estado, lo que declara el operario, la confirmación de una "
-               "persona, el relevo de turno y la bitácora. **Estas rutas todavía no piden token**: quien llama "
-               "dice quién es en `actor`, y sirven para la OT de cualquier empresa. Está anotado como brecha en "
-               "el ADR-0012.",
+    EJECUCION: "Lo mismo que «Ejecutar la OT», sin token: quien llama dice quién es en `actor`, y sirven para la OT "
+               "de cualquier empresa. Las usan la pantalla del demo y el banco `/casos` mientras pasan a las rutas con "
+               "login. No son parte del servicio al cliente.",
     ESTACION: "El edge: los sensores y la cámara de una estación, y la sesión que une una estación con la OT "
               "que ejecuta. Quitarle una estación a otra OT, o soltarla, pide la clave del equipo.",
     INTERNO: "Del equipo de Factum, con la clave del equipo. Acá se carga el protocolo de un cliente, se crean "
@@ -67,13 +70,14 @@ GRUPOS = {
     ESCENARIOS: "El banco por industria: cada forma de ejecutar un paso, corrida en una caja aislada que no "
                 "toca la bitácora del servidor.",
 }
-PARA_CLIENTES = (ENTRAR, CLIENTE, MEJORA, EJECUCION)
+PARA_CLIENTES = (ENTRAR, CLIENTE, EJECUTAR, MEJORA)
 
 # La primera regla que calza decide el grupo. Una ruta que no calza con ninguna queda en
 # «Sin clasificar», y la prueba falla hasta que alguien le ponga grupo.
 _REGLAS = [(re.compile(patron), grupo) for patron, grupo in (
     (r"/(auth/.+|yo)", ENTRAR),
-    (r"/cliente/(mejoras|metricas).*|/cliente/ots/\{ot_id\}/observaciones", MEJORA),
+    (r"/cliente/(mejoras|metricas).*|/cliente/ots/\{ot_id\}/reporte", MEJORA),
+    (r"/cliente/ots/\{ot_id\}/(sesion|pasos.*|declarar|observaciones|relevo/.+|eventos)", EJECUTAR),
     (r"/cliente/.+", CLIENTE),
     (r"/interno/(clientes|personas).*", INTERNO_CLIENTES),
     (r"/interno/.+", INTERNO),
@@ -98,6 +102,15 @@ TITULOS = {
     "GET /cliente/operadores": "Operadores de la empresa",
     "GET /cliente/personas": "Nombres de las personas de la empresa",
     "POST /cliente/ots/{ot_id}/observaciones": "Dejar una observación",
+    "GET /cliente/ots/{ot_id}/pasos": "Pasos de la OT y el paso en curso",
+    "POST /cliente/ots/{ot_id}/declarar": "Declarar un paso",
+    "POST /cliente/ots/{ot_id}/pasos/{paso_id}/confirmar": "Confirmar un paso contra la evidencia",
+    "POST /cliente/ots/{ot_id}/relevo/entregar": "Entregar el turno",
+    "POST /cliente/ots/{ot_id}/relevo/recibir": "Recibir el turno",
+    "GET /cliente/ots/{ot_id}/eventos": "Bitácora de la OT",
+    "GET /cliente/ots/{ot_id}/reporte": "Reporte de la OT",
+    "GET /interno/inventario": "Inventario del servidor",
+    "POST /interno/pautas/validar": "Validar una pauta sin guardarla",
     "GET /cliente/mejoras": "Propuestas de mejora de las pautas",
     "POST /cliente/mejoras/{propuesta_id}/revision": "Aceptar o descartar una propuesta",
     "GET /cliente/metricas": "Resumen de la empresa",
@@ -132,6 +145,13 @@ ERRORES_DE = {
     "POST /cliente/mejoras/{propuesta_id}/revision": (403, 404, 409),
     "GET /cliente/metricas": (403,),
     "GET /cliente/metricas/pautas/{pauta_id}/pasos": (403, 404),
+    "GET /cliente/ots/{ot_id}/pasos": (404,),
+    "POST /cliente/ots/{ot_id}/declarar": (403, 404, 409),
+    "POST /cliente/ots/{ot_id}/pasos/{paso_id}/confirmar": (404, 409),
+    "POST /cliente/ots/{ot_id}/relevo/entregar": (403, 404, 409),
+    "POST /cliente/ots/{ot_id}/relevo/recibir": (403, 404, 409),
+    "GET /cliente/ots/{ot_id}/eventos": (404,),
+    "GET /cliente/ots/{ot_id}/reporte": (404,),
 }
 
 _CUERPOS = {
@@ -199,21 +219,21 @@ se pega una vez en «Authentication» y sirve para probar todas las rutas.
 1. El supervisor mira `GET /cliente/pautas` y pide la OT con `POST /cliente/ots`.
 2. El supervisor elige a quién con `GET /cliente/operadores` y la asigna con `POST /cliente/ots/{{ot_id}}/asignar`.
 3. El operador la ve en `GET /cliente/ots` y la une a su estación con `POST /cliente/ots/{{ot_id}}/sesion`.
-4. El operador ejecuta: `GET /ot/{{ot_id}}` dice el paso en curso, los sensores de la estación cierran los pasos que
-   miden, y `POST /ot/{{ot_id}}/declarar` cierra los que dependen de la cámara o de la palabra.
-5. Cualquiera de los dos sigue el avance y la calificación en `GET /cliente/ots/{{ot_id}}`, y deja lo que vio en
-   `POST /cliente/ots/{{ot_id}}/observaciones`.
+4. El operador ejecuta: `GET /cliente/ots/{{ot_id}}/pasos` dice el paso en curso, los sensores de la estación cierran
+   los pasos que miden, y `POST /cliente/ots/{{ot_id}}/declarar` cierra los que dependen de la cámara o de la palabra.
+   Deja lo que vio en `POST /cliente/ots/{{ot_id}}/observaciones` y, si no termina, entrega el turno con
+   `POST /cliente/ots/{{ot_id}}/relevo/entregar`; otro operador lo recibe con `.../relevo/recibir`.
+5. Cualquiera de los dos sigue el avance y la calificación en `GET /cliente/ots/{{ot_id}}`. Al terminar,
+   `GET /cliente/ots/{{ot_id}}/reporte` da el reporte armado desde la bitácora, en JSON o en Markdown.
 6. El supervisor mide en `GET /cliente/metricas` y sus detalles por pauta, paso, equipo y día, y valida las
    propuestas de `GET /cliente/mejoras`. Lo que acepta lo lleva el equipo de Factum a la versión siguiente de la
    pauta, y la misma propuesta dice después si el paso dejó de desviarse.
 
 Las métricas y las propuestas agrupan por pauta, equipo, paso y día, nunca por persona: Factum mira el paso, no a
-quien lo ejecuta.
+quien lo ejecuta. El reporte de una OT sí nombra a quienes la ejecutaron, como una notificación de cierre.
 
-## Lo que todavía no pide login
-
-Las rutas de «Ejecución de la OT» (el paso 4) no piden token. Quien llama dice quién es en `actor`, y el servidor
-no comprueba que esa OT sea de su empresa. Es una brecha conocida, anotada en el ADR-0012.
+Todo este recorrido pide token. Las rutas sin login de `/ot/{{ot_id}}/...` que aparecen en el documento completo son de la
+pantalla del demo, y no las usa un cliente.
 {_COMUN}"""
 
 INTRO_COMPLETA = f"""Todas las rutas de la API de Factum, por grupo. El documento «Para clientes», que se elige arriba, trae solo lo
@@ -223,8 +243,8 @@ que usa una empresa y explica el recorrido.
 
 | Grupo | Quién | Qué pide |
 |---|---|---|
-| Entrar, Cliente | Las personas de una empresa cliente | Token de `POST /auth/entrar` |
-| Ejecución de la OT | El operario, desde la interfaz | Nada todavía (brecha del ADR-0012) |
+| Entrar, Pedir y asignar OT, Ejecutar la OT, Reportes, mejora y métricas | Las personas de una empresa cliente | Token de `POST /auth/entrar` |
+| Ejecución abierta del demo | La pantalla del demo y el banco `/casos` | Nada (brecha del ADR-0012, hasta que pasen a las rutas con login) |
 | Estación | El edge y la interfaz | Nada, salvo la clave del equipo para quitarle una estación a otra OT |
 | Interno | El equipo de Factum | La clave del equipo, en `X-Clave-Equipo` |
 | Abiertas del demo, Escenarios | La pantalla del demo y el banco `/casos` | Nada |

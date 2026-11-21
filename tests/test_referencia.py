@@ -160,6 +160,20 @@ class LaReferencia(unittest.TestCase):
             ("GET /cliente/metricas", 403): self.c.get("/cliente/metricas", headers=ana),
             ("GET /cliente/metricas/pautas/{pauta_id}/pasos", 403): self.c.get("/cliente/metricas/pautas/pauta-polin-demo/pasos", headers=ana),
             ("GET /cliente/metricas/pautas/{pauta_id}/pasos", 404): self.c.get("/cliente/metricas/pautas/no-existe/pasos", headers=carla),
+            ("GET /cliente/ots/{ot_id}/pasos", 404): self.c.get(f"/cliente/ots/{ot}/pasos", headers=bruno),
+            ("POST /cliente/ots/{ot_id}/declarar", 403): self.c.post(f"/cliente/ots/{ot}/declarar", json={"texto": "x"}, headers=carla),
+            ("POST /cliente/ots/{ot_id}/declarar", 404): self.c.post(f"/cliente/ots/{ot}/declarar", json={"texto": "x"}, headers=bruno),
+            ("POST /cliente/ots/{ot_id}/declarar", 409): self.c.post("/cliente/ots/ot-1014/declarar", json={"texto": "x"}, headers=ana),
+            ("POST /cliente/ots/{ot_id}/pasos/{paso_id}/confirmar", 404): self.c.post(f"/cliente/ots/{ot}/pasos/p1/confirmar", json={"motivo": "x"}, headers=bruno),
+            ("POST /cliente/ots/{ot_id}/pasos/{paso_id}/confirmar", 409): self.c.post(f"/cliente/ots/{ot}/pasos/p1/confirmar", json={"motivo": " "}, headers=ana),
+            ("POST /cliente/ots/{ot_id}/relevo/entregar", 403): self.c.post(f"/cliente/ots/{ot}/relevo/entregar", headers=carla),
+            ("POST /cliente/ots/{ot_id}/relevo/entregar", 404): self.c.post(f"/cliente/ots/{ot}/relevo/entregar", headers=bruno),
+            ("POST /cliente/ots/{ot_id}/relevo/entregar", 409): self.c.post("/cliente/ots/ot-1014/relevo/entregar", headers=ana),
+            ("POST /cliente/ots/{ot_id}/relevo/recibir", 403): self.c.post(f"/cliente/ots/{ot}/relevo/recibir", headers=carla),
+            ("POST /cliente/ots/{ot_id}/relevo/recibir", 404): self.c.post("/cliente/ots/no-existe/relevo/recibir", headers=ana),
+            ("POST /cliente/ots/{ot_id}/relevo/recibir", 409): self.c.post(f"/cliente/ots/{ot}/relevo/recibir", headers=ana),
+            ("GET /cliente/ots/{ot_id}/eventos", 404): self.c.get(f"/cliente/ots/{ot}/eventos", headers=bruno),
+            ("GET /cliente/ots/{ot_id}/reporte", 404): self.c.get(f"/cliente/ots/{ot}/reporte", headers=bruno),
         }
         declarados = {(ruta, codigo) for ruta, codigos in self.referencia.ERRORES_DE.items() for codigo in codigos}
         self.assertEqual(set(provocados), declarados)
@@ -197,12 +211,18 @@ class LaReferencia(unittest.TestCase):
         real["GET /cliente/ots/{ot_id}"] = self.c.get(f"/cliente/ots/{ot}", headers=ana).json()
         self.assertEqual(real["GET /cliente/ots/{ot_id}"]["estado_general"], "en_ejecucion")
 
-        # La ejecución va sin token: es lo que la referencia declara, y la brecha del ADR-0012.
-        real["GET /ot/{ot_id}"] = self.c.get(f"/ot/{ot}").json()
-        r = self.c.post(f"/ot/{ot}/declarar", json={"actor": "operario:1", "texto": "listo", "paso_id": real["GET /ot/{ot_id}"]["paso_actual"]})
-        self.assertEqual(r.status_code, 200)
-        real["POST /ot/{ot_id}/declarar"] = r.json()
-        real["GET /ot/{ot_id}/eventos"] = self.c.get(f"/ot/{ot}/eventos").json()
+        real["GET /cliente/ots/{ot_id}/pasos"] = self.c.get(f"/cliente/ots/{ot}/pasos", headers=ana).json()
+        actual = real["GET /cliente/ots/{ot_id}/pasos"]["paso_actual"]
+        r = self.c.post(f"/cliente/ots/{ot}/declarar", headers=ana, json={"texto": "corté la corriente del motor", "paso_id": actual})
+        self.assertEqual((r.status_code, r.json()["paso"]), (200, actual))
+        real["POST /cliente/ots/{ot_id}/declarar"] = r.json()
+        r = self.c.post(f"/cliente/ots/{ot}/pasos/{actual}/confirmar", headers=carla,
+                        json={"motivo": "el sensor de energía está desconectado; el tablero está abajo y con candado"})
+        self.assertEqual((r.status_code, r.json()["estado"]), (200, "verificado"))
+        real["POST /cliente/ots/{ot_id}/pasos/{paso_id}/confirmar"] = r.json()
+        eventos = self.c.get(f"/cliente/ots/{ot}/eventos", headers=ana).json()
+        self.assertEqual([e["actor"] for e in eventos if e["tipo"] == "declaracion"], ["operario:1"])
+        real["GET /cliente/ots/{ot_id}/eventos"] = eventos
 
         r = self.c.post(f"/cliente/ots/{ot}/observaciones", headers=ana,
                         json={"texto": "el punto de bloqueo queda lejos del tablero", "categoria": "pauta", "paso_id": "p2"})
@@ -218,6 +238,17 @@ class LaReferencia(unittest.TestCase):
                         json={"decision": "aceptar", "nota": "poner el punto de bloqueo junto al tablero"})
         self.assertEqual(r.status_code, 200)
         real["POST /cliente/mejoras/{propuesta_id}/revision"] = r.json()
+
+        r = self.c.get(f"/cliente/ots/{ot}/reporte", headers=carla)
+        self.assertEqual(r.status_code, 200)
+        real["GET /cliente/ots/{ot_id}/reporte"] = r.json()
+        self.assertIn("text/markdown", self.c.get(f"/cliente/ots/{ot}/reporte?formato=markdown", headers=carla).headers["content-type"])
+        r = self.c.post(f"/cliente/ots/{ot}/relevo/entregar", headers=ana)
+        self.assertEqual(r.status_code, 200)
+        real["POST /cliente/ots/{ot_id}/relevo/entregar"] = r.json()
+        r = self.c.post(f"/cliente/ots/{ot}/relevo/recibir", headers=self.cabecera(OPERADOR))
+        self.assertEqual((r.status_code, r.json()["firmado_por"]), (200, "operario:2"))
+        real["POST /cliente/ots/{ot_id}/relevo/recibir"] = r.json()
 
         self.assertEqual(self.c.post("/auth/salir", headers=ana).status_code, 204)
         self.assertEqual(self.c.get("/cliente/ots", headers=ana).status_code, 401)

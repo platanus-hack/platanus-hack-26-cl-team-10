@@ -165,6 +165,16 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
   `POST /cliente/ots/{{ot_id}}/sesion` (`edge_id`), sin la clave del equipo: si la estación ejecuta otra OT abierta
   responde 409 y se repite con `tomar` en true; la de otra empresa no se toma (403). Las empresas, sus personas y
   sus pautas las crea el equipo en `/interno/clientes`; la clave de cada persona se genera y se ve una sola vez.
+- **Ejecutar la OT con login (`/cliente/ots/{{ot_id}}/...`)**: quien actúa sale del token, no de un `actor` en el cuerpo.
+  `GET .../pasos` da el paso en curso; `POST .../declarar` (`texto`, `paso_id`) es del operador que tiene la OT;
+  `POST .../pasos/{{paso_id}}/confirmar` (`motivo`), del operador o del supervisor; `POST .../relevo/entregar` deja la OT
+  `entregada` y otro operador de la empresa la toma con `POST .../relevo/recibir`; `GET .../eventos` es la bitácora.
+  `GET .../reporte` da el reporte de la OT armado desde la bitácora, en JSON o con `formato=markdown`: cada paso con la
+  evidencia que lo cerró y su `evento`, cada desviación con su clase y cuánto tardó en resolverse, y lo pendiente. Las
+  rutas `/ot/{{ot_id}}/...` sin login siguen para la pantalla del demo.
+- **Para escribir una pauta (`/interno`)**: `GET /interno/inventario` dice qué sensores, valores, clases del detector y
+  preguntas visuales conoce el servidor, leído de la bitácora y de las pautas; `POST /interno/pautas/validar` dice, sin
+  guardar, si la pauta se puede crear y qué le fallaría a la verificación.
 - **Mejora continua y métricas (`/cliente/...`), con login**: el operario o el supervisor deja lo que vio con
   `POST /cliente/ots/{{ot_id}}/observaciones` (`texto`, `categoria` y, si habla de uno, `paso_id`). Cuando el mismo paso de
   la misma versión tiene señales en dos o más OT (alertas de orden o de control, conflictos, pasos confirmados por una
