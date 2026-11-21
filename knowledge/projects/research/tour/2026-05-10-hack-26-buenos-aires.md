@@ -34,7 +34,7 @@
 | 🤑 Agentic Money | Brecha | 4 |
 | 🛸 Future | Brecha. En la intro la transcripción corta la lista y no se oye el nombre; sale de los capítulos | 7 |
 
-No hubo track Physical AI ni de hardware en esta sede.
+No hubo track Physical World ni de hardware en esta sede.
 
 ## Proyectos
 
@@ -165,7 +165,7 @@ Total contado: 62 preguntas, de 23 equipos con ronda de preguntas. Twin y wardlm
 
 ## Relevante para nuestro proyecto
 
-- En Buenos Aires no hubo track Physical AI ni proyectos con hardware, cámaras en terreno, sensores, industria o mantenimiento (Brecha). No hay precedente directo de qué preguntan a un proyecto físico.
+- En Buenos Aires no hubo track Physical World ni proyectos con hardware, cámaras en terreno, sensores, industria o mantenimiento (Brecha). No hay precedente directo de qué preguntan a un proyecto físico.
 - **MCD (1° Vertical AI)** usa visión sobre fotos del paciente (palidez, ojeras) en un dominio regulado. Le preguntaron quién paga (el laboratorio), cómo se distribuye y qué incentivo tiene el actor que debe usarlo (el médico).
 - **brunito** audita el cumplimiento de un plan frente a una norma, lo más parecido a verificar una pauta. La única pregunta fue el incentivo del usuario operativo para registrar, que en nuestro caso es el incentivo del operario.
 - **Beto** detecta en tiempo real con un modo sin conexión (regex) y un LLM cuando hay conexión. Le preguntaron por la invasividad y los permisos, quién es el cliente y qué pasa exactamente cuando detecta.
