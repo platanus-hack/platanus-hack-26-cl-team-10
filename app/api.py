@@ -12,14 +12,17 @@ import asyncio
 import hmac
 import json
 import os
+from datetime import date
 from pathlib import Path
+from typing import Literal
 
-from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
+from pydantic import BaseModel, Field
 
-from app import acceso, catalogo, cerebro, db, escenarios, protocolos, semilla, verificacion
+from app import (acceso, catalogo, cerebro, db, escenarios, inventario, mejora, metricas, protocolos, referencia, reporte,
+                 semilla, skills, verificacion)
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -28,11 +31,8 @@ from app.reglas import evaluar, paso_actual, estados_desde_eventos, propuesta_de
 from app.servicios import Servicios, evento_dict
 from app.video import FPS_MAX, TAMANO_MAX, CuadroInvalido, DeteccionInvalida
 
-app = FastAPI(
-    title="Factum · flujos operacionales verificables",
-    description="API del demo. La guía para un agente que se conecta, con el recorrido, los "
-    "WebSocket y los errores, está en `/agente` (Markdown).",
-)
+app = FastAPI(title=referencia.TITULO, version=referencia.VERSION)
+app.openapi = lambda: referencia.completa(app)  # el OpenAPI ordenado: grupos, seguridad, errores y ejemplos
 # El front y el agente del equipo viven en otros dominios: sin CORS el navegador los bloquea.
 # Sin credenciales ni cookies, así que abrirlo a cualquier origen no expone sesiones.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -133,13 +133,13 @@ class PautaDeProtocolo(BaseModel):
 
 
 class PedidoOt(BaseModel):
-    pauta_id: str
-    ot_id: str | None = None
+    pauta_id: str = Field(description="Una pauta de `GET /cliente/pautas`. La OT sale de su última versión aprobada.")
+    ot_id: str | None = Field(default=None, description="El id que tendrá la OT. Si no viene, el servicio le pone uno.")
 
 
 class Credenciales(BaseModel):
-    usuario: str
-    clave: str
+    usuario: str = Field(description="El usuario que entregó el equipo de Factum. No distingue mayúsculas.")
+    clave: str = Field(description="La clave de esa persona. La genera el sistema y se ve una sola vez.")
 
 
 class ClienteNuevo(BaseModel):
@@ -162,7 +162,7 @@ class OtDelEquipo(BaseModel):
 
 
 class AsignacionCliente(BaseModel):
-    operador: str
+    operador: str = Field(description="El `id` de un operador de `GET /cliente/operadores`.")
 
 
 class Sesion(BaseModel):
@@ -171,8 +171,44 @@ class Sesion(BaseModel):
 
 
 class SesionCliente(BaseModel):
-    edge_id: str = EDGE_POR_DEFECTO
-    tomar: bool = False
+    edge_id: str = Field(default=EDGE_POR_DEFECTO, description="La estación donde se ejecuta la OT.")
+    tomar: bool = Field(default=False, description="En true, le quita la estación a la OT abierta que la ocupa. "
+                        "Esa OT deja de recibir sus sensores, así que se manda solo cuando la persona lo pide.")
+
+
+class Observacion(BaseModel):
+    texto: str = Field(description="Lo que el operario vio, en sus palabras.")
+    categoria: Literal["pauta", "seguridad", "equipo", "otra"] = Field(
+        default="pauta", description="`pauta` y `seguridad` alimentan la mejora de la pauta; `equipo` habla de la "
+        "máquina y va a las métricas por equipo.")
+    paso_id: str | None = Field(default=None, description="El paso del que habla, si habla de uno.")
+
+
+class Revision(BaseModel):
+    decision: Literal["aceptar", "descartar"] = Field(description="Aceptar la manda al equipo de Factum para la versión "
+                                                      "siguiente de la pauta; descartar la cierra.")
+    nota: str = Field(default="", description="Por qué. Descartar la exige.")
+
+
+class DeclaracionCliente(BaseModel):
+    texto: str = Field(description="Lo que dice el operario, en sus palabras.")
+    paso_id: str | None = Field(default=None, description="El paso que la interfaz le mostraba. Si su evidencia ya lo "
+                                "cerró, la palabra se registra y no se evalúa contra el paso siguiente.")
+
+
+class ConfirmacionCliente(BaseModel):
+    motivo: str = Field(description="Por qué se confirma aunque la evidencia no lo muestre. Sin motivo, 409.")
+
+
+class PautaAValidar(BaseModel):
+    pauta: dict = Field(description="La pauta como se crearía en `POST /interno/protocolos/{id}/pautas`.")
+    reposo: dict[str, str] = Field(default={}, description="El valor de cada sensor antes de empezar. Sin él, se toma el "
+                                   "que deja el último paso que usa ese sensor.")
+    estacion: str | None = Field(default=None, description="Una estación de `datos/estaciones/` (`correa-ct-01`, "
+                                 "`solo-camara`…): con ella dice qué capa puede cerrar cada paso.")
+    analisis: dict | None = Field(default=None, description="El `analisis` del borrador de la skill `reconocer-proceso`, "
+                                  "con la cita de cada paso y lo que no puede pasar.")
+    protocolo_id: str | None = Field(default=None, description="El protocolo guardado contra cuyo texto se buscan las citas.")
 
 
 class LecturaEdge(BaseModel):
@@ -523,6 +559,212 @@ def asignar_ot_del_cliente(ot_id: str, a: AsignacionCliente, authorization: str 
     return servicios.asignar(ot_id, a.operador, p["id"])
 
 
+# ─── Ejecutar la OT con login: el actor sale del token, no del cuerpo ───────
+
+
+def _relevo_entregar(ot_id: str, actor: str) -> dict:
+    fila = db.leer_ot(cx, ot_id)
+    pauta = db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"])
+    evs = db.eventos(cx, ot_id)
+    estado = cerebro.estado_de_ot(pauta, evs)
+    resumen = cerebro.redactar_resumen(estado, evs)
+    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(), actor=actor, detalle=resumen))
+    return {"resumen": resumen, "estado": estado}
+
+
+def _relevo_recibir(ot_id: str, actor: str) -> dict:
+    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_RECIBIDO, ts=db.ahora(), actor=actor,
+                             detalle=f"{actor} confirma que recibió el turno"))
+    return {"firmado_por": actor}
+
+
+def _de_la_empresa(p: dict, ot_id: str) -> dict:
+    """La OT de la empresa de quien pide, aunque no la tenga asignada. 404 si es de otra."""
+    supervisor = {**p, "rol": "supervisor"}
+    return acceso.ot_de(cx, supervisor, ot_id, servicios._ots_en_sesion())
+
+
+@app.get("/cliente/ots/{ot_id}/pasos")
+def pasos_de_la_ot(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Cada paso de la OT en el orden de la pauta, con su estado, la capa y la evidencia que lo cerró, y cuál es el
+    paso en curso. Es lo que la interfaz le muestra al operario. 404 si la OT no es suya."""
+    acceso.ot_de(cx, _persona(authorization), ot_id)
+    fila = db.leer_ot(cx, ot_id)
+    return cerebro.estado_de_ot(db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"]), db.eventos(cx, ot_id))
+
+
+@app.post("/cliente/ots/{ot_id}/declarar")
+def declarar_del_cliente(ot_id: str, d: DeclaracionCliente, authorization: str | None = Header(default=None)) -> dict:
+    """El operario que tiene la OT dice que hizo el paso. La evidencia manda: un paso de sensor no se cierra hablando, y
+    un paso de cámara se juzga con el último cuadro de su estación. 403 si no es operador; 404 si la OT no es suya;
+    409 si la OT ya está completa."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "operador")
+    acceso.ot_de(cx, p, ot_id)
+    return servicios.declarar(ot_id, p["id"], d.texto, d.paso_id)
+
+
+@app.post("/cliente/ots/{ot_id}/pasos/{paso_id}/confirmar")
+def confirmar_del_cliente(ot_id: str, paso_id: str, c: ConfirmacionCliente,
+                          authorization: str | None = Header(default=None)) -> dict:
+    """El operario que tiene la OT, o el supervisor, confirma el paso en curso aunque su sensor o la cámara no lo
+    muestren. Queda quién y por qué, la OT pasa a warning y cuenta como desviación en las métricas. 404 si la OT no es
+    suya; 409 si no es el paso en curso o falta el motivo."""
+    p = _persona(authorization)
+    acceso.ot_de(cx, p, ot_id)
+    return servicios.confirmar_por_persona(ot_id, paso_id, p["id"], c.motivo)
+
+
+@app.post("/cliente/ots/{ot_id}/relevo/entregar")
+def entregar_del_cliente(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """El operario que tiene la OT entrega el turno: la OT queda sin operador, en `entregada`, con el estado de cada paso
+    para quien la reciba. 403 si no es operador; 404 si la OT no es suya; 409 si ya está completa."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "operador")
+    if acceso.ot_de(cx, p, ot_id)["completa"]:
+        raise ReglaDeNegocio(f"la OT {ot_id} ya está completa: no hay turno que entregar")
+    return _relevo_entregar(ot_id, p["id"])
+
+
+@app.post("/cliente/ots/{ot_id}/relevo/recibir")
+def recibir_del_cliente(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Un operador de la empresa recibe una OT entregada y queda a su cargo. La firma queda en la bitácora con su nombre.
+    403 si no es operador; 404 si la OT es de otra empresa; 409 si nadie la entregó."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "operador")
+    if _de_la_empresa(p, ot_id)["estado_general"] != "entregada":
+        raise ReglaDeNegocio(f"la OT {ot_id} no está entregada: no hay turno que recibir")
+    return _relevo_recibir(ot_id, p["id"])
+
+
+@app.get("/cliente/ots/{ot_id}/eventos")
+def bitacora_del_cliente(ot_id: str, authorization: str | None = Header(default=None)) -> list[dict]:
+    """La bitácora de la OT, en orden, como la guarda el servidor: solo agrega. 404 si la OT no es suya."""
+    acceso.ot_de(cx, _persona(authorization), ot_id)
+    return [evento_dict(e) for e in db.eventos(cx, ot_id)]
+
+
+@app.get("/cliente/ots/{ot_id}/reporte", response_model=None)
+def reporte_de_la_ot(ot_id: str, formato: Literal["json", "markdown"] = Query(default="json", description="`markdown` "
+                     "devuelve el mismo reporte listo para leer o adjuntar."),
+                     authorization: str | None = Header(default=None)) -> dict | PlainTextResponse:
+    """El reporte de la OT, armado desde la bitácora por el código y no por un modelo: cada paso con la evidencia que lo
+    cerró, su capa, su hora y sus intentos; las desviaciones con su clase y cuánto tardaron en resolverse; las
+    confirmaciones por persona con su motivo; las observaciones; los relevos; y lo que quedó pendiente. Cada línea trae
+    el `evento` que la sostiene, para citarlo. 404 si la OT no es suya."""
+    p = _persona(authorization)
+    ot = acceso.ot_de(cx, p, ot_id, servicios._ots_en_sesion())
+    nombres = {x["id"]: x["nombre"] for x in acceso.nombres_de(cx, p["cliente"]["id"])}
+    r = reporte.armar(cx, ot, servicios.calificacion(ot_id), nombres)
+    if formato == "markdown":
+        return PlainTextResponse(reporte.markdown(r), media_type="text/markdown; charset=utf-8")
+    return r
+
+
+# ─── Mejora continua y métricas de la empresa (app/mejora.py, app/metricas.py) ─
+# Se leen de la bitácora al pedirlas, por pauta, equipo, paso o día, nunca por persona (ADR-0013, ADR-0014).
+
+OrdenGrupos = Literal["desviaciones", "cumplimiento", "ots", "minutos"]
+Desde = Query(default=None, description="Desde este día, incluido, según cuándo se abrió la OT (AAAA-MM-DD).")
+Hasta = Query(default=None, description="Hasta este día, incluido (AAAA-MM-DD).")
+Orden = Query(default="desviaciones", description="`desviaciones`: las más desviadas primero; `cumplimiento`: el peor "
+              "primero; `ots`: las más ejecutadas primero; `minutos`: las más lentas primero.")
+Limite = Query(default=50, ge=1, le=500, description="Cuántas devolver.")
+
+
+def _ejecuciones(p: dict, desde: date | None = None, hasta: date | None = None) -> list[metricas.Ejecucion]:
+    if desde and hasta and desde > hasta:
+        raise HTTPException(422, f"desde ({desde}) es posterior a hasta ({hasta})")
+    return metricas.ejecuciones(cx, acceso.ots_de(cx, p, servicios._ots_en_sesion()), desde, hasta)
+
+
+def _supervisor(authorization: str | None) -> dict:
+    p = _persona(authorization)
+    acceso.exige_rol(p, "supervisor")
+    return p
+
+
+@app.post("/cliente/ots/{ot_id}/observaciones", status_code=201)
+def observar(ot_id: str, o: Observacion, authorization: str | None = Header(default=None)) -> dict:
+    """El operario que tiene la OT, o el supervisor de su empresa, deja lo que vio mientras se ejecuta: una pieza
+    gastada, un paso que no calza con el equipo. No cierra ningún paso. Queda en la bitácora con quién lo dijo, y las
+    de `pauta` y `seguridad` alimentan las propuestas de mejora. 404 si la OT o el paso no son suyos."""
+    p = _persona(authorization)
+    acceso.ot_de(cx, p, ot_id)
+    return evento_dict(servicios.observar(ot_id, p["id"], o.texto, o.categoria, o.paso_id))
+
+
+@app.get("/cliente/mejoras")
+def mejoras_del_cliente(estado: Literal["abierta", "aceptada", "descartada", "aplicada", "superada"] | None = None,
+                        authorization: str | None = Header(default=None)) -> list[dict]:
+    """Las propuestas para mejorar las pautas de la empresa, las que más pesan primero. Una nace cuando el mismo paso
+    de la misma versión tuvo señales en dos o más OT: alertas de orden o de control, conflictos, pasos que confirmó una
+    persona porque la evidencia no los vio, y observaciones de los operarios. Cuando hay una versión nueva, `validacion`
+    dice si el paso dejó de desviarse. Solo supervisor."""
+    p = _supervisor(authorization)
+    todas = mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"])
+    return [m for m in todas if estado is None or m["estado"] == estado]
+
+
+@app.post("/cliente/mejoras/{propuesta_id}/revision")
+def revisar_mejora(propuesta_id: str, r: Revision, authorization: str | None = Header(default=None)) -> dict:
+    """El supervisor valida una propuesta: aceptarla la manda al equipo de Factum para la versión siguiente de la pauta;
+    descartarla la cierra y pide una nota. Se puede cambiar de opinión: queda la última. 404 si no es de su empresa;
+    409 si la pauta ya tiene una versión más nueva."""
+    p = _supervisor(authorization)
+    return mejora.revisar(cx, _ejecuciones(p), p["cliente"]["id"], propuesta_id, r.decision, r.nota, p["id"])
+
+
+@app.get("/cliente/metricas")
+def metricas_del_cliente(desde: date | None = Desde, hasta: date | None = Hasta,
+                         authorization: str | None = Header(default=None)) -> dict:
+    """La foto de la empresa: OT por estado, cuántas completas sin desviaciones, con qué evidencia se cerraron los pasos,
+    las desviaciones por clase y cuánto tardan en resolverse, el tiempo de ejecución, los relevos, las observaciones y
+    las propuestas de mejora. Solo supervisor."""
+    p = _supervisor(authorization)
+    es = _ejecuciones(p, desde, hasta)
+    return {"periodo": {"desde": desde, "hasta": hasta}, **metricas.resumen(es),
+            "mejoras": mejora.conteo(mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"]))}
+
+
+@app.get("/cliente/metricas/pautas")
+def metricas_por_pauta(desde: date | None = Desde, hasta: date | None = Hasta, orden: OrdenGrupos = Orden,
+                       limite: int = Limite, authorization: str | None = Header(default=None)) -> list[dict]:
+    """Cada pauta que la empresa ejecutó: cumplimiento, desviaciones por clase, tiempo de ejecución, observaciones y el
+    paso que más se desvía. Solo supervisor."""
+    return metricas.por_pauta(cx, _ejecuciones(_supervisor(authorization), desde, hasta), orden, limite)
+
+
+@app.get("/cliente/metricas/pautas/{pauta_id}/pasos")
+def metricas_por_paso(pauta_id: str, version: int | None = Query(default=None, description="Sin versión, la última aprobada."),
+                      orden: Literal["pauta", "desviaciones"] = Query(default="pauta", description="`pauta`: en el orden "
+                      "de la pauta; `desviaciones`: los más desviados primero."),
+                      desde: date | None = Desde, hasta: date | None = Hasta,
+                      authorization: str | None = Header(default=None)) -> list[dict]:
+    """Cada paso de una versión de la pauta: con qué evidencia se cerró, cuántas veces se desvió y qué observaron los
+    operarios. Solo las OT de esa versión. 404 si la pauta no está habilitada para la empresa. Solo supervisor."""
+    p = _supervisor(authorization)
+    if pauta_id not in {x["id"] for x in acceso.pautas_habilitadas(cx, p["cliente"]["id"])}:
+        raise db.NoExiste(f"pauta {pauta_id}")
+    pauta = db.leer_pauta(cx, pauta_id, version or catalogo.ultima_aprobada(cx, pauta_id))
+    return metricas.por_paso(_ejecuciones(p, desde, hasta), pauta, orden)
+
+
+@app.get("/cliente/metricas/equipos")
+def metricas_por_equipo(desde: date | None = Desde, hasta: date | None = Hasta, orden: OrdenGrupos = Orden,
+                        limite: int = Limite, authorization: str | None = Header(default=None)) -> list[dict]:
+    """Lo mismo por equipo, más lo que los operarios observaron de la máquina (categoría `equipo`). Solo supervisor."""
+    return metricas.por_equipo(_ejecuciones(_supervisor(authorization), desde, hasta), orden, limite)
+
+
+@app.get("/cliente/metricas/serie")
+def metricas_en_el_tiempo(intervalo: Literal["dia", "semana"] = "dia", desde: date | None = Desde,
+                          hasta: date | None = Hasta, authorization: str | None = Header(default=None)) -> list[dict]:
+    """Por día o por semana, sin huecos: OT abiertas y completas, desviaciones, alertas de seguridad y observaciones,
+    para graficar. Solo supervisor."""
+    return metricas.serie(_ejecuciones(_supervisor(authorization), desde, hasta), intervalo)
+
+
 # ─── Servicio interno: clientes, personas y qué pautas tiene cada uno ───────
 
 
@@ -559,6 +801,45 @@ def cambiar_clave(persona_id: str, x_clave_equipo: str | None = Header(default=N
     """Una clave nueva al azar, que se ve una sola vez. Cierra las sesiones abiertas de esa persona."""
     _solo_equipo(x_clave_equipo)
     return {"persona": persona_id, "clave": acceso.nueva_clave(cx, persona_id)}
+
+
+@app.get("/interno/inventario")
+def inventario_del_servidor(x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Qué puede comprobar este servidor, leído de la base: cada sensor con su valor actual, los valores que llegaron en la
+    bitácora (o su rango, si es numérico), las pautas y pasos que lo usan y las reglas de peligro que lo miran; las clases
+    del detector con la confianza con que se vieron y cuántas veces decidieron; y las preguntas visuales con lo que
+    respondió la cámara. Es lo que necesita quien escribe una pauta para nombrar solo lo que existe."""
+    _solo_equipo(x_clave_equipo)
+    return inventario.inventario(cx, detector, servicios.sesiones())
+
+
+@app.post("/interno/pautas/validar")
+def validar_pauta(v: PautaAValidar, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Valida una pauta sin guardarla. `errores` impide crearla (mal formada o versión equivocada); `hallazgos` dice qué
+    le va a fallar a la verificación: un control crítico que no cierra un sensor (V1), un paso que espera el valor de
+    reposo de su sensor (V2), una reposición fuera de orden inverso (V3), una capa_minima que no calza (V4), y sensores,
+    valores o clases que el servidor no conoce (I1 a I3). Con las comprobaciones de `app/analisis.py`: pasos que se
+    cierran solos (A1), reglas de seguridad que disparan en una ejecución correcta (A2), citas que no están literales en
+    el protocolo (A3) y pasos que la estación no puede cerrar (A4); y qué análisis vale la pena pedir. 404 si la
+    estación o el protocolo no existen."""
+    _solo_equipo(x_clave_equipo)
+    estacion = inventario.estacion(v.estacion) if v.estacion else None
+    return inventario.validar(cx, v.pauta, inventario.inventario(cx, detector, servicios.sesiones()), v.reposo,
+                              estacion, v.analisis, v.protocolo_id)
+
+
+@app.get("/interno/mejoras")
+def mejoras_de_todos(estado: Literal["abierta", "aceptada", "descartada", "aplicada", "superada"] | None = "aceptada",
+                     x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    """Las propuestas de mejora de cada empresa, con su `cliente`. Por defecto, las que un supervisor aceptó: son las
+    que el equipo lleva a la versión siguiente de la pauta."""
+    _solo_equipo(x_clave_equipo)
+    salida = []
+    for c in acceso.listar_clientes(cx):
+        p = {"id": "equipo", "rol": "supervisor", "cliente": c}
+        salida += [{**m, "cliente": c} for m in mejora.propuestas(cx, _ejecuciones(p), c["id"])
+                   if estado is None or m["estado"] == estado]
+    return salida
 
 
 @app.put("/interno/clientes/{cliente_id}/pautas/{pauta_id}")
@@ -757,10 +1038,41 @@ async def video_salida(edge_id: str, request: Request, limite: int | None = None
 
 
 @app.get("/agente")
-@app.get("/llms.txt", include_in_schema=False)
+@app.get("/llms-full.txt", include_in_schema=False)
 def guia_para_el_agente(request: Request) -> Response:
     """La guía en Markdown para el agente que se conecta: recorrido, WebSocket, errores y endpoints."""
     return Response(texto_de_la_guia(app, str(request.base_url)), media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/llms.txt", include_in_schema=False)
+def indice_para_agentes(request: Request) -> Response:
+    """El índice del estándar llms.txt: qué es Factum, cómo se entra, las skills y la documentación."""
+    return Response(skills.llms_txt(str(request.base_url)), media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/skills", include_in_schema=False)
+def skills_publicadas(request: Request) -> list[dict]:
+    """Las skills de cliente, con su nombre, su descripción y dónde leerlas."""
+    return skills.publicadas(str(request.base_url))
+
+
+@app.get("/skills/{nombre}/SKILL.md", include_in_schema=False)
+def skill(nombre: str) -> Response:
+    if nombre not in skills.DE_CLIENTE:
+        raise db.NoExiste(f"skill {nombre}; hay {', '.join(skills.DE_CLIENTE)}")
+    return Response(skills.para_publicar(nombre), media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/referencia", include_in_schema=False)
+def pagina_referencia() -> Response:
+    """La referencia de la API para leer y probar, con Scalar: el documento de un cliente y el completo."""
+    return referencia.pagina(app.openapi_url)
+
+
+@app.get("/referencia/clientes.json", include_in_schema=False)
+def referencia_para_clientes() -> dict:
+    """El OpenAPI con solo lo que usa una empresa cliente."""
+    return referencia.para_clientes(app)
 
 
 @app.get("/camara")
@@ -840,22 +1152,13 @@ def sensores() -> dict:
 
 @app.post("/ot/{ot_id}/relevo/entregar")
 def entregar_turno(ot_id: str, actor: str) -> dict:
-    fila = db.leer_ot(cx, ot_id)
-    pauta = db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"])
-    evs = db.eventos(cx, ot_id)
-    estado = cerebro.estado_de_ot(pauta, evs)
-    resumen = cerebro.redactar_resumen(estado, evs)
-    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(),
-                             actor=actor, detalle=resumen))
-    return {"resumen": resumen, "estado": estado}
+    return _relevo_entregar(ot_id, actor)
 
 
 @app.post("/ot/{ot_id}/relevo/recibir")
 def recibir_turno(ot_id: str, actor: str) -> dict:
     """El traspaso se firma: quién recibió y cuándo queda como evento."""
-    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_RECIBIDO, ts=db.ahora(),
-                             actor=actor, detalle=f"{actor} confirma que recibió el turno"))
-    return {"firmado_por": actor}
+    return _relevo_recibir(ot_id, actor)
 
 
 @app.post("/ot/{ot_id}/preguntar")

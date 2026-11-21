@@ -43,7 +43,7 @@ from app.analisis import requiere
 from app.bus import Bus, canal_edge, canal_ot
 from app.catalogo import ReglaDeNegocio
 from app.cerebro import estado_de_ot
-from app.contratos import Capa, Estado, Evento, TipoEvento, TipoEvidencia
+from app.contratos import Capa, CategoriaObservacion, Estado, Evento, TipoEvento, TipoEvidencia
 from app.reglas import (
     controles_deshechos,
     desviacion_de_orden,
@@ -414,6 +414,31 @@ class Servicios:
         return {"paso": paso.id, "estado": str(Estado.VERIFICADO), "capa": None, "detalle": ev.detalle,
                 "interrumpe": False, "evidencia": ev.evidencia, "calificacion": d["calificacion"],
                 "calificacion_ot": calificacion}
+
+    def observar(self, ot_id: str, actor: str, texto: str, categoria: str, paso_id: str | None = None) -> Evento:
+        """El operario deja lo que ve mientras ejecuta: una pieza gastada, un paso que no calza con el equipo.
+
+        No cierra ni abre ningún paso: es conocimiento, y queda en la bitácora con quién lo dijo y cuándo.
+        Las de `pauta` y `seguridad` alimentan la mejora de la pauta (app/mejora.py).
+        """
+        texto = (texto or "").strip()
+        if not texto:
+            raise ReglaDeNegocio("una observación necesita texto")
+        if not actor or actor == "sistema":
+            raise ReglaDeNegocio("una observación la hace una persona, no el sistema")
+        try:
+            categoria = CategoriaObservacion(categoria)
+        except ValueError:
+            raise ReglaDeNegocio(f"la categoría {categoria} no existe; hay {', '.join(CategoriaObservacion)}") from None
+        fila = db.leer_ot(self.cx, ot_id)
+        sobre = ""
+        if paso_id is not None:
+            paso = _paso(db.leer_pauta(self.cx, fila["pauta_id"], fila["pauta_version"]), paso_id)
+            sobre = f" sobre «{paso.titulo}»"
+        return self.agregar(Evento(
+            ot_id=ot_id, tipo=TipoEvento.OBSERVACION, ts=db.ahora(), actor=actor, paso_id=paso_id,
+            declarado=texto, evidencia={"tipo": "observacion", "categoria": str(categoria)},
+            detalle=f"{actor} observa{sobre} ({categoria}): {texto}"))
 
     def _por_persona(self, ot_id: str) -> set[str]:
         """Pasos cuyo último veredicto lo puso una persona contra la evidencia."""

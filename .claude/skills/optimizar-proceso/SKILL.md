@@ -13,7 +13,9 @@ Sale una **propuesta**: un borrador con la versión siguiente de la pauta y la r
 uv run python scripts/analizar.py ejecuciones [--pauta <id>] [--db <bitácora.sqlite3>]
 ```
 
-Una tabla por versión de cada pauta, y debajo lo que el criterio pide mirar. **Si dice que hay menos OT que el mínimo, o que no hay nada que analizar, se termina acá**: díselo a la persona con la tabla. Una desviación suelta no es una propuesta, y buscarle una explicación es inventarla.
+Una tabla por versión de cada pauta, y debajo lo que el criterio pide mirar.
+
+Contra un servidor, y no contra una base local, lo mismo sale de la API con la clave del equipo (`X-Clave-Equipo`): `GET /interno/mejoras` da las propuestas que los supervisores aceptaron, con las OT, las señales y las observaciones de cada paso ([ADR-0014](../../../knowledge/decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)). Las aceptadas son las primeras que se llevan a una versión nueva. Para un paso marcado, `GET /cliente/metricas/pautas/{pauta_id}/pasos` (con el login de un supervisor de esa empresa) da en qué capa cerró, con qué confianza, en cuántos intentos y cuánto tardó. **Si dice que hay menos OT que el mínimo, o que no hay nada que analizar, se termina acá**: díselo a la persona con la tabla. Una desviación suelta no es una propuesta, y buscarle una explicación es inventarla.
 
 ## 2. Leer las OT de cada paso marcado
 
@@ -55,5 +57,7 @@ Un borrador en `datos/borradores/<pauta-id>-v<n+1>.json`, con la forma de la ski
 ```bash
 uv run python scripts/analizar.py pauta datos/borradores/<pauta-id>-v<n+1>.json --estacion datos/estaciones/<estación>.json
 ```
+
+Contra un servidor, `POST /interno/pautas/validar` corre las mismas comprobaciones sobre la pauta nueva sin guardarla.
 
 Entrega la tabla, los cambios con sus OT y lo que **no** propusiste y por qué. No cargues ni apruebes la versión nueva: eso lo pide el supervisor.

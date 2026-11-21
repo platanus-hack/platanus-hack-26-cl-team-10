@@ -128,7 +128,7 @@ class CrudPorHTTP(unittest.TestCase):
                 self.assertIn(f"`{ruta.path}`", r.text)
         self.assertIn("http://testserver/pauta/demo", r.text)
         self.assertIn("ws://testserver/ot/", r.text)
-        self.assertEqual(self.c.get("/llms.txt").text, r.text)
+        self.assertEqual(self.c.get("/llms-full.txt").text, r.text)
 
     def test_detras_de_un_proxy_https_la_guia_usa_https_y_wss(self):
         from app import api

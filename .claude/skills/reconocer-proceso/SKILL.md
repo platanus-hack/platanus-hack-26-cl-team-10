@@ -99,6 +99,8 @@ uv run python scripts/analizar.py pauta datos/borradores/<id>.json --estacion da
 
 Dice si cumple el contrato, si cada cita está literal en el documento, qué puede cerrar la estación y qué análisis vale la pena correr. Sale con 1 si falla el contrato, una cita, un `capa_minima` o si un paso pide algo que la estación no tiene: corrige y repite hasta que salga con 0. Lo que aparece en «Qué vale la pena analizar» no es un error y no cambia el código de salida: no se arregla editando el borrador, se entrega.
 
+Contra un servidor, las mismas comprobaciones, más las del inventario de lo que ese servidor ya vio (sensores, valores y clases), salen de `POST /interno/pautas/validar` con la clave del equipo: `{"pauta": <pauta>, "analisis": <analisis>, "estacion": "<estación>", "protocolo_id": "<protocolo guardado>"}`. Antes de escribir la pauta, `GET /interno/inventario` dice qué sensores y valores existen de verdad en ese servidor.
+
 Si ya existe una pauta escrita por una persona para el mismo proceso, mide cuánto te acercaste:
 
 ```bash

@@ -65,6 +65,15 @@ Este trabajo se hizo en una rama que partió antes de que llegaran a `main` el [
 
 Las skills viven en `.claude/skills/`, donde Claude Code las carga solas; el PRD las pone en `skills/` con el prefijo `factum-`. El paso que este ADR deja como siguiente (que el archivo de la estación traiga umbrales y peligros) es la misma pregunta que el PRD deja abierta como «Inventario por estación» y «Perfil por protocolo», y la decide Francisco.
 
+**Cómo se resolvió, el 2026-11-21.** Francisco decidió quedarse con estas skills y con su forma: viven en `.claude/skills/`, sin prefijo, y las del PRD que se cruzaban no se construyen aparte. Desde el [PR de las skills de cliente](../projects/skills/PRD.md):
+
+- **Hay un solo validador.** `POST /interno/pautas/validar` corre las comprobaciones de `app/analisis.py` (`se_cierran_solos`, `alertas_en_ejecucion_correcta`, `citas_sin_respaldo`, `factibilidad` y `criterio`) además de V1 a V4 y las del inventario.
+- **El inventario muestra las estaciones de `datos/estaciones/`** junto a lo que de verdad llegó en la bitácora.
+- **`optimizar-proceso` y `reconocer-proceso` nombran sus equivalentes en la API** para cuando se trabaja contra un servidor (`GET /interno/mejoras`, las métricas por paso, el validador).
+- **Se sumaron las cuatro skills de cliente del PRD**, con los mismos nombres cortos: `pedir-ot`, `ejecutar-ot`, `reportar-ot` y `medir-y-mejorar`.
+
+`analisis.historia` y `criterio_de_historia` siguen en el código, sin cambios: dejarlos o hacerlos leer las métricas del ADR-0014 queda para cuando haya historia real.
+
 ## Alternativas consideradas
 
 - **A — Un servicio en la API que llama al modelo (`POST /interno/protocolos/{id}/borrador`):** deja el reconocimiento dentro del producto, pero hay que escribir y mantener el prompt, el esquema, los reintentos y el presupuesto, y solo cubre «protocolo a pasos». Las otras tres capacidades tocan código, fotos y evals, que es trabajo de agente. Queda para cuando el cliente lo necesite sin el equipo en medio; las comprobaciones de `app/analisis.py` son las mismas.
