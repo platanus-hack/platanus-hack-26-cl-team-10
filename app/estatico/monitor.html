@@ -150,6 +150,8 @@ function conectar() {
     if (m.tipo === "snapshot") {
       if (ultimo === 0) $("bitacora").innerHTML = "";
       m.bitacora.forEach(anotar); pintarPasos(m.estado); pintarCalificacion(m.calificacion); video(m.video);
+      if (!m.sesion) $("video-estado").textContent =
+        "Esta OT no tiene un edge unido, así que no hay cámara. Usa «Nueva demo LOTO» para abrir una con el edge.";
       edge = m.sesion ? m.sesion.edge_id : edge;
       Object.entries(m.sensores || {}).forEach(([k, v]) => pintarSensor(k, v, false));
     } else if (m.tipo === "evento") {
@@ -223,9 +225,22 @@ async function declarar() {
 $("conectar").onclick = () => { ultimo = 0; $("bitacora").innerHTML = ""; conectar(); };
 $("nueva").onclick = nuevaDemo;
 $("declarar").onclick = declarar;
-const otDeLaUrl = new URLSearchParams(location.search).get("ot");
-if (otDeLaUrl) $("ot").value = otDeLaUrl;
-conectar();
+// Sin ?ot= se abre la OT que algún edge está ejecutando ahora (la sesión más reciente):
+// así el home siempre muestra la cámara en vivo.
+async function iniciar() {
+  const otDeLaUrl = new URLSearchParams(location.search).get("ot");
+  if (otDeLaUrl) {
+    $("ot").value = otDeLaUrl;
+  } else {
+    try {
+      const sesiones = await (await fetch("/sesiones")).json();
+      const ultima = sesiones.sort((a, b) => a.desde.localeCompare(b.desde)).pop();
+      if (ultima) { $("ot").value = ultima.ot_id; edge = ultima.edge_id; }
+    } catch (e) { /* sin sesiones: queda la OT por defecto */ }
+  }
+  conectar();
+}
+iniciar();
 </script>
 </body>
 </html>
