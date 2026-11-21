@@ -113,17 +113,25 @@ Una skill que genera pautas se mide como se mide cualquier capa: con casos cuya 
 
 Antes de medir conviene saber qué esperar. Un VLM sin pauta describió por su cuenta el 54,6 % de las fases de un montaje, y el 68 % con la pauta (REFERENCIAS 9). Lo que salga de `factum-generar-pauta` es un borrador que una persona corrige, no una pauta lista. `Confirmada` para el VLM; `Candidata a validar` para texto.
 
-## 6. Lo que la API todavía no tiene
+## 6. Lo que la API les da a las skills, leído de la base
 
-Sin esto las skills no se pueden construir bien. Es trabajo de código, no de la skill.
+Las skills no leen la base: llaman a la API. Cada ruta de abajo arma su respuesta desde lo que la base ya guarda (las pautas, la bitácora, los sensores, las reglas de peligro y el detector), sin tablas nuevas.
+
+| Ruta | Para qué skill | Qué lee de la base |
+|---|---|---|
+| `GET /interno/inventario` | `factum-generar-pauta`, `factum-mejorar-pauta` | Cada sensor con su valor actual, los valores que llegaron en la bitácora (o su rango si es numérico), las pautas y los pasos que lo usan y las reglas de peligro que lo miran; las clases del detector con su confianza y cuántas veces decidieron; las preguntas visuales con lo que respondió la cámara |
+| `POST /interno/pautas/validar` | `factum-generar-pauta`, `factum-mejorar-pauta` | Si la pauta se puede guardar, y los hallazgos: V1 a V4 de la pantalla 10 de Factum por dentro, y sensores, valores o clases que el inventario no conoce (I1 a I3). En las pautas del repo encuentra los huecos ya anotados: los dos controles críticos de cámara del LOTO y la prueba de energía cero del polín |
+| `GET /cliente/metricas/pautas/{id}/pasos` | `factum-mejorar-pauta`, `factum-medir` | Por paso, además de lo de antes: en qué capa cerró, con qué confianza, cuántas veces quedó bajo el umbral, cuántos intentos tomó y cuánto tardó desde el paso anterior |
+| `GET /cliente/ots/{id}/reporte` | `factum-reportar` | El esqueleto del reporte de la sección 4, con el `evento` de cada línea. Con `formato=markdown` sale listo para leer, sin modelo |
+| `/cliente/ots/{id}/pasos`, `/declarar`, `/pasos/{paso}/confirmar`, `/relevo/entregar`, `/relevo/recibir`, `/eventos` | `factum-ejecutar-ot` | La ejecución con login: quien actúa sale del token |
+
+Lo que todavía falta:
 
 | Falta | Para qué skill | Por qué |
 |---|---|---|
-| **El inventario de cada estación**: sus sensores con los valores posibles y las clases que conoce el detector | `factum-generar-pauta`, `factum-mejorar-pauta` | Un protocolo dice qué hacer, no con qué se comprueba. Sin inventario, el modelo inventa sensores. Hoy los sensores son globales y no hay una ruta que los liste con sus valores |
-| **El validador como ruta** (`POST /interno/pautas/validar`): las reglas de `catalogo.pauta_desde_dict`, las cuatro de la pantalla 10 de [Factum por dentro](../../architecture/factum-por-dentro.html) y que cada sensor y cada clase existan en la estación | `factum-generar-pauta`, `factum-mejorar-pauta` | Para validar sin guardar, con el mismo código que guarda |
-| **La capa y la confianza con que se cerró cada paso**, en las métricas por paso | `factum-mejorar-pauta` | Las recomendaciones de capa se leen de ahí. Hoy `por_paso` dice si cerró por sensor, cámara, persona o palabra, pero no la confianza |
-| **El esqueleto del reporte** (`GET /cliente/ots/{id}/reporte`) | `factum-reportar` | Para que el modelo no lo arme leyendo eventos crudos |
-| **La ejecución con login** | `factum-ejecutar-ot` | Hoy declarar y confirmar van sin token, con `actor` escrito por quien llama ([API](../../architecture/API.md), punto 1) |
+| **El inventario por estación** | `factum-generar-pauta` | Los sensores son globales en el servidor: el inventario es del servidor, no de una estación, y lo dice en `limites`. Que el sensor se guarde por edge es una decisión con Jonathan (pantalla 9 de [Factum por dentro](../../architecture/factum-por-dentro.html)) |
+| **Las lecturas que no produjeron nada** | `factum-generar-pauta` | La bitácora guarda la lectura que cerró un paso o abrió una alerta, no cada lectura del edge. `valores_vistos` cuenta esas |
+| **Cuándo empezó el operario** | `factum-medir`, `factum-reportar` | La bitácora guarda cuándo se cerró cada paso, no cuándo empezó a trabajar: el primer paso no tiene tiempo, y la ejecución se mide desde el primer evento después de asignar |
 | **La matriz de escenarios con una pauta cualquiera** | `factum-mejorar-pauta` | `app/escenarios.py` corre las pautas de industria. Una versión nueva tendría que pasar la misma matriz antes de aprobarse |
 
 ## 7. Dónde viven y cómo las encuentra un agente
