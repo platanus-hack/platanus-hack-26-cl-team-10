@@ -4,6 +4,11 @@
 
 | ADR | Fecha | Decisión | Estado |
 |---|---|---|---|
+| [0012](./0012-login-y-clientes-cada-empresa-ve-lo-suyo.md) | 2026-11-21 | El servicio para clientes pide login; cada empresa ve solo sus OT y las pautas que el equipo le habilitó, con roles supervisor y operador | `proposed` |
+| [0011](./0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md) | 2026-11-21 | Los protocolos y las pautas se cargan por un servicio interno del equipo, atribuidos entre sí de muchos a muchos; el cliente solo pide OT de las pautas aprobadas | `proposed` |
+| [0010](./0010-demo-brazo-robotico-en-una-celda-con-corte-local.md) | 2026-11-21 | El demo es un brazo robótico en una celda; el corte de energía lo hace el ESP32 por su cuenta y se presenta como integración opcional | `accepted` |
+| [0009](./0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md) | 2026-11-21 | El producto vuelve verificable cualquier flujo operacional; el mantenimiento de maquinaria es el caso de uso. Extiende al 0005 | `proposed` |
+| [0008](./0008-escenarios-por-industria-en-una-caja-aislada.md) | 2026-11-21 | Los escenarios por industria corren en una caja aislada; cada barrera se mide con su herramienta (reglas, simulación, eval) | `proposed` |
 | [0007](./0007-servicios-en-vivo-sesion-stream-y-calificacion.md) | 2026-11-21 | Servicios en vivo: la sesión une el edge con la OT, un WebSocket por OT y la calificación ok · warning · error se calcula por capa | `proposed` |
 | [0006](./0006-la-ot-nace-del-protocolo.md) | 2026-11-21 | La OT nace del protocolo: el disparo puede ser calendario, pedido o falla | `proposed` |
 | [0005](./0005-producto-general-mineria-como-caso-del-demo.md) | 2026-11-21 | El producto es general; la minería es el caso del demo. Reemplaza al 0001 | `proposed` |

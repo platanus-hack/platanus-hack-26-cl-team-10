@@ -1,0 +1,70 @@
+[
+  {
+    "id": "prot-aislamiento-01",
+    "nombre": "Aislamiento y bloqueo de energías",
+    "industria": "transversal",
+    "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 44, 45 y 55 y la estrategia de controles de REFERENCIAS 56. No es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-aislamiento-01.md",
+    "pautas": [
+      "pauta-loto-escritorio",
+      "pauta-correa-ct-01",
+      "pauta-polin-ct-01",
+      "pauta-celda-mt-01",
+      "pauta-excavadora-01",
+      "pauta-brazo-01",
+      "pauta-polin-demo"
+    ]
+  },
+  {
+    "id": "prot-correa-01",
+    "nombre": "Mantención de polines y rodillos en correa transportadora",
+    "industria": "minería",
+    "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 44 a 47 y los manuales de REFERENCIAS 56 a 59. No es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-correa-01.md",
+    "pautas": [
+      "pauta-correa-ct-01",
+      "pauta-polin-ct-01",
+      "pauta-polin-demo"
+    ]
+  },
+  {
+    "id": "prot-celda-mt-01",
+    "nombre": "Mantenimiento de interruptor en celda de media tensión",
+    "industria": "eléctrica",
+    "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 48 a 51. No es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-celda-mt-01.md",
+    "pautas": [
+      "pauta-celda-mt-01"
+    ]
+  },
+  {
+    "id": "prot-excavadora-01",
+    "nombre": "Cambio de manguera hidráulica en excavadora",
+    "industria": "construcción",
+    "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 52 a 54. No es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-excavadora-01.md",
+    "pautas": [
+      "pauta-excavadora-01"
+    ]
+  },
+  {
+    "id": "prot-brazo-01",
+    "nombre": "Ajuste de pinza en brazo robótico",
+    "industria": "celda robotizada",
+    "origen": "Redactado por el equipo de Factum para el demo del ADR-0010. No es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-brazo-01.md",
+    "pautas": [
+      "pauta-brazo-01"
+    ]
+  },
+  {
+    "id": "prot-camion-rigido-01",
+    "nombre": "Operación de camión de extracción rígido",
+    "industria": "minería",
+    "origen": "https://nationalcourses.edu.au/wp-content/uploads/2025/02/2.14.5-Rigid-Haul-Truck-LG.docx.pdf",
+    "documento": "protocolos/prot-camion-rigido-01.md",
+    "pautas": [
+      "pauta-camion-detencion-01"
+    ]
+  }
+]

@@ -102,6 +102,16 @@ class CierreEnVivo(unittest.TestCase):
         self.assertEqual(r["capa"], Capa.MODELO)
         self.assertEqual(len(self.juez_llamado), 1)
 
+    def test_si_no_se_puede_guardar_la_foto_el_paso_igual_se_cierra(self):
+        # en la VM, datos/evidencias quedó como enlace roto y el mkdir tiraba FileExistsError
+        def falla(*_):
+            raise FileExistsError("datos/evidencias")
+        self.s.video.guardar_evidencia = falla
+        self.mandar(DETECCIONES_MIN, ("mouse", 0.95))
+        v = self.veredictos("l2")
+        self.assertEqual(len(v), 1)
+        self.assertIsNone(v[0].evidencia["cuadro"])
+
     def test_solo_el_paso_actual(self):
         self.mandar(DETECCIONES_MIN, ("pencil", 0.95))  # l4 es de lápiz, pero el actual es l2
         self.assertEqual(self.veredictos("l4"), [])

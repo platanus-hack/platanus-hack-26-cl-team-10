@@ -113,7 +113,7 @@ td.r{font-weight:700;white-space:nowrap}
 .si{color:var(--ok);font-weight:700} .no{color:var(--err);font-weight:700}
 
 /* calificación */
-.califs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.califs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
 @media (max-width:1000px){.califs{grid-template-columns:1fr 1fr}}
 .calif{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px}
 .calif .tope{margin:6px 0 10px}
@@ -136,11 +136,13 @@ td.r{font-weight:700;white-space:nowrap}
 
 <section>
   <h2>El recorrido de una lectura</h2>
-  <p>Elige un caso. El punto azul es la lectura: entra por <code>POST /edge/{id}/lecturas</code>, pasa por las cinco revisiones de <code>servicios.recibir_lectura</code> y, si algo cambió, sale como evento de la bitácora con su calificación hasta la pantalla del operario.</p>
+  <p>Elige un caso. El punto azul es la lectura: entra por <code>POST /edge/{id}/lecturas</code>, pasa por las cinco revisiones de <code>servicios.recibir_lectura</code> y, si algo cambió, sale como evento de la bitácora con su calificación hasta la pantalla del operario. Lo que una persona confirma contra el sensor no es una lectura: entra por <code>POST /ot/{id}/pasos/{paso}/confirmar</code> (paso 14 de la secuencia, más abajo). Cada caso, en cada industria y con su recorrido real, se puede correr en <code>/casos</code>.</p>
   <div class="escenarios" role="group" aria-label="Casos">
     <button data-caso="bloqueo" aria-pressed="true">El candado cierra el paso<small>reed_bloqueo = cerrado</small></button>
     <button data-caso="guarda" aria-pressed="false">Guarda abierta con energía viva<small>alerta de capa 1</small></button>
     <button data-caso="resuelve" aria-pressed="false">La guarda se cierra<small>el warning se va</small></button>
+    <button data-caso="orden" aria-pressed="false">Guarda abierta sin bloquear<small>orden invertido</small></button>
+    <button data-caso="control" aria-pressed="false">Sacar el candado a mitad<small>control perdido</small></button>
     <button data-caso="vibracion" aria-pressed="false">Vibración fuera de lo normal<small>alerta de capa 2</small></button>
     <button data-caso="duplicada" aria-pressed="false">El edge reenvía tras un corte<small>mismo seq</small></button>
     <button data-caso="sinsesion" aria-pressed="false">Edge sin OT en curso<small>sin sesión</small></button>
@@ -166,15 +168,15 @@ td.r{font-weight:700;white-space:nowrap}
   <text class="estado" id="e-s2" x="440" y="236"></text>
 
   <g class="n" id="n-s3"><rect x="440" y="250" width="200" height="60" rx="12"/>
-    <text class="t" x="456" y="276">3 · Seguridad</text><text class="s" x="456" y="298">capa 1 · reglas.py</text></g>
+    <text class="t" x="456" y="276">3 · Seguridad</text><text class="s" x="456" y="298">capa 1 · una regla por industria</text></g>
   <text class="estado" id="e-s3" x="440" y="336"></text>
 
   <g class="n" id="n-s4"><rect x="440" y="350" width="200" height="60" rx="12"/>
-    <text class="t" x="456" y="376">4 · ¿Cierra el paso?</text><text class="s" x="456" y="398">solo su propio sensor</text></g>
+    <text class="t" x="456" y="376">4 · Paso, control, orden</text><text class="s" x="456" y="398">cierra · se perdió · se saltó</text></g>
   <text class="estado" id="e-s4" x="440" y="436"></text>
 
   <g class="n" id="n-s5"><rect x="440" y="450" width="200" height="60" rx="12"/>
-    <text class="t" x="456" y="476">5 · Señal</text><text class="s" x="456" y="498">capa 2 · desvío</text></g>
+    <text class="t" x="456" y="476">5 · Señal</text><text class="s" x="456" y="498">capa 2 · desvío · pegado</text></g>
 
   <g class="n" id="n-bit"><rect x="712" y="320" width="186" height="100" rx="14"/>
     <text class="t" x="728" y="354">eventos</text><text class="s" x="728" y="378">la bitácora de la OT</text><text class="s" x="728" y="400">solo agrega filas</text></g>
@@ -228,7 +230,7 @@ td.r{font-weight:700;white-space:nowrap}
       </div>
     </div>
   </div>
-  <p class="nota">Los valores de los paneles son los que devuelve el código para cada caso; los tests de <code>tests/test_servicios.py</code> y <code>tests/test_stream.py</code> los comprueban.</p>
+  <p class="nota">Los valores de los paneles son los que devuelve el código para cada caso; los tests de <code>tests/test_servicios.py</code>, <code>tests/test_stream.py</code> y los de cada industria (<code>tests/test_mineria.py</code> y sus pares) los comprueban.</p>
 </section>
 
 <section>
@@ -236,10 +238,10 @@ td.r{font-weight:700;white-space:nowrap}
   <p>Una aplicación y una base (ADR-0003), ordenada en capas: cada una llama solo a la de abajo. En azul, lo que agrega este frente.</p>
   <div class="capas" id="capas">
     <div class="capa"><div><b>1 · Gateway</b><span class="que">recibe, valida y enruta</span></div>
-      <div class="piezas"><span class="pieza">api.py</span><span class="pieza nueva">WS /ot/{id}/stream</span><span class="pieza nueva">POST /edge/{id}/lecturas</span><span class="pieza nueva">CRUD /pautas · /ots · /sesiones · /eventos</span><span class="pieza nueva">WS /edge/{id}/video</span><span class="pieza nueva">GET /agente</span><span class="pieza">POST /ot/{id}/declarar</span><span class="pieza">relevo · preguntar · propuestas</span></div></div>
+      <div class="piezas"><span class="pieza">api.py</span><span class="pieza nueva">WS /ot/{id}/stream</span><span class="pieza nueva">POST /edge/{id}/lecturas</span><span class="pieza nueva">CRUD /pautas · /ots · /sesiones · /eventos</span><span class="pieza nueva">WS /edge/{id}/video</span><span class="pieza nueva">GET /agente</span><span class="pieza">POST /ot/{id}/declarar</span><span class="pieza nueva">POST /ot/{id}/pasos/{paso}/confirmar</span><span class="pieza nueva">GET /casos · /escenarios · /industrias</span><span class="pieza">relevo · preguntar · propuestas</span></div></div>
     <div class="flecha">↓</div>
     <div class="capa"><div><b>2 · Servicios</b><span class="que">la lógica, sin HTTP</span></div>
-      <div class="piezas"><span class="pieza nueva">servicios.py · atribuye y revisa</span><span class="pieza nueva">scoring.py · califica</span><span class="pieza nueva">catalogo.py · CRUD con reglas</span><span class="pieza nueva">bus.py · reparte en vivo</span><span class="pieza nueva">video.py · cuadros del edge</span><span class="pieza nueva">guia.py · /agente</span><span class="pieza">reglas.py · las tres capas</span><span class="pieza">cerebro.py · relevo</span><span class="pieza">verificacion.py · juez de cámara</span></div></div>
+      <div class="piezas"><span class="pieza nueva">servicios.py · atribuye y revisa</span><span class="pieza nueva">scoring.py · califica</span><span class="pieza nueva">catalogo.py · CRUD con reglas</span><span class="pieza nueva">bus.py · reparte en vivo</span><span class="pieza nueva">video.py · cuadros del edge</span><span class="pieza nueva">guia.py · /agente</span><span class="pieza nueva">escenarios.py · caja aislada</span><span class="pieza">reglas.py · las tres capas, una regla por industria</span><span class="pieza">cerebro.py · relevo</span><span class="pieza">verificacion.py · juez de cámara</span></div></div>
     <div class="flecha">↓</div>
     <div class="capa"><div><b>3 · Acceso a datos</b><span class="que">el único lugar con SQL</span></div>
       <div class="piezas"><span class="pieza">db.py</span><span class="pieza nueva">catalogo.py (aprobaciones)</span><span class="pieza nueva">servicios.py (sesiones)</span></div></div>
@@ -253,13 +255,13 @@ td.r{font-weight:700;white-space:nowrap}
   <h2>Cómo la UI consulta cada servicio</h2>
   <p>Una OT de punta a punta: el operario abre la sesión, la UI se conecta al stream, el edge manda una lectura y la UI la ve sin preguntar. Las flechas punteadas son lo que vuelve.</p>
   <div class="card seq">
-<svg viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagrama de secuencia">
+<svg viewBox="0 0 1200 750" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagrama de secuencia">
   <g class="cab"><rect x="40" y="14" width="140" height="40" rx="10"/><text x="110" y="40" text-anchor="middle">UI</text></g>
   <g class="cab"><rect x="300" y="14" width="160" height="40" rx="10"/><text x="380" y="40" text-anchor="middle">api.py</text></g>
   <g class="cab"><rect x="560" y="14" width="160" height="40" rx="10"/><text x="640" y="40" text-anchor="middle">servicios</text></g>
   <g class="cab"><rect x="820" y="14" width="160" height="40" rx="10"/><text x="900" y="40" text-anchor="middle">SQLite</text></g>
   <g class="cab"><rect x="1040" y="14" width="140" height="40" rx="10"/><text x="1110" y="40" text-anchor="middle">Edge</text></g>
-  <path class="vida" d="M110,54 V690"/><path class="vida" d="M380,54 V690"/><path class="vida" d="M640,54 V690"/><path class="vida" d="M900,54 V690"/><path class="vida" d="M1110,54 V690"/>
+  <path class="vida" d="M110,54 V740"/><path class="vida" d="M380,54 V740"/><path class="vida" d="M640,54 V740"/><path class="vida" d="M900,54 V740"/><path class="vida" d="M1110,54 V740"/>
   <g id="mensajes"></g>
 </svg>
   </div>
@@ -273,21 +275,26 @@ td.r{font-weight:700;white-space:nowrap}
       <tr><td class="r">Stream</td><td><span class="m ws">WS</span> <code>/ot/{id}/stream?desde=</code></td><td>Snapshot y después lectura, evento, sesión y calificación al instante</td><td>Reconectar con el último id recupera la bitácora</td></tr>
       <tr><td class="r">Edge</td><td><span class="m post">POST</span> <code>/edge/{id}/lecturas</code></td><td>Lecturas en lote con <code>seq</code>; se atribuyen a la OT de la sesión</td><td>Sin sesión no toca ninguna bitácora</td></tr>
       <tr><td></td><td><span class="m post">POST</span> <code>/sensores</code></td><td>Lo mismo para un solo equipo (el ESP32 del esqueleto)</td><td>Va al edge por defecto</td></tr>
-      <tr><td class="r">Video</td><td><span class="m ws">WS</span> <code>/edge/{id}/video</code> · <span class="m post">POST</span> <code>/edge/{id}/cuadro</code></td><td>Un JPEG por mensaje, hasta 10 por segundo; los últimos 10 s quedan en memoria</td><td>Un cuadro que no es JPEG: error, y no corta la conexión</td></tr>
+      <tr><td class="r">Video</td><td><span class="m ws">WS</span> <code>/edge/{id}/video</code> · <span class="m post">POST</span> <code>/edge/{id}/cuadro</code></td><td>Un JPEG por mensaje, hasta 20 por segundo; los últimos 10 s quedan en memoria</td><td>Un cuadro que no es JPEG: error, y no corta la conexión</td></tr>
       <tr><td></td><td><span class="m get">GET</span> <code>/edge/{id}/video.mjpg</code> · <code>/cuadro.jpg</code> · <code>/video</code></td><td>Video en vivo para un <code>&lt;img&gt;</code>, el último cuadro y si hay video</td><td>Nunca viaja por el WebSocket de la OT</td></tr>
-      <tr><td class="r">Sesión</td><td><span class="m post">POST</span> <code>/ot/{id}/sesion</code></td><td>El operario elige la OT; une OT y edge</td><td>Abrir otra en el mismo edge la reemplaza</td></tr>
+      <tr><td class="r">Sesión</td><td><span class="m post">POST</span> <code>/ot/{id}/sesion</code></td><td>El operario elige la OT; une OT y edge</td><td>Abrir otra en el mismo edge la reemplaza; con <code>CLAVE_EQUIPO</code> en el servidor, quitárselo a otra OT pide <code>X-Clave-Equipo</code> (401)</td></tr>
       <tr><td></td><td><span class="m get">GET</span> <code>/sesiones</code> · <code>/edge/{id}/sesion</code></td><td>Qué OT ejecuta cada edge</td><td></td></tr>
-      <tr><td></td><td><span class="m del">DELETE</span> <code>/edge/{id}/sesion</code></td><td>Terminar la sesión</td><td></td></tr>
+      <tr><td></td><td><span class="m del">DELETE</span> <code>/edge/{id}/sesion</code></td><td>Terminar la sesión</td><td>Con <code>CLAVE_EQUIPO</code>, pide <code>X-Clave-Equipo</code> (401)</td></tr>
+      <tr><td></td><td><span class="m get">GET</span> <code>/clave</code></td><td>Si el servidor pide clave y si la que llega sirve</td><td></td></tr>
       <tr><td class="r">Pauta</td><td><span class="m get">GET</span> <code>/pautas</code> · <code>/pautas/{id}?version=</code> · <code>/pautas/{id}/versiones</code></td><td>Lista, una versión y su historia</td><td></td></tr>
       <tr><td></td><td><span class="m post">POST</span> <code>/pautas</code></td><td>Crea la versión siguiente, sin aprobar</td><td>Nunca encima de otra ni saltando (409)</td></tr>
       <tr><td></td><td><span class="m post">POST</span> <code>/pautas/{id}/versiones/{v}/aprobar</code></td><td>Una persona la aprueba</td><td>El sistema no aprueba; una sola vez (409)</td></tr>
       <tr><td class="r">OT</td><td><span class="m post">POST</span> <code>/ot/{id}/abrir?pauta_id=&amp;version=</code></td><td>Abre la OT y guarda la versión que ejecuta</td><td>Solo desde una pauta aprobada (409)</td></tr>
       <tr><td></td><td><span class="m get">GET</span> <code>/ots</code> · <code>/ot/{id}</code> · <code>/ot/{id}/calificacion</code></td><td>Lista con paso actual, estado por paso y calificación vigente</td><td>El estado se calcula leyendo eventos</td></tr>
-      <tr><td></td><td><span class="m post">POST</span> <code>/ot/{id}/declarar</code></td><td>Lo que dice el operario, evaluado contra la evidencia</td><td>Un paso de sensor nunca se cierra hablando</td></tr>
+      <tr><td></td><td><span class="m post">POST</span> <code>/ot/{id}/declarar</code></td><td>Lo que dice el operario, evaluado contra la evidencia. Con <code>paso_id</code>, la palabra sobre un paso que su sensor ya cerró solo se registra</td><td>Un paso de sensor nunca se cierra hablando</td></tr>
+      <tr><td></td><td><span class="m post">POST</span> <code>/ot/{id}/pasos/{paso}/confirmar</code></td><td>Una persona confirma el paso en curso aunque el sensor o la cámara no lo muestren; queda quién, por qué y qué marcaba el sensor</td><td>Solo el paso en curso, con motivo (409). La OT queda en warning y la seguridad sigue mandando</td></tr>
       <tr><td></td><td><span class="m get">GET</span> <code>/ot/{id}/alertas</code></td><td>Las alertas abiertas que todavía no tienen su <code>alerta_resuelta</code></td><td>Una alerta se resuelve, no se borra</td></tr>
       <tr><td class="r">Evento</td><td><span class="m get">GET</span> <code>/ot/{id}/eventos</code> · <code>/eventos/{id}</code></td><td>La bitácora, cada fila con su calificación</td><td>Editar o borrar: 405</td></tr>
       <tr><td class="r">Sensor</td><td><span class="m get">GET</span> <code>/sensores</code></td><td>El último valor de cada sensor</td><td></td></tr>
       <tr><td class="r">Guía</td><td><span class="m get">GET</span> <code>/agente</code> · <code>/llms.txt</code></td><td>Todo lo que un agente necesita para conectarse, en Markdown</td><td>El catálogo sale de las rutas reales</td></tr>
+      <tr><td class="r">Pruebas</td><td><span class="m get">GET</span> <code>/casos</code></td><td>El banco: cada criterio del PRD contra un servidor vivo, la matriz y una sección por industria</td><td>Cada corrida con su OT y su edge; deja los sensores como estaban</td></tr>
+      <tr><td></td><td><span class="m get">GET</span> <code>/escenarios</code> · <span class="m post">POST</span> <code>/escenarios[/{id}]/correr</code></td><td>Los 72 escenarios (industria × patrón) y su corrida, con bitácora, stream y recorrido</td><td>Corren en una caja aislada: no tocan la bitácora del servidor</td></tr>
+      <tr><td></td><td><span class="m get">GET</span> <code>/industrias</code></td><td>Cada industria con su pauta, sensores, reglas, trasfondo y casos de uso</td><td></td></tr>
     </tbody>
   </table>
 
@@ -298,10 +305,8 @@ td.r{font-weight:700;white-space:nowrap}
       <tr><td class="r">Pauta</td><td class="si">sí</td><td class="si">sí</td><td>versión nueva</td><td class="no">no</td><td style="text-align:left">Cada OT guarda qué versión ejecutó (ADR-0003)</td></tr>
       <tr><td class="r">Aprobación</td><td class="si">sí</td><td class="si">sí</td><td class="no">no</td><td class="no">no</td><td style="text-align:left">Queda quién aprobó y cuándo</td></tr>
       <tr><td class="r">OT</td><td class="si">sí</td><td class="si">sí</td><td>por eventos</td><td class="no">no</td><td style="text-align:left">Su estado es la lectura de su bitácora</td></tr>
-      <tr><td></td><td><span class="m get">GET</span> <code>/ot/{id}/alertas</code></td><td>Las alertas abiertas que todavía no tienen su <code>alerta_resuelta</code></td><td>Una alerta se resuelve, no se borra</td></tr>
       <tr><td class="r">Evento</td><td>por el flujo</td><td class="si">sí</td><td class="no">no</td><td class="no">no</td><td style="text-align:left">La bitácora solo agrega (LOGICA)</td></tr>
-      <tr><td class="r">Video</td><td><span class="m ws">WS</span> <code>/edge/{id}/video</code> · <span class="m post">POST</span> <code>/edge/{id}/cuadro</code></td><td>Un JPEG por mensaje, hasta 10 por segundo; los últimos 10 s quedan en memoria</td><td>Un cuadro que no es JPEG: error, y no corta la conexión</td></tr>
-      <tr><td></td><td><span class="m get">GET</span> <code>/edge/{id}/video.mjpg</code> · <code>/cuadro.jpg</code> · <code>/video</code></td><td>Video en vivo para un <code>&lt;img&gt;</code>, el último cuadro y si hay video</td><td>Nunca viaja por el WebSocket de la OT</td></tr>
+      <tr><td class="r">Video</td><td class="si">sí</td><td class="si">sí</td><td class="no">no</td><td>solo, a los 10 s</td><td style="text-align:left">Vive en memoria; el cuadro que juzgó un paso queda como evidencia en disco</td></tr>
       <tr><td class="r">Sesión</td><td class="si">sí</td><td class="si">sí</td><td>se reemplaza</td><td class="si">sí</td><td style="text-align:left">Es atribución, no historia</td></tr>
       <tr><td class="r">Sensor</td><td>lectura</td><td class="si">sí</td><td>la pisa la siguiente</td><td class="no">no</td><td style="text-align:left">Guarda el último valor; la historia está en los eventos</td></tr>
     </tbody>
@@ -313,13 +318,15 @@ td.r{font-weight:700;white-space:nowrap}
   <p>La calcula <code>scoring.py</code> al leer, nunca se guarda. Solo la capa 1 llega a ERROR porque es la única que interrumpe; las demás se muestran y no suenan. La OT toma el peor paso vigente más la seguridad evaluada con los sensores de ahora.</p>
   <div class="califs">
     <div class="calif"><b>Capa 1 · sensores y reglas</b><div class="tope"><span class="badge error">hasta error</span></div>
-      <div class="barra-c"><i data-ancho="100"></i></div><p>Certeza total mientras la lectura tenga 5 s o menos; después baja y pasa a warning.</p></div>
+      <div class="barra-c"><i data-ancho="100"></i></div><p>Certeza total mientras el sensor del paso en curso haya reportado en los últimos 5 s; después baja y pasa a warning. Seguridad, orden invertido y control perdido llegan a error.</p></div>
     <div class="calif"><b>Capa 2 · señal</b><div class="tope"><span class="badge warning">hasta warning</span></div>
-      <div class="barra-c"><i data-ancho="70"></i></div><p>Desvío robusto contra la historia del sensor; desde 3,5 desvíos. La certeza sube con la historia.</p></div>
+      <div class="barra-c"><i data-ancho="70"></i></div><p>Desvío robusto contra la historia normal del sensor, que no aprende de la falla; desde 3,5 desvíos. Diez lecturas idénticas: sensor pegado.</p></div>
     <div class="calif"><b>Capa 3 · cámara</b><div class="tope"><span class="badge warning">hasta warning</span></div>
-      <div class="barra-c"><i data-ancho="55"></i></div><p>La certeza es la confianza del juez. Bajo 75 % pide que alguien mire.</p></div>
+      <div class="barra-c"><i data-ancho="55"></i></div><p>La certeza es la confianza del juez. Bajo 75 % pide que alguien mire. Sin un cuadro de los últimos 10 s no se le pregunta.</p></div>
     <div class="calif"><b>Confirmación</b><div class="tope"><span class="badge ok">ok</span></div>
       <div class="barra-c"><i data-ancho="100"></i></div><p>La palabra del operario cierra el paso, y el motivo deja dicho que fue una persona.</p></div>
+    <div class="calif"><b>Confirmada contra la evidencia</b><div class="tope"><span class="badge warning">warning</span></div>
+      <div class="barra-c"><i data-ancho="50"></i></div><p>Una persona cerró el paso aunque el sensor no lo mostraba. Se le cree, y queda a la vista hasta que alguien revise el sensor.</p></div>
   </div>
 </section>
 
@@ -335,18 +342,32 @@ const CASOS = {
     ui: {nivel:"ok", hechos:1, aviso:null}
   },
   guarda: {
-    rutas: ["r-edge","r-s1","r-12","r-23","r-3b","r-bs","r-sb","r-bw","r-wu"],
-    marcas: {"n-s1":["ok","seq 57 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["err","alerta: empieza ahora"],"n-bit":["err","alerta capa 1"],"n-sco":["err","error · interrumpe"]},
+    rutas: ["r-edge","r-s1","r-12","r-23","r-3b","r-34","r-4b","r-bs","r-sb","r-bw","r-wu"],
+    marcas: {"n-s1":["ok","seq 57 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["err","alerta: empieza ahora"],"n-s4":["ok","p2 verificado"],"n-bit":["err","alerta capa 1 · veredicto p2"],"n-sco":["err","error · interrumpe"]},
     req: {edge:"edge-1", lecturas:[{sensor_id:"guarda", valor:"abierta", seq:57}]},
     ev: {tipo:"evento", evento:{id:3, ot_id:"ot-1", tipo:"alerta", estado:"en_conflicto", capa:1, detalle:"GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.", calificacion:{nivel:"error", certeza:1.0, capa:1}}},
-    ui: {nivel:"error", hechos:1, aviso:["err","Suena en el auricular: guarda abierta con energía viva. Entra una vez mientras dure."]}
+    ui: {nivel:"error", hechos:2, aviso:["err","Suena en el auricular: guarda abierta con energía viva. Entra una vez mientras dure."]}
   },
   resuelve: {
     rutas: ["r-edge","r-s1","r-12","r-23","r-3b","r-bs","r-sb","r-bw","r-wu"],
     marcas: {"n-s1":["ok","seq 58 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["ok","la condición terminó"],"n-bit":["ok","alerta_resuelta"],"n-sco":["ok","ok · sin avisos"]},
     req: {edge:"edge-1", lecturas:[{sensor_id:"guarda", valor:"cerrada", seq:58}]},
     ev: {tipo:"evento", evento:{id:4, ot_id:"ot-1", tipo:"alerta_resuelta", capa:1, actor:"sistema", detalle:"Se normalizó con guarda = cerrada: GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.", evidencia:{resuelve:3, tipo:"sensor"}, calificacion:{nivel:"ok", certeza:1.0, capa:1}}},
-    ui: {nivel:"ok", hechos:1, aviso:["gris","El aviso se fue: la alerta 3 quedó resuelta en la bitácora, no borrada."]}
+    ui: {nivel:"ok", hechos:2, aviso:["gris","El aviso se fue: la alerta 3 quedó resuelta en la bitácora, no borrada."]}
+  },
+  orden: {
+    rutas: ["r-edge","r-s1","r-12","r-23","r-34","r-4b","r-bs","r-sb","r-bw","r-wu"],
+    marcas: {"n-s1":["ok","seq 12 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["ok","sin peligro: energía cortada"],"n-s4":["err","orden: p2 antes que p1"],"n-bit":["err","alerta capa 1 · orden"],"n-sco":["err","error · interrumpe"]},
+    req: {edge:"edge-1", lecturas:[{sensor_id:"guarda", valor:"abierta", seq:12}]},
+    ev: {tipo:"evento", evento:{id:2, ot_id:"ot-1", tipo:"alerta", estado:"en_conflicto", capa:1, detalle:"ORDEN INVERTIDO: «Retirar la guarda» (guarda = abierta) antes de «Cortar la energía y bloquear con candado».", evidencia:{tipo:"orden", adelantado:"p2", pendiente:"p1", sensor:"guarda", valor:"abierta", clave:"orden:p2"}, calificacion:{nivel:"error", certeza:1.0, capa:1}}},
+    ui: {nivel:"error", hechos:0, aviso:["err","Suena: abriste la guarda sin bloquear. Se resuelve al poner el candado o al cerrar la guarda; la bitácora lo guarda igual."]}
+  },
+  control: {
+    rutas: ["r-edge","r-s1","r-12","r-23","r-34","r-4b","r-bs","r-sb","r-bw","r-wu"],
+    marcas: {"n-s1":["ok","seq 62 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["ok","sin peligro: energía cortada"],"n-s4":["err","control perdido: p1"],"n-bit":["err","alerta capa 1 · control"],"n-sco":["err","error · interrumpe"]},
+    req: {edge:"edge-1", lecturas:[{sensor_id:"reed_bloqueo", valor:"abierto", seq:62}]},
+    ev: {tipo:"evento", evento:{id:4, ot_id:"ot-1", tipo:"alerta", estado:"en_conflicto", capa:1, detalle:"CONTROL PERDIDO: «Cortar la energía y bloquear con candado» se deshizo (reed_bloqueo = abierto, exige cerrado).", evidencia:{tipo:"control", paso:"p1", sensor:"reed_bloqueo", valor:"abierto", espera:"cerrado", clave:"control:p1"}, calificacion:{nivel:"error", certeza:1.0, capa:1}}},
+    ui: {nivel:"error", hechos:2, aviso:["err","Suena: el candado salió con la guarda abierta. Se resuelve al volver a ponerlo."]}
   },
   vibracion: {
     rutas: ["r-edge","r-s1","r-12","r-23","r-34","r-45","r-5b","r-bs","r-sb","r-bw","r-wu"],
@@ -467,11 +488,12 @@ const MSGS = [
   ["SRV","DB","SELECT eventos, sensores, sesiones",""],
   ["API","UI","snapshot: estado, calificación, bitácora","vuelta"],
   ["EDGE","API","POST /edge/edge-1/lecturas  reed_bloqueo = cerrado","edge"],
-  ["API","SRV","recibir_lectura()  dedupe · sesión · seguridad · paso · señal",""],
+  ["API","SRV","recibir_lectura()  dedupe · sesión · seguridad · paso · control · orden · señal",""],
   ["SRV","DB","INSERT eventos  (veredicto p1)",""],
   ["SRV","API","bus.publicar  lectura · evento · calificacion_ot","vuelta"],
   ["API","UI","por el WS, sin que la UI pregunte","vuelta"],
   ["UI","API","POST /ot/ot-1/declarar · GET /ots · GET /pautas",""],
+  ["UI","API","POST /ot/ot-1/pasos/p1/confirmar  {supervisor:B, motivo}  → verificado por persona, warning",""],
 ];
 const g = document.getElementById("mensajes");
 const NS = "http://www.w3.org/2000/svg";

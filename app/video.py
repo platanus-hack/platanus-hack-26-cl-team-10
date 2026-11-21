@@ -29,6 +29,8 @@ JPEG_INICIO = b"\xff\xd8"
 TAMANO_MAX = 2_000_000
 SEGUNDOS_GUARDADOS = 10
 FPS_MAX = 20
+# El edge_id lo elige quien manda: sin tope, cada id nuevo reserva su propio buffer de cuadros.
+EDGES_MAX = 8
 OBJETOS_MAX = 50
 TEXTO_MAX = 64  # largo máximo de clase y modelo: lo que entra se reenvía a la UI
 RAIZ = Path(__file__).resolve().parent.parent
@@ -80,12 +82,22 @@ class Video:
         self._detecciones: dict[str, deque[dict]] = defaultdict(
             lambda: deque(maxlen=SEGUNDOS_GUARDADOS * FPS_MAX)
         )
+        self._visto: dict[str, float] = {}
         self._lock = threading.Lock()
         self.carpeta = carpeta_evidencias or EVIDENCIAS
+
+    def _anotar(self, edge_id: str) -> None:
+        """Con el lock tomado. Si llega un edge nuevo y no cabe, sale el que lleva más tiempo callado."""
+        if edge_id not in self._visto and len(self._visto) >= EDGES_MAX:
+            callado = min(self._visto, key=self._visto.__getitem__)
+            for de in (self._visto, self._cuadros, self._detecciones, self._contador):
+                de.pop(callado, None)
+        self._visto[edge_id] = time.monotonic()
 
     def recibir_detecciones(self, edge_id: str, d: dict) -> dict:
         det = validar_detecciones(d)
         with self._lock:
+            self._anotar(edge_id)
             det["ts"] = time.time()
             det["cuadro"] = self._contador[edge_id]  # el último cuadro que había al llegar
             self._detecciones[edge_id].append(det)
@@ -108,10 +120,16 @@ class Video:
         if len(jpeg) > TAMANO_MAX:
             raise CuadroInvalido(f"el cuadro pesa {len(jpeg)} bytes; el máximo es {TAMANO_MAX}")
         with self._lock:
+            self._anotar(edge_id)
             self._contador[edge_id] += 1
             cuadro = Cuadro(self._contador[edge_id], time.time(), jpeg)
             self._cuadros[edge_id].append(cuadro)
         return cuadro
+
+    def edges(self) -> list[str]:
+        """Los edges que mandaron video alguna vez desde que arrancó el servidor."""
+        with self._lock:
+            return list(self._cuadros)
 
     def ultimo(self, edge_id: str) -> Cuadro | None:
         with self._lock:

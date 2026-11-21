@@ -35,6 +35,11 @@ class Base(unittest.TestCase):
     def de_tipo(self, ot_id, tipo):
         return [e for e in db.eventos(self.cx, ot_id) if e.tipo is tipo]
 
+    def alertas(self, ot_id, clase):
+        """Las alertas de una clase: seguridad, orden, control, senal o pegado."""
+        return [e for e in self.de_tipo(ot_id, TipoEvento.ALERTA)
+                if (e.evidencia or {}).get("clave", "").startswith(f"{clase}:")]
+
 
 class SinSesion(Base):
     def test_una_lectura_sin_ot_en_curso_no_toca_ninguna_bitacora(self):
@@ -54,7 +59,7 @@ class Atribucion(Base):
         self.s.recibir_lectura("edge-1", "guarda", "abierta")
         r = self.s.recibir_lectura("edge-1", "energia", "viva")
         self.assertEqual(r["ot"], "ot-1")
-        self.assertEqual(len(self.de_tipo("ot-1", TipoEvento.ALERTA)), 1)
+        self.assertEqual(len(self.alertas("ot-1", "seguridad")), 1)
         self.assertEqual(self.de_tipo("ot-2", TipoEvento.ALERTA), [])
 
     def test_otro_edge_no_se_mezcla(self):
@@ -105,7 +110,7 @@ class AlertaDeSeguridad(Base):
         self.s.recibir_lectura("edge-1", "energia", "viva")
         for _ in range(3):
             self.s.recibir_lectura("edge-1", "guarda", "abierta")
-        self.assertEqual(len(self.de_tipo("ot-1", TipoEvento.ALERTA)), 1)
+        self.assertEqual(len(self.alertas("ot-1", "seguridad")), 1)
         self.assertEqual(self.s.calificacion("ot-1")["nivel"], "error")
 
     def test_si_la_condicion_vuelve_entra_otra_vez(self):
@@ -114,7 +119,7 @@ class AlertaDeSeguridad(Base):
         self.s.recibir_lectura("edge-1", "guarda", "cerrada")
         self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
         self.s.recibir_lectura("edge-1", "guarda", "abierta")
-        self.assertEqual(len(self.de_tipo("ot-1", TipoEvento.ALERTA)), 2)
+        self.assertEqual(len(self.alertas("ot-1", "seguridad")), 2)
 
 
 class LecturaDuplicada(Base):
@@ -189,13 +194,12 @@ class ElWarningSeVaCuandoElSensorSeCorrige(Base):
         self.s.recibir_lectura("edge-1", "guarda", "abierta")
         c = self.s.calificacion("ot-1")
         self.assertEqual(c["nivel"], "error")
-        self.assertEqual(len(c["avisos"]), 1)
-        abierta = self.de_tipo("ot-1", TipoEvento.ALERTA)[0]
+        self.assertIn("GUARDA ABIERTA CON ENERGÍA VIVA", c["avisos"][0]["motivos"][0])
+        abierta = self.alertas("ot-1", "seguridad")[0]
 
         self.s.recibir_lectura("edge-1", "guarda", "cerrada")
-        resuelta = self.de_tipo("ot-1", TipoEvento.ALERTA_RESUELTA)
+        resuelta = [e for e in self.de_tipo("ot-1", TipoEvento.ALERTA_RESUELTA) if e.evidencia["resuelve"] == abierta.id]
         self.assertEqual(len(resuelta), 1)
-        self.assertEqual(resuelta[0].evidencia["resuelve"], abierta.id)
         self.assertEqual(self.s.alertas_activas("ot-1"), {})
         c = self.s.calificacion("ot-1")
         self.assertEqual((c["nivel"], c["avisos"]), ("ok", []))
@@ -231,10 +235,10 @@ class ElWarningSeVaCuandoElSensorSeCorrige(Base):
         self.s.recibir_lectura("edge-1", "energia", "viva")
         self.s.recibir_lectura("edge-1", "guarda", "abierta")
         otra = Servicios(self.cx, BusDePrueba())
-        self.assertEqual(len(otra.alertas_activas("ot-1")), 1)
+        self.assertEqual([k.split(":")[0] for k in otra.alertas_activas("ot-1")], ["seguridad", "orden"])
         otra.recibir_lectura("edge-1", "guarda", "cerrada")
         self.assertEqual(otra.alertas_activas("ot-1"), {})
-        self.assertEqual(len(self.de_tipo("ot-1", TipoEvento.ALERTA)), 1)
+        self.assertEqual(len(self.alertas("ot-1", "seguridad")), 1)
 
 
 class ElJuezDeCamaraMiraElCuadroDelEdge(Base):
@@ -270,11 +274,20 @@ class ElJuezDeCamaraMiraElCuadroDelEdge(Base):
         self.assertEqual(r["estado"], "verificado")
         self.assertTrue(r["evidencia"]["cuadro"].endswith("ot-1-p3-1.jpg"))
 
-    def test_sin_video_el_juez_no_tiene_que_mirar(self):
+    def test_sin_video_no_se_le_pregunta_al_juez_y_el_paso_no_se_verifica(self):
         r = self.s.declarar("ot-1", "operario:A", "rodillo cambiado")
-        self.assertEqual(self.recibidos, [None])
-        self.assertIsNone(r["evidencia"]["cuadro"])
-        self.assertEqual(r["estado"], "en_conflicto")
+        self.assertEqual(self.recibidos, [])
+        self.assertEqual(r["estado"], "no_verificado")
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "warning")
+
+    def test_un_cuadro_viejo_cuenta_como_sin_video(self):
+        import time
+
+        from app.video import SEGUNDOS_GUARDADOS
+
+        c = self.s.video.recibir("edge-1", self.JPEG)
+        object.__setattr__(c, "ts", time.time() - SEGUNDOS_GUARDADOS - 1)
+        self.assertEqual(self.s.declarar("ot-1", "operario:A", "rodillo cambiado")["estado"], "no_verificado")
 
     def test_la_pauta_completa_no_admite_mas_declaraciones(self):
         from app.catalogo import ReglaDeNegocio

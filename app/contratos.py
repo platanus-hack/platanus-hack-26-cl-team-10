@@ -31,6 +31,7 @@ class Estado(StrEnum):
 
 class TipoEvento(StrEnum):
     OT_ABIERTA = "ot_abierta"
+    OT_ASIGNADA = "ot_asignada"
     PASO_INICIADO = "paso_iniciado"
     DECLARACION = "declaracion"
     VEREDICTO = "veredicto"

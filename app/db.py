@@ -38,6 +38,14 @@ CREATE INDEX IF NOT EXISTS idx_eventos_ot ON eventos (ot_id, id);
 """
 
 
+class NoExiste(KeyError):
+    """Lo pedido (OT, pauta, evento, paso, sesión) no existe: la API responde 404.
+
+    Hereda de KeyError para quien ya lo atrapaba, pero la API solo traduce a 404 esta
+    clase: un KeyError cualquiera es un bug y sale como 500, con su traza.
+    """
+
+
 def ahora() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -139,7 +147,7 @@ def leer_pauta(cx: sqlite3.Connection, pauta_id: str, version: int | None = None
             "SELECT json FROM pautas WHERE id = ? AND version = ?", (pauta_id, version)
         ).fetchone()
     if fila is None:
-        raise KeyError(f"pauta {pauta_id} v{version}")
+        raise NoExiste(f"pauta {pauta_id} v{version}")
     d = json.loads(fila["json"])
     return Pauta(
         id=d["id"],
@@ -175,7 +183,7 @@ def abrir_ot(cx: sqlite3.Connection, ot_id: str, pauta: Pauta, actor: str) -> No
 def leer_ot(cx: sqlite3.Connection, ot_id: str) -> sqlite3.Row:
     fila = cx.execute("SELECT * FROM ots WHERE id = ?", (ot_id,)).fetchone()
     if fila is None:
-        raise KeyError(f"OT {ot_id}")
+        raise NoExiste(f"OT {ot_id}")
     return fila
 
 

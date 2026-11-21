@@ -12,9 +12,14 @@ Por cada lectura atribuida:
 3. Si el paso actual se cierra con ese sensor, se evalúa y, si quedó verificado,
    entra su veredicto. El orden lo sigue imponiendo la app: solo el paso actual,
    y solo con una lectura de su propio sensor (ADR-0002).
-4. Capa 2: si el valor es numérico, se califica contra su historia. La anomalía
-   abre una alerta de capa 2 y la vuelta a lo normal la resuelve.
-5. Todo lo nuevo, la calificación vigente y los avisos activos salen por el bus.
+4. Controles: un control crítico ya verificado que se deshace abre una alerta de
+   capa 1, que se resuelve cuando el sensor vuelve.
+5. Orden: una lectura que cierra un paso posterior al actual abre una alerta de
+   capa 1, que se resuelve cuando se hace el paso saltado o se deshace lo adelantado.
+6. Capa 2: si el valor es numérico, se califica contra su historia normal. La
+   anomalía abre una alerta y la vuelta a lo normal la resuelve; diez lecturas
+   idénticas seguidas abren el aviso de sensor pegado.
+7. Todo lo nuevo, la calificación vigente y los avisos activos salen por el bus.
 
 Qué alertas siguen activas se lee de la bitácora, no de la memoria: una alerta
 está activa mientras no haya un `alerta_resuelta` que la apunte. Así un reinicio
@@ -23,25 +28,42 @@ del servidor no las pierde.
 
 from __future__ import annotations
 
+import logging
+import os
 import sqlite3
+import threading
+import time
 from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import asdict
 
-from app import catalogo, db, verificacion
+from app import acceso, catalogo, db, verificacion
 from app.bus import Bus, canal_edge, canal_ot
 from app.catalogo import ReglaDeNegocio
 from app.cerebro import estado_de_ot
 from app.contratos import Capa, Estado, Evento, TipoEvento, TipoEvidencia
-from app.reglas import estados_desde_eventos, evaluar, paso_actual, por_deteccion, reglas_seguridad
-from app.scoring import Nivel, avisos, calificar_evento, capa2, peor, vigentes
-from app.video import Video
+from app.reglas import (
+    controles_deshechos,
+    desviacion_de_orden,
+    estados_desde_eventos,
+    evaluar,
+    paso_actual,
+    por_deteccion,
+    reglas_seguridad,
+)
+from app.contratos import Pauta, Paso, Veredicto
+from app.scoring import Nivel, avisos, calificar_evento, capa2, frescura, peor, vigentes
+from app.video import SEGUNDOS_GUARDADOS, Video
+
+log = logging.getLogger(__name__)
 
 HISTORIA_MAX = 300
 SEQ_RECORDADOS = 500
+IGUALES_PEGADO = 10
 # Capa 2 de cámara: se juzga con las detecciones del último segundo, y solo si hay
 # suficientes (a ~18/s, 5 son ~0,3 s) para que un cuadro suelto no cierre un paso.
-VENTANA_DETECCION_S = 1.0
+# con el detector en el servidor (~2,5 detecciones/s en la VM) 1 s no junta 5: se alarga por entorno
+VENTANA_DETECCION_S = float(os.environ.get("VENTANA_DETECCION_S", "1.0"))
 DETECCIONES_MIN = 5
 JUICIO_CADA_S = 0.5  # cada cuánto se revisa el paso con lo que llega del edge
 
@@ -70,6 +92,20 @@ def _clave_senal(sensor_id: str) -> str:
     return f"senal:{sensor_id}"
 
 
+def _paso(pauta: Pauta, paso_id: str) -> Paso:
+    """El paso que nombró el cliente: si no es de la pauta, es un 404 y no un bug."""
+    try:
+        return pauta.paso(paso_id)
+    except KeyError:
+        raise db.NoExiste(f"paso {paso_id} de la pauta {pauta.id}") from None
+
+
+def _edad_s(ts: str) -> float:
+    from datetime import UTC, datetime
+
+    return (datetime.now(UTC) - datetime.fromisoformat(ts)).total_seconds()
+
+
 class Servicios:
     def __init__(
         self,
@@ -83,10 +119,12 @@ class Servicios:
         self.video = video or Video()
         self.juez = juez or verificacion.juez_camara
         cx.executescript(_ESQUEMA)
-        catalogo.preparar(cx)
+        acceso.preparar(cx)
         self._historia: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=HISTORIA_MAX))
         self._seq: dict[str, deque[int]] = defaultdict(lambda: deque(maxlen=SEQ_RECORDADOS))
+        self._iguales: dict[str, tuple[float, int]] = {}
         self._ultimo_juicio: dict[str, float] = defaultdict(float)
+        self._candado_asignar = threading.Lock()
 
     # ─── Sesión: qué OT ejecuta cada edge ──────────────────────────────────
 
@@ -115,6 +153,20 @@ class Servicios:
     def sesion_de_ot(self, ot_id: str) -> dict | None:
         f = self.cx.execute("SELECT * FROM sesiones WHERE ot_id = ?", (ot_id,)).fetchone()
         return dict(f) if f else None
+
+    # ─── Gestión: la lista de OT y a quién le toca cada una ───────────────
+
+    def _ots_en_sesion(self) -> set[str]:
+        return {s["ot_id"] for s in self.sesiones()}
+
+    def ots(self) -> list[dict]:
+        return catalogo.listar_ots(self.cx, self._ots_en_sesion())
+
+    def asignar(self, ot_id: str, operador: str, actor: str) -> dict:
+        """Deja la OT en manos de `operador` y devuelve su resumen, como un ítem de la lista."""
+        with self._candado_asignar:  # dos supervisores a la vez: gana uno, el otro recibe la regla
+            self.agregar(catalogo.asignacion(self.cx, ot_id, operador, actor))
+        return catalogo.resumen_ot(self.cx, ot_id, self._ots_en_sesion())
 
     def _video_de(self, edge_id: str) -> dict:
         return {**self.video.estado(edge_id), "url": f"/edge/{edge_id}/video.mjpg"}
@@ -159,8 +211,13 @@ class Servicios:
         if evidencia is None:
             return None
         cuadro = self.video.ultimo(edge_id) if edge_id else None
-        return {**evidencia, "cuadro": (self.video.guardar_evidencia(cuadro, f"{ot_id}-{paso_id}-{cuadro.n}")
-                                        if cuadro else None)}
+        ruta = None
+        if cuadro:
+            try:
+                ruta = self.video.guardar_evidencia(cuadro, f"{ot_id}-{paso_id}-{cuadro.n}")
+            except OSError:  # sin disco o carpeta rota: se pierde la foto, no el veredicto
+                log.exception("no se pudo guardar el cuadro de %s %s", ot_id, paso_id)
+        return {**evidencia, "cuadro": ruta}
 
     # ─── Bitácora: agregar y repartir ──────────────────────────────────────
 
@@ -187,12 +244,26 @@ class Servicios:
         return {**peor(partes).como_dict(), "avisos": avisos(partes)}
 
     def _vigentes(self, ot_id: str):
+        """Lo vigente: veredictos, seguridad con los sensores de ahora, y las alertas abiertas
+        que no se recalculan de los sensores (orden, control, señal). La seguridad no se suma
+        acá porque vigentes() ya la evalúa con los sensores actuales."""
         evs = db.eventos(self.cx, ot_id)
-        senales = [
-            c for ev in self.alertas_activas(ot_id).values()
-            if ev.capa == Capa.APRENDIZAJE and (c := calificar_evento(ev)) is not None
+        abiertas = [
+            c for clave, ev in self.alertas_activas(ot_id).items()
+            if not clave.startswith("seguridad:") and (c := calificar_evento(ev)) is not None
         ]
-        return vigentes(evs, db.estado_sensores(self.cx), senales)
+        return vigentes(evs, db.estado_sensores(self.cx), [*abiertas, *self._frescura(ot_id, evs)])
+
+    def _frescura(self, ot_id: str, evs) -> list:
+        """Si el sensor del paso en curso dejó de mandar, lo que dice ya no es seguro."""
+        fila = db.leer_ot(self.cx, ot_id)
+        pauta = db.leer_pauta(self.cx, fila["pauta_id"], fila["pauta_version"])
+        paso = paso_actual(pauta, estados_desde_eventos(evs))
+        if paso is None or paso.sensor is None:
+            return []
+        f = self.cx.execute("SELECT ts FROM sensores WHERE id = ?", (paso.sensor.id,)).fetchone()
+        c = frescura(paso.sensor.id, _edad_s(f["ts"])) if f else None
+        return [c] if c else []
 
     def publicar_calificacion(self, ot_id: str) -> dict:
         c = self.calificacion(ot_id)
@@ -219,11 +290,27 @@ class Servicios:
 
     # ─── Lo que dice el operario ───────────────────────────────────────────
 
-    def declarar(self, ot_id: str, actor: str, texto: str) -> dict:
-        """El operario habla; la evidencia manda. Un paso de cámara se juzga con el cuadro actual."""
+    def declarar(self, ot_id: str, actor: str, texto: str, paso_id: str | None = None) -> dict:
+        """El operario habla; la evidencia manda. Un paso de cámara se juzga con el cuadro actual.
+
+        `paso_id` es el paso que la app le mostraba. Si su sensor ya lo cerró, la palabra
+        llegó tarde: se registra y no se evalúa contra el paso siguiente. En cualquier otro
+        caso se evalúa el paso actual, porque el orden lo impone la app (ADR-0002).
+        """
         fila = db.leer_ot(self.cx, ot_id)
         pauta = db.leer_pauta(self.cx, fila["pauta_id"], fila["pauta_version"])
-        paso = paso_actual(pauta, estados_desde_eventos(db.eventos(self.cx, ot_id)))
+        estados = estados_desde_eventos(db.eventos(self.cx, ot_id))
+        if paso_id is not None:
+            nombrado = _paso(pauta, paso_id)
+            if estados.get(paso_id) is Estado.VERIFICADO:
+                self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.DECLARACION, ts=db.ahora(), actor=actor,
+                                    paso_id=paso_id, declarado=texto,
+                                    detalle=f"confirma «{nombrado.titulo}», que su evidencia ya había cerrado"))
+                calificacion = self.publicar_calificacion(ot_id)
+                return {"paso": paso_id, "estado": str(Estado.VERIFICADO), "capa": None,
+                        "detalle": "la evidencia ya había cerrado este paso; la declaración queda registrada",
+                        "interrumpe": False, "evidencia": None, "calificacion": None, "calificacion_ot": calificacion}
+        paso = paso_actual(pauta, estados)
         if paso is None:
             raise ReglaDeNegocio("la pauta ya está completa")
 
@@ -235,8 +322,14 @@ class Servicios:
             sesion = self.sesion_de_ot(ot_id)
             edge_id = sesion["edge_id"] if sesion else None
             cuadro = self.video.ultimo(edge_id) if edge_id else None
+            if cuadro is not None and time.time() - cuadro.ts > SEGUNDOS_GUARDADOS:
+                cuadro = None
             # Capa 2 primero: si el modelo del edge está seguro, decide él; si no, el juez (capa 3).
             v = por_deteccion(paso, self._detecciones_para_juzgar(edge_id)) if edge_id else None
+            if v is None and cuadro is None:
+                # Sin un cuadro reciente el juez no tiene qué mirar: su respuesta no es evidencia.
+                v = Veredicto(Estado.NO_VERIFICADO, Capa.MODELO,
+                              f"sin video reciente del edge: no hay cuadro para responder «{paso.pregunta_visual}»")
 
         if v is None:
             v = evaluar(paso, texto, db.estado_sensores(self.cx),
@@ -252,6 +345,53 @@ class Servicios:
         return {"paso": paso.id, "estado": str(v.estado), "capa": v.capa, "detalle": v.detalle,
                 "interrumpe": v.interrumpe, "evidencia": evidencia,
                 "calificacion": evento_dict(ev)["calificacion"], "calificacion_ot": calificacion}
+
+    def confirmar_por_persona(self, ot_id: str, paso_id: str, actor: str, motivo: str) -> dict:
+        """Una persona afirma que el paso en curso está hecho aunque la evidencia no lo muestre.
+
+        Se le cree, pero no en silencio (LOGICA): queda quién, el motivo y qué marcaba
+        el sensor, la OT queda en warning y la seguridad se sigue evaluando con los
+        sensores reales. Solo el paso en curso, y no un paso de confirmación.
+        """
+        pauta, estados = self._pauta_y_estados(ot_id)
+        paso = _paso(pauta, paso_id)
+        actual = paso_actual(pauta, estados)
+        if actual is None:
+            raise ReglaDeNegocio("la pauta ya está completa")
+        if paso.id != actual.id:
+            raise ReglaDeNegocio(f"solo se confirma el paso en curso ({actual.id}): el orden lo impone la app")
+        if paso.tipo_evidencia is TipoEvidencia.CONFIRMACION:
+            raise ReglaDeNegocio(f"«{paso.titulo}» es de confirmación: se cierra declarando")
+        if not actor or actor == "sistema":
+            raise ReglaDeNegocio("un paso lo confirma una persona, no el sistema")
+        if not motivo.strip():
+            raise ReglaDeNegocio("confirmar contra la evidencia necesita un motivo")
+
+        valor = db.estado_sensores(self.cx).get(paso.sensor.id) if paso.sensor else None
+        contra = ({"sensor": paso.sensor.id, "valor": valor, "espera": paso.sensor.espera} if paso.sensor
+                  else {"camara": paso.pregunta_visual})
+        que = (f"{paso.sensor.id} = {valor}, se esperaba {paso.sensor.espera}" if paso.sensor
+               else "la cámara no lo confirmó")
+        ev = self.agregar(Evento(
+            ot_id=ot_id, tipo=TipoEvento.VEREDICTO, ts=db.ahora(), actor=actor, paso_id=paso.id,
+            estado=Estado.VERIFICADO, capa=None, declarado=motivo,
+            evidencia={"tipo": "persona", "motivo": motivo, "contra": contra},
+            detalle=f"{actor} confirma «{paso.titulo}» contra la evidencia ({que}): {motivo}",
+        ))
+        self._resolver_orden(ot_id, f"lo confirmó {actor}")
+        calificacion = self.publicar_calificacion(ot_id)
+        d = evento_dict(ev)
+        return {"paso": paso.id, "estado": str(Estado.VERIFICADO), "capa": None, "detalle": ev.detalle,
+                "interrumpe": False, "evidencia": ev.evidencia, "calificacion": d["calificacion"],
+                "calificacion_ot": calificacion}
+
+    def _por_persona(self, ot_id: str) -> set[str]:
+        """Pasos cuyo último veredicto lo puso una persona contra la evidencia."""
+        ultimo: dict[str, Evento] = {}
+        for ev in db.eventos(self.cx, ot_id):
+            if ev.tipo is TipoEvento.VEREDICTO and ev.paso_id:
+                ultimo[ev.paso_id] = ev
+        return {p for p, ev in ultimo.items() if (ev.evidencia or {}).get("tipo") == "persona"}
 
     # ─── Lo que llega del edge ─────────────────────────────────────────────
 
@@ -276,6 +416,8 @@ class Servicios:
         nuevos = [
             *self._seguridad(ot_id, sensor_id, valor),
             *self._paso_por_sensor(ot_id, sensor_id),
+            *self._controles(ot_id, sensor_id, valor),
+            *self._orden(ot_id, sensor_id, valor),
             *self._senal(ot_id, sensor_id, valor),
         ]
         calificacion = self.publicar_calificacion(ot_id)
@@ -310,6 +452,61 @@ class Servicios:
         ]
         return nuevos
 
+    def _abrir(self, ot_id: str, v: Veredicto, clave: str) -> Evento:
+        return self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.ALERTA, ts=db.ahora(), actor="sistema",
+                                   estado=v.estado, capa=v.capa, detalle=v.detalle,
+                                   evidencia={**(v.evidencia or {}), "clave": clave}))
+
+    def _pauta_y_estados(self, ot_id: str):
+        fila = db.leer_ot(self.cx, ot_id)
+        pauta = db.leer_pauta(self.cx, fila["pauta_id"], fila["pauta_version"])
+        return pauta, estados_desde_eventos(db.eventos(self.cx, ot_id))
+
+    def _controles(self, ot_id: str, sensor_id: str, valor: str) -> list[Evento]:
+        pauta, estados = self._pauta_y_estados(ot_id)
+        sensores = db.estado_sensores(self.cx)
+        ahora = {f"control:{v.evidencia['paso']}": v
+                 for v in controles_deshechos(pauta, estados, sensores, self._por_persona(ot_id))}
+        activas = {k: e for k, e in self.alertas_activas(ot_id).items() if k.startswith("control:")}
+        nuevos = [self._abrir(ot_id, v, clave) for clave, v in ahora.items() if clave not in activas]
+        nuevos += [
+            self._resolver(ot_id, abierta, f"Control repuesto con {sensor_id} = {valor}: {abierta.detalle}",
+                           {"tipo": "control", "sensor": sensor_id, "valor": valor})
+            for clave, abierta in activas.items() if clave not in ahora
+        ]
+        return nuevos
+
+    def _resolver_orden(self, ot_id: str, por: str = "") -> list[Evento]:
+        """Cierra las alertas de orden cuyo paso saltado ya se hizo o cuyo adelanto se deshizo."""
+        _, estados = self._pauta_y_estados(ot_id)
+        sensores = db.estado_sensores(self.cx)
+        nuevos = []
+        for clave, abierta in self.alertas_activas(ot_id).items():
+            if not clave.startswith("orden:"):
+                continue
+            ev = abierta.evidencia or {}
+            if estados.get(ev.get("pendiente")) is Estado.VERIFICADO:
+                motivo = f"se hizo el paso saltado ({ev.get('pendiente')}{', ' + por if por else ''})"
+            elif sensores.get(ev.get("sensor")) != ev.get("valor"):
+                motivo = f"se deshizo lo adelantado ({ev.get('sensor')} = {sensores.get(ev.get('sensor'))})"
+            else:
+                continue
+            nuevos.append(self._resolver(ot_id, abierta, f"Orden resuelto: {motivo}. {abierta.detalle}",
+                                         {"tipo": "orden", "sensor": ev.get("sensor"),
+                                          "valor": sensores.get(ev.get("sensor"))}))
+        return nuevos
+
+    def _orden(self, ot_id: str, sensor_id: str, valor: str) -> list[Evento]:
+        pauta, estados = self._pauta_y_estados(ot_id)
+        nuevos = self._resolver_orden(ot_id)
+        # Deshacer un control ya cuenta como control perdido: no se avisa dos veces lo mismo.
+        perdido = any(k.startswith("control:") and (e.evidencia or {}).get("sensor") == sensor_id
+                      for k, e in self.alertas_activas(ot_id).items())
+        v = None if perdido else desviacion_de_orden(pauta, estados, sensor_id, valor)
+        if v is not None and (clave := f"orden:{v.evidencia['adelantado']}") not in self.alertas_activas(ot_id):
+            nuevos.append(self._abrir(ot_id, v, clave))
+        return nuevos
+
     def _paso_por_sensor(self, ot_id: str, sensor_id: str) -> list[Evento]:
         fila = db.leer_ot(self.cx, ot_id)
         pauta = db.leer_pauta(self.cx, fila["pauta_id"], fila["pauta_version"])
@@ -338,18 +535,39 @@ class Servicios:
             return []
         historia = self._historia[sensor_id]
         c = capa2(sensor_id, list(historia), x)
-        historia.append(x)
+        if c.nivel is Nivel.OK:
+            # La historia es la de lo normal: una falla que se sostiene no pasa a ser la referencia.
+            historia.append(x)
 
+        nuevos = self._pegado(ot_id, sensor_id, x)
         clave = _clave_senal(sensor_id)
         abierta = self.alertas_activas(ot_id).get(clave)
         if c.nivel is Nivel.WARNING and abierta is None:
-            return [self.agregar(Evento(
+            return nuevos + [self.agregar(Evento(
                 ot_id=ot_id, tipo=TipoEvento.ALERTA, ts=db.ahora(), actor="sistema",
                 capa=Capa.APRENDIZAJE, detalle=c.motivos[0],
                 evidencia={"tipo": "senal", "sensor": sensor_id, "valor": x,
                            "certeza": round(c.certeza, 2), "clave": clave},
             ))]
         if c.nivel is Nivel.OK and abierta is not None:
-            return [self._resolver(ot_id, abierta, f"{sensor_id} volvió a lo normal: {x:g}",
-                                   {"tipo": "senal", "sensor": sensor_id, "valor": x})]
+            return nuevos + [self._resolver(ot_id, abierta, f"{sensor_id} volvió a lo normal: {x:g}",
+                                            {"tipo": "senal", "sensor": sensor_id, "valor": x})]
+        return nuevos
+
+    def _pegado(self, ot_id: str, sensor_id: str, x: float) -> list[Evento]:
+        """Diez lecturas idénticas seguidas: falla del sensor, no del equipo. Capa 2, no interrumpe."""
+        previo, n = self._iguales.get(sensor_id, (None, 0))
+        n = n + 1 if x == previo else 1
+        self._iguales[sensor_id] = (x, n)
+        clave = f"pegado:{sensor_id}"
+        abierta = self.alertas_activas(ot_id).get(clave)
+        if n >= IGUALES_PEGADO and abierta is None:
+            return [self.agregar(Evento(
+                ot_id=ot_id, tipo=TipoEvento.ALERTA, ts=db.ahora(), actor="sistema", capa=Capa.APRENDIZAJE,
+                detalle=f"{sensor_id} lleva {n} lecturas idénticas ({x:g}): el sensor puede estar pegado",
+                evidencia={"tipo": "pegado", "sensor": sensor_id, "valor": x, "certeza": 0.5, "clave": clave},
+            ))]
+        if n == 1 and abierta is not None:
+            return [self._resolver(ot_id, abierta, f"{sensor_id} volvió a variar: {x:g}",
+                                   {"tipo": "pegado", "sensor": sensor_id, "valor": x})]
         return []

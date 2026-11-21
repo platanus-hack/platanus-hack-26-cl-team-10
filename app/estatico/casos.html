@@ -1,0 +1,1680 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casos · banco de pruebas de los servicios</title>
+<!-- El banco de pruebas del PRD de servicios en vivo (knowledge/projects/servicios-en-vivo/PRD.md).
+     Una tarjeta por criterio de aceptación. Cada «Correr» ejecuta contra el servidor elegido la
+     misma secuencia que su test de tests/, con una OT y un edge propios de la corrida.
+     tests/test_casos.py vigila que cada criterio del PRD tenga su tarjeta: si el PRD suma un
+     criterio, su tarjeta entra en el mismo commit. Sin dependencias: un archivo, sin build. -->
+<style>
+:root{
+  --ink:#16202b; --muted:#5b6673; --line:#d9dee5; --soft:#f1f3f6; --bg:#f7f8fa; --paper:#fff;
+  --brand:#2f5f9e; --brand-soft:#e7eef8;
+  --ok:#2f7d5b; --ok-bg:#e3f3ea; --warn:#9a6400; --warn-bg:#fdf3d6; --err:#b42318; --err-bg:#fdeceb;
+  --deep:#141c26; --violet:#6b4fa0; --violet-bg:#f1ecfa;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:92px}
+body{margin:0;font:16px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+a{color:var(--brand)}
+code{font-family:var(--mono);font-size:15px;background:var(--soft);padding:1px 5px;border-radius:5px}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.55}
+
+header.portada{background:var(--deep);color:#eef2f7;padding:36px 0 28px}
+header.portada .chip{display:inline-block;font-size:15px;padding:3px 10px;border-radius:999px;background:#25324a;color:#b9c9e6;margin-right:6px}
+header.portada h1{font-size:32px;line-height:1.18;margin:14px 0 10px;max-width:900px;letter-spacing:-.01em}
+header.portada p{color:#b8c2cf;font-size:17px;max-width:900px;margin:0}
+header.portada a{color:#b9c9e6}
+
+/* barra de control, pegada arriba */
+.control{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);box-shadow:0 2px 10px rgba(20,28,38,.05)}
+.control .wrap{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;padding-top:12px;padding-bottom:12px}
+.control label{font-size:15px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.control select{padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:var(--paper);color:var(--ink);max-width:420px}
+.luz{display:inline-block;width:10px;height:10px;border-radius:50%;background:#aab3bf;margin-right:6px;vertical-align:1px}
+.luz.ok{background:var(--ok)} .luz.err{background:var(--err)}
+#conexion{font-size:15px;color:var(--muted)}
+.primario{background:var(--deep);color:#fff;border:1px solid var(--deep);border-radius:9px;padding:7px 16px;font-weight:700}
+.secundario{background:var(--paper);color:var(--ink);border:1px solid #b9c2ce;border-radius:9px;padding:6px 14px;font-weight:600}
+.secundario:hover:not(:disabled){border-color:var(--ink)}
+#resumen{margin-left:auto;font-size:16px;font-weight:700}
+#resumen small{font-weight:400;color:var(--muted);font-size:15px}
+.marcas{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.marca{font-family:var(--mono);font-size:15px;text-decoration:none;color:var(--muted);background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:1px 8px}
+.marca.pasa{color:var(--ok);background:var(--ok-bg);border-color:#b8dcc9}
+.marca.falla{color:var(--err);background:var(--err-bg);border-color:#f2c1bc}
+.marca.corriendo{color:var(--brand);background:var(--brand-soft);border-color:#bfd0e8}
+
+.aviso{display:none;margin:18px 0 0;padding:14px 16px;border-radius:12px;background:var(--warn-bg);color:#5f3f00;border:1px solid #ecd699;font-size:15px}
+.aviso.visible{display:block}
+.aviso label{display:block;margin-top:8px;font-weight:700}
+
+section.servicio{margin:36px 0}
+section.servicio>h2{font-size:23px;margin:0 0 4px}
+section.servicio>h2 code{font-size:16px;font-weight:400;margin-left:8px}
+section.servicio>p{margin:0 0 16px;color:var(--muted);max-width:900px}
+
+.caso{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:14px 0}
+.caso.brecha{border-left:5px solid var(--warn)}
+.caso.pasa{border-left:5px solid var(--ok)} .caso.falla{border-left:5px solid var(--err)} .caso.corriendo{border-left:5px solid var(--brand)}
+.cabeza{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.cabeza .id{font-family:var(--mono);font-weight:700;font-size:16px;background:var(--deep);color:#fff;border-radius:8px;padding:2px 9px}
+.cabeza .obj{font-size:15px;font-weight:600;color:var(--brand);background:var(--brand-soft);border-radius:8px;padding:2px 9px;white-space:nowrap}
+.cabeza h3{font-size:18px;margin:0;flex:1 1 320px}
+.sello{font-size:15px;font-weight:800;letter-spacing:.04em;padding:3px 12px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.sello.pasa{background:var(--ok-bg);color:var(--ok)} .sello.falla{background:var(--err-bg);color:var(--err)}
+.sello.corriendo{background:var(--brand-soft);color:var(--brand)}
+.sello.brecha{background:var(--warn-bg);color:var(--warn)}
+.dce{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 10px}
+@media (max-width:900px){.dce{grid-template-columns:1fr}}
+.dce div{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:15px}
+.dce b{display:block;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.porque{font-size:15px;color:var(--muted);margin:0;max-width:none}
+.porque b{color:var(--ink)}
+.opcion{font-size:15px;color:var(--muted);margin:8px 0 0}
+.opcion select{padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--paper)}
+
+.corrida{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px}
+.corrida .ids{font-size:15px;color:var(--muted);margin:0 0 10px}
+.corrida .ids code{background:var(--soft)}
+.fallo-general{background:var(--err-bg);color:var(--err);border-radius:10px;padding:10px 12px;font-size:15px;margin:0 0 10px;font-weight:600}
+table.checks{width:100%;border-collapse:collapse;font-size:15px;margin-bottom:14px}
+table.checks th,table.checks td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.checks th{background:var(--soft);font-weight:600;color:var(--muted)}
+table.checks td.v{font-family:var(--mono);font-size:15px;word-break:break-word;max-width:320px}
+table.checks td.s{font-weight:800;white-space:nowrap}
+table.checks tr.si td.s{color:var(--ok)} table.checks tr.no td.s{color:var(--err)}
+table.checks tr.no td{background:#fff8f7}
+table.checks tr.obs td{color:var(--muted)} table.checks tr.obs td.s{color:var(--violet)}
+table.checks small{display:block;color:var(--muted)}
+
+.traza{display:grid;grid-template-columns:1.25fr 1fr;gap:14px}
+@media (max-width:1000px){.traza{grid-template-columns:1fr}}
+.traza>div{min-width:0}
+.traza h4{font-size:15px;color:var(--muted);font-weight:600;margin:0 0 6px}
+.lista{background:var(--deep);color:#dfe7f1;border-radius:12px;padding:10px 12px;font-family:var(--mono);font-size:15px;line-height:1.45;max-height:520px;overflow:auto}
+.lista .vacio{color:#8d9aab}
+.lista .fase{color:#8d9aab;letter-spacing:.06em;text-transform:uppercase;margin:8px 0 2px;font-size:15px}
+.lista .fase:first-child{margin-top:0}
+.lista details{margin:2px 0}
+.lista summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden}
+.lista summary::-webkit-details-marker{display:none}
+.lista summary .t{color:#8d9aab;flex:none}
+.lista summary .ruta{overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:80px}
+.lista summary .res{overflow:hidden;text-overflow:ellipsis;color:#aab6c5;flex:1 1 0;min-width:0}
+.lista pre{margin:4px 0 8px 0;padding:8px 10px;background:#0d131b;border-radius:8px;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:15px;color:#c9d6e6}
+.lista pre b{color:#8d9aab;font-weight:400}
+.m{font-weight:700;padding:0 6px;border-radius:5px;flex:none}
+.m.get{background:#1d3a2e;color:#8fe0b4} .m.post{background:#1e3350;color:#9cc3f5}
+.m.delete,.m.put,.m.patch{background:#3b1717;color:#ffb4ad} .m.ws{background:#33284d;color:#cbb6f2}
+.st{font-weight:700;flex:none} .st.s2{color:#8fe0b4} .st.s4{color:#ffd97a} .st.s5,.st.s0{color:#ffb4ad}
+.tipo{font-weight:700;flex:none}
+.tipo.snapshot{color:#cbb6f2} .tipo.lectura{color:#9cc3f5} .tipo.evento{color:#8fe0b4} .tipo.calificacion_ot{color:#ffd97a} .tipo.sesion{color:#cbb6f2} .tipo.conexion{color:#8d9aab}
+.nota-traza{color:#ffd97a;white-space:normal;margin:4px 0}
+.nota-traza a{color:#9cc3f5}
+.evidencia{margin-top:12px;font-size:15px;color:var(--muted)}
+.evidencia img{display:block;max-width:320px;width:100%;border-radius:10px;border:1px solid var(--line);margin-top:6px;background:#000}
+footer{color:var(--muted);font-size:15px;margin:40px 0 60px}
+
+/* escenarios por industria */
+#escenarios{margin:56px 0 0;padding-top:8px;border-top:2px solid var(--line)}
+#escenarios>h2{font-size:26px;margin:18px 0 6px}
+#escenarios>p{color:var(--muted);max-width:940px;margin:0 0 12px}
+.esc-control{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin:16px 0}
+.esc-control label{font-size:15px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.esc-control select{padding:6px 9px;border-radius:9px;border:1px solid var(--line);background:var(--paper)}
+#esc-resumen{font-weight:700}
+#esc-resumen small{font-weight:400;color:var(--muted)}
+table.matriz{width:100%;border-collapse:separate;border-spacing:0;background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:15px}
+table.matriz th,table.matriz td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+table.matriz thead th{background:var(--soft);color:var(--muted);font-weight:600}
+table.matriz tr.grupo td{background:var(--deep);color:#eef2f7;font-weight:700;letter-spacing:.02em}
+table.matriz tr.grupo td small{font-weight:400;color:#b8c2cf;margin-left:8px}
+table.matriz td.patron b{font-family:var(--mono);margin-right:8px}
+table.matriz td.patron small{display:block;color:var(--muted)}
+.capa-chip{font-size:15px;font-weight:700;border-radius:7px;padding:1px 8px;white-space:nowrap}
+.capa-chip.c1{background:var(--brand-soft);color:var(--brand)} .capa-chip.c2{background:var(--warn-bg);color:var(--warn)} .capa-chip.c3{background:var(--violet-bg);color:var(--violet)}
+.celda{font:inherit;font-size:15px;font-weight:700;border-radius:9px;padding:5px 10px;border:1px solid var(--line);background:var(--soft);color:var(--muted);min-width:104px;text-align:left}
+.celda.pasa{background:var(--ok-bg);color:var(--ok);border-color:#b8dcc9}
+.celda.brecha{background:var(--warn-bg);color:var(--warn);border-color:#ecd699}
+.celda.falla{background:var(--err-bg);color:var(--err);border-color:#f2c1bc}
+.celda.brecha_cerrada{background:var(--brand-soft);color:var(--brand);border-color:#bfd0e8}
+.celda[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:1px}
+.leyenda{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:15px;color:var(--muted);margin:10px 0 0}
+.leyenda span{display:flex;gap:6px;align-items:center}
+.leyenda i{display:inline-block;width:14px;height:14px;border-radius:4px}
+#esc-detalle{margin-top:18px}
+.brecha-caja{background:var(--warn-bg);border:1px solid #ecd699;color:#5f3f00;border-radius:12px;padding:12px 14px;font-size:15px;margin:12px 0 0}
+.nota-caja{background:var(--brand-soft);border:1px solid #bfd0e8;color:#1f416d;border-radius:12px;padding:12px 14px;font-size:15px;margin:12px 0 0}
+.lista .linea{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0}
+.mas{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0 0}
+@media (max-width:900px){.mas{grid-template-columns:1fr}}
+.mas div{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:15px}
+.mas b{display:block;margin-bottom:4px}
+/* ─── secciones por industria ─────────────────────────────────────────────── */
+.navegar{display:flex;gap:6px;flex-wrap:wrap}
+.navegar a{font-size:15px;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:3px 10px;background:var(--paper)}
+.navegar a.min{border-color:#d9b48f} .navegar a.ele{border-color:#9db4dc} .navegar a.con{border-color:#e8cf73}
+#industrias{margin:56px 0 0}
+#industrias>h2{font-size:26px;margin:0 0 6px}
+#industrias>p{color:var(--muted);max-width:940px;margin:0 0 18px}
+.sector{--sec:#8a5a2b;--sec-claro:#f6ede3;--sec-fondo:#2a1c12;--sec-acento:#e0a060;
+  margin:0 0 48px;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:var(--sec-claro)}
+.sector.ele{--sec:#2f5f9e;--sec-claro:#eaf0f9;--sec-fondo:#0f1d33;--sec-acento:#f2c230}
+.sector.con{--sec:#8a6d00;--sec-claro:#fbf5df;--sec-fondo:#1f1f1c;--sec-acento:#f5b800}
+.sector-portada{position:relative;background:var(--sec-fondo);color:#f3efe8;padding:30px 28px 26px;min-height:210px;overflow:hidden}
+.sector-portada svg.ilustracion{position:absolute;right:0;top:0;height:100%;width:62%;opacity:.55;pointer-events:none}
+.sector-portada .chip{display:inline-block;font-size:15px;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.12);color:var(--sec-acento);font-weight:700}
+.sector-portada h3{position:relative;font-size:28px;margin:12px 0 6px;max-width:640px;line-height:1.2}
+.sector-portada p{position:relative;margin:0;color:#d8d2c8;max-width:620px}
+.sector-portada .franja{position:absolute;left:0;right:0;bottom:0;height:10px}
+.sector.con .franja{background:repeating-linear-gradient(-45deg,#f5b800 0 16px,#1f1f1c 16px 32px)}
+.sector.min .franja{background:linear-gradient(90deg,#6b3f1d,#e0a060,#6b3f1d)}
+.sector.ele .franja{background:linear-gradient(90deg,#f2c230 0 12%,transparent 12% 16%,#f2c230 16% 28%,transparent 28% 32%,#f2c230 32%)}
+.sector-cuerpo{padding:22px 24px 26px}
+.trasfondo{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:1000px){.trasfondo{grid-template-columns:1fr}}
+.trasfondo .tf{background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--sec);border-radius:12px;padding:12px 14px;font-size:15px}
+.trasfondo .tf b{display:block;color:var(--sec);margin-bottom:4px}
+.reglas-sensores{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;margin-top:12px}
+@media (max-width:1000px){.reglas-sensores{grid-template-columns:1fr}}
+.reglas-sensores>div{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px}
+.reglas-sensores h4{margin:0 0 8px;font-size:15px;color:var(--muted);font-weight:600}
+.regla{margin:0 0 8px}
+.regla b{color:var(--err)}
+.regla small{display:block;color:var(--muted)}
+.sensor-chip{display:inline-block;font-family:var(--mono);font-size:15px;background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:1px 7px;margin:0 4px 6px 0}
+.pauta-linea{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
+.pauta-linea .pp{flex:1 1 120px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px;transition:background .3s,border-color .3s}
+.pauta-linea .pp b{font-family:var(--mono);color:var(--sec);margin-right:4px}
+.pauta-linea .pp small{display:block;color:var(--muted)}
+.pauta-linea .pp.critico{border-left:4px solid var(--err)}
+.pauta-linea .pp.verificado{background:var(--ok-bg);border-color:#b8dcc9}
+.pauta-linea .pp.en_conflicto{background:var(--err-bg);border-color:#f2c1bc}
+.arq{position:relative;display:grid;grid-template-columns:1.25fr .9fr 1.15fr .9fr;gap:22px;margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px}
+@media (max-width:1100px){.arq{grid-template-columns:1fr 1fr}}
+.arq h4{margin:0 0 8px;font-size:15px;color:var(--muted);font-weight:600}
+.arq h4 code{font-size:15px}
+.arq .caja{position:relative;z-index:1;display:block;width:100%;text-align:left;font:inherit;font-size:15px;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin:0 0 7px;color:var(--ink);transition:background .25s,border-color .25s,box-shadow .25s,opacity .25s}
+.arq .caja small{display:block;color:var(--muted)}
+.arq .caja code{background:none;padding:0;font-size:15px}
+.arq .caja.corre{background:#fff;border-color:var(--sec);box-shadow:0 0 0 2px color-mix(in srgb,var(--sec) 25%,transparent)}
+.arq .caja.dispara{border-width:2px}
+.arq .caja.dispara.ok{background:var(--ok-bg);border-color:var(--ok)}
+.arq .caja.dispara.warning{background:var(--warn-bg);border-color:var(--warn)}
+.arq .caja.dispara.error{background:var(--err-bg);border-color:var(--err)}
+.arq .caja.apagada{opacity:.45}
+.arq .tests .caja{cursor:pointer}
+.arq .tests .caja:hover{border-color:var(--sec)}
+.arq .tests .caja[aria-pressed=true]{outline:3px solid var(--sec);outline-offset:1px;background:#fff}
+.arq .tests .caja .pt{font-family:var(--mono);font-weight:700;color:var(--sec);margin-right:6px}
+.arq .tests .caja .st{float:right;font-size:15px;font-weight:800}
+.arq .tests .caja .st.pasa{color:var(--ok)} .arq .tests .caja .st.falla{color:var(--err)}
+.arq .tests .caja.variante{cursor:default;opacity:.75}
+.arq .lista-tests{position:relative;max-height:560px;overflow:auto;padding-right:4px}
+.arq svg.cables{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+.arq svg.cables path{fill:none;stroke:var(--sec);stroke-width:2.5;stroke-dasharray:6 5;opacity:.75}
+.arq svg.cables circle{fill:var(--sec-acento);stroke:var(--sec-fondo);stroke-width:2}
+.reproductor{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media (max-width:1000px){.reproductor{grid-template-columns:1fr}}
+.reproductor>div{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.reproductor h4{margin:0 0 8px;font-size:15px;color:var(--muted);font-weight:600}
+.tramos{list-style:none;margin:0;padding:0;font-size:15px}
+.tramos li{padding:7px 9px;border-radius:9px;margin:0 0 5px;border:1px solid transparent;color:var(--muted)}
+.tramos li b{color:var(--ink)}
+.tramos li small{display:block}
+.tramos li.actual{border-color:var(--sec);background:var(--sec-claro);color:var(--ink)}
+.tramos li.hecho{color:var(--ink)}
+.tramos .ev{display:inline-block;font-size:15px;border-radius:6px;padding:0 6px;margin:2px 4px 0 0;background:var(--soft)}
+.tramos .ev.ok{background:var(--ok-bg);color:var(--ok)} .tramos .ev.warning{background:var(--warn-bg);color:var(--warn)} .tramos .ev.error{background:var(--err-bg);color:var(--err)}
+.controles-rep{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
+.controles-rep label{font-size:15px;color:var(--muted)}
+.controles-rep select{padding:4px 8px;border-radius:8px;border:1px solid var(--line)}
+.sector .primario{background:var(--sec-fondo);border-color:var(--sec-fondo)}
+.sector .sello.pasa{background:var(--ok-bg);color:var(--ok)}
+
+</style>
+</head>
+<body>
+
+<header class="portada">
+  <div class="wrap">
+    <span class="chip">Banco de pruebas</span><span class="chip">PRD servicios en vivo · CA1 a CA14</span>
+    <h1>Cada caso de uso de los servicios, corrido contra un servidor de verdad</h1>
+    <p>Una tarjeta por criterio de aceptación del PRD. «Correr» hace las mismas llamadas que su test, con una OT y un edge propios de la corrida, y compara lo esperado con lo que el servidor respondió. A la derecha de cada corrida, lo que una UI recibiría por <code style="background:#25324a;color:#dfe7f1">WS /ot/{id}/stream</code>.</p>
+  </div>
+</header>
+
+<div class="control">
+  <div class="wrap">
+    <label>Servidor <select id="servidor" aria-label="Servidor"></select></label>
+    <span id="conexion"><span class="luz"></span>sin comprobar</span>
+    <nav class="navegar" aria-label="Ir a"><a href="#casos">Servicios</a><a href="#escenarios">Matriz</a><a class="min" href="#mineria">Minería</a><a class="ele" href="#electrica">Eléctrica</a><a class="con" href="#construccion">Construcción</a></nav>
+    <button id="todos" class="primario">Correr todos</button>
+    <span id="resumen"><small>Sin correr.</small></span>
+    <div class="marcas" id="marcas"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="aviso" id="aviso-ajenas" role="alert"></div>
+  <main id="casos"></main>
+  <section id="escenarios">
+    <h2>Escenarios por industria</h2>
+    <p>Cada patrón de ejecución (se salta un paso, lo dice antes de hacerlo, deshace un control ya verificado…) en las tres industrias, contra la barrera que lo decide. Corren en una caja aislada del servidor elegido: base en memoria, bus propio y juez de cámara inyectado. No tocan su bitácora ni sus sensores. <b>Brecha</b> es lo que el producto debería hacer y hoy no hace, con la razón y lo que la cierra.</p>
+    <div class="esc-control">
+      <button id="esc-correr" class="primario">Correr escenarios</button>
+      <label>Barrera <select id="esc-barrera"><option value="">las tres</option><option value="1">1 · determinista</option><option value="2">2 · señales</option><option value="3">3 · visión y lenguaje</option></select></label>
+      <span id="esc-resumen"><small>Sin correr.</small></span>
+    </div>
+    <table class="matriz"><thead><tr><th>Patrón de ejecución</th><th>Barrera</th><th>Minería</th><th>Eléctrica</th><th>Construcción</th></tr></thead><tbody id="esc-matriz"></tbody></table>
+    <div class="leyenda">
+      <span><i style="background:var(--ok-bg);border:1px solid #b8dcc9"></i>pasa</span>
+      <span><i style="background:var(--warn-bg);border:1px solid #ecd699"></i>brecha conocida</span>
+      <span><i style="background:var(--err-bg);border:1px solid #f2c1bc"></i>falla: algo que funcionaba se rompió</span>
+      <span><i style="background:var(--brand-soft);border:1px solid #bfd0e8"></i>brecha cerrada: quitar la marca</span>
+    </div>
+    <div id="esc-detalle"></div>
+    <div class="mas">
+      <div><b>Barrera 1 · reglas por industria</b>Las normas que sostienen cada escenario están en <a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/projects/research/REFERENCIAS.md" target="_blank" rel="noopener">REFERENCIAS 44 a 55</a>; las reglas propuestas, en el <a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/projects/escenarios-por-industria/PRD.md" target="_blank" rel="noopener">PRD</a>.</div>
+      <div><b>Barrera 2 · qué detector</b>La matriz prueba la política. Qué detector aguanta escalones, derivas y ciclos de trabajo se compara en la <a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/projects/escenarios-por-industria/capa2-simulacion.md" target="_blank" rel="noopener">simulación de capa 2</a>.</div>
+      <div><b>Barrera 3 · qué tan bien mira</b>La matriz inyecta la respuesta del juez. Cómo responde el juez real a escenas de cada industria se mide con <code>scripts/evaluar_capa3.py</code>.</div>
+    </div>
+  </section>
+  <section id="industrias">
+    <h2>Cada industria por dentro</h2>
+    <p>La misma arquitectura, recorrida por los casos de uso de cada oficio. Elige un test: corre su escenario en la caja aislada y el diagrama muestra, paso a paso, qué controlador recibe la llamada, qué servicios corren (borde) y cuáles deciden algo (relleno, con el color del nivel), y qué tablas se escriben. Arriba de cada una, el trasfondo: la tarea, la norma, lo que pasa cuando falla y las reglas de capa 1 que la vigilan.</p>
+    <div id="sectores"></div>
+  </section>
+  <footer>
+    Las corridas dejan en el servidor sus OT (<code>casos-…</code>), porque la bitácora solo agrega. Los sensores vuelven a como estaban y la sesión del edge de la corrida se termina. «Correr todos» va en serie: los sensores son una tabla global y dos casos a la vez se pisarían.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// ─── Lo que no cambia ───────────────────────────────────────────────────────
+const REPO = "https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/";
+const doc = (ruta, texto) => `<a href="${REPO}${ruta}" target="_blank" rel="noopener">${texto}</a>`;
+const LOGICA = doc("knowledge/architecture/LOGICA.md", "LOGICA");
+const ADR = n => doc(`knowledge/decisions/${{2: "0002-la-aplicacion-impone-el-orden-de-la-pauta", 3: "0003-patrones-de-arquitectura-para-el-mvp", 4: "0004-verificacion-por-capas", 6: "0006-la-ot-nace-del-protocolo", 7: "0007-servicios-en-vivo-sesion-stream-y-calificacion"}[n]}.md`, `ADR-000${n}`);
+const REF = n => doc("knowledge/projects/research/REFERENCIAS.md", `REFERENCIAS ${n}`);
+
+const PAUTA_DEMO = "pauta-correa-ct-01";
+const PAUTA_SIN_APROBAR = "casos-pauta-sin-aprobar";
+const SENSOR_DE_SENAL = "casos-vibracion";
+const SEGURO = [["guarda", "cerrada"], ["energia", "cortada"], ["reed_bloqueo", "abierto"]];
+const PAGINAS = ["/", "/agente", "/camara", "/monitor", "/casos"];
+const WEBSOCKETS = ["/ot/{ot_id}/stream", "/edge/{edge_id}/video"];
+const LINEA_BASE = [2.0, 2.1, 1.9, 2.0, 2.2, 1.8, 2.0, 2.1, 1.9, 2.0, 2.05, 1.95];
+
+const SERVICIOS = [
+  {id: "servicios", archivo: "app/servicios.py", titulo: "Sesión y atribución",
+   que: "El edge no sabe de OT. La sesión que abre el operario dice a cuál pertenece cada lectura, y el servicio la revisa: seguridad, paso por sensor y señal."},
+  {id: "bus", archivo: "app/bus.py", titulo: "Reparto en vivo",
+   que: "Lo que entra a una OT sale al instante por su WebSocket, y quien se reconecta recupera la bitácora que se perdió."},
+  {id: "catalogo", archivo: "app/catalogo.py", titulo: "CRUD con las reglas adentro",
+   que: "Pautas, aprobaciones, OT y eventos. Lo que choca con una regla de negocio se responde con 409, y la bitácora no se edita por ninguna vía."},
+  {id: "scoring", archivo: "app/scoring.py", titulo: "Calificación y avisos",
+   que: "ok, warning o error con sus motivos, calculado al leer. Un aviso vive mientras dure su condición: cuando el sensor se corrige, sale."},
+  {id: "video", archivo: "app/video.py", titulo: "Video del edge",
+   que: "El video entra por su propio canal, y el paso de cámara se juzga con el último cuadro, que queda como evidencia."},
+  {id: "guia", archivo: "app/guia.py", titulo: "Guía para agentes",
+   que: "Lo que un agente necesita para usar la API sin leer el código."},
+];
+
+// ─── Utilidades ─────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const pausa = ms => new Promise(r => setTimeout(r, ms));
+const tipos = evs => (evs || []).map(e => e.tipo);
+// Clase de una alerta o de su resolución: seguridad, orden, control, senal o pegado.
+const clase = e => String(e?.evidencia?.clave || "").split(":")[0];
+const deClase = (evs, c) => (evs || []).filter(e => clase(e) === c);
+const deTipo = (evs, t) => (evs || []).filter(e => e.tipo === t);
+const json = v => v === undefined ? "—" : JSON.stringify(v);
+const recorte = (t, n = 150) => t.length > n ? t.slice(0, n) + "…" : t;
+
+function igual(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  return ka.length === kb.length && ka.every(k => igual(a[k], b[k]));
+}
+
+// ─── Servidor ───────────────────────────────────────────────────────────────
+const parametros = new URLSearchParams(location.search);
+// La clave del equipo entra una vez por ?clave= y queda en este navegador: va en cada llamada.
+if (parametros.has("clave")) localStorage.setItem("clave_equipo", parametros.get("clave"));
+const CLAVE = localStorage.getItem("clave_equipo");
+const SERVIDORES = [
+  {nombre: "Local", url: "http://localhost:8000"},
+  {nombre: "VM del demo", url: "https://34-176-44-192.sslip.io"},
+];
+if (location.protocol.startsWith("http") && !SERVIDORES.some(s => s.url === location.origin)) {
+  SERVIDORES.unshift({nombre: "Este servidor", url: location.origin});
+}
+const pedido = (parametros.get("servidor") || "").replace(/\/+$/, "");
+if (pedido && !SERVIDORES.some(s => s.url === pedido)) SERVIDORES.unshift({nombre: "Pedido por URL", url: pedido});
+let base = pedido || (SERVIDORES.some(s => s.url === location.origin) ? location.origin : SERVIDORES[0].url);
+const baseWS = () => base.replace(/^http/, "ws");
+
+let ajenas = [], ajenasAceptadas = parametros.get("ajenas") === "ok", ocupado = false;
+
+async function comprobarServidor() {
+  $("conexion").innerHTML = `<span class="luz"></span>comprobando…`;
+  ajenas = [];
+  try {
+    const api = await (await fetch(base + "/openapi.json")).json();
+    const sesiones = await (await fetch(base + "/sesiones")).json();
+    ajenas = sesiones.filter(s => !s.edge_id.startsWith("casos-"));
+    const tieneBanco = "/casos" in api.paths;
+    $("conexion").innerHTML = `<span class="luz ok"></span>${esc(api.info.title)} · ${Object.keys(api.paths).length} rutas`
+      + (tieneBanco ? "" : " · <b>sin /casos: versión anterior al banco</b>");
+  } catch (e) {
+    $("conexion").innerHTML = `<span class="luz err"></span>sin respuesta de ${esc(base)}`;
+  }
+  pintarAjenas();
+}
+
+function pintarAjenas() {
+  const caja = $("aviso-ajenas");
+  caja.classList.toggle("visible", ajenas.length > 0);
+  if (!ajenas.length) { caja.innerHTML = ""; actualizarBotones(); return; }
+  const lista = ajenas.map(s => `<code>${esc(s.edge_id)}</code> → <code>${esc(s.ot_id)}</code> (${esc(s.operario)})`).join(", ");
+  caja.innerHTML = `<b>Este servidor tiene ${ajenas.length === 1 ? "una sesión que no es" : ajenas.length + " sesiones que no son"} del banco:</b> ${lista}. `
+    + `Los sensores son una tabla global (PRD §9, «Sensores globales»): mientras corre un caso que abre la guarda con energía viva, esa OT puede mostrar un aviso que no es suyo, y si su edge manda una lectura en ese instante, la alerta le queda escrita en la bitácora. El banco devuelve los sensores a como estaban al terminar cada caso.`
+    + `<label><input type="checkbox" id="acepto" ${ajenasAceptadas ? "checked" : ""}> Lo sé, correr igual contra este servidor</label>`;
+  $("acepto").onchange = e => { ajenasAceptadas = e.target.checked; actualizarBotones(); };
+  actualizarBotones();
+}
+
+function actualizarBotones() {
+  const bloqueado = ocupado || (ajenas.length > 0 && !ajenasAceptadas);
+  document.querySelectorAll("button[data-correr], #todos").forEach(b => { b.disabled = bloqueado; });
+  $("servidor").disabled = ocupado;
+}
+
+// ─── Una corrida: sus ids, su traza y sus comprobaciones ────────────────────
+class Corrida {
+  constructor(caso, caja) {
+    const sufijo = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 4);
+    this.caso = caso;
+    this.id = sufijo;
+    this.ot = `casos-${caso.id.toLowerCase()}-${sufijo}`;
+    this.ot2 = `${this.ot}-b`;
+    this.edge = `casos-edge-${caso.id.toLowerCase()}-${sufijo}`;
+    this.inicio = performance.now();
+    this.seq = 0;
+    this.checks = [];
+    this.streams = [];
+    this.enSesion = false;
+    this.sensoresAntes = null;
+    this._fase = null;
+    this._faseStream = null;
+    caja.innerHTML = `
+      <p class="ids">Corrida <code>${sufijo}</code> contra <code>${esc(base)}</code> · OT <code>${this.ot}</code> · edge <code>${this.edge}</code></p>
+      <div data-fallo></div>
+      <table class="checks"><thead><tr><th>Qué se comprueba</th><th>Esperado</th><th>Obtenido</th><th></th></tr></thead><tbody data-checks></tbody></table>
+      <div class="traza">
+        <div><h4>Llamadas a la API, en orden</h4><div class="lista" data-http></div></div>
+        <div><h4>Lo que llega por el stream de la OT, en vivo</h4><div class="lista" data-ws><div class="vacio">Todavía no se abre ningún stream.</div></div></div>
+      </div>
+      <div class="evidencia" data-evidencia></div>`;
+    this.caja = caja;
+    this.elChecks = caja.querySelector("[data-checks]");
+    this.elHttp = caja.querySelector("[data-http]");
+    this.elWs = caja.querySelector("[data-ws]");
+  }
+
+  t() { return "+" + ((performance.now() - this.inicio) / 1000).toFixed(2) + "s"; }
+
+  fase(nombre) { this._fase = nombre; }
+
+  _titulo(el, clave) {
+    if (this[clave] === this._fase) return;
+    this[clave] = this._fase;
+    const d = document.createElement("div");
+    d.className = "fase";
+    d.textContent = this._fase;
+    el.append(d);
+  }
+
+  _linea(el, resumenHtml, cuerpoHtml) {
+    const d = document.createElement("details");
+    d.innerHTML = `<summary>${resumenHtml}</summary>${cuerpoHtml}`;
+    el.append(d);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  nota(html) {
+    this._titulo(this.elHttp, "_faseHttp");
+    const d = document.createElement("div");
+    d.className = "nota-traza";
+    d.innerHTML = html;
+    this.elHttp.append(d);
+  }
+
+  async http(metodo, ruta, cuerpo, opciones = {}) {
+    const cabeceras = {}, peticion = {method: metodo, headers: cabeceras};
+    if (CLAVE && !opciones.sinClave) cabeceras["x-clave-equipo"] = CLAVE;
+    let enviado = "";
+    if (cuerpo instanceof Blob) {
+      cabeceras["content-type"] = cuerpo.type;
+      peticion.body = cuerpo;
+      enviado = opciones.etiqueta || `binario, ${cuerpo.size} bytes`;
+    } else if (cuerpo !== undefined) {
+      cabeceras["content-type"] = "application/json";
+      peticion.body = JSON.stringify(cuerpo);
+      enviado = JSON.stringify(cuerpo, null, 1);
+    }
+    let r;
+    try {
+      r = await fetch(base + ruta, peticion);
+    } catch (e) {
+      this._titulo(this.elHttp, "_faseHttp");
+      this._linea(this.elHttp, `<span class="t">${this.t()}</span><span class="m ${metodo.toLowerCase()}">${metodo}</span><span class="st s0">sin respuesta</span><span class="ruta">${esc(ruta)}</span>`, `<pre>${esc(e.message)}</pre>`);
+      throw new Error(`${metodo} ${ruta} no tuvo respuesta de ${base}: ${e.message}`);
+    }
+    const tipo = r.headers.get("content-type") || "";
+    let recibido, texto;
+    if (opciones.binario) {
+      recibido = new Uint8Array(await r.arrayBuffer());
+      texto = `binario, ${recibido.length} bytes (${tipo})`;
+    } else {
+      texto = await r.text();
+      try { recibido = texto ? JSON.parse(texto) : null; } catch { recibido = texto; }
+      if (typeof recibido !== "string") texto = JSON.stringify(recibido, null, 1);
+    }
+    this._titulo(this.elHttp, "_faseHttp");
+    this._linea(this.elHttp,
+      `<span class="t">${this.t()}</span><span class="m ${metodo.toLowerCase()}">${metodo}</span><span class="st s${String(r.status)[0]}">${r.status}</span><span class="ruta">${esc(ruta)}</span><span class="res">${esc(recorte(opciones.binario ? texto : typeof recibido === "string" ? recibido.split("\n")[0] : JSON.stringify(recibido) ?? ""))}</span>`,
+      `<pre>${enviado ? `<b>request</b>\n${esc(enviado)}\n\n` : ""}<b>response ${r.status}</b>\n${esc(recorte(texto, 6000))}</pre>`);
+    return {status: r.status, cuerpo: recibido, tipo};
+  }
+
+  exigir(r, que, ...estados) {
+    if (!estados.includes(r.status)) throw new Error(`No se pudo preparar el caso: ${que} devolvió ${r.status} (${recorte(json(r.cuerpo), 200)}); se esperaba ${estados.join(" o ")}.`);
+    return r;
+  }
+
+  lecturas(pares) {
+    return this.http("POST", `/edge/${this.edge}/lecturas`,
+      pares.map(([sensor_id, valor]) => ({sensor_id, valor: String(valor), seq: ++this.seq})));
+  }
+
+  stream(ot, {desde, nombre} = {}) {
+    const ruta = `/ot/${ot}/stream` + (desde != null ? `?desde=${desde}` : "");
+    const s = {ot, nombre: nombre || "", mensajes: [], cerrado: null, _esperas: [], _porElBanco: false};
+    if (!this.streams.length) this.elWs.innerHTML = "";
+    this.streams.push(s);
+    const anotar = (clase, resumen, cuerpo) => {
+      if (this._faseStream !== this._fase) {
+        this._faseStream = this._fase;
+        const d = document.createElement("div");
+        d.className = "fase"; d.textContent = this._fase;
+        this.elWs.append(d);
+      }
+      this._linea(this.elWs,
+        `<span class="t">${this.t()}</span>${s.nombre ? `<span class="m ws">${esc(s.nombre)}</span>` : ""}<span class="tipo ${clase}">${esc(clase === "conexion" ? "ws" : clase)}</span><span class="res">${esc(resumen)}</span>`,
+        cuerpo ? `<pre>${esc(recorte(JSON.stringify(cuerpo, null, 1), 6000))}</pre>` : "");
+    };
+    const revisar = () => { s._esperas = s._esperas.filter(e => !e()); };
+    const ws = new WebSocket(baseWS() + ruta);
+    anotar("conexion", `conectando a ${ruta}`);
+    ws.onmessage = e => {
+      const m = JSON.parse(e.data);
+      s.mensajes.push(m);
+      anotar(m.tipo, resumenDeMensaje(m), m);
+      revisar();
+    };
+    ws.onclose = e => {
+      s.cerrado = {code: e.code, reason: e.reason};
+      anotar("conexion", s._porElBanco ? "cerrado por el banco" : `cerrado por el servidor (${e.code}${e.reason ? ": " + e.reason : ""})`);
+      revisar();
+    };
+    s.esperar = (condicion, ms = 4000) => new Promise(listo => {
+      const cumple = typeof condicion === "number" ? () => s.mensajes.length >= condicion : () => condicion(s.mensajes, s);
+      if (cumple()) return listo(true);
+      const reloj = setTimeout(() => { s._esperas = s._esperas.filter(e => e !== intento); listo(false); }, ms);
+      const intento = () => { if (!cumple()) return false; clearTimeout(reloj); listo(true); return true; };
+      s._esperas.push(intento);
+    });
+    s.cerrar = async () => {
+      if (s.cerrado) return;
+      s._porElBanco = true;
+      ws.close();
+      await s.esperar((_, x) => x.cerrado !== null, 1500);
+    };
+    return s;
+  }
+
+  comprobar(que, esperado, obtenido, pasa = igual(esperado, obtenido)) {
+    this.checks.push(pasa);
+    const tr = document.createElement("tr");
+    tr.className = pasa ? "si" : "no";
+    tr.innerHTML = `<td>${esc(que)}</td><td class="v">${esc(json(esperado))}</td><td class="v">${esc(json(obtenido))}</td><td class="s">${pasa ? "✓" : "✗"}</td>`;
+    this.elChecks.append(tr);
+    return pasa;
+  }
+
+  contiene(que, fragmento, texto) {
+    return this.comprobar(que, `contiene «${fragmento}»`, texto, typeof texto === "string" && texto.includes(fragmento));
+  }
+
+  observar(que, valor, porque) {
+    const tr = document.createElement("tr");
+    tr.className = "obs";
+    tr.innerHTML = `<td>${esc(que)}<small>${porque}</small></td><td class="v">no es parte del criterio</td><td class="v">${esc(json(valor))}</td><td class="s">i</td>`;
+    this.elChecks.append(tr);
+  }
+
+  fallo(texto) {
+    this.caja.querySelector("[data-fallo]").innerHTML = `<p class="fallo-general">${esc(texto)}</p>`;
+  }
+}
+
+function resumenDeMensaje(m) {
+  switch (m.tipo) {
+    case "snapshot": return `paso actual ${m.estado.paso_actual ?? "ninguno"} · ${m.calificacion.nivel} · bitácora de ${m.bitacora.length}`;
+    case "lectura": return `${m.sensor_id} = ${m.valor}`;
+    case "evento": return `${m.evento.tipo}${m.evento.paso_id ? " " + m.evento.paso_id : ""}${m.evento.calificacion ? " [" + m.evento.calificacion.nivel + "]" : ""} · ${m.evento.detalle}`;
+    case "calificacion_ot": return `${m.calificacion.nivel} · ${m.calificacion.avisos.length} aviso(s)`;
+    case "sesion": return `${m.sesion.edge_id} ← ${m.sesion.operario}`;
+    default: return JSON.stringify(m);
+  }
+}
+
+// ─── Preparación y limpieza comunes ─────────────────────────────────────────
+// Los sensores son una tabla global: antes de abrir la sesión se dejan en un estado seguro
+// con un edge sin sesión (eso no toca ninguna bitácora) y al final vuelven a como estaban.
+async function preparar(c, {sesion = true, sensores = true, ot2 = false} = {}) {
+  c.fase("dado");
+  const demo = c.exigir(await c.http("POST", "/pauta/demo"), "cargar la pauta del demo", 200);
+  c.version = demo.cuerpo.version;
+  if (sensores) {
+    c.sensoresAntes = c.exigir(await c.http("GET", "/sensores"), "leer los sensores", 200).cuerpo;
+    c.exigir(await c.lecturas(SEGURO), "dejar los sensores en estado seguro", 200);
+  }
+  const abrir = ot => `/ot/${ot}/abrir?actor=supervisor:casos&version=${c.version}`;
+  c.exigir(await c.http("POST", abrir(c.ot)), "abrir la OT", 200);
+  if (ot2) c.exigir(await c.http("POST", abrir(c.ot2)), "abrir la segunda OT", 200);
+  if (sesion) {
+    c.exigir(await c.http("POST", `/ot/${c.ot}/sesion`, {edge_id: c.edge, operario: "operario:casos"}), "abrir la sesión", 200);
+    c.enSesion = true;
+  }
+}
+
+async function limpiar(c) {
+  c.fase("limpieza");
+  try {
+    if (c.enSesion) {
+      await c.lecturas(SEGURO.slice(0, 2));
+      const soltada = await c.http("DELETE", `/edge/${c.edge}/sesion`);
+      if (soltada.status === 401) c.nota("La sesión de la corrida quedó abierta: este servidor pide la clave del equipo. Abre el banco con <code>?clave=</code>.");
+    }
+    if (c.sensoresAntes) {
+      await c.lecturas(SEGURO.map(([id, valor]) => [id, c.sensoresAntes[id] ?? valor]));
+    }
+  } catch (e) {
+    c.nota(`La limpieza no terminó: ${esc(e.message)}`);
+  }
+  await pausa(150);
+  await Promise.all(c.streams.map(s => s.cerrar()));
+}
+
+function jpegDePrueba(c, n) {
+  const lienzo = document.createElement("canvas");
+  lienzo.width = 480; lienzo.height = 270;
+  const g = lienzo.getContext("2d");
+  g.fillStyle = "#141c26"; g.fillRect(0, 0, 480, 270);
+  g.fillStyle = "#2f5f9e"; g.fillRect(0, 0, 480, 54);
+  g.fillStyle = "#fff"; g.font = "700 24px system-ui"; g.fillText("Factum · cuadro de prueba", 18, 36);
+  g.font = "20px ui-monospace, Menlo, monospace"; g.fillStyle = "#dfe7f1";
+  g.fillText(`corrida ${c.id}`, 18, 110);
+  g.fillText(`edge ${c.edge}`, 18, 142);
+  g.fillText(new Date().toISOString(), 18, 174);
+  g.font = "700 64px system-ui"; g.fillStyle = "#8fe0b4"; g.fillText(`n.º ${n}`, 18, 248);
+  return new Promise(listo => lienzo.toBlob(listo, "image/jpeg", 0.85));
+}
+
+// ─── Los casos ──────────────────────────────────────────────────────────────
+const CASOS = [
+  {
+    id: "CA1", servicio: "servicios", objetivo: "O1",
+    titulo: "Sin sesión, una lectura no toca ninguna bitácora",
+    dado: "un edge sin sesión",
+    cuando: "manda guarda abierta con energía viva",
+    entonces: "ninguna OT recibe la alerta",
+    porque: `Antes la alerta se escribía en todas las OT de la base. Ahora, sin sesión, la lectura solo actualiza el sensor (${ADR(7)}, decisión 1).`,
+    test: "tests/test_servicios.py · SinSesion",
+    async correr(c) {
+      await preparar(c, {sesion: false});
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      const sesion = await c.http("GET", `/edge/${c.edge}/sesion`);
+      c.fase("cuando");
+      const r = await c.lecturas([["guarda", "abierta"], ["energia", "viva"]]);
+      c.fase("entonces");
+      const alertas = await c.http("GET", `/ot/${c.ot}/alertas`);
+      const evs = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const sens = await c.http("GET", "/sensores");
+      await pausa(300);
+      c.comprobar("Dado: el edge no tiene sesión", 404, sesion.status);
+      c.comprobar("Las lecturas no se atribuyen a ninguna OT", [null, null], r.cuerpo.map(x => x.ot));
+      c.comprobar("No nace ningún evento", 0, r.cuerpo.flatMap(x => x.eventos).length);
+      c.comprobar("La OT abierta no tiene alertas", [], alertas.cuerpo);
+      c.comprobar("Su bitácora sigue solo con la apertura", ["ot_abierta"], tipos(evs.cuerpo));
+      c.comprobar("Por su stream no llega nada después del snapshot", ["snapshot"], tipos(s.mensajes));
+      c.comprobar("El sensor sí se actualizó", {guarda: "abierta", energia: "viva"}, {guarda: sens.cuerpo.guarda, energia: sens.cuerpo.energia});
+    },
+  },
+  {
+    id: "CA2", servicio: "servicios", objetivo: "O1",
+    titulo: "La alerta entra a la OT de la sesión y a ninguna otra",
+    dado: "el edge en sesión con la OT 1 y otra OT abierta",
+    cuando: "se da la condición de seguridad",
+    entonces: "solo la OT 1 recibe la alerta",
+    porque: `Guarda abierta con energía viva es la única regla de seguridad de hoy, capa 1 (${LOGICA}). El aislamiento de energía está entre los peligros de alta consecuencia que nombra ICMM, y la ejecución inefectiva del control fue la falla más común en los incidentes fatales de 2025: 19 de 26 (${REF(40)}).`,
+    test: "tests/test_servicios.py · Atribucion",
+    async correr(c) {
+      await preparar(c, {ot2: true});
+      const s1 = c.stream(c.ot, {nombre: "OT 1"}), s2 = c.stream(c.ot2, {nombre: "OT 2"});
+      await Promise.all([s1.esperar(1), s2.esperar(1)]);
+      c.fase("cuando");
+      const r = await c.lecturas([["guarda", "abierta"], ["energia", "viva"]]);
+      await s1.esperar(ms => ms.some(m => m.tipo === "evento"));
+      c.fase("entonces");
+      const a1 = await c.http("GET", `/ot/${c.ot}/alertas`);
+      const a2 = await c.http("GET", `/ot/${c.ot2}/alertas`);
+      const e2 = await c.http("GET", `/ot/${c.ot2}/eventos`);
+      const cal2 = await c.http("GET", `/ot/${c.ot2}/calificacion`);
+      await pausa(300);
+      c.comprobar("La lectura se atribuye a la OT de la sesión", c.ot, r.cuerpo[1].ot);
+      c.comprobar("Nace la alerta de seguridad, de capa 1", [["alerta", 1, "seguridad"]], r.cuerpo[1].eventos.map(e => [e.tipo, e.capa, clase(e)]));
+      c.comprobar("La OT 1 tiene esa alerta activa", 1, deClase(a1.cuerpo, "seguridad").length);
+      c.comprobar("La OT 2 no tiene alertas", [], a2.cuerpo);
+      c.comprobar("La bitácora de la OT 2 sigue solo con la apertura", ["ot_abierta"], tipos(e2.cuerpo));
+      c.comprobar("Por el stream de la OT 1 llega la alerta", true, s1.mensajes.some(m => m.tipo === "evento" && clase(m.evento) === "seguridad"));
+      c.observar("Las demás alertas de la OT 1", deClase(a1.cuerpo, "orden").map(e => e.detalle),
+        "La guarda se abrió con el bloqueo pendiente: además entra la alerta de orden invertido (escenario B1).");
+      c.comprobar("Por el stream de la OT 2 no llega nada", ["snapshot"], tipos(s2.mensajes));
+      c.observar("Calificación de la OT 2 mientras dura la condición", cal2.cuerpo.nivel,
+        "La alerta no entra a su bitácora, pero la calificación se calcula con los sensores de ahora, que son globales (PRD §9, «Sensores globales»).");
+    },
+  },
+  {
+    id: "CA3", servicio: "servicios", objetivo: "O1",
+    titulo: "El candado cerrado verifica el paso sin que el operario hable",
+    dado: "el paso de bloqueo en curso",
+    cuando: "llega el candado cerrado",
+    entonces: "el paso queda verificado sin que el operario hable",
+    porque: `Un paso de sensor lo cierra la capa 1 con la lectura, y nunca se cierra hablando (${LOGICA}, ${ADR(4)}). El antecedente de verificar el bloqueo con candados con sensor, sin cámara, es una tesis de Cal Poly (${REF(23)}; solo se leyó el resumen).`,
+    test: "tests/test_servicios.py · ElSensorCierraElPaso",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.fase("cuando");
+      const r = await c.lecturas([["reed_bloqueo", "cerrado"]]);
+      await s.esperar(4);
+      c.fase("entonces");
+      const estado = await c.http("GET", `/ot/${c.ot}`);
+      const evs = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const nacidos = r.cuerpo[0].eventos;
+      c.comprobar("Nace el veredicto del paso de bloqueo, decidido por la capa 1",
+        [{tipo: "veredicto", paso_id: "p1", estado: "verificado", capa: 1}],
+        nacidos.map(e => ({tipo: e.tipo, paso_id: e.paso_id, estado: e.estado, capa: e.capa})));
+      c.comprobar("La evidencia es la lectura del sensor",
+        {tipo: "sensor", id: "reed_bloqueo", valor: "cerrado", espera: "cerrado"}, nacidos[0]?.evidencia);
+      c.comprobar("La pauta avanza al paso siguiente", "p2", estado.cuerpo.paso_actual);
+      c.comprobar("El operario no declaró nada", 0, deTipo(evs.cuerpo, "declaracion").length);
+    },
+  },
+  {
+    id: "CA4", servicio: "servicios", objetivo: "O1",
+    titulo: "La lectura de otro paso no adelanta la pauta",
+    dado: "el paso de bloqueo en curso",
+    cuando: "llega una lectura de la guarda",
+    entonces: "la pauta no avanza",
+    porque: `El orden lo impone la aplicación, que evalúa solo el paso actual y solo con su propio sensor (${ADR(2)}). Es donde un VLM general falla: detectó 3 de 12 cambios de orden (${REF(9)}).`,
+    test: "tests/test_servicios.py · ElSensorCierraElPaso",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.fase("cuando");
+      const r = await c.lecturas([["guarda", "abierta"]]);
+      await s.esperar(3);
+      c.fase("entonces");
+      const estado = await c.http("GET", `/ot/${c.ot}`);
+      c.comprobar("No nace ningún veredicto", [], deTipo(r.cuerpo[0].eventos, "veredicto"));
+      c.comprobar("La pauta sigue en el paso de bloqueo", "p1", estado.cuerpo.paso_actual);
+      c.comprobar("Ningún paso quedó verificado", [], estado.cuerpo.verificados);
+      c.observar("Lo que sí entra", r.cuerpo[0].eventos.map(e => e.detalle),
+        "Abrir la guarda con el bloqueo pendiente es un control saltado: entra la alerta de orden invertido (escenario B1).");
+    },
+  },
+  {
+    id: "CA5", servicio: "servicios", objetivo: "O1",
+    titulo: "Mientras dura la condición, la alerta entra una sola vez",
+    dado: "una condición de seguridad activa",
+    cuando: "siguen llegando lecturas",
+    entonces: "la alerta entra una sola vez, y otra vez solo si la condición vuelve",
+    porque: `La alerta entra cuando la condición empieza, no en cada lectura mientras dura (${ADR(7)}, decisión 2). Sustento en la literatura: <code>Brecha</code>, la búsqueda sobre fatiga de alarmas está pendiente en SEGUIMIENTO.`,
+    test: "tests/test_servicios.py · AlertaDeSeguridad",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.fase("cuando");
+      await c.lecturas([["energia", "viva"], ["guarda", "abierta"], ["guarda", "abierta"], ["guarda", "abierta"]]);
+      const evs1 = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const cal1 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      await c.lecturas([["guarda", "cerrada"]]);
+      const cal2 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      await c.lecturas([["guarda", "abierta"]]);
+      c.fase("entonces");
+      const evs2 = await c.http("GET", `/ot/${c.ot}/eventos`);
+      c.comprobar("Con tres lecturas en condición, la alerta entra una vez", 1, deClase(deTipo(evs1.cuerpo, "alerta"), "seguridad").length);
+      c.comprobar("Mientras dura, la OT está en error", "error", cal1.cuerpo.nivel);
+      c.comprobar("Al cerrarse la guarda, la OT vuelve a ok", "ok", cal2.cuerpo.nivel);
+      c.comprobar("Cuando la condición vuelve, entra otra alerta", 2, deClase(deTipo(evs2.cuerpo, "alerta"), "seguridad").length);
+    },
+  },
+  {
+    id: "CA16", servicio: "servicios", objetivo: "O1",
+    titulo: "Una persona confirma el paso que el sensor no ve, y queda el rastro",
+    dado: "un paso en curso cuyo sensor no muestra lo hecho",
+    cuando: "una persona lo confirma con su motivo",
+    entonces: "el paso queda verificado por persona, con quién, por qué y qué marcaba el sensor; la OT en warning y la seguridad sigue mandando",
+    porque: `Un sensor se cae o queda mal montado, y la pauta no puede quedar trabada. Se le cree a la persona, pero no en silencio: es una acción aparte de declarar, solo sobre el paso en curso y con motivo (${LOGICA}, «Cuando la persona y el sensor no coinciden»). Quién puede confirmar un control crítico, si el operario o solo un supervisor, sigue abierto.`,
+    test: "tests/test_confirmar.py · PorHTTP",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      await c.lecturas([["reed_bloqueo", "abierto"]]);
+      const dijo = await c.http("POST", `/ot/${c.ot}/declarar`, {actor: "operario:casos", texto: "bloqueo puesto"});
+      const url = `/ot/${c.ot}/pasos/p1/confirmar`;
+      c.fase("cuando");
+      const sinMotivo = await c.http("POST", url, {actor: "supervisor:casos", motivo: ""});
+      const otroPaso = await c.http("POST", `/ot/${c.ot}/pasos/p2/confirmar`, {actor: "supervisor:casos", motivo: "adelanto"});
+      const r = await c.http("POST", url, {actor: "supervisor:casos", motivo: "el reed está dañado; el candado está puesto, lo vi"});
+      await s.esperar(ms => ms.some(m => m.tipo === "evento" && m.evento.evidencia?.tipo === "persona"));
+      const estado = await c.http("GET", `/ot/${c.ot}`);
+      const cal = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      await c.lecturas([["energia", "viva"], ["guarda", "abierta"]]);
+      c.fase("entonces");
+      const cal2 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      const evs = await c.http("GET", `/ot/${c.ot}/eventos`);
+      c.comprobar("Dado: declarar no lo cerró, quedó en conflicto", "en_conflicto", dijo.cuerpo?.estado);
+      c.comprobar("Sin motivo, o sobre un paso que no es el actual, es 409", [409, 409], [sinMotivo.status, otroPaso.status]);
+      c.comprobar("Con motivo, el paso queda verificado y la pauta avanza", {estado: "verificado", paso_actual: "p2"},
+        {estado: r.cuerpo?.estado, paso_actual: estado.cuerpo?.paso_actual});
+      c.comprobar("La evidencia dice quién, por qué y qué marcaba el sensor",
+        {tipo: "persona", contra: {sensor: "reed_bloqueo", valor: "abierto", espera: "cerrado"}},
+        {tipo: r.cuerpo?.evidencia?.tipo, contra: r.cuerpo?.evidencia?.contra});
+      c.comprobar("La OT queda en warning, no en ok", "warning", cal.cuerpo.nivel);
+      c.comprobar("El conflicto anterior sigue en la bitácora", ["en_conflicto", "verificado"],
+        deTipo(evs.cuerpo, "veredicto").filter(e => e.paso_id === "p1").map(e => e.estado));
+      c.comprobar("La seguridad sigue mandando: guarda abierta con energía viva es error", "error", cal2.cuerpo.nivel);
+    },
+  },
+  {
+    id: "CA6", servicio: "bus", objetivo: "O2",
+    titulo: "La UI recibe lectura, evento y calificación, en ese orden",
+    dado: "una UI conectada al stream",
+    cuando: "el edge manda una lectura que cierra un paso",
+    entonces: "recibe lectura, evento y calificación, en ese orden",
+    porque: `Un WebSocket por OT: primero el snapshot y después cada lectura, evento y calificación, sin que la UI pregunte (${ADR(7)}, decisión 3). El reparto es en proceso, sin broker, porque hay una aplicación y una base (${ADR(3)}).`,
+    test: "tests/test_stream.py · StreamDeLaOT",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.fase("cuando");
+      await c.lecturas([["reed_bloqueo", "cerrado"]]);
+      await s.esperar(4);
+      await pausa(250);
+      c.fase("entonces");
+      const [snap, , evento, calif] = s.mensajes;
+      c.comprobar("Al conectar llega el snapshot, con el paso en curso", {tipo: "snapshot", paso_actual: "p1"},
+        {tipo: snap?.tipo, paso_actual: snap?.estado?.paso_actual});
+      c.comprobar("Después: lectura, evento y calificación, en ese orden", ["lectura", "evento", "calificacion_ot"], tipos(s.mensajes.slice(1)));
+      c.comprobar("El evento es el veredicto del paso, con su calificación", {tipo: "veredicto", paso_id: "p1", nivel: "ok"},
+        {tipo: evento?.evento?.tipo, paso_id: evento?.evento?.paso_id, nivel: evento?.evento?.calificacion?.nivel});
+      c.comprobar("La calificación de la OT llega con sus avisos", {nivel: "ok", avisos: []},
+        {nivel: calif?.calificacion?.nivel, avisos: calif?.calificacion?.avisos});
+    },
+  },
+  {
+    id: "CA7", servicio: "bus", objetivo: "O2",
+    titulo: "Al reconectar llega solo la bitácora que faltó",
+    dado: "una UI que se desconectó",
+    cuando: "vuelve con el último id que vio",
+    entonces: "recibe solo la bitácora que le faltó",
+    porque: `Para reconectar sin perder bitácora, el cliente vuelve con <code>?desde=</code> el último id de evento (${ADR(7)}, decisión 3). Si un cliente no da abasto se pierden lecturas en vivo, nunca bitácora (<code>app/bus.py</code>).`,
+    test: "tests/test_servicios.py · LoQueVeLaUI",
+    async correr(c) {
+      await preparar(c);
+      const primera = c.stream(c.ot, {nombre: "1.ª"});
+      await primera.esperar(1);
+      const ultimo = Math.max(0, ...(primera.mensajes[0]?.bitacora || []).map(e => e.id));
+      await primera.cerrar();
+      await c.lecturas([["reed_bloqueo", "cerrado"]]);
+      c.fase("cuando");
+      c.nota(`La UI vuelve con <code>desde=${ultimo}</code>, el último id que vio.`);
+      const segunda = c.stream(c.ot, {desde: ultimo, nombre: "2.ª"});
+      await segunda.esperar(1);
+      c.fase("entonces");
+      const snap = segunda.mensajes[0];
+      c.comprobar("Mientras estuvo desconectada no recibió nada", ["snapshot"], tipos(primera.mensajes));
+      c.comprobar("La reconexión trae solo lo que faltó", [{tipo: "veredicto", paso_id: "p1"}],
+        (snap?.bitacora || []).map(e => ({tipo: e.tipo, paso_id: e.paso_id})));
+      c.comprobar("Todo lo que trae es posterior al último id visto", true, (snap?.bitacora || []).every(e => e.id > ultimo));
+      c.comprobar("El estado viene completo igual", "p2", snap?.estado?.paso_actual);
+    },
+  },
+  {
+    id: "CA8", servicio: "catalogo", objetivo: "O4",
+    titulo: "Con una pauta sin aprobar no se abre una OT",
+    dado: "una pauta sin aprobar",
+    cuando: "alguien abre una OT con ella",
+    entonces: "recibe 409",
+    porque: `Una persona aprueba la pauta antes de que se use, y la OT solo nace de una pauta aprobada (${ADR(3)}, ${ADR(6)}).`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      c.fase("dado");
+      const demo = c.exigir(await c.http("POST", "/pauta/demo"), "cargar la pauta del demo", 200);
+      let pauta = await c.http("GET", `/pautas/${PAUTA_SIN_APROBAR}`);
+      if (pauta.status === 404 || pauta.cuerpo.aprobada) {
+        const molde = c.exigir(await c.http("GET", `/pautas/${PAUTA_DEMO}?version=${demo.cuerpo.version}`), "leer la pauta del demo", 200).cuerpo;
+        const version = pauta.status === 404 ? 1 : pauta.cuerpo.version + 1;
+        c.exigir(await c.http("POST", "/pautas", {...molde, id: PAUTA_SIN_APROBAR, nombre: "Pauta del banco de pruebas, sin aprobar", version}), "crear la pauta sin aprobar", 201);
+        pauta = await c.http("GET", `/pautas/${PAUTA_SIN_APROBAR}`);
+      } else {
+        c.nota(`La pauta <code>${PAUTA_SIN_APROBAR}</code> ya existe en este servidor y sigue sin aprobar: se reutiliza.`);
+      }
+      c.fase("cuando");
+      const r = await c.http("POST", `/ot/${c.ot}/abrir?pauta_id=${PAUTA_SIN_APROBAR}&actor=supervisor:casos`);
+      c.fase("entonces");
+      const ot = await c.http("GET", `/ot/${c.ot}`);
+      const s = c.stream(c.ot);
+      await s.esperar((_, x) => x.cerrado !== null, 3000);
+      c.comprobar("Dado: la última versión de la pauta está sin aprobar", false, pauta.cuerpo?.aprobada);
+      c.comprobar("Abrir la OT devuelve 409", 409, r.status);
+      c.contiene("El cuerpo dice qué regla chocó", "no está aprobada", r.cuerpo?.regla);
+      c.comprobar("La OT no nació", 404, ot.status);
+      c.comprobar("Su stream se cierra con 4404", 4404, s.cerrado?.code);
+    },
+  },
+  {
+    id: "CA9", servicio: "catalogo", objetivo: "O4",
+    titulo: "Una versión de pauta no se escribe encima de otra",
+    dado: "una versión de pauta que existe",
+    cuando: "alguien la vuelve a crear",
+    entonces: "recibe 409",
+    porque: `Cambiar una pauta es crear la versión siguiente, y cada OT guarda qué versión ejecutó: sin eso una propuesta de mejora no se puede evaluar contra lo que se corrió (${LOGICA}, ${ADR(3)}).`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      c.fase("dado");
+      const demo = c.exigir(await c.http("POST", "/pauta/demo"), "cargar la pauta del demo", 200);
+      const existente = c.exigir(await c.http("GET", `/pautas/${PAUTA_DEMO}?version=${demo.cuerpo.version}`), "leer la pauta", 200);
+      const antes = await c.http("GET", `/pautas/${PAUTA_DEMO}/versiones`);
+      c.fase("cuando");
+      const r = await c.http("POST", "/pautas", existente.cuerpo);
+      c.fase("entonces");
+      const despues = await c.http("GET", `/pautas/${PAUTA_DEMO}/versiones`);
+      c.comprobar("Volver a crearla devuelve 409", 409, r.status);
+      c.contiene("El cuerpo dice qué regla chocó", "versión", r.cuerpo?.regla);
+      c.comprobar("Las versiones y sus aprobaciones quedan como estaban", antes.cuerpo, despues.cuerpo);
+    },
+  },
+  {
+    id: "CA10", servicio: "catalogo", objetivo: "O4",
+    titulo: "La bitácora no se edita ni se borra",
+    dado: "cualquier evento",
+    cuando: "alguien intenta editarlo o borrarlo",
+    entonces: "recibe 405",
+    porque: `El evento es la bitácora: la tabla solo admite agregar filas y el estado de una OT se calcula leyendo sus eventos (${LOGICA}, ${ADR(3)}). El registro es lo que se audita; con qué evidencia y por cuánto tiempo sigue como <code>Brecha</code>.`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      await preparar(c, {sesion: false, sensores: false});
+      const s = c.stream(c.ot);
+      const antes = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const id = antes.cuerpo[0].id;
+      c.fase("cuando");
+      const intentos = [
+        await c.http("PUT", `/ot/${c.ot}/eventos`, {}),
+        await c.http("DELETE", `/ot/${c.ot}/eventos`),
+        await c.http("PUT", `/eventos/${id}`, {detalle: "editado"}),
+        await c.http("PATCH", `/eventos/${id}`, {detalle: "editado"}),
+        await c.http("DELETE", `/eventos/${id}`),
+      ];
+      c.fase("entonces");
+      const despues = await c.http("GET", `/ot/${c.ot}/eventos`);
+      await pausa(200);
+      c.comprobar("Editar o borrar devuelve 405 por las cinco vías", [405, 405, 405, 405, 405], intentos.map(r => r.status));
+      c.comprobar("La bitácora queda idéntica", antes.cuerpo, despues.cuerpo);
+      c.comprobar("Por el stream no sale ningún cambio", ["snapshot"], tipos(s.mensajes));
+    },
+  },
+  {
+    id: "CA17", servicio: "catalogo", objetivo: "O4",
+    titulo: "Un edge en sesión no se toma ni se suelta sin la clave del equipo",
+    dado: "un servidor con clave de equipo y un edge que ejecuta la OT 1",
+    cuando: "alguien sin la clave lo une a otra OT o lo suelta",
+    entonces: "recibe 401 y el edge sigue en la OT 1; repetir la sesión que ya tiene no pide clave",
+    porque: `La API es pública y el edge no sabe de OT: quien cambia su sesión decide a qué OT entran sus lecturas (${ADR(7)}). Sin <code>CLAVE_EQUIPO</code> el servidor queda abierto, como en local, y la tarjeta comprueba eso.`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      await preparar(c, {sesion: false, sensores: false, ot2: true});
+      const sesion = {edge_id: c.edge, operario: "operario:casos"}, sin = {sinClave: true};
+      c.exigir(await c.http("POST", `/ot/${c.ot}/sesion`, sesion), "abrir la sesión", 200);
+      const pide = c.exigir(await c.http("GET", "/clave"), "leer si el servidor pide clave", 200).cuerpo.requerida;
+      c.fase("cuando");
+      const repetir = await c.http("POST", `/ot/${c.ot}/sesion`, sesion, sin);
+      const tomar = await c.http("POST", `/ot/${c.ot2}/sesion`, sesion, sin);
+      const duena = await c.http("GET", `/edge/${c.edge}/sesion`);
+      const soltar = await c.http("DELETE", `/edge/${c.edge}/sesion`, undefined, sin);
+      c.fase("entonces");
+      c.observar("Este servidor pide clave", pide, "Con CLAVE_EQUIPO definida se espera 401; sin ella, que todo siga abierto.");
+      c.comprobar("Repetir la sesión que ya tiene no pide clave", 200, repetir.status);
+      c.comprobar("Unirlo a otra OT sin la clave", pide ? 401 : 200, tomar.status);
+      c.comprobar("El edge queda unido a", pide ? c.ot : c.ot2, duena.cuerpo.ot_id);
+      c.comprobar("Soltarlo sin la clave", pide ? 401 : 204, soltar.status);
+      await c.http("DELETE", `/edge/${c.edge}/sesion`);
+    },
+  },
+  {
+    id: "CA11", servicio: "scoring", objetivo: "O5",
+    titulo: "El aviso sale cuando el sensor se corrige",
+    dado: "una alerta de guarda abierta con energía viva",
+    cuando: "la guarda se cierra o la energía se corta",
+    entonces: "entra alerta_resuelta y la UI deja de mostrar el aviso",
+    porque: `Una alerta no se borra: cuando su condición desaparece entra <code>alerta_resuelta</code> apuntándola, y el aviso deja de venir en <code>calificacion.avisos</code> (${LOGICA}, ${ADR(7)}, decisión 5). Solo la capa 1 llega a error.`,
+    test: "tests/test_servicios.py · ElWarningSeVaCuandoElSensorSeCorrige",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      const r0 = await c.lecturas([["energia", "viva"], ["guarda", "abierta"]]);
+      const alerta = r0.cuerpo[1].eventos.find(e => e.tipo === "alerta" && clase(e) === "seguridad");
+      const cal0 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      c.fase("cuando");
+      const r1 = await c.lecturas([["guarda", "cerrada"]]);
+      const cal1 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      const activas = await c.http("GET", `/ot/${c.ot}/alertas`);
+      const r2 = await c.lecturas([["guarda", "abierta"]]);
+      const alerta2 = r2.cuerpo[0].eventos.find(e => e.tipo === "alerta" && clase(e) === "seguridad");
+      const r3 = await c.lecturas([["energia", "cortada"]]);
+      await s.esperar(ms => ms.filter(m => m.tipo === "calificacion_ot").length >= 5);
+      c.fase("entonces");
+      const trasResolver = s.mensajes
+        .map((m, i) => m.tipo === "evento" && m.evento.tipo === "alerta_resuelta" && clase(m.evento) === "seguridad"
+          ? s.mensajes.slice(i + 1).find(x => x.tipo === "calificacion_ot") : null)
+        .filter(Boolean).map(m => m.calificacion.avisos.filter(a => a.motivos[0].includes("ENERGÍA VIVA")).length);
+      c.comprobar("Dado: la OT está en error con el aviso de guarda abierta con energía viva", {nivel: "error", avisos: 1},
+        {nivel: cal0.cuerpo.nivel, avisos: cal0.cuerpo.avisos.filter(a => a.motivos[0].includes("ENERGÍA VIVA")).length});
+      const resuelta1 = r1.cuerpo[0].eventos.find(e => e.tipo === "alerta_resuelta" && clase(e) === "seguridad");
+      c.comprobar("Al cerrar la guarda entra alerta_resuelta", "alerta_resuelta", resuelta1?.tipo);
+      c.comprobar("Apunta a la alerta que cierra", alerta?.id, resuelta1?.evidencia?.resuelve);
+      c.comprobar("La OT vuelve a ok y sin avisos", {nivel: "ok", avisos: []}, {nivel: cal1.cuerpo.nivel, avisos: cal1.cuerpo.avisos});
+      c.comprobar("No quedan alertas activas", [], activas.cuerpo);
+      c.comprobar("Cortar la energía también resuelve la alerta siguiente", alerta2?.id,
+        r3.cuerpo[0].eventos.find(e => e.tipo === "alerta_resuelta" && clase(e) === "seguridad")?.evidencia?.resuelve);
+      c.comprobar("Por el stream, la calificación que sigue a cada resolución ya no trae el aviso", [0, 0], trasResolver);
+    },
+  },
+  {
+    id: "CA12", servicio: "scoring", objetivo: "O5",
+    titulo: "La alerta de señal se resuelve cuando vuelve a lo normal",
+    dado: "un pico de vibración con alerta abierta",
+    cuando: "la señal vuelve a lo normal",
+    entonces: "la alerta de capa 2 se resuelve",
+    porque: `La capa 2 detecta anomalías en la señal, se muestra y no interrumpe: llega a lo más a warning (${ADR(4)}, ${ADR(7)}). El umbral de 3,5 desvíos es <code>Candidata a validar</code> y el algoritmo de la capa 2 sigue como <code>Brecha</code>.`,
+    test: "tests/test_servicios.py · AnomaliaDeSenal",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.nota(`Usa el sensor <code>${SENSOR_DE_SENAL}</code>, propio del banco, para no mezclar su historia con la de un sensor real.`);
+      c.exigir(await c.lecturas(LINEA_BASE.map(v => [SENSOR_DE_SENAL, v])), "mandar la línea base", 200);
+      const pico = await c.lecturas([[SENSOR_DE_SENAL, 6.5]]);
+      const alerta = pico.cuerpo[0].eventos.find(e => e.tipo === "alerta");
+      const cal0 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      c.fase("cuando");
+      const vuelta = await c.lecturas([[SENSOR_DE_SENAL, 2.0]]);
+      await s.esperar(ms => ms.some(m => m.tipo === "evento" && m.evento.tipo === "alerta_resuelta"));
+      c.fase("entonces");
+      const cal1 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      await pausa(200);
+      c.comprobar("Dado: el pico abre una alerta de capa 2", [["alerta", 2]], pico.cuerpo[0].eventos.map(e => [e.tipo, e.capa]));
+      c.comprobar("Dado: la OT queda en warning, no en error", "warning", cal0.cuerpo.nivel);
+      c.comprobar("Al volver la señal entra alerta_resuelta de capa 2", [["alerta_resuelta", 2]], vuelta.cuerpo[0].eventos.map(e => [e.tipo, e.capa]));
+      c.comprobar("Apunta a la alerta del pico", alerta?.id, vuelta.cuerpo[0].eventos[0]?.evidencia?.resuelve);
+      c.comprobar("La OT vuelve a ok y sin avisos", {nivel: "ok", avisos: []}, {nivel: cal1.cuerpo.nivel, avisos: cal1.cuerpo.avisos});
+    },
+  },
+  {
+    id: "CA13", servicio: "video", objetivo: "O6",
+    titulo: "El paso de cámara se juzga con el último cuadro, y queda como evidencia",
+    dado: "la cámara del edge transmitiendo",
+    cuando: "el operario declara un paso de cámara",
+    entonces: "el juez recibe el último cuadro y ese cuadro queda como evidencia del veredicto",
+    porque: `Un paso de cámara lo cierra la capa 3 respondiendo la pregunta visual con el último cuadro del edge de la OT (${LOGICA}, ${ADR(7)}, decisión 6). Lo que decide la cámara se muestra y no interrumpe: un VLM general rechazó 5 de 12 ejecuciones correctas (${REF(9)}). El juez real es <code>Brecha</code>: hoy es un stub que recibe el cuadro y no lo mira.`,
+    test: "tests/test_servicios.py · ElJuezDeCamaraMiraElCuadroDelEdge",
+    opcion: {clave: "camara", etiqueta: "Cuadro", valores: [["jpeg", "JPEG de prueba"], ["camara", "Cámara real, por /camara"]]},
+    async correr(c, opciones) {
+      const conCamara = opciones.camara === "camara";
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.exigir(await c.lecturas([["reed_bloqueo", "cerrado"], ["guarda", "abierta"]]), "cerrar los dos pasos anteriores", 200);
+      const estado = await c.http("GET", `/ot/${c.ot}`);
+      let enviado = null, n = null;
+      if (conCamara) {
+        const enlace = `${base}/camara?edge=${encodeURIComponent(c.edge)}`;
+        c.nota(`Abre <a href="${enlace}" target="_blank" rel="noopener">${esc(enlace)}</a> en el celular o en otra pestaña y empieza a transmitir. Espero hasta 90 segundos.`);
+        for (let i = 0; i < 90 && n === null; i++) {
+          const v = await (await fetch(`${base}/edge/${c.edge}/video`)).json();
+          if (v.hay_video) n = v.cuadros; else await pausa(1000);
+        }
+        if (n === null) throw new Error("No se pudo preparar el caso: en 90 segundos no llegó ningún cuadro de la cámara.");
+        await c.http("GET", `/edge/${c.edge}/video`);
+      } else {
+        for (const i of [1, 2]) {
+          enviado = await jpegDePrueba(c, i);
+          const r = c.exigir(await c.http("POST", `/edge/${c.edge}/cuadro`, enviado, {etiqueta: `JPEG de prueba n.º ${i}, ${enviado.size} bytes`}), "mandar el cuadro", 200);
+          n = r.cuerpo.cuadro;
+        }
+      }
+      const actual = await c.http("GET", `/edge/${c.edge}/cuadro.jpg`, undefined, {binario: true});
+      c.fase("cuando");
+      const d = await c.http("POST", `/ot/${c.ot}/declarar`, {actor: "operario:casos", texto: "rodillo cambiado"});
+      await s.esperar(ms => ms.some(m => m.tipo === "evento" && m.evento.tipo === "veredicto" && m.evento.paso_id === "p3"));
+      c.fase("entonces");
+      const evs = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const veredicto = deTipo(evs.cuerpo, "veredicto").filter(e => e.paso_id === "p3").pop();
+      const ruta = d.cuerpo?.evidencia?.cuadro;
+      c.comprobar("Dado: la pauta está en el paso de cámara", "p3", estado.cuerpo.paso_actual);
+      if (conCamara) {
+        const visto = Number((String(ruta).match(/-p3-(\d+)\.jpg$/) || [])[1]);
+        c.comprobar("El cuadro de la evidencia es de este edge y no anterior a la declaración", `${c.ot}-p3-N.jpg, con N ≥ ${n}`, ruta, visto >= n && String(ruta).includes(`${c.ot}-p3-`));
+      } else {
+        const bytes = new Uint8Array(await enviado.arrayBuffer());
+        c.comprobar("Dado: el último cuadro del edge es el último que se mandó", true, igual([...bytes], [...actual.cuerpo]));
+        c.comprobar("El cuadro de la evidencia es el último de este edge, el n.º 2", `termina en ${c.ot}-p3-${n}.jpg`, ruta, String(ruta).endsWith(`${c.ot}-p3-${n}.jpg`));
+      }
+      c.comprobar("El veredicto es del paso de cámara y lo decide la capa 3", {paso: "p3", capa: 3, tipo: "camara"},
+        {paso: d.cuerpo?.paso, capa: d.cuerpo?.capa, tipo: d.cuerpo?.evidencia?.tipo});
+      c.comprobar("La bitácora guarda esa misma evidencia", ruta, veredicto?.evidencia?.cuadro);
+      c.observar("Lo que decidió el juez con ese cuadro", `${d.cuerpo?.estado} · calificación ${d.cuerpo?.calificacion?.nivel} · confianza ${d.cuerpo?.evidencia?.confianza}`,
+        "Depende del juez de cámara del frente 3. El stub responde que sí con confianza baja, por eso la calificación es warning.");
+      const url = URL.createObjectURL(new Blob([actual.cuerpo], {type: "image/jpeg"}));
+      c.caja.querySelector("[data-evidencia]").innerHTML = `El último cuadro del edge al declarar (<code>GET /edge/${esc(c.edge)}/cuadro.jpg</code>):<img src="${url}" alt="Cuadro que el juez recibió">`;
+    },
+  },
+  {
+    id: "CA14", servicio: "guia", objetivo: "O7",
+    titulo: "La guía lista todas las rutas con la URL del servidor",
+    dado: "un agente nuevo",
+    cuando: "lee /agente",
+    entonces: "encuentra todas las rutas de la API con la URL del servidor",
+    porque: `El catálogo de endpoints se arma desde las rutas reales de la aplicación, así no se desfasa del código (${ADR(7)}, decisión 7). Los WebSocket no aparecen en <code>/openapi.json</code>, por eso se comprueban aparte.`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      c.fase("dado");
+      const api = c.exigir(await c.http("GET", "/openapi.json"), "leer el esquema", 200);
+      c.fase("cuando");
+      const guia = await c.http("GET", "/agente");
+      const llms = await c.http("GET", "/llms.txt");
+      c.fase("entonces");
+      const texto = typeof guia.cuerpo === "string" ? guia.cuerpo : "";
+      const rutas = [...Object.keys(api.cuerpo.paths).filter(p => !PAGINAS.includes(p) && p !== "/llms.txt"), ...WEBSOCKETS];
+      c.comprobar("Se sirve como Markdown", true, guia.tipo.includes("text/markdown"));
+      c.comprobar(`De las ${rutas.length} rutas de la API, ninguna falta en la guía`, [], rutas.filter(p => !texto.includes("`" + p + "`")));
+      c.contiene("Los ejemplos usan la URL de este servidor", `${base}/pauta/demo`, texto);
+      c.contiene("Los WebSocket también, con ws o wss según el servidor", `${baseWS()}/ot/`, texto);
+      c.comprobar("/llms.txt entrega la misma guía", true, llms.cuerpo === guia.cuerpo);
+    },
+  },
+];
+
+// ─── Pantalla ───────────────────────────────────────────────────────────────
+const resultados = new Map();
+
+function pintarCasos() {
+  $("casos").innerHTML = SERVICIOS.map(sv => `
+    <section class="servicio" id="servicio-${sv.id}">
+      <h2>${sv.titulo}<code>${sv.archivo}</code></h2>
+      <p>${sv.que}</p>
+      ${CASOS.filter(k => k.servicio === sv.id).map(k => `
+        <article class="caso" id="${k.id}">
+          <div class="cabeza">
+            <span class="id">${k.id}</span><span class="obj" title="Objetivo del PRD que este criterio prueba">objetivo ${k.objetivo.slice(1)}</span>
+            <h3>${k.titulo}</h3>
+            <span class="sello" data-sello>SIN CORRER</span>
+            <button class="secundario" data-correr="${k.id}">Correr</button>
+          </div>
+          <div class="dce">
+            <div><b>Dado</b>${k.dado}</div><div><b>Cuando</b>${k.cuando}</div><div><b>Entonces</b>${k.entonces}</div>
+          </div>
+          <p class="porque"><b>Por qué.</b> ${k.porque} <b>Test:</b> <code>${k.test}</code></p>
+          ${k.opcion ? `<p class="opcion"><label>${k.opcion.etiqueta}: <select data-opcion="${k.opcion.clave}">${k.opcion.valores.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select></label> «Correr todos» usa siempre el JPEG de prueba.</p>` : ""}
+          <div class="corrida" data-corrida hidden></div>
+        </article>`).join("")}
+    </section>`).join("");
+  $("marcas").innerHTML = CASOS.map(k => `<a class="marca" href="#${k.id}" data-marca="${k.id}">${k.id}</a>`).join("");
+  document.querySelectorAll("button[data-correr]").forEach(b => { b.onclick = () => correrUno(b.dataset.correr); });
+}
+
+function marcar(k, estado, texto) {
+  const tarjeta = $(k.id);
+  tarjeta.className = "caso " + estado;
+  const sello = tarjeta.querySelector("[data-sello]");
+  sello.className = "sello " + estado;
+  sello.textContent = texto;
+  document.querySelector(`[data-marca="${k.id}"]`).className = "marca " + estado;
+}
+
+async function correrCaso(k, opciones = {}) {
+  const tarjeta = $(k.id), caja = tarjeta.querySelector("[data-corrida]");
+  caja.hidden = false;
+  marcar(k, "corriendo", "CORRIENDO…");
+  const c = new Corrida(k, caja);
+  let error = null;
+  try {
+    await k.correr(c, opciones);
+  } catch (e) {
+    error = e;
+  }
+  await limpiar(c);
+  const pasa = !error && c.checks.length > 0 && c.checks.every(Boolean);
+  if (error) c.fallo(error.message);
+  const segundos = ((performance.now() - c.inicio) / 1000).toFixed(1).replace(".", ",");
+  marcar(k, pasa ? "pasa" : "falla", `${pasa ? "PASA" : "FALLA"} · ${c.checks.filter(Boolean).length}/${c.checks.length} · ${segundos} s`);
+  resultados.set(k.id, pasa);
+  return pasa;
+}
+
+function opcionesDe(k) {
+  const o = {};
+  $(k.id).querySelectorAll("select[data-opcion]").forEach(s => { o[s.dataset.opcion] = s.value; });
+  return o;
+}
+
+function pintarResumen(enCurso) {
+  const corridos = [...resultados.values()], pasan = corridos.filter(Boolean).length;
+  $("resumen").innerHTML = corridos.length
+    ? `${pasan} de ${corridos.length} pasan <small>${enCurso ? "· corriendo…" : corridos.length < CASOS.length ? `· ${CASOS.length - corridos.length} sin correr` : ""}</small>`
+    : `<small>${enCurso ? "Corriendo…" : "Sin correr."}</small>`;
+  document.body.dataset.estado = enCurso ? "corriendo" : "terminado";
+  document.body.dataset.pasan = pasan;
+  document.body.dataset.corridos = corridos.length;
+  document.body.dataset.fallan = [...resultados].filter(([, ok]) => !ok).map(([id]) => id).join(" ");
+  document.title = corridos.length ? `${pasan}/${corridos.length} pasan · Casos` : "Casos · banco de pruebas de los servicios";
+}
+
+async function conCandado(tarea) {
+  if (ocupado) return;
+  ocupado = true; actualizarBotones();
+  try { await tarea(); } finally { ocupado = false; actualizarBotones(); pintarResumen(false); }
+}
+
+const correrUno = id => conCandado(async () => {
+  const k = CASOS.find(x => x.id === id);
+  pintarResumen(true);
+  await correrCaso(k, opcionesDe(k));
+});
+
+const correrTodos = () => conCandado(async () => {
+  resultados.clear();
+  CASOS.forEach(k => marcar(k, "", "EN COLA"));
+  for (const k of CASOS) {
+    pintarResumen(true);
+    await correrCaso(k, {});
+  }
+});
+
+function elegirServidor(url) {
+  base = url;
+  resultados.clear();
+  pintarCasos();
+  pintarResumen(false);
+  $("resumen").innerHTML = "<small>Sin correr.</small>";
+  document.body.dataset.estado = "listo";
+  return Promise.all([comprobarServidor(), cargarEscenarios(), cargarIndustrias()]);
+}
+
+// ─── Escenarios por industria ───────────────────────────────────────────────
+const INDUSTRIAS = [["MIN", "Minería"], ["ELE", "Eléctrica"], ["CON", "Construcción"]];
+const SELLO = {pasa: "PASA", brecha: "BRECHA", falla: "FALLA", brecha_cerrada: "BRECHA CERRADA"};
+let escenarios = [], resultadosEsc = new Map(), elegido = null;
+
+async function cargarEscenarios() {
+  resultadosEsc = new Map(); elegido = null;
+  $("esc-detalle").innerHTML = "";
+  try {
+    escenarios = await (await fetch(base + "/escenarios")).json();
+    if (!Array.isArray(escenarios)) throw new Error("respuesta inesperada");
+  } catch (e) {
+    escenarios = [];
+    $("esc-matriz").innerHTML = `<tr><td colspan="5">Este servidor no tiene <code>/escenarios</code>: es una versión anterior a la matriz.</td></tr>`;
+    $("esc-correr").disabled = true;
+    return;
+  }
+  $("esc-correr").disabled = false;
+  pintarMatriz();
+}
+
+function pintarMatriz() {
+  const barrera = $("esc-barrera").value;
+  const visibles = escenarios.filter(e => !barrera || String(e.barrera.capa) === barrera);
+  const patrones = [...new Map(visibles.map(e => [e.patron.codigo, e])).values()];
+  let grupo = null, filas = "";
+  for (const e of patrones) {
+    if (e.patron.grupo !== grupo) {
+      grupo = e.patron.grupo;
+      filas += `<tr class="grupo"><td colspan="5">${esc(grupo)} · ${esc(e.patron.grupo_nombre)}</td></tr>`;
+    }
+    const celdas = INDUSTRIAS.map(([cod]) => {
+      const id = `${cod}-${e.patron.codigo}`, r = resultadosEsc.get(id), x = escenarios.find(y => y.id === id);
+      const texto = r ? SELLO[r.sello] : (x?.brecha ? "brecha prevista" : "sin correr");
+      return `<td><button class="celda ${r ? r.sello : ""}" data-esc="${id}" aria-pressed="${elegido === id}" title="${esc(x?.dado || "")}">${id.slice(4)} · ${texto}</button></td>`;
+    }).join("");
+    filas += `<tr><td class="patron"><b>${e.patron.codigo}</b>${esc(e.patron.nombre)}<small>${esc(e.patron.pregunta)}</small></td>`
+      + `<td><span class="capa-chip c${e.barrera.capa}">capa ${e.barrera.capa}</span></td>${celdas}</tr>`;
+  }
+  $("esc-matriz").innerHTML = filas;
+  document.querySelectorAll("button[data-esc]").forEach(b => { b.onclick = () => verEscenario(b.dataset.esc); });
+  pintarResumenEsc();
+}
+
+function pintarResumenEsc() {
+  const r = [...resultadosEsc.values()];
+  const n = k => r.filter(x => x.sello === k).length;
+  $("esc-resumen").innerHTML = r.length
+    ? `${n("pasa")} pasan · ${n("brecha")} brechas · ${n("falla")} fallan${n("brecha_cerrada") ? ` · ${n("brecha_cerrada")} brechas cerradas` : ""} <small>de ${r.length}</small>`
+    : `<small>${escenarios.length} escenarios, ${escenarios.filter(e => e.brecha).length} con brecha prevista. Sin correr.</small>`;
+  document.body.dataset.escenarios = r.length ? `${n("pasa")}/${n("brecha")}/${n("falla")}/${n("brecha_cerrada")}` : "";
+}
+
+async function correrEscenarios() {
+  $("esc-correr").disabled = true;
+  $("esc-resumen").innerHTML = "<small>Corriendo…</small>";
+  try {
+    const r = await (await fetch(base + "/escenarios/correr", {method: "POST"})).json();
+    resultadosEsc = new Map(r.map(x => [x.id, x]));
+  } catch (e) {
+    $("esc-resumen").innerHTML = `<span style="color:var(--err)">No se pudo correr: ${esc(e.message)}</span>`;
+  }
+  $("esc-correr").disabled = false;
+  pintarMatriz();
+  if (elegido) verEscenario(elegido);
+}
+
+async function verEscenario(id) {
+  elegido = id;
+  document.querySelectorAll("button[data-esc]").forEach(b => b.setAttribute("aria-pressed", b.dataset.esc === id));
+  const caja = $("esc-detalle");
+  caja.innerHTML = `<div class="caso corriendo"><p class="muted">Corriendo ${esc(id)}…</p></div>`;
+  let r;
+  try {
+    const resp = await fetch(`${base}/escenarios/${id}/correr`, {method: "POST"});
+    r = await resp.json();
+    if (!resp.ok) throw new Error(JSON.stringify(r));
+  } catch (e) {
+    caja.innerHTML = `<div class="caso falla"><p class="fallo-general">No se pudo correr ${esc(id)}: ${esc(e.message)}</p></div>`;
+    return;
+  }
+  resultadosEsc.set(id, r);
+  pintarMatriz();
+  const filas = Object.entries(r.comparacion).map(([k, c]) =>
+    `<tr class="${c.cumple ? "si" : "no"}"><td>${esc(k.replaceAll("_", " "))}</td><td class="v">${esc(json(c.esperado))}</td><td class="v">${esc(json(c.obtenido))}</td><td class="s">${c.cumple ? "✓" : "✗"}</td></tr>`).join("");
+  const bitacora = r.bitacora.map(ev => `<div class="linea"><span class="tipo evento">${esc(ev.tipo)}</span> ${esc(ev.paso_id || "")} ${ev.calificacion ? `[${ev.calificacion.nivel}]` : ""} ${esc(ev.detalle)}</div>`).join("");
+  const stream = r.stream.filter(m => m.tipo !== "lectura" || r.stream.length < 40).map(m =>
+    `<div class="linea"><span class="tipo ${m.tipo}">${esc(m.tipo)}</span> ${esc(resumenDeMensaje(m))}</div>`).join("");
+  const lecturas = r.stream.filter(m => m.tipo === "lectura").length;
+  const pasos = r.pasos.map(p => p.lee ? `lee ${p.lee.length > 4 ? `${p.lee.length} lecturas de ${p.lee[0][0]}` : p.lee.map(([a, b]) => `${a}=${b}`).join(", ")}`
+    : p.dice ? `dice «${p.dice}»` : p.cuadro ? "llega un cuadro de video" : p.pasa ? `pasan ${p.pasa} s sin lecturas` : JSON.stringify(p));
+  caja.innerHTML = `
+    <article class="caso ${r.sello === "brecha_cerrada" ? "corriendo" : r.sello}">
+      <div class="cabeza"><span class="id">${esc(r.id)}</span><span class="capa-chip c${r.barrera.capa}">capa ${r.barrera.capa} · ${esc(r.barrera.nombre)}</span>
+        <h3>${esc(r.industria.nombre)} · ${esc(r.patron.nombre)}</h3><span class="sello ${r.sello === "brecha_cerrada" ? "corriendo" : r.sello}">${SELLO[r.sello]}</span></div>
+      <div class="dce"><div><b>Dado</b>${esc(r.dado)}</div><div><b>Cuando</b>${esc(r.cuando)}</div><div><b>Entonces</b>${esc(r.entonces)}</div></div>
+      <p class="porque"><b>De dónde sale.</b> ${esc(r.fuente)}. <b>Tarea:</b> ${esc(r.industria.tarea)}.</p>
+      ${r.brecha ? `<div class="brecha-caja"><b>Brecha.</b> ${esc(r.brecha)}</div>` : ""}
+      ${r.nota ? `<div class="nota-caja"><b>Nota.</b> ${esc(r.nota)}</div>` : ""}
+      ${r.error ? `<p class="fallo-general">${esc(r.error)}</p>` : ""}
+      <div class="corrida">
+        <p class="ids">Secuencia: ${pasos.map(esc).join(" → ")}</p>
+        <table class="checks"><thead><tr><th>Qué se comprueba</th><th>Esperado</th><th>Obtenido</th><th></th></tr></thead><tbody>${filas}</tbody></table>
+        <div class="traza">
+          <div><h4>Bitácora que quedó</h4><div class="lista">${bitacora}</div></div>
+          <div><h4>Lo que habría llegado por el stream${lecturas >= 40 ? ` (sin las ${lecturas} lecturas)` : ""}</h4><div class="lista">${stream || '<div class="vacio">Nada.</div>'}</div></div>
+        </div>
+      </div>
+    </article>`;
+}
+
+$("esc-correr").onclick = correrEscenarios;
+$("esc-barrera").onchange = pintarMatriz;
+
+// ─── Cada industria por dentro ──────────────────────────────────────────────
+// Una sección por industria: trasfondo, pauta y la arquitectura (tests → controladores →
+// servicios → tablas). Elegir un test corre su escenario en la caja aislada y anima el
+// recorrido que devolvió el servidor, tramo por tramo.
+const ANCLA = {MIN: "mineria", ELE: "electrica", CON: "construccion"};
+const CLASE_SECTOR = {MIN: "min", ELE: "ele", CON: "con"};
+const ILUSTRACION = {
+  MIN: `<svg class="ilustracion" viewBox="0 0 600 220" preserveAspectRatio="xMaxYMid meet" aria-hidden="true">
+    <polygon points="470,150 530,70 600,150" fill="#6b3f1d" opacity=".7"/>
+    <g fill="none" stroke="#e0a060" stroke-width="3">
+      <circle cx="140" cy="150" r="26"/><circle cx="140" cy="150" r="6"/><circle cx="500" cy="150" r="26"/><circle cx="500" cy="150" r="6"/>
+      <line x1="140" y1="124" x2="500" y2="124"/><line x1="140" y1="176" x2="500" y2="176"/>
+      ${[190, 240, 290, 340, 390, 440].map(x => `<circle cx="${x}" cy="190" r="8"/><line x1="${x}" y1="198" x2="${x}" y2="214"/>`).join("")}
+      <rect x="250" y="92" width="130" height="38" rx="4" stroke-dasharray="7 5"/>
+      <rect x="296" y="40" width="30" height="24" rx="3"/><path d="M302,40 v-8 a9,9 0 0 1 18,0 v8"/>
+    </g>
+    <g fill="#e0a060" opacity=".85"><polygon points="170,124 182,110 196,124"/><polygon points="210,124 220,114 232,124"/><polygon points="420,124 434,108 446,124"/></g>
+  </svg>`,
+  ELE: `<svg class="ilustracion" viewBox="0 0 600 220" preserveAspectRatio="xMaxYMid meet" aria-hidden="true">
+    <g fill="none" stroke="#f2c230" stroke-width="2.5">
+      <path d="M470,215 L500,20 L530,215 M478,160 L522,160 M486,105 L514,105 M492,60 L508,60 M478,160 L514,105 M522,160 L486,105 M486,105 L508,60 M514,105 L492,60"/>
+      <line x1="440" y1="45" x2="560" y2="45"/><line x1="450" y1="75" x2="550" y2="75"/>
+      <path d="M440,45 Q340,85 230,60 M450,75 Q350,115 240,92"/>
+      <rect x="180" y="120" width="120" height="80" rx="6"/>
+      ${[195, 215, 235, 255, 275].map(x => `<line x1="${x}" y1="128" x2="${x}" y2="192"/>`).join("")}
+      ${[205, 240, 275].map(x => `<line x1="${x}" y1="120" x2="${x}" y2="92"/><ellipse cx="${x}" cy="108" rx="8" ry="3"/><ellipse cx="${x}" cy="100" rx="7" ry="3"/>`).join("")}
+      <path d="M110,200 h40 M116,207 h28 M122,214 h16 M130,200 v-30"/>
+    </g>
+  </svg>`,
+  CON: `<svg class="ilustracion" viewBox="0 0 600 220" preserveAspectRatio="xMaxYMid meet" aria-hidden="true">
+    <g fill="none" stroke="#f5b800" stroke-width="3">
+      <rect x="290" y="172" width="220" height="32" rx="16"/>
+      ${[310, 350, 390, 430, 470, 490].map(x => `<circle cx="${x}" cy="188" r="8"/>`).join("")}
+      <rect x="320" y="120" width="150" height="52" rx="6"/><rect x="330" y="80" width="62" height="44" rx="5"/>
+      <line x1="345" y1="92" x2="380" y2="92"/>
+      <path d="M455,125 L540,48 L585,118" stroke-width="9" stroke-linecap="round"/>
+      <path d="M585,118 l-22,4 l6,22 l26,-6 z" fill="#f5b800" fill-opacity=".35"/>
+    </g>
+    <g fill="#f5b800" opacity=".9"><polygon points="180,205 196,160 212,205"/><polygon points="230,205 244,168 258,205"/></g>
+  </svg>`,
+};
+let industrias = [], piezas = null;
+const generacion = {};
+
+async function cargarIndustrias() {
+  $("sectores").innerHTML = "";
+  try {
+    const r = await (await fetch(base + "/industrias")).json();
+    if (!r.industrias) throw new Error("respuesta inesperada");
+    industrias = r.industrias; piezas = r.arquitectura;
+  } catch (e) {
+    $("sectores").innerHTML = `<p class="porque">Este servidor no tiene <code>/industrias</code>: es una versión anterior a las secciones por industria.</p>`;
+    return;
+  }
+  $("sectores").innerHTML = industrias.map(pintarSector).join("");
+  industrias.forEach(prepararSector);
+}
+
+function pintarSector(ind) {
+  const c = ind.codigo, cls = CLASE_SECTOR[c];
+  const tests = ind.tests.map((t, i) => t.escenario
+    ? `<button class="caja" data-test="${i}"><span class="pt">${t.patron || "·"}</span>${esc(t.titulo)}<span class="st" data-st></span></button>`
+    : `<div class="caja variante" title="Corre en unittest: es una variante de ${esc(t.variante_de || "")} con su propia secuencia"><span class="pt">+</span>${esc(t.titulo)}<small>variante de ${esc(t.variante_de || "—")} · solo en unittest</small></div>`).join("");
+  const ctrls = piezas.controladores.map(k => `<div class="caja" data-ctrl="${esc(k)}"><code>${esc(k)}</code></div>`).join("");
+  const srvs = piezas.servicios.map(k => `<div class="caja" data-srv="${k.id}"><code>${esc(k.funcion)}</code><small>${esc(k.que)}</small></div>`).join("");
+  const tablas = piezas.tablas.map(k => `<div class="caja" data-tabla="${k.id}"><code>${k.id === "video" ? "video (memoria)" : esc(k.id)}</code><small>${esc(k.que)}</small></div>`).join("");
+  const pasos = ind.pauta.pasos.map(p => `<div class="pp ${p.control_critico ? "critico" : ""}" data-paso="${p.id}" title="${p.control_critico ? "Control crítico" : ""}"><b>${p.id}</b>${esc(p.titulo)}<small>${p.sensor ? `${esc(p.sensor.id)} = ${esc(p.sensor.espera)}` : p.tipo_evidencia === "camara" ? "cámara" : "confirmación"}</small></div>`).join("");
+  const reglas = ind.reglas.map(r => `<p class="regla"><b>${esc(r.regla)}</b> · ${esc(typeof r.condicion === "string" ? r.condicion : Object.entries(r.condicion).map(([k, v]) => `${k} = ${v}`).join(" y "))}<small>${esc(r.fuente)}</small></p>`).join("");
+  const sensores = Object.entries(ind.sensores).map(([k, v]) => `<span class="sensor-chip">${esc(k)}: ${v.map(esc).join(" · ")}</span>`).join("")
+    + `<span class="sensor-chip">${esc(ind.senal.sensor)}: ${esc(ind.senal.que_mide)}, en ${esc(ind.senal.unidad)}</span>`;
+  return `
+  <section class="sector ${cls}" id="${ANCLA[c]}" data-sector="${c}">
+    <header class="sector-portada">${ILUSTRACION[c]}
+      <span class="chip">${esc(ind.nombre)}</span>
+      <h3>${esc(ind.tarea)}</h3>
+      <p>${esc(ind.equipo)} · <code style="background:rgba(255,255,255,.1);color:inherit">${esc(ind.pauta.id)}</code> v${ind.pauta.version}, ${ind.pauta.pasos.length} pasos · ${ind.tests.length} casos de uso en <code style="background:rgba(255,255,255,.1);color:inherit">${esc(ind.pruebas)}</code></p>
+      <div class="franja"></div>
+    </header>
+    <div class="sector-cuerpo">
+      <div class="trasfondo">${ind.trasfondo.map(t => `<div class="tf"><b>${esc(t.titulo)}</b>${esc(t.texto)}</div>`).join("")}</div>
+      <div class="reglas-sensores">
+        <div><h4>Las reglas de capa 1 que la vigilan</h4>${reglas}</div>
+        <div><h4>Sus sensores y sus valores</h4>${sensores}</div>
+      </div>
+      <div class="pauta-linea" data-pauta>${pasos}</div>
+      <div class="controles-rep">
+        <button class="primario" data-todos>Correr los ${ind.tests.filter(t => t.escenario).length} casos de uso</button>
+        <label>Velocidad <select data-velocidad><option value="0.5">lenta</option><option value="1" selected>normal</option><option value="2.5">rápida</option></select></label>
+        <span class="porque" data-resumen>Elige un test para ver su recorrido.</span>
+      </div>
+      <div class="arq" data-arq>
+        <svg class="cables" data-cables></svg>
+        <div class="tests"><h4>Tests · <code>${esc(ind.pruebas)}</code></h4><div class="lista-tests">${tests}</div></div>
+        <div><h4>Controladores · <code>api.py</code></h4>${ctrls}</div>
+        <div><h4>Servicios · <code>servicios.py · reglas.py · scoring.py</code></h4>${srvs}</div>
+        <div><h4>Datos · <code>db.py</code>, SQLite</h4>${tablas}</div>
+      </div>
+      <div class="reproductor">
+        <div><h4>Recorrido, tramo por tramo</h4><ol class="tramos" data-tramos><li>Todavía no corre ningún test.</li></ol></div>
+        <div data-resultado><h4>Lo que el test afirma</h4><p class="porque">—</p></div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function prepararSector(ind) {
+  const sec = document.querySelector(`[data-sector="${ind.codigo}"]`);
+  sec.querySelectorAll("button[data-test]").forEach(b => { b.onclick = () => reproducir(ind, +b.dataset.test); });
+  sec.querySelector("[data-todos]").onclick = () => correrSector(ind);
+}
+
+async function correrSector(ind) {
+  const sec = document.querySelector(`[data-sector="${ind.codigo}"]`);
+  const boton = sec.querySelector("[data-todos]");
+  boton.disabled = true;
+  sec.querySelector("[data-resumen]").textContent = "Corriendo…";
+  try {
+    const r = await (await fetch(base + "/escenarios/correr", {method: "POST"})).json();
+    const por = new Map(r.map(x => [x.id, x]));
+    let pasan = 0, total = 0;
+    ind.tests.forEach((t, i) => {
+      if (!t.escenario) return;
+      const x = por.get(t.escenario); total++;
+      const ok = x && (x.sello === "pasa" || x.sello === "brecha");
+      if (x?.sello === "pasa") pasan++;
+      const st = sec.querySelector(`button[data-test="${i}"] [data-st]`);
+      st.className = "st " + (x?.sello === "pasa" ? "pasa" : "falla");
+      st.textContent = x ? (x.sello === "pasa" ? "✓" : x.sello === "brecha" ? "brecha" : "✗") : "?";
+    });
+    const variantes = ind.tests.length - total;
+    sec.querySelector("[data-resumen]").textContent = `${pasan} de ${total} pasan en la caja aislada de este servidor`
+      + (variantes ? `; ${variantes} variantes corren solo en unittest.` : ".");
+    sec.dataset.pasan = `${pasan}/${total}`;
+  } catch (e) {
+    sec.querySelector("[data-resumen]").textContent = `No se pudo correr: ${e.message}`;
+  }
+  boton.disabled = false;
+}
+
+function limpiarArq(sec) {
+  sec.querySelectorAll(".arq .caja").forEach(b => b.classList.remove("corre", "dispara", "ok", "warning", "error", "apagada"));
+  sec.querySelector("[data-cables]").innerHTML = "";
+}
+
+// El camino del tramo: entra a cada columna por la izquierda, recorre sus cajas por el
+// borde derecho y sale hacia la siguiente. Devuelve los puntos y en qué largo toca cada caja.
+function camino(arq, columnas) {
+  const base0 = arq.getBoundingClientRect();
+  const ancla = (el, lado) => {
+    const r = el.getBoundingClientRect();
+    return {x: (lado === "i" ? r.left - 7 : r.right + 7) - base0.left, y: r.top + r.height / 2 - base0.top};
+  };
+  const pts = [], toques = [];
+  const ir = (p, caja) => {
+    if (pts.length) {
+      const q = pts[pts.length - 1];
+      if (Math.abs(q.y - p.y) > 1 && Math.abs(q.x - p.x) > 1) { const mx = (q.x + p.x) / 2; pts.push({x: mx, y: q.y}, {x: mx, y: p.y}); }
+    }
+    pts.push(p);
+    if (caja) toques.push({i: pts.length - 1, caja});
+  };
+  columnas.filter(c => c.length).forEach((cajas, k, todas) => {
+    const ultima = k === todas.length - 1;
+    cajas.forEach((caja, j) => {
+      if (k === 0) { ir(ancla(caja, "d"), caja); return; }
+      if (j === 0) ir(ancla(caja, "i"), caja);
+      if (!ultima) ir(ancla(caja, "d"), j === 0 ? null : caja);
+      else if (j > 0) ir(ancla(caja, "i"), caja);
+    });
+  });
+  let largo = 0;
+  const acum = pts.map((p, i) => (largo += i ? Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0));
+  return {pts, acum, largo, toques: toques.map(t => ({...t, en: acum[t.i]}))};
+}
+
+function animarCamino(sec, c, velocidad, gen, codigo, alTocar) {
+  const svg = sec.querySelector("[data-cables]");
+  svg.innerHTML = `<path d="M${c.pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L")}"/><circle r="7" cx="${c.pts[0].x}" cy="${c.pts[0].y}"/>`;
+  const punto = svg.querySelector("circle");
+  const dur = Math.max(500, (c.largo / (650 * velocidad)) * 1000);
+  let tocadas = 0;
+  return new Promise(listo => {
+    const t0 = performance.now();
+    const cuadro = ahora => {
+      if (generacion[codigo] !== gen) return listo(false);
+      const d = Math.min(1, (ahora - t0) / dur) * c.largo;
+      let i = 1;
+      while (i < c.acum.length - 1 && c.acum[i] < d) i++;
+      const a = c.pts[i - 1], b = c.pts[i], tramo = (c.acum[i] - c.acum[i - 1]) || 1, f = Math.min(1, (d - c.acum[i - 1]) / tramo);
+      punto.setAttribute("cx", a.x + (b.x - a.x) * f); punto.setAttribute("cy", a.y + (b.y - a.y) * f);
+      while (tocadas < c.toques.length && c.toques[tocadas].en <= d + 0.5) alTocar(c.toques[tocadas++].caja);
+      if (d < c.largo) requestAnimationFrame(cuadro); else listo(true);
+    };
+    requestAnimationFrame(cuadro);
+  });
+}
+
+const PEOR = {ok: 0, warning: 1, error: 2};
+function nivelDe(eventos, clase) {
+  return eventos.filter(e => e.nivel && (!clase || e.clase === clase || (clase === "paso" && e.tipo === "veredicto") || (clase === "declarar" && e.tipo !== "alerta" && e.tipo !== "alerta_resuelta")))
+    .reduce((n, e) => (PEOR[e.nivel] > PEOR[n] ? e.nivel : n), "ok");
+}
+
+async function reproducir(ind, indice) {
+  const codigo = ind.codigo, t = ind.tests[indice];
+  const sec = document.querySelector(`[data-sector="${codigo}"]`);
+  if (!t.escenario) {
+    sec.querySelector("[data-tramos]").innerHTML = `<li class="actual"><b>${esc(t.nombre)}</b><small>Es una variante de ${esc(t.variante_de || "otro escenario")} con su propia secuencia: corre en unittest, no en la caja del servidor.</small></li>`;
+    return;
+  }
+  const gen = (generacion[codigo] = (generacion[codigo] || 0) + 1);
+  sec.querySelectorAll("button[data-test]").forEach(b => b.setAttribute("aria-pressed", b.dataset.test === String(indice)));
+  limpiarArq(sec);
+  sec.querySelectorAll("[data-paso]").forEach(p => p.classList.remove("verificado", "en_conflicto"));
+  sec.querySelector("[data-tramos]").innerHTML = "<li>Corriendo en la caja aislada…</li>";
+  let r;
+  try {
+    const resp = await fetch(`${base}/escenarios/${t.escenario}/correr`, {method: "POST"});
+    r = await resp.json();
+    if (!resp.ok) throw new Error(JSON.stringify(r));
+  } catch (e) {
+    sec.querySelector("[data-tramos]").innerHTML = `<li class="actual">No se pudo correr ${esc(t.escenario)}: ${esc(e.message)}</li>`;
+    return;
+  }
+  if (generacion[codigo] !== gen) return;
+  const st = sec.querySelector(`button[data-test="${indice}"] [data-st]`);
+  st.className = "st " + (r.sello === "pasa" ? "pasa" : "falla"); st.textContent = r.sello === "pasa" ? "✓" : r.sello === "brecha" ? "brecha" : "✗";
+  const filas = Object.entries(r.comparacion).map(([k, x]) =>
+    `<tr class="${x.cumple ? "si" : "no"}"><td>${esc(k.replaceAll("_", " "))}</td><td class="v">${esc(json(x.esperado))}</td><td class="v">${esc(json(x.obtenido))}</td><td class="s">${x.cumple ? "✓" : "✗"}</td></tr>`).join("");
+  sec.querySelector("[data-resultado]").innerHTML = `
+    <h4>Lo que el test afirma · <code>${esc(t.nombre)}</code></h4>
+    <p style="margin:0 0 8px"><span class="sello ${r.sello === "pasa" ? "pasa" : "falla"}">${SELLO[r.sello]}</span> <span class="capa-chip c${r.barrera.capa}">capa ${r.barrera.capa}</span> <b>${esc(r.patron.codigo)}</b> ${esc(r.patron.nombre)}</p>
+    <div class="dce" style="grid-template-columns:1fr"><div><b>Dado</b>${esc(r.dado)}</div><div><b>Cuando</b>${esc(r.cuando)}</div><div><b>Entonces</b>${esc(r.entonces)}</div></div>
+    <table class="checks"><thead><tr><th>Qué se comprueba</th><th>Esperado</th><th>Obtenido</th><th></th></tr></thead><tbody>${filas}</tbody></table>
+    <p class="porque"><b>De dónde sale.</b> ${esc(r.fuente)}.</p>
+    ${r.nota ? `<div class="nota-caja"><b>Nota.</b> ${esc(r.nota)}</div>` : ""}`;
+  const lis = r.recorrido.map((tr, i) => {
+    const evs = tr.eventos.filter(e => e.tipo !== "ot_abierta").map(e =>
+      `<span class="ev ${e.nivel || ""}">${esc(e.tipo)}${e.clase ? ` · ${esc(e.clase)}` : ""}${e.paso_id ? ` · ${esc(e.paso_id)}` : ""}</span>`).join("");
+    return `<li data-tramo="${i}"><b>${i}. ${esc(tr.texto)}</b><small>${tr.controladores.map(esc).join(", ") || "sin llamada a la API"} · nivel ${esc(tr.nivel)}</small>${evs}</li>`;
+  }).join("");
+  sec.querySelector("[data-tramos]").innerHTML = lis;
+
+  const arq = sec.querySelector("[data-arq]");
+  const caja = sel => arq.querySelector(sel);
+  const boton = sec.querySelector(`button[data-test="${indice}"]`);
+  // El cable sale del test elegido: tiene que estar a la vista dentro de su lista.
+  const lista = sec.querySelector(".lista-tests");
+  if (boton.offsetTop < lista.scrollTop || boton.offsetTop + boton.offsetHeight > lista.scrollTop + lista.clientHeight) {
+    lista.scrollTop = boton.offsetTop - lista.clientHeight / 2;
+  }
+  for (let i = 0; i < r.recorrido.length; i++) {
+    if (generacion[codigo] !== gen) return;
+    const tr = r.recorrido[i];
+    sec.querySelectorAll("[data-tramo]").forEach(li => li.classList.toggle("actual", li.dataset.tramo === String(i)));
+    if (i > 0) sec.querySelector(`[data-tramo="${i - 1}"]`).classList.add("hecho");
+    limpiarArq(sec);
+    arq.querySelectorAll("[data-ctrl],[data-srv],[data-tabla]").forEach(b => b.classList.add("apagada"));
+    const columnas = [
+      [boton],
+      tr.controladores.map(k => caja(`[data-ctrl="${k}"]`)).filter(Boolean),
+      tr.corren.map(k => caja(`[data-srv="${k}"]`)).filter(Boolean),
+      tr.tablas.map(k => caja(`[data-tabla="${k}"]`)).filter(Boolean),
+    ];
+    const disparo = new Set(tr.disparan);
+    const c = camino(arq, columnas);
+    const ok = await animarCamino(sec, c, +sec.querySelector("[data-velocidad]").value, gen, codigo, el => {
+      el.classList.remove("apagada");
+      if (el === boton) return;
+      el.classList.add("corre");
+      const srv = el.dataset.srv, tabla = el.dataset.tabla;
+      if ((srv && disparo.has(srv)) || (tabla === "eventos" && tr.eventos.length && tr.accion !== "preparar")) {
+        el.classList.add("dispara", srv ? nivelDe(tr.eventos, srv) : nivelDe(tr.eventos));
+      }
+    });
+    if (!ok) return;
+    tr.eventos.filter(e => e.tipo === "veredicto" && e.paso_id && e.estado).forEach(e => {
+      const p = sec.querySelector(`[data-paso="${e.paso_id}"]`);
+      if (p) { p.classList.remove("verificado", "en_conflicto"); if (e.estado !== "no_verificado") p.classList.add(e.estado); }
+    });
+    await pausa(700 / +sec.querySelector("[data-velocidad]").value);
+  }
+  sec.querySelectorAll("[data-tramo]").forEach(li => { li.classList.remove("actual"); li.classList.add("hecho"); });
+  sec.dataset.ultimo = `${r.id}:${r.sello}`;
+}
+
+$("servidor").innerHTML = SERVIDORES.map(s => `<option value="${esc(s.url)}">${esc(s.nombre)} · ${esc(s.url)}</option>`).join("");
+$("servidor").value = base;
+$("servidor").onchange = e => elegirServidor(e.target.value);
+$("todos").onclick = correrTodos;
+
+elegirServidor(base).then(() => {
+  const pedir = parametros.get("correr");
+  if (!pedir) return;
+  if (pedir === "todos") return correrTodos();
+  if (pedir === "escenarios") return correrEscenarios();
+  const sector = industrias.find(i => ANCLA[i.codigo] === pedir);
+  if (sector) {
+    document.getElementById(pedir).scrollIntoView();
+    const prueba = parametros.get("test");
+    const i = prueba ? sector.tests.findIndex(t => t.nombre === prueba || t.patron === prueba.toUpperCase()) : 0;
+    return reproducir(sector, Math.max(0, i));
+  }
+  if (CASOS.some(k => k.id === pedir.toUpperCase())) return correrUno(pedir.toUpperCase());
+});
+</script>
+</body>
+</html>

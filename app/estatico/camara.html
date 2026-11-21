@@ -30,6 +30,9 @@
 const vista = document.getElementById("vista"), estado = document.getElementById("estado");
 const lienzo = document.createElement("canvas");
 let ws = null, reloj = null, enviados = 0, descartados = 0;
+// /casos abre esta página con ?edge=<el edge de su corrida>.
+const pedido = new URLSearchParams(location.search).get("edge");
+if (pedido) document.getElementById("edge").value = pedido;
 
 async function empezar() {
   const edge = document.getElementById("edge").value.trim();

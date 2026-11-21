@@ -1,0 +1,79 @@
+{
+  "id": "pauta-camion-detencion-01",
+  "nombre": "Estacionar y detener el camión de extracción",
+  "version": 1,
+  "equipo": "camión de extracción rígido CAEX-07",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Estacionar en terreno firme y nivelado",
+      "instruccion": "Detén el camión en una zona firme y pareja, fuera de la ruta de otros equipos.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "inclinacion",
+        "espera": "nivelado"
+      }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Dejar la transmisión en neutro",
+      "instruccion": "Suelta el acelerador, frena hasta detenerte y pon la transmisión en neutro.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "marcha",
+        "espera": "neutro"
+      }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Aplicar el freno de estacionamiento",
+      "instruccion": "Lleva la palanca del freno de estacionamiento a su posición de aplicado. No uses el retardador ni el freno de emergencia para estacionar.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "freno_estacionamiento",
+        "espera": "aplicado"
+      }
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Enfriar el motor en ralentí",
+      "instruccion": "Deja el motor en ralentí bajo al menos cinco minutos, para que enfríe de a poco.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "enfriamiento",
+        "espera": "cumplido"
+      }
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Apagar el motor",
+      "instruccion": "Con la temperatura abajo, corta el contacto y baja del camión con tres puntos de apoyo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "motor",
+        "espera": "apagado"
+      }
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Revisar que no haya fugas",
+      "instruccion": "Camina alrededor del camión y mira la carrocería y el tren inferior por fugas de aceite o de agua.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿El suelo bajo el camión está sin manchas de aceite ni de agua?"
+    }
+  ]
+}

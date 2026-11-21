@@ -25,14 +25,27 @@
   #bitacora li{margin:4px 0}
   .muted{color:var(--muted);font-size:15px}
   header .muted{color:#a9b4c2}
+  header .derecha{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  header button.principal{background:#2f7d5b;border-color:#2f7d5b}
+  #sensores{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:8px}
+  .sensor{border:1px solid var(--line);border-radius:10px;padding:8px 10px;transition:background .3s}
+  .sensor b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+  .sensor small{color:var(--muted)}
+  .sensor.si{background:var(--ok-bg);border-color:var(--ok)} .sensor.no{background:#f2f4f7}
+  .sensor.nuevo{background:#eef4ff}
+  #accion{min-height:1.5em}
 </style>
 </head>
 <body>
 <header>
   <b>Monitor</b>
-  <label>OT <input id="ot" value="ot-1" size="8"></label>
+  <label>OT <input id="ot" value="ot-loto" size="16"></label>
   <button id="conectar">Conectar</button>
   <span id="conexion" class="muted">desconectado</span>
+  <span class="derecha">
+    <button id="declarar" title="El operario dice que hizo el paso actual: si el modelo del edge no está seguro, decide el VLM">Declarar paso</button>
+    <button id="nueva" class="principal" title="Abre una OT nueva con la pauta LOTO y la une al edge">Nueva demo LOTO</button>
+  </span>
 </header>
 <main>
   <div>
@@ -40,6 +53,11 @@
     <div class="card" style="margin-top:16px"><h3 style="margin:0 0 6px">Pasos</h3><ol id="pasos"></ol></div>
   </div>
   <div>
+    <div class="card" style="margin-bottom:16px">
+      <h3 style="margin:0">Sensores en vivo</h3>
+      <div id="sensores"><p class="muted">Esperando lecturas del edge…</p></div>
+      <p class="muted" id="accion"></p>
+    </div>
     <div class="card">
       <div>Calificación de la OT <span id="nivel" class="nivel ok">ok</span> <span class="muted" id="certeza"></span></div>
       <ul id="avisos"></ul>
@@ -132,6 +150,10 @@ function conectar() {
     if (m.tipo === "snapshot") {
       if (ultimo === 0) $("bitacora").innerHTML = "";
       m.bitacora.forEach(anotar); pintarPasos(m.estado); pintarCalificacion(m.calificacion); video(m.video);
+      if (!m.sesion) $("video-estado").textContent =
+        "Esta OT no tiene un edge unido, así que no hay cámara. Usa «Nueva demo LOTO» para abrir una con el edge.";
+      edge = m.sesion ? m.sesion.edge_id : edge;
+      Object.entries(m.sensores || {}).forEach(([k, v]) => pintarSensor(k, v, false));
     } else if (m.tipo === "evento") {
       anotar(m.evento); if (m.evento.tipo === "veredicto") refrescarPasos(ot);
     } else if (m.tipo === "calificacion_ot") {
@@ -140,10 +162,103 @@ function conectar() {
       video(m.video);
     } else if (m.tipo === "detecciones") {
       pintarCajas(m);
+    } else if (m.tipo === "lectura") {
+      pintarSensor(m.sensor_id, m.valor, true);
     }
   };
 }
+
+// ─── Sensores en vivo: llegan como mensajes `lectura` del stream de la OT ───────────────
+const SENSORES = {  // los del edge del demo, en el orden en que se leen; el resto se muestra igual
+  operario: ["Operario", v => v === "presente", ""], equipo: ["Equipo", v => v === "frio", ""],
+  dist_cm: ["Distancia", null, " cm"], temp_c: ["Temperatura", null, " °C"], hum_pct: ["Humedad", null, " %"],
+};
+let edge = "edge-mac";
+function pintarSensor(id, valor, vivo) {
+  if (!vivo && !(id in SENSORES)) return;  // del snapshot solo los del demo: la tabla es global
+  const caja = $("sensores");
+  if (caja.querySelector("p")) caja.innerHTML = "";
+  let el = caja.querySelector(`[data-id="${id}"]`);
+  if (!el) {
+    el = document.createElement("div"); el.className = "sensor"; el.dataset.id = id;
+    el.innerHTML = `<small>${(SENSORES[id] || [id])[0]}</small><b></b>`;
+    caja.append(el);
+  }
+  const [, positivo, unidad] = SENSORES[id] || [id, null, ""];
+  el.querySelector("b").textContent = valor + (unidad || "");
+  el.classList.toggle("si", !!positivo && positivo(valor));
+  el.classList.toggle("no", !!positivo && !positivo(valor));
+  if (vivo) { el.classList.add("nuevo"); setTimeout(() => el.classList.remove("nuevo"), 300); }
+}
+
+// La clave del equipo entra una vez por ?clave= y queda en este navegador; se saca de la URL
+// para que no se vea en una pantalla compartida. Sin ella, donde el servidor la pide, el home solo mira.
+const enUrl = new URLSearchParams(location.search);
+if (enUrl.has("clave")) {
+  localStorage.setItem("clave_equipo", enUrl.get("clave")); enUrl.delete("clave");
+  history.replaceState(null, "", location.pathname + (enUrl.size ? "?" + enUrl : ""));
+}
+const conClave = () => { const c = localStorage.getItem("clave_equipo"); return c ? {"x-clave-equipo": c} : {}; };
+async function soloLecturaSinClave() {
+  try {
+    const c = await (await fetch("/clave", {headers: conClave()})).json();
+    if (!c.requerida || c.valida) return;
+    $("nueva").hidden = $("declarar").hidden = true;
+    $("accion").textContent = "Vista de solo lectura: para operar la demo, abre esta página con ?clave= y la clave del equipo.";
+  } catch (e) { /* un servidor anterior a la clave: queda todo a la vista */ }
+}
+
+async function llamar(metodo, url, cuerpo) {
+  const r = await fetch(url, {method: metodo, headers: {"content-type": "application/json", ...conClave()},
+                              body: cuerpo ? JSON.stringify(cuerpo) : undefined});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || j.regla || j.clave || r.status);
+  return j;
+}
+
+// Una OT nueva con la pauta LOTO, unida al edge que se venía mirando: para repetir la demo.
+async function nuevaDemo() {
+  const ot = "ot-loto-" + new Date().toTimeString().slice(0, 8).replaceAll(":", "");
+  $("accion").textContent = "Abriendo una OT nueva…";
+  try {
+    await llamar("POST", "/pauta/demo?pauta=loto");
+    await llamar("POST", `/ot/${ot}/abrir?pauta_id=pauta-loto-escritorio`);
+    await llamar("POST", `/ot/${ot}/sesion`, {edge_id: edge, operario: "operario:A"});
+    $("ot").value = ot; history.replaceState(null, "", `?ot=${ot}`);
+    ultimo = 0; $("bitacora").innerHTML = ""; conectar();
+    $("accion").textContent = `OT ${ot} abierta con ${edge}. Empieza por el paso 1.`;
+  } catch (e) { $("accion").textContent = "No se pudo abrir la OT: " + e.message; }
+}
+
+// El operario dice que hizo el paso actual: capa 2 si el modelo del edge está seguro, si no el VLM.
+async function declarar() {
+  $("accion").textContent = "Verificando el paso…";
+  try {
+    const r = await llamar("POST", `/ot/${$("ot").value.trim()}/declarar`, {actor: "operario:A", texto: "hecho"});
+    $("accion").textContent = `${r.paso}: ${r.estado} (capa ${r.capa ?? "persona"}) · ${r.detalle}`;
+  } catch (e) { $("accion").textContent = "No se pudo declarar: " + e.message; }
+}
+
 $("conectar").onclick = () => { ultimo = 0; $("bitacora").innerHTML = ""; conectar(); };
+$("nueva").onclick = nuevaDemo;
+$("declarar").onclick = declarar;
+// Sin ?ot= se abre la OT que algún edge está ejecutando ahora (la sesión más reciente):
+// así el home siempre muestra la cámara en vivo.
+async function iniciar() {
+  const otDeLaUrl = new URLSearchParams(location.search).get("ot");
+  if (otDeLaUrl) {
+    $("ot").value = otDeLaUrl;
+  } else {
+    try {
+      const sesiones = await (await fetch("/sesiones")).json();
+      const ultima = sesiones.sort((a, b) => a.desde.localeCompare(b.desde)).pop();
+      if (ultima) { $("ot").value = ultima.ot_id; edge = ultima.edge_id; }
+    } catch (e) { /* sin sesiones: queda la OT por defecto */ }
+  }
+  conectar();
+}
+soloLecturaSinClave();
+iniciar();
 </script>
 </body>
 </html>

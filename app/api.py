@@ -1,7 +1,7 @@
 """FRENTE 2 entra por acá — la API que une los cuatro frentes.
 
 Correr:  uv run uvicorn app.api:app --reload
-La UI mínima vive en app/estatico/ y se sirve en /.
+La demo (monitor en vivo) se sirve en / y en /monitor; la UI mínima de ensayo, en /ensayo.
 
 La app impone el orden (ADR-0002): /ot/{id}/declarar solo evalúa el paso actual.
 """
@@ -9,25 +9,27 @@ La app impone el orden (ADR-0002): /ot/{id}/declarar solo evalúa el paso actual
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
+import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from app import catalogo, cerebro, db, protocolos, verificacion
+from app import acceso, catalogo, cerebro, db, escenarios, protocolos, semilla, verificacion
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
 from app.contratos import Evento, TipoEvento
 from app.reglas import evaluar, paso_actual, estados_desde_eventos, propuesta_de_mejora
 from app.servicios import Servicios, evento_dict
-from app.video import FPS_MAX, CuadroInvalido, DeteccionInvalida
+from app.video import FPS_MAX, TAMANO_MAX, CuadroInvalido, DeteccionInvalida
 
 app = FastAPI(
-    title="Factum · mantenimiento verificado",
+    title="Factum · flujos operacionales verificables",
     description="API del demo. La guía para un agente que se conecta, con el recorrido, los "
     "WebSocket y los errores, está en `/agente` (Markdown).",
 )
@@ -36,6 +38,23 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 cx = db.conectar()
 servicios = Servicios(cx)
+detector = None  # experimento: YOLO en el servidor (app/detector.py), solo con DETECTOR_ONNX
+
+
+@app.on_event("startup")
+def iniciar_detector() -> None:
+    global detector
+    from app import detector as modulo_detector
+    detector = modulo_detector.desde_entorno(servicios)
+
+
+@app.get("/detector")
+def estado_detector() -> dict:
+    """Si el detector corre en el servidor, con qué modelo y cuánto tardó el último cuadro."""
+    if detector is None:
+        return {"en_servidor": False}
+    return {"en_servidor": True, "modelo": detector.modelo, "clases": detector.clases,
+            "ms_ultimo_cuadro": round(detector.ms_ultimo)}
 
 EDGE_POR_DEFECTO = "edge-1"
 PAUTA_DEMO = "pauta-correa-ct-01"
@@ -52,8 +71,8 @@ def cuadro_invalido(_: Request, e: CuadroInvalido) -> JSONResponse:
     return JSONResponse(status_code=422, content={"cuadro": str(e)})
 
 
-@app.exception_handler(KeyError)
-def no_existe(_: Request, e: KeyError) -> JSONResponse:
+@app.exception_handler(db.NoExiste)
+def no_existe(_: Request, e: db.NoExiste) -> JSONResponse:
     return JSONResponse(status_code=404, content={"no_existe": str(e.args[0]) if e.args else ""})
 
 ESTATICO = Path(__file__).resolve().parent / "estatico"
@@ -62,11 +81,17 @@ ESTATICO = Path(__file__).resolve().parent / "estatico"
 class Declaracion(BaseModel):
     actor: str
     texto: str
+    paso_id: str | None = None
 
 
 class LecturaSensor(BaseModel):
     sensor_id: str
     valor: str
+
+
+class ConfirmacionPersona(BaseModel):
+    actor: str
+    motivo: str
 
 
 class Pregunta(BaseModel):
@@ -76,6 +101,61 @@ class Pregunta(BaseModel):
 
 class Aprobacion(BaseModel):
     actor: str
+
+
+class Asignacion(BaseModel):
+    operador: str
+    actor: str = "supervisor"
+
+
+class ProtocoloNuevo(BaseModel):
+    id: str
+    nombre: str
+    actor: str
+    industria: str = ""
+    origen: str = ""
+    texto: str = ""
+    pautas: list[str] = []
+
+
+class ProtocoloCambio(BaseModel):
+    nombre: str | None = None
+    industria: str | None = None
+    origen: str | None = None
+    texto: str | None = None
+
+
+class PautaDeProtocolo(BaseModel):
+    pauta: dict
+    actor: str
+    protocolos: list[str] = []
+
+
+class PedidoOt(BaseModel):
+    pauta_id: str
+    ot_id: str | None = None
+
+
+class Credenciales(BaseModel):
+    usuario: str
+    clave: str
+
+
+class ClienteNuevo(BaseModel):
+    id: str
+    nombre: str
+    industria: str = ""
+
+
+class PersonaNueva(BaseModel):
+    id: str
+    nombre: str
+    usuario: str
+    rol: str
+
+
+class AsignacionCliente(BaseModel):
+    operador: str
 
 
 class Sesion(BaseModel):
@@ -91,6 +171,13 @@ class LecturaEdge(BaseModel):
 
 @app.get("/")
 def portada() -> FileResponse:
+    """La demo: el monitor de la OT en vivo (video, cajas, sensores, pasos y bitácora)."""
+    return FileResponse(ESTATICO / "monitor.html")
+
+
+@app.get("/ensayo")
+def pagina_ensayo() -> FileResponse:
+    """La UI mínima del esqueleto para ensayar el flujo a mano (pauta de la correa)."""
     return FileResponse(ESTATICO / "index.html")
 
 
@@ -140,7 +227,7 @@ def leer_pauta(pauta_id: str, version: int | None = None) -> dict:
 def versiones_de_pauta(pauta_id: str) -> list[dict]:
     v = catalogo.versiones(cx, pauta_id)
     if not v:
-        raise KeyError(f"pauta {pauta_id}")
+        raise db.NoExiste(f"pauta {pauta_id}")
     return v
 
 
@@ -151,12 +238,286 @@ def aprobar_pauta(pauta_id: str, version: int, a: Aprobacion) -> dict:
 
 @app.get("/ots")
 def listar_ots() -> list[dict]:
-    return catalogo.listar_ots(cx)
+    """Cada OT con su avance (`cerrados` de `total`), su `operador` y su `estado_general`: `sin_asignar`,
+    `asignada`, `en_ejecucion`, `entregada` (relevo que nadie recibió; `entregada_por` dice quién) o `completa`."""
+    return servicios.ots()
+
+
+@app.post("/ot/{ot_id}/asignar")
+def asignar_ot(ot_id: str, a: Asignacion) -> dict:
+    """El supervisor asigna una OT sin operador, o reasigna una entregada. Devuelve su resumen, como en `/ots`.
+    409 si está completa, si ya tiene operador o si el operador no existe."""
+    return servicios.asignar(ot_id, a.operador, a.actor)
 
 
 @app.get("/eventos/{evento_id}")
 def leer_evento(evento_id: int) -> dict:
     return evento_dict(catalogo.leer_evento(cx, evento_id))
+
+
+# ─── Clave del equipo: quién puede mover un edge de una OT a otra ───────────
+# La API es pública. Con CLAVE_EQUIPO definida, tomar un edge que ya ejecuta otra OT o
+# soltarlo pide la cabecera X-Clave-Equipo; sin la variable todo queda abierto, como en local.
+
+
+class ClaveRequerida(Exception):
+    pass
+
+
+@app.exception_handler(ClaveRequerida)
+def clave_requerida(_: Request, e: ClaveRequerida) -> JSONResponse:
+    return JSONResponse(status_code=401, content={"clave": str(e)})
+
+
+@app.exception_handler(acceso.NoAutenticado)
+def no_autenticado(_: Request, e: acceso.NoAutenticado) -> JSONResponse:
+    return JSONResponse(status_code=401, content={"login": str(e)}, headers={"WWW-Authenticate": "Bearer"})
+
+
+@app.exception_handler(acceso.SinPermiso)
+def sin_permiso(_: Request, e: acceso.SinPermiso) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"permiso": str(e)})
+
+
+def _token(authorization: str | None) -> str | None:
+    tipo, _, token = (authorization or "").partition(" ")
+    return token.strip() if tipo.lower() == "bearer" and token.strip() else None
+
+
+def _persona(authorization: str | None) -> dict:
+    return acceso.quien(cx, _token(authorization))
+
+
+def _clave_valida(clave: str | None) -> bool:
+    esperada = os.environ.get("CLAVE_EQUIPO", "")
+    return not esperada or hmac.compare_digest((clave or "").encode(), esperada.encode())
+
+
+@app.get("/clave")
+def estado_de_la_clave(x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Si este servidor pide clave para mover un edge, y si la que llega en `X-Clave-Equipo` sirve."""
+    return {"requerida": bool(os.environ.get("CLAVE_EQUIPO")), "valida": _clave_valida(x_clave_equipo)}
+
+
+# ─── Servicio interno: protocolos y sus pautas (app/catalogo.py) ────────────
+# Lo usa el equipo, una vez por protocolo, al poner en marcha una estación. Con CLAVE_EQUIPO
+# definida pide la cabecera X-Clave-Equipo; sin la variable queda abierto, como en local.
+
+
+def _solo_equipo(clave: str | None) -> None:
+    if not _clave_valida(clave):
+        raise ClaveRequerida("el servicio interno pide la clave del equipo (cabecera X-Clave-Equipo)")
+
+
+@app.post("/interno/protocolos", status_code=201)
+def crear_protocolo(p: ProtocoloNuevo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Carga el protocolo de un cliente. `pautas` lo deja atribuido a pautas que ya existen. 409 si el id ya existe."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.crear_protocolo(cx, p.model_dump(exclude={"actor"}), p.actor)
+
+
+@app.get("/interno/protocolos")
+def listar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    """Cada protocolo con las pautas que salen de él, sin su texto."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.listar_protocolos(cx)
+
+
+@app.post("/interno/protocolos/semilla")
+def sembrar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Deja cargadas y aprobadas las pautas de `datos/`, con sus protocolos atribuidos. Se puede repetir."""
+    _solo_equipo(x_clave_equipo)
+    return protocolos.cargar_semilla(cx)
+
+
+@app.post("/interno/ots/semilla")
+def sembrar_ots(x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """La minera ficticia Oculta con sus personas, los protocolos con sus pautas habilitadas para ella y 15 OT
+    de ejemplo (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `accesos` trae las claves de las
+    personas creadas en esta llamada: es la única vez que se ven. Se puede repetir sin duplicar."""
+    _solo_equipo(x_clave_equipo)
+    return semilla.cargar(cx)
+
+
+@app.get("/interno/protocolos/{protocolo_id}")
+def leer_protocolo(protocolo_id: str, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Un protocolo con su texto y sus pautas."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.leer_protocolo(cx, protocolo_id)
+
+
+@app.put("/interno/protocolos/{protocolo_id}")
+def cambiar_protocolo(protocolo_id: str, c: ProtocoloCambio, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Corrige nombre, industria, origen o texto. El id no cambia."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.cambiar_protocolo(cx, protocolo_id, c.model_dump(exclude_none=True))
+
+
+@app.delete("/interno/protocolos/{protocolo_id}", status_code=204)
+def borrar_protocolo(protocolo_id: str, x_clave_equipo: str | None = Header(default=None)) -> None:
+    """Solo si ninguna pauta sale de él (409 si tiene)."""
+    _solo_equipo(x_clave_equipo)
+    catalogo.borrar_protocolo(cx, protocolo_id)
+
+
+@app.post("/interno/protocolos/{protocolo_id}/pautas", status_code=201)
+def crear_pauta_de_protocolo(protocolo_id: str, p: PautaDeProtocolo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Crea la versión siguiente de una pauta, atribuida a este protocolo y a los de `protocolos`. Nace sin aprobar."""
+    _solo_equipo(x_clave_equipo)
+    try:
+        return catalogo.crear_pauta_de(cx, [protocolo_id, *p.protocolos], p.pauta, p.actor)
+    except (KeyError, ValueError) as e:
+        if isinstance(e, db.NoExiste):
+            raise
+        raise HTTPException(422, f"pauta mal formada: {e}") from e
+
+
+@app.get("/interno/pautas/{pauta_id}/protocolos")
+def protocolos_de_pauta(pauta_id: str, x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    """De qué protocolos sale una pauta."""
+    _solo_equipo(x_clave_equipo)
+    catalogo.leer_pauta(cx, pauta_id)
+    return catalogo.protocolos_de(cx, pauta_id)
+
+
+@app.put("/interno/pautas/{pauta_id}/protocolos/{protocolo_id}")
+def atribuir_pauta(pauta_id: str, protocolo_id: str, a: Aprobacion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Atribuye una pauta que ya existe a un protocolo. Una pauta puede salir de varios."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.atribuir(cx, pauta_id, protocolo_id, a.actor)
+
+
+@app.delete("/interno/pautas/{pauta_id}/protocolos/{protocolo_id}", status_code=204)
+def quitar_atribucion(pauta_id: str, protocolo_id: str, x_clave_equipo: str | None = Header(default=None)) -> None:
+    """Quita la atribución. 409 si es el único protocolo de una pauta que ya tiene OT."""
+    _solo_equipo(x_clave_equipo)
+    catalogo.quitar_atribucion(cx, pauta_id, protocolo_id)
+
+
+@app.post("/interno/pautas/{pauta_id}/versiones/{version}/aprobar")
+def aprobar_pauta_interno(pauta_id: str, version: int, a: Aprobacion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Lo mismo que aprobar una pauta, dentro del servicio interno: una persona, una sola vez."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.aprobar_pauta(cx, pauta_id, version, a.actor)
+
+
+# ─── Servicio para clientes: con login, cada empresa ve lo suyo (app/acceso.py) ─
+# Se entra con usuario y clave y se manda el token como `Authorization: Bearer <token>`.
+# El supervisor pide y asigna OT de su empresa; el operador ve las que tiene asignadas.
+
+
+@app.post("/auth/entrar")
+def entrar(c: Credenciales) -> dict:
+    """Devuelve el token, cuándo vence y quién es la persona, con su rol y su empresa. 401 si no calzan."""
+    return acceso.entrar(cx, c.usuario, c.clave)
+
+
+@app.post("/auth/salir", status_code=204)
+def salir(authorization: str | None = Header(default=None)) -> None:
+    _persona(authorization)
+    acceso.salir(cx, _token(authorization))
+
+
+@app.get("/yo")
+def yo(authorization: str | None = Header(default=None)) -> dict:
+    """Quién es el dueño del token: su id, nombre, rol y empresa."""
+    return _persona(authorization)
+
+
+@app.get("/cliente/pautas")
+def pautas_para_clientes(authorization: str | None = Header(default=None)) -> list[dict]:
+    """Las pautas que la empresa puede pedir: habilitadas para ella, aprobadas y con protocolo."""
+    return acceso.pautas_habilitadas(cx, _persona(authorization)["cliente"]["id"])
+
+
+@app.post("/cliente/ots", status_code=201)
+def pedir_ot(p: PedidoOt, authorization: str | None = Header(default=None)) -> dict:
+    """Un supervisor pide una OT de la última versión aprobada de una pauta habilitada. Sin `ot_id`, el
+    servicio le pone uno. La OT queda de su empresa y a su nombre. 403 si no es supervisor o la pauta no
+    está habilitada; 409 si la pauta no está lista o el id ya existe."""
+    return acceso.pedir_ot(cx, _persona(authorization), p.pauta_id, p.ot_id)
+
+
+@app.get("/cliente/ots")
+def ots_para_clientes(authorization: str | None = Header(default=None)) -> list[dict]:
+    """El supervisor ve todas las OT de su empresa; el operador, las que tiene asignadas."""
+    return acceso.ots_de(cx, _persona(authorization), servicios._ots_en_sesion())
+
+
+@app.get("/cliente/ots/{ot_id}")
+def ot_para_clientes(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Una OT con su avance y su calificación. 404 si no es de su empresa o, para un operador, si no es suya."""
+    o = acceso.ot_de(cx, _persona(authorization), ot_id, servicios._ots_en_sesion())
+    return {**o, "calificacion": servicios.calificacion(ot_id)}
+
+
+@app.get("/cliente/operadores")
+def operadores_del_cliente(authorization: str | None = Header(default=None)) -> list[dict]:
+    """Los operadores de la empresa, para asignarles OT. Solo supervisor."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "supervisor")
+    return acceso.personas_de(cx, p["cliente"]["id"], "operador")
+
+
+@app.post("/cliente/ots/{ot_id}/asignar")
+def asignar_ot_del_cliente(ot_id: str, a: AsignacionCliente, authorization: str | None = Header(default=None)) -> dict:
+    """El supervisor deja una OT de su empresa en manos de un operador de su empresa. 403 si el operador es de
+    otra; 409 si la OT está completa o ya tiene operador."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "supervisor")
+    acceso.ot_de(cx, p, ot_id)
+    acceso.operador_de_la_empresa(cx, p, a.operador)
+    return servicios.asignar(ot_id, a.operador, p["id"])
+
+
+# ─── Servicio interno: clientes, personas y qué pautas tiene cada uno ───────
+
+
+@app.post("/interno/clientes", status_code=201)
+def crear_cliente(c: ClienteNuevo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    _solo_equipo(x_clave_equipo)
+    return acceso.crear_cliente(cx, c.id, c.nombre, c.industria)
+
+
+@app.get("/interno/clientes")
+def listar_clientes(x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    _solo_equipo(x_clave_equipo)
+    return acceso.listar_clientes(cx)
+
+
+@app.get("/interno/clientes/{cliente_id}")
+def leer_cliente(cliente_id: str, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """El cliente con sus personas y las pautas que tiene habilitadas."""
+    _solo_equipo(x_clave_equipo)
+    return {**acceso._cliente(cx, cliente_id), "personas": acceso.personas_de(cx, cliente_id),
+            "pautas": acceso.pautas_habilitadas(cx, cliente_id)}
+
+
+@app.post("/interno/clientes/{cliente_id}/personas", status_code=201)
+def crear_persona(cliente_id: str, n: PersonaNueva, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Crea la persona con una clave al azar. La respuesta trae la clave: es la única vez que se ve."""
+    _solo_equipo(x_clave_equipo)
+    persona, clave = acceso.crear_persona(cx, cliente_id, n.id, n.nombre, n.usuario, n.rol)
+    return {"persona": persona, "clave": clave}
+
+
+@app.post("/interno/personas/{persona_id}/clave")
+def cambiar_clave(persona_id: str, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Una clave nueva al azar, que se ve una sola vez. Cierra las sesiones abiertas de esa persona."""
+    _solo_equipo(x_clave_equipo)
+    return {"persona": persona_id, "clave": acceso.nueva_clave(cx, persona_id)}
+
+
+@app.put("/interno/clientes/{cliente_id}/pautas/{pauta_id}")
+def habilitar_pauta(cliente_id: str, pauta_id: str, x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    _solo_equipo(x_clave_equipo)
+    return acceso.habilitar(cx, cliente_id, pauta_id)
+
+
+@app.delete("/interno/clientes/{cliente_id}/pautas/{pauta_id}", status_code=204)
+def deshabilitar_pauta(cliente_id: str, pauta_id: str, x_clave_equipo: str | None = Header(default=None)) -> None:
+    _solo_equipo(x_clave_equipo)
+    acceso.deshabilitar(cx, cliente_id, pauta_id)
 
 
 @app.get("/sesiones")
@@ -168,12 +529,15 @@ def listar_sesiones() -> list[dict]:
 def sesion_de_edge(edge_id: str) -> dict:
     s = servicios.sesion(edge_id)
     if s is None:
-        raise KeyError(f"sesión del edge {edge_id}")
+        raise db.NoExiste(f"sesión del edge {edge_id}")
     return s
 
 
 @app.delete("/edge/{edge_id}/sesion", status_code=204)
-def terminar_sesion(edge_id: str) -> None:
+def terminar_sesion(edge_id: str, x_clave_equipo: str | None = Header(default=None)) -> None:
+    """Soltar un edge que está en sesión pide la clave del equipo, si el servidor tiene una."""
+    if servicios.sesion(edge_id) and not _clave_valida(x_clave_equipo):
+        raise ClaveRequerida(f"soltar el edge {edge_id} pide la clave del equipo (cabecera X-Clave-Equipo)")
     servicios.terminar_sesion(edge_id)
 
 
@@ -188,7 +552,14 @@ def estado_ot(ot_id: str) -> dict:
 def declarar(ot_id: str, d: Declaracion) -> dict:
     """El operario habla. La evidencia manda: el veredicto lo decide reglas.py, y un paso
     de cámara se juzga con el último cuadro del edge de la OT."""
-    return servicios.declarar(ot_id, d.actor, d.texto)
+    return servicios.declarar(ot_id, d.actor, d.texto, d.paso_id)
+
+
+@app.post("/ot/{ot_id}/pasos/{paso_id}/confirmar")
+def confirmar_paso(ot_id: str, paso_id: str, c: ConfirmacionPersona) -> dict:
+    """Una persona confirma el paso en curso aunque su sensor o la cámara no lo muestren. Queda quién, por qué y qué
+    marcaba el sensor; la OT queda en warning y la seguridad sigue mandando. Solo el paso en curso; sin motivo, 409."""
+    return servicios.confirmar_por_persona(ot_id, paso_id, c.actor, c.motivo)
 
 
 @app.post("/sensores")
@@ -206,8 +577,13 @@ def lecturas_edge(edge_id: str, lecturas: list[LecturaEdge]) -> list[dict]:
 
 
 @app.post("/ot/{ot_id}/sesion")
-def iniciar_sesion(ot_id: str, s: Sesion) -> dict:
-    """El operario elige la OT en la interfaz: desde ahora lo de ese edge es de esta OT."""
+def iniciar_sesion(ot_id: str, s: Sesion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """El operario elige la OT en la interfaz: desde ahora lo de ese edge es de esta OT.
+    Un edge libre, o repetir la sesión que ya tiene, no pide clave; quitárselo a otra OT, sí."""
+    actual = servicios.sesion(s.edge_id)
+    if actual and actual["ot_id"] != ot_id and not _clave_valida(x_clave_equipo):
+        raise ClaveRequerida(f"el edge {s.edge_id} ejecuta la OT {actual['ot_id']}: "
+                             "tomarlo pide la clave del equipo (cabecera X-Clave-Equipo)")
     try:
         return servicios.iniciar_sesion(ot_id, s.edge_id, s.operario)
     except KeyError as e:
@@ -248,7 +624,8 @@ async def video_entrada(ws: WebSocket, edge_id: str) -> None:
                 d = json.loads(m["text"])
                 if not isinstance(d, dict) or d.get("tipo") != "detecciones":
                     raise DeteccionInvalida('se espera un objeto con "tipo": "detecciones"')
-                servicios.recibir_detecciones(edge_id, d)
+                if detector is None:  # con detección en el servidor, las del edge se ignoran
+                    servicios.recibir_detecciones(edge_id, d)
         except (CuadroInvalido, DeteccionInvalida, json.JSONDecodeError) as e:
             await ws.send_json({"error": str(e)})
 
@@ -256,7 +633,14 @@ async def video_entrada(ws: WebSocket, edge_id: str) -> None:
 @app.post("/edge/{edge_id}/cuadro")
 async def cuadro_entrada(edge_id: str, request: Request) -> dict:
     """Lo mismo por HTTP, para una ESP32-CAM: el cuerpo es el JPEG."""
-    c = servicios.video.recibir(edge_id, await request.body())
+    # Se corta al pasar el máximo: sin esto un cuerpo enorme entra entero a memoria antes de validarse.
+    partes, total = [], 0
+    async for parte in request.stream():
+        total += len(parte)
+        if total > TAMANO_MAX:
+            raise CuadroInvalido(f"el cuadro pasa de {TAMANO_MAX} bytes")
+        partes.append(parte)
+    c = servicios.video.recibir(edge_id, b"".join(partes))
     return {"edge_id": edge_id, "cuadro": c.n}
 
 
@@ -270,7 +654,7 @@ def detecciones_actuales(edge_id: str) -> dict:
     """Lo último que vio el modelo del edge: clase, confianza y caja normalizada."""
     d = servicios.video.ultimas_detecciones(edge_id)
     if d is None:
-        raise KeyError(f"detecciones del edge {edge_id}")
+        raise db.NoExiste(f"detecciones del edge {edge_id}")
     return d
 
 
@@ -278,7 +662,7 @@ def detecciones_actuales(edge_id: str) -> dict:
 def cuadro_actual(edge_id: str) -> Response:
     c = servicios.video.ultimo(edge_id)
     if c is None:
-        raise KeyError(f"video del edge {edge_id}")
+        raise db.NoExiste(f"video del edge {edge_id}")
     return Response(c.jpeg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
@@ -319,6 +703,40 @@ def pagina_camara() -> FileResponse:
 def pagina_monitor() -> FileResponse:
     """Video, calificación, avisos y bitácora de una OT, en vivo."""
     return FileResponse(ESTATICO / "monitor.html")
+
+
+@app.get("/casos")
+def pagina_casos() -> FileResponse:
+    """El banco de pruebas: cada criterio del PRD, corrido contra este servidor u otro."""
+    return FileResponse(ESTATICO / "casos.html")
+
+
+# ─── Escenarios por industria (app/escenarios.py) ───────────────────────────
+
+
+@app.get("/escenarios")
+def listar_escenarios() -> list[dict]:
+    """Cada patrón de ejecución en cada industria, con la barrera que lo decide y lo que se espera."""
+    return [e.como_dict() for e in escenarios.catalogo()]
+
+
+@app.get("/industrias")
+def listar_industrias() -> dict:
+    """Cada industria con su pauta, sensores, reglas, trasfondo y casos de uso; y las piezas de la arquitectura."""
+    return {"industrias": [escenarios.industria_dict(i) for i in escenarios.INDUSTRIAS],
+            "arquitectura": escenarios.arquitectura()}
+
+
+@app.post("/escenarios/correr")
+def correr_escenarios() -> list[dict]:
+    """Corre todos en una caja aislada (base en memoria, juez y reloj propios). Sin trazas, para que pese poco."""
+    return [{k: v for k, v in r.items() if k not in ("bitacora", "stream")} for r in escenarios.correr_todos()]
+
+
+@app.post("/escenarios/{escenario_id}/correr")
+def correr_escenario(escenario_id: str) -> dict:
+    """Uno, con su bitácora y lo que habría llegado por el stream. No toca la base del servidor."""
+    return escenarios.correr(escenarios.buscar(escenario_id))
 
 
 @app.websocket("/ot/{ot_id}/stream")

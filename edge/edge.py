@@ -1,7 +1,13 @@
-"""Edge en vivo: cámara + modelo + ESP32 → servidor (app/), en tres hilos.
+"""Edge en vivo: cámara + ESP32 (+ modelo, según el modo) → servidor (app/), en hilos.
+
+Dos modos de detección (--deteccion):
+  servidor  (por defecto) el edge manda solo video y sensores; YOLO corre en la API
+            (app/detector.py, ONNX). El edge no necesita GPU ni modelo.
+  edge      YOLO-World corre acá, en el Mac, y manda las detecciones. Más rápido
+            (~18/s contra ~5/s en la VM) y no carga el servidor.
 
   video        JPEG a --fps por WS /edge/{id}/video (mensajes binarios)
-  detecciones  YOLO-World sobre el último cuadro, por el mismo WS (mensajes de texto):
+  detecciones  (modo edge) YOLO-World sobre el último cuadro, por el mismo WS (texto):
                {"tipo": "detecciones", "modelo", "ts", "objetos": [{"clase", "conf", "caja"}]}
                caja = x1, y1, x2, y2 normalizada 0-1. Se manda todo lo que pase --conf:
                qué es "alta certeza" lo decide el servidor.
@@ -18,6 +24,7 @@ import serial
 import websocket
 
 MODELO = "yolov8s-worldv2.pt"
+SIN_DATOS_S = 10  # el ESP32 manda 1 línea/s: tanto silencio es un puerto muerto
 
 
 class Canal:
@@ -96,19 +103,32 @@ def hilo_sensores(servidor, edge_id, puerto, stats, dist_max, temp_max):
         except (serial.SerialException, OSError) as e:
             print(f"[sensores] ESP32 no disponible ({e}); reintento en 2 s")
             time.sleep(2)
+        except Exception as e:  # noqa: BLE001 - nada debe matar este hilo: sin él no hay sensores
+            print(f"[sensores] error inesperado ({e!r}); reabro el puerto en 2 s")
+            time.sleep(2)
 
 
 def _leer_y_enviar(servidor, edge_id, puerto, stats, dist_max, temp_max):
     url = f"{servidor}/edge/{edge_id}/lecturas"
     seq = int(time.time() * 1000)  # crece entre reinicios: el servidor descarta seq repetidos
-    esp = serial.Serial(puerto, 115200, timeout=2)
+    # exclusivo: dos procesos leyendo el mismo CP2102 pueden trabar el adaptador hasta desenchufarlo
+    esp = serial.Serial(puerto, 115200, timeout=2, exclusive=True)
     print(f"[sensores] leyendo {puerto}")
-    dist_previa = None
+    dist_previa, ultimo_dato = None, time.time()
     while True:
+        linea = esp.readline()
+        if linea:
+            ultimo_dato = time.time()
+        elif time.time() - ultimo_dato > SIN_DATOS_S:
+            # tras desconectar el USB el puerto viejo devuelve vacío para siempre, sin error
+            esp.close()
+            raise serial.SerialException(f"{SIN_DATOS_S:g} s sin datos del ESP32")
         try:
-            d = json.loads(esp.readline().decode(errors="ignore"))
+            d = json.loads(linea.decode(errors="ignore"))
         except ValueError:
-            continue  # boot log o línea cortada
+            continue  # boot log, línea cortada o vacía
+        if not isinstance(d, dict):
+            continue  # un pedazo de línea como "5}" se lee como número, no como lectura
         lote = []
         crudos = {k: d[k] for k in ("temp_c", "hum_pct", "dist_cm") if d.get(k) is not None}  # null = sin lectura
         for k, v in {**crudos, **estados(d, dist_previa, dist_max, temp_max)}.items():
@@ -137,6 +157,8 @@ def main():
     ap.add_argument("--calidad", type=int, default=65, help="calidad JPEG 1-100")
     ap.add_argument("--clases", nargs="+", default=["mouse", "pencil"])
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
+    ap.add_argument("--deteccion", choices=["servidor", "edge"], default="servidor",
+                    help="dónde corre YOLO: servidor (por defecto, el edge solo manda video y sensores) o edge (acá)")
     ap.add_argument("--puerto", default="/dev/cu.usbserial-0001", help="'' para no leer sensores")
     ap.add_argument("--dist-max", type=float, default=60, help="cm: más cerca = operario presente")
     ap.add_argument("--temp-max", type=float, default=30, help="°C: bajo esto = equipo frío")
@@ -152,14 +174,15 @@ def main():
     if not cam.isOpened():
         raise SystemExit(f"No pude abrir la cámara {a.camara}: corre esto en Terminal.app (permiso de cámara)")
 
-    threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats), daemon=True).start()
+    if a.deteccion == "edge":
+        threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats), daemon=True).start()
     if a.puerto:
         threading.Thread(target=hilo_sensores, args=(servidor, a.edge, a.puerto, stats, a.dist_max, a.temp_max),
                          daemon=True).start()
 
     alto = a.ancho * 9 // 16
     periodo, t_stats = 1 / a.fps, time.time()
-    print(f"Edge {a.edge} → {servidor}  ({a.fps:g} fps, {a.ancho}x{alto}, clases {a.clases}). Ctrl+C para parar")
+    print(f"Edge {a.edge} → {servidor}  ({a.fps:g} fps, {a.ancho}x{alto}, detección en {a.deteccion}). Ctrl+C para parar")
     try:
         while True:
             t0 = time.time()

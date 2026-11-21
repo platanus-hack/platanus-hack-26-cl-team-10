@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.routing import WebSocketRoute
 
-OCULTAS = {"/", "/agente", "/llms.txt", "/camara", "/monitor"}
+OCULTAS = {"/", "/agente", "/llms.txt", "/camara", "/monitor", "/casos"}
 
 
 def catalogo_de_rutas(app: FastAPI) -> list[tuple[str, str, str]]:
@@ -38,10 +38,10 @@ def guia(app: FastAPI, base: str) -> str:
     base = base.rstrip("/")
     ws = base.replace("https://", "wss://").replace("http://", "ws://")
     rutas = "\n".join(f"| `{m}` | `{p}` | {q} |" for m, p, q in catalogo_de_rutas(app))
-    return f"""# Factum · API de mantenimiento verificado
+    return f"""# Factum · API de flujos operacionales verificables
 
 Guía para el agente que se conecta. Base: `{base}` · esquemas: `{base}/openapi.json` · explorador: `{base}/docs`.
-Sin autenticación: es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
+Sin autenticación, salvo la clave del equipo para mover un edge (ver «Clave del equipo»): es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
 
 ## Qué es
 
@@ -73,8 +73,24 @@ curl {base}/ot/ot-1/eventos                         # la bitácora
 
 Sensores de la pauta del demo: `reed_bloqueo` (`cerrado` · `abierto`), `guarda` (`abierta` · `cerrada`),
 `energia` (`viva` · `cortada`). Un valor numérico (por ejemplo `vibracion`) pasa además por la detección
-de anomalías. La regla de seguridad vigente: `guarda = abierta` con `energia = viva` abre una alerta de
-nivel `error`, y se resuelve sola cuando cualquiera de los dos sensores se corrige.
+de anomalías. **El edge reenvía cada sensor al menos cada 5 s, cambie o no**: si el sensor del paso en curso
+calla más que eso, la OT baja a `warning`.
+
+Reglas de seguridad, una por industria: `guarda = abierta` con `energia = viva` (minería); `tierra = puesta`
+con `tension = presente`, y `seccionador = cerrado` con `tierra = puesta` (eléctrica); `zona = ocupada` con
+`implementos = levantados` (construcción). Abren una alerta `error` y se resuelven solas cuando el sensor se
+corrige. Además, alertas de la pauta: **orden invertido** (se cerró un paso posterior con un control crítico
+pendiente) y **control perdido** (se deshizo un control crítico ya verificado). La clase de cada alerta está en
+`evidencia.clave`: `seguridad:`, `orden:`, `control:`, `senal:` o `pegado:`.
+
+**Al declarar**, manda `paso_id` con el paso que la app le mostraba al operario
+(`{{"actor":"operario:A","texto":"bloqueo puesto","paso_id":"p1"}}`). Si su sensor ya lo cerró, la palabra se
+registra y no se evalúa contra el paso siguiente. Un paso de cámara necesita un cuadro de los últimos 10 s.
+
+**Si el sensor no ve lo que la persona hizo** (sensor caído, mal montado, cámara sin vista), hablar no cierra el
+paso: se confirma aparte, con quién y por qué, en `POST /ot/{{ot_id}}/pasos/{{paso_id}}/confirmar`
+(`{{"actor":"supervisor:B","motivo":"el reed está dañado; el candado está puesto"}}`). Solo el paso en curso. El paso
+queda verificado por persona, la OT en `warning` y las reglas de seguridad siguen evaluándose con los sensores.
 
 ## En vivo: `WS {ws}/ot/{{ot_id}}/stream?desde=<id>`
 
@@ -89,7 +105,7 @@ cada cambio. Para reconectar sin perder bitácora, vuelve con `desde` = el últi
 | `calificacion_ot` | Después de cada lectura o declaración | `calificacion` con `nivel`, `certeza`, `capa`, `motivos`, `avisos` |
 | `sesion` | Al abrir una sesión | `sesion`, `video` |
 
-`evento.tipo`: `ot_abierta` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` ·
+`evento.tipo`: `ot_abierta` · `ot_asignada` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` ·
 `relevo_recibido`. `evento.estado`: `verificado` · `no_verificado` · `en_conflicto`.
 
 **Los avisos.** `calificacion.avisos` es la lista de lo que está mal AHORA, lo más grave primero. Un aviso
@@ -101,23 +117,57 @@ reglas) llega a `error`. La capa 2 (anomalía de señal) y la capa 3 (cámara) l
 
 ## Video
 
-- Entrada: `WS {ws}/edge/{{edge_id}}/video`, un JPEG por mensaje binario (máximo 2 MB, hasta 10 por segundo).
+- Entrada: `WS {ws}/edge/{{edge_id}}/video`, un JPEG por mensaje binario (máximo 2 MB, hasta 20 por segundo).
   Un cuadro inválido devuelve `{{"error": ...}}` y no corta la conexión. Por HTTP: `POST /edge/{{edge_id}}/cuadro`
-  con el JPEG como cuerpo.
+  con el JPEG como cuerpo. El servidor guarda video de hasta 8 edges a la vez: si llega uno más, sale el
+  que lleva más tiempo sin transmitir.
 - Salida: `GET /edge/{{edge_id}}/video.mjpg` (MJPEG, sirve en un `<img>`), `GET /edge/{{edge_id}}/cuadro.jpg`
   (el último cuadro) y `GET /edge/{{edge_id}}/video` (si hay video, su edad y sus cuadros por segundo).
 - Un paso de cámara se juzga con el último cuadro al llamar `POST /ot/{{ot_id}}/declarar`; el cuadro queda
   como evidencia del veredicto.
-- Páginas listas: `{base}/camara` (el celular como cámara del edge) y `{base}/monitor` (video, avisos y bitácora).
+- Páginas listas: `{base}/camara` (el celular como cámara del edge; `?edge=<id>` elige el edge) y `{base}/monitor`
+  (video, avisos y bitácora).
+
+## Probar cada caso de uso
+
+`{base}/casos` es el banco de pruebas: una tarjeta por criterio de aceptación, que corre la secuencia real
+de llamadas contra este servidor u otro, con una OT y un edge propios (`casos-…`), y muestra cada request,
+cada response y los mensajes del stream. Sirve de ejemplo ejecutable de cada recorrido. Debajo, la matriz de
+escenarios por industria (`GET /escenarios`): cada forma de ejecutar un paso en minería, eléctrica y
+construcción, corrida en una caja aislada que no toca la bitácora de este servidor.
+
+## Protocolos, pautas y OT: dos servicios
+
+- **Interno (`/interno/...`)**: lo usa el equipo, una vez por protocolo. Carga el documento del cliente
+  (`POST /interno/protocolos`), crea sus pautas (`POST /interno/protocolos/{{protocolo_id}}/pautas`) o atribuye
+  las que ya existen (`PUT /interno/pautas/{{pauta_id}}/protocolos/{{protocolo_id}}`), y las aprueba. Un protocolo da
+  una o más pautas, y una pauta puede salir de más de un protocolo. Con `CLAVE_EQUIPO` pide `X-Clave-Equipo`.
+- **Para clientes (`/cliente/...`), con login**: se entra con `POST /auth/entrar` (`usuario` y `clave`) y el token
+  va en cada llamada como `Authorization: Bearer <token>`; dura 12 horas y `POST /auth/salir` lo cierra. `GET /yo`
+  dice quién es. Cada empresa ve solo lo suyo: `GET /cliente/pautas` lista las pautas que el equipo le habilitó, y
+  `GET /cliente/ots` sus OT (el operador, solo las que tiene asignadas). El supervisor pide OT con `POST /cliente/ots`
+  y las asigna a un operador de su empresa con `POST /cliente/ots/{{ot_id}}/asignar`. Las empresas, sus personas y
+  sus pautas las crea el equipo en `/interno/clientes`; la clave de cada persona se genera y se ve una sola vez.
+
+## Clave del equipo
+
+Si el servidor tiene `CLAVE_EQUIPO`, dos llamadas piden la cabecera `X-Clave-Equipo`: `POST /ot/{{ot_id}}/sesion` cuando el
+edge ya ejecuta otra OT, y `DELETE /edge/{{edge_id}}/sesion`. Unir un edge libre o repetir la sesión que ya tiene no la pide,
+y el resto de la API tampoco, salvo el servicio interno (`/interno/...`), que la pide en cada llamada. `GET /clave` dice si este servidor la pide y si la que mandas sirve. En el navegador, el home
+y el banco la guardan al abrirlos una vez con `?clave=`.
 
 ## Errores
 
 | Código | Cuerpo | Qué significa |
 |---|---|---|
-| 404 | `{{"no_existe": "..."}}` | La OT, pauta, evento o sesión no existe |
+| 401 | `{{"clave": "..."}}` | El edge ya ejecuta otra OT, o se lo quiere soltar, o la llamada es del servicio interno, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
+| 401 | `{{"login": "..."}}` | El servicio para clientes no recibió un token válido: falta, no existe o venció. Entrar con `POST /auth/entrar` |
+| 403 | `{{"permiso": "..."}}` | La persona entró, pero su rol o su empresa no la dejan: un operador que pide una OT, o una pauta que su empresa no tiene habilitada |
+| 404 | `{{"no_existe": "..."}}` | La OT, pauta, protocolo, paso, evento o sesión no existe |
 | 409 | `{{"regla": "..."}}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
 | 422 | `{{"detail": ...}}` o `{{"cuadro": "..."}}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |
 | 405 | — | Se intentó editar o borrar algo que solo se lee (la bitácora) |
+| 500 | — | Falló el servidor. No dice nada sobre si lo pedido existe: avisar al equipo |
 
 ## Todos los endpoints
 

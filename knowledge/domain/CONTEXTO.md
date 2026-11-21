@@ -4,7 +4,7 @@
 
 ## El problema
 
-En una operación donde una falla o un error de mantenimiento salen caros, como una faena minera, tres cosas fallan a la vez:
+En una operación donde ejecutar mal un procedimiento sale caro, como una faena minera, tres cosas fallan a la vez. El producto sirve a cualquier flujo operacional; el caso de uso es el mantenimiento de maquinaria ([ADR-0009](../decisions/0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md)), y de ahí salen las cifras:
 
 1. **La bitácora no sirve como dato.** Las OT se escriben en texto libre, con criterio de cada técnico. El tiempo medio entre fallas de un mismo equipo puede ir de 97 a 226 días según cómo un analista agrupe las OT (REFERENCIAS 4). `Confirmada`.
 2. **La pauta no se cumple y nadie lo ve.** Las mineras ya tienen procedimientos estandarizados, pero no tienen cómo comprobar que se cumplieron: depende solo del operario ([planteamiento del equipo](./fuentes/2026-11-21-planteamiento-del-equipo.md), `Candidata a validar`). Muchas desviaciones nacen de la presión de la jefatura y de pautas mal hechas, no del operario (REFERENCIAS 33). Las guías actuales muestran el paso siguiente, pero no comprueban que el anterior se hizo (REFERENCIAS 18). `Confirmada`.
@@ -15,6 +15,8 @@ El caso que usa el equipo es la detención no planificada de una correa transpor
 ## La visión
 
 **Un operario aumentado con IA.** La IA acompaña al operario como copiloto mientras ejecuta: comprueba cada paso de la pauta y le avisa en el momento si se salta uno, para que el error se corrija ahí y no después. El resultado es un operario que ejecuta bien, con menos accidentes y con una bitácora confiable, gracias a pautas suficientes y verificables. La bitácora no se escribe: es la lista de pasos verificados con su evidencia. `Confirmada` por el equipo ([planteamiento del 2026-11-21](./fuentes/2026-11-21-planteamiento-del-equipo.md)).
+
+**Qué es.** Factum vuelve verificable cualquier flujo operacional: un procedimiento con pasos en el que cada paso declara qué evidencia lo cierra. El objetivo es reducir el impacto de una ejecución mal hecha. El mantenimiento de maquinaria es el caso de uso, elegido por su alto impacto ([ADR-0009](../decisions/0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md)). `Candidata a validar`.
 
 **Cliente objetivo.** Una operación con equipos críticos, de cualquier rubro, que ya tiene procedimientos estandarizados y no tiene cómo verificarlos. A la que no los tiene, el sistema le redacta el primero observando al operario, y desde ahí sigue el mismo flujo. La minería es el caso del demo, no el límite del producto ([ADR-0005](../decisions/0005-producto-general-mineria-como-caso-del-demo.md)). `Candidata a validar`.
 
@@ -58,9 +60,9 @@ Track Physical World. Criterios y pesos de la hackathon: `Confirmada`.
 
 | Criterio | Peso | Qué lo sostiene hoy | Qué falta |
 |---|---|---|---|
-| Aspecto técnico | 25% | Nada construido. Hay hardware: Arduino, Raspberry Pi, ESP, sensores y motores | Un sistema que corra en vivo y donde se vea una parte difícil |
-| Ejecución | 20% | Nada construido | Un demo de punta a punta que no se caiga |
-| Ambición | 20% | El operario aumentado con IA, un producto que sirve a cualquier operación crítica y el ciclo de mejora de la pauta | Mostrar el ciclo completo, aunque sea a escala chica |
+| Aspecto técnico | 25% | El edge con ESP32, cámara y detector, la verificación en tres capas y la API en vivo. El detalle, en [SEGUIMIENTO](../roadmap/SEGUIMIENTO.md) | Medir falsos positivos, falsos negativos y la latencia del aviso |
+| Ejecución | 20% | La demo de bloqueo con ESP32 y cámara, desplegada en la VM ([SEGUIMIENTO](../roadmap/SEGUIMIENTO.md)) | Un demo de punta a punta, ensayado, que no se caiga |
+| Ambición | 20% | El operario aumentado con IA, un producto que vuelve verificable cualquier flujo operacional y el ciclo de mejora de la pauta | Mostrar el ciclo completo, aunque sea a escala chica |
 | Impacto | 20% | La ejecución inefectiva del control, 19 de 26 incidentes fatales de los miembros de ICMM en 2025, de fuente primaria (40); ICMM pide verificar los controles críticos y nombra el aislamiento de energía, que es el paso del demo | Una fuente de operador o de estudio para el costo por hora; hoy es la estimación de un proveedor (38) |
 | Originalidad | 15% | Los vacíos de la literatura | Que el vacío se note en el demo, no solo en una lámina |
 

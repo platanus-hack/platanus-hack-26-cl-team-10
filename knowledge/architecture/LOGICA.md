@@ -41,7 +41,7 @@ El evento **es** la bitácora. La tabla solo admite agregar filas: nada se edita
 | `evidencia` | objeto o nulo | El valor del sensor o la foto, con su hora |
 | `detalle` | texto | Por qué se decidió así, legible por una persona |
 
-Tipos de evento: `ot_abierta` · `paso_iniciado` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` · `relevo_recibido` · `propuesta_pauta`.
+Tipos de evento: `ot_abierta` · `ot_asignada` · `paso_iniciado` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` · `relevo_recibido` · `propuesta_pauta`.
 
 Una alerta no se borra cuando su condición desaparece: entra un `alerta_resuelta` que apunta a ella (`evidencia.resuelve`) con la lectura que la normalizó. Así la bitácora muestra cuándo empezó y cuándo terminó, y la UI saca el aviso en vivo. Ver [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md).
 
@@ -62,26 +62,51 @@ La regla de oro del [ADR-0004](../decisions/0004-verificacion-por-capas.md): **l
 | `tipo_evidencia` | Quién cierra el paso | Qué pasa con lo que diga el operario |
 |---|---|---|
 | `sensor` | Capa 1, con la lectura del sensor | Se guarda como `declarado`, pero **no cierra el paso** |
-| `camara` | Capa 3, respondiendo la pregunta visual | Se guarda, y si contradice a la cámara el paso queda `en_conflicto` |
+| `camara` | Capa 2 si el detector del edge ve con certeza la clase que el paso declara en `deteccion`; si no, capa 3, respondiendo la pregunta visual | Se guarda, y si contradice a la cámara el paso queda `en_conflicto` |
 | `confirmacion` | La palabra del operario | Cierra el paso, y el evento deja constancia de que lo cerró una persona |
 
-Tres consecuencias que importan:
+Cinco consecuencias que importan:
 
-1. **Un paso de sensor nunca se cierra hablando.** Si el operario dice «bloqueo puesto» y el reed switch está abierto, el paso queda `en_conflicto`, no `verificado`.
+1. **Un paso de sensor nunca se cierra hablando.** Si el operario dice «bloqueo puesto» y el reed switch está abierto, el paso queda `en_conflicto`, no `verificado`. Hablar no lo cierra; **confirmarlo sí**, con la acción explícita de abajo.
 2. **El orden no lo juzga el modelo.** Lo impone la aplicación, que pregunta por un paso a la vez, y lo comprueba la capa 1 con las marcas de tiempo: la energía se cortó *antes* de abrir la guarda. Es justo donde un VLM falla (3 de 12 cambios de orden, REFERENCIAS 9).
-3. **La capa 2 todavía no cierra pasos.** Detecta anomalías en la señal y abre la OT. Qué algoritmo usa es `Brecha`.
+3. **La capa 2 cierra pasos de cámara, no de señal.** Sobre la imagen, el detector cierra el paso en curso cuando todas sus detecciones recientes son seguras, y nunca abre un conflicto: si duda, el paso sube a la capa 3. Sobre señales, la capa 2 detecta anomalías y avisa, sin cerrar pasos. Qué algoritmo usa ahí es `Brecha`; la [simulación de capa 2](../projects/escenarios-por-industria/capa2-simulacion.md) compara candidatos.
+4. **La palabra tardía no se confunde con el paso siguiente.** La app manda el paso que mostraba al operario. Si el sensor ya lo cerró, la declaración se registra y no se evalúa contra el paso que sigue.
+5. **Un paso de cámara sin un cuadro reciente no se verifica.** Sin video de los últimos 10 s, la respuesta del juez no es evidencia, aunque diga que sí.
+
+## Cuando la persona y el sensor no coinciden
+
+Un sensor se cae, se descalibra o queda mal montado, y la pauta no puede quedar trabada por eso. Si una persona afirma que el paso está hecho y la evidencia no lo muestra, **se le cree, pero no en silencio**:
+
+- Es una acción aparte de declarar: `POST /ot/{id}/pasos/{paso}/confirmar`, con quién y por qué. Hablar sigue sin cerrar el paso.
+- Solo el paso en curso, porque el orden lo impone la app. Un paso de confirmación se cierra declarando, no por acá.
+- El paso queda `verificado` por una persona (`capa` nula). El evento guarda quién, el motivo y qué marcaba el sensor en ese momento. El conflicto anterior, si lo hubo, sigue en la bitácora.
+- La OT queda en `warning` mientras dure: el registro dice que ese control lo afirmó una persona contra la evidencia. No interrumpe.
+- **No apaga la seguridad.** Las reglas de peligro se siguen evaluando con los sensores reales. Si el bloqueo se confirmó a mano y después la guarda se abre con energía viva, la alerta suena igual. Un control cerrado por una persona no cuenta para «control crítico deshecho», porque su sensor nunca lo mostró hecho.
+
+Quién puede confirmar un control crítico (el operario o solo un supervisor) está abierto. `Candidata a validar`.
 
 ## Qué puede interrumpir al operario
 
 **Solo la capa 1.** Mientras no se mida la tasa de falsas alarmas de la cámara, lo que detecta la capa 3 se muestra en pantalla pero no suena en el oído. Con 5 rechazos de 12 ejecuciones correctas (REFERENCIAS 9), un aviso falso repetido le enseña al operario a ignorar el aviso.
 
-Y hay reglas de seguridad que **no dependen del paso en curso**: se evalúan con cada lectura de sensor, incluso si el operario va en otro paso o en ninguno.
+Y hay reglas de seguridad que **no dependen del paso en curso**: se evalúan con cada lectura de sensor, incluso si el operario va en otro paso o en ninguno. Una por peligro de alta consecuencia de cada industria, con su norma (los números son de [REFERENCIAS](../projects/research/REFERENCIAS.md)):
 
-| Regla | Dispara | Por qué |
-|---|---|---|
-| Guarda abierta con energía viva | Alerta crítica, capa 1 | Es el momento del demo, y el aislamiento de energía es uno de los peligros de alta consecuencia que ICMM nombra (REFERENCIAS 40) |
+| Regla | Industria | Dispara | Por qué |
+|---|---|---|---|
+| Guarda abierta con energía viva | Minería | Alerta crítica, capa 1 | Era el momento del demo de la correa. Mantener solo con la energía cortada y la máquina bloqueada, con guardas puestas mientras opera (44, 45). El aislamiento de energía es uno de los peligros de alta consecuencia que ICMM nombra (40) |
+| Puesta a tierra con tensión presente | Eléctrica | Alerta crítica, capa 1 | Se verifica la ausencia de tensión antes de poner cualquier tierra (48, 49, 50) |
+| Cierre del seccionador con tierras puestas | Eléctrica | Alerta crítica, capa 1 | No se repone el servicio mientras haya tierras (48, 49, 50) |
+| Persona en la zona con los implementos levantados | Construcción | Alerta crítica, capa 1 | Nadie trabaja bajo una parte levantada que no esté calzada (52) |
+| Persona en la zona con energía viva | Celda robotizada, el demo | Alerta crítica, capa 1, y el ESP32 corta la energía por su cuenta | Es el momento del demo ([ADR-0010](../decisions/0010-demo-brazo-robotico-en-una-celda-con-corte-local.md)). El corte es local porque una función de seguridad no puede depender de la red. `Candidata a validar`: no está construida y no se buscó su norma |
 
-Esa es la única regla definida hoy. Agregar una regla de seguridad es una decisión de producto, no un detalle de implementación: va en este documento.
+Y dos reglas que **sí dependen de la pauta**, porque leen qué pasos están cerrados. También son capa 1 e interrumpen:
+
+| Regla | Dispara | Se resuelve | Por qué |
+|---|---|---|---|
+| Orden invertido | Llega la lectura que cierra un paso posterior mientras el paso en curso, que es control crítico, sigue abierto | Cuando se hace el paso saltado o se deshace lo adelantado | El orden lo comprueba la capa 1 (punto 2 de arriba). Es el bloqueo saltado del demo, y la causa de la muerte que investigó MSHA en 2025: el procedimiento existía y no se aplicó (47). Si el paso pendiente no es crítico no se avisa: cerrar la guarda porque sonó una alerta no vale una interrupción |
+| Control crítico deshecho | El sensor de un control crítico ya verificado deja de marcar lo que el paso exige, antes del paso de la pauta que lo deshace | Cuando el sensor vuelve | Las protecciones se reponen antes de volver a servicio y la reposición va en orden inverso (44, 48, 52). Deja de mirar cuando solo quedan pasos de confirmación, que es cuando la pauta devuelve el equipo a servicio |
+
+Agregar una regla de seguridad es una decisión de producto, no un detalle de implementación: va en este documento. Cada una tiene sus escenarios en las tres industrias ([escenarios por industria](../projects/escenarios-por-industria/PRD.md)).
 
 ## Dónde una persona tiene que aprobar
 
@@ -115,9 +140,9 @@ La vista del supervisor **agrupa por pauta y por área antes que por persona**: 
 
 ## Lo que esta lógica todavía no resuelve
 
-- Qué pasa con un paso `en_conflicto` cuando el operario insiste. ¿Se escala a un supervisor? `Brecha`.
+- Si confirmar un control crítico contra el sensor exige a un supervisor y no al operario. Ver [Cuando la persona y el sensor no coinciden](#cuando-la-persona-y-el-sensor-no-coinciden). `Brecha`.
 - Qué fracción de los pasos de una pauta real tiene una señal de sensor disponible sin tocar el PLC. `Brecha`.
-- Qué algoritmo usa la capa 2. Para el demo basta un umbral. `Brecha`.
+- Qué algoritmo usa la capa 2. Para el demo, sin ciclo de trabajo, basta el desvío robusto contra la historia normal. Con un ciclo de carga, como en una subestación o una excavadora, hace falta saber en qué parte del ciclo va el equipo ([simulación](../projects/escenarios-por-industria/capa2-simulacion.md)). `Brecha`.
 - La latencia del aviso de punta a punta, y si el auricular convive con la protección auditiva de una planta. `Brecha`.
 - Qué evidencia exige una auditoría y cuánto tiempo se guarda. `Brecha`.
 
@@ -125,4 +150,4 @@ La vista del supervisor **agrupa por pauta y por área antes que por persona**: 
 
 - ADR [0002](../decisions/0002-la-aplicacion-impone-el-orden-de-la-pauta.md), [0003](../decisions/0003-patrones-de-arquitectura-para-el-mvp.md), [0004](../decisions/0004-verificacion-por-capas.md) y [0006](../decisions/0006-la-ot-nace-del-protocolo.md). Todos `proposed`: esta lógica cae si el equipo los rechaza.
 - [FLUJO](./FLUJO.md), pasos 2 a 6.
-- Números de referencia: ver [REFERENCIAS](../projects/research/REFERENCIAS.md). La (40), de ICMM, entra con el PR #7; si ese PR no se mergea, las dos menciones a controles críticos de alta consecuencia quedan sin fuente numerada.
+- Números de referencia: ver [REFERENCIAS](../projects/research/REFERENCIAS.md).

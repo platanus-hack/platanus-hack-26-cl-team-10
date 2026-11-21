@@ -1,6 +1,6 @@
 # Factum
 
-**AI Augmented Operator.** Verifica cada paso del mantenimiento mientras se ejecuta y avisa al operario en el momento si se salta uno.
+**AI Augmented Operator.** Vuelve verificable cualquier flujo operacional: comprueba cada paso mientras se ejecuta y avisa al operario en el momento si se salta uno. El caso de uso es el mantenimiento de maquinaria, donde una mala ejecución cuesta vidas y horas de detención.
 
 ## El problema
 
@@ -15,7 +15,7 @@ Las operaciones críticas, como una faena minera, tienen procedimientos, pero no
 
 ## El demo
 
-Una correa transportadora a escala con el aislamiento de energía como paso crítico. Se carga la pauta, el operario ejecuta y Factum detecta en vivo el paso que falta.
+Un brazo robótico dentro de una celda. Falla, y Factum abre la orden de trabajo desde el protocolo. El operario se salta cortar la energía y se acerca con el brazo en movimiento: Factum lo detiene, le avisa y lo guía paso a paso hasta que el brazo vuelve a trabajar bien. Factum no reemplaza la seguridad de la máquina: hace que se cumpla.
 
 ## Equipo
 

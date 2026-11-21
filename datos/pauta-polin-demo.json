@@ -1,0 +1,103 @@
+{
+  "id": "pauta-polin-demo",
+  "nombre": "Cambio de polín · demo de 2 minutos",
+  "version": 1,
+  "equipo": "correa a escala del demo",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Cortar la corriente del motor",
+      "instruccion": "Aprieta el botón de parada. En el demo, el mismo botón corta el motor y lo deja trabado.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "cortada"
+      }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Poner tu candado",
+      "instruccion": "Deja trabado el motor: mientras esté trabado, nadie puede encenderlo. En la faena es tu candado; en el demo, el botón.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "puesto"
+      }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Acercarte a la correa",
+      "instruccion": "Recién ahora acércate a la correa.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "operario",
+        "espera": "presente"
+      }
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Sacar el polín malo",
+      "instruccion": "Saca el polín marcado en rojo, de lado, por el agujero de la pared.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿Ya no está el plumón rojo entre los rodillos?"
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Poner el polín nuevo",
+      "instruccion": "Mete el polín verde por el mismo agujero y gíralo con la mano: tiene que girar suelto.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿Hay un plumón verde en el lugar donde estaba el rojo?"
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Alejarte de la correa",
+      "instruccion": "Saca tus herramientas y aléjate de la correa.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "operario",
+        "espera": "ausente"
+      }
+    },
+    {
+      "id": "p7",
+      "orden": 7,
+      "titulo": "Sacar tu candado",
+      "instruccion": "Con la mano fuera, suelta el motor. Si la mano sigue adentro, el motor no parte y Factum avisa.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "retirado"
+      }
+    },
+    {
+      "id": "p8",
+      "orden": 8,
+      "titulo": "Encender el motor",
+      "instruccion": "Aprieta el botón de partida y mira que la correa anda.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "viva"
+      }
+    }
+  ]
+}

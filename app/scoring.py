@@ -134,6 +134,16 @@ def capa2(sensor_id: str, historia: Sequence[float], valor: float) -> Calificaci
     return Calificacion(Nivel.OK, certeza, Capa.APRENDIZAJE, (f"{sensor_id} = {valor:g}, dentro de lo normal",))
 
 
+def frescura(sensor_id: str, edad_s: float) -> Calificacion | None:
+    """Capa 1 sin lecturas recientes: lo que dice el sensor ya no es seguro. El edge reenvía
+    cada sensor al menos cada FRESCURA_S segundos, cambie o no."""
+    certeza = _certeza_por_frescura(edad_s)
+    if certeza >= 1.0:
+        return None
+    return Calificacion(Nivel.WARNING, certeza, Capa.DETERMINISTA,
+                        (f"sin lecturas de {sensor_id} hace {edad_s:.0f} s: el sensor puede haberse caído",))
+
+
 # ─── Capa 3 · cámara ────────────────────────────────────────────────────────
 
 
@@ -177,6 +187,9 @@ def calificar_evento(ev: Evento) -> Calificacion | None:
         return Calificacion(Nivel.OK, 1.0, ev.capa, (ev.detalle,))
     if ev.tipo not in (TipoEvento.VEREDICTO, TipoEvento.ALERTA):
         return None
+    if ev.tipo is TipoEvento.VEREDICTO and (ev.evidencia or {}).get("tipo") == "persona":
+        return Calificacion(Nivel.WARNING, 0.5, None,
+                            (ev.detalle, "una persona lo cerró contra la evidencia: conviene revisar el sensor"))
     if ev.tipo is TipoEvento.ALERTA and ev.capa == Capa.APRENDIZAJE:
         certeza = float((ev.evidencia or {}).get("certeza", 1.0))
         return Calificacion(Nivel.WARNING, certeza, Capa.APRENDIZAJE, (ev.detalle,))
