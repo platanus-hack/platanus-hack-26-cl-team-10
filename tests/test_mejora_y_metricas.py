@@ -13,6 +13,7 @@ TIENE_HTTPX = importlib.util.find_spec("httpx") is not None and importlib.util.f
 
 SUPERVISORA, OPERADORA, OPERADOR = "carla.munoz@oculta.example", "ana.rojas@oculta.example", "bruno.diaz@oculta.example"
 PROPUESTA_DE_LA_SEMILLA = "pauta-polin-demo:v1:p3"
+OTS_DE_LA_SEMILLA = len(json.loads((protocolos.DATOS / "ots-semilla.json").read_text())["ots"])
 
 
 @unittest.skipUnless(TIENE_HTTPX, "requiere fastapi y httpx")
@@ -168,8 +169,8 @@ class LaMejoraContinua(Base):
 class LasMetricas(Base):
     def test_el_resumen_cuadra_con_la_semilla(self):
         m = self.c.get("/cliente/metricas", headers=self.carla).json()
-        self.assertEqual(m["ots"]["total"], 16)
-        self.assertEqual(sum(m["ots"]["por_estado"].values()), 16)
+        self.assertEqual(m["ots"]["total"], OTS_DE_LA_SEMILLA)
+        self.assertEqual(sum(m["ots"]["por_estado"].values()), OTS_DE_LA_SEMILLA)
         self.assertEqual(m["ots"]["por_estado"]["completa"], m["cumplimiento"]["completas"])
         self.assertEqual(m["pasos"]["verificados"], sum(m["pasos"]["por_evidencia"].values()))
         self.assertEqual(m["desviaciones"]["total"], sum(m["desviaciones"]["por_clase"].values()))
@@ -218,12 +219,12 @@ class LasMetricas(Base):
         serie = self.c.get("/cliente/metricas/serie", headers=self.carla).json()
         dias = [s["periodo"] for s in serie]
         self.assertEqual(dias, sorted(dias))
-        self.assertEqual(sum(s["ots_abiertas"] for s in serie), 16)
+        self.assertEqual(sum(s["ots_abiertas"] for s in serie), OTS_DE_LA_SEMILLA)
         resumen = self.c.get("/cliente/metricas", headers=self.carla).json()
         alertas = sum(resumen["desviaciones"]["por_clase"][c] for c in ("seguridad", "orden", "control"))
         self.assertEqual(sum(s["desviaciones"] for s in serie), alertas)
         semanas = self.c.get("/cliente/metricas/serie?intervalo=semana", headers=self.carla).json()
-        self.assertEqual(sum(s["ots_abiertas"] for s in semanas), 16)
+        self.assertEqual(sum(s["ots_abiertas"] for s in semanas), OTS_DE_LA_SEMILLA)
 
     def test_el_periodo_filtra_por_el_dia_en_que_se_abrio_la_ot(self):
         serie = self.c.get("/cliente/metricas/serie", headers=self.carla).json()
