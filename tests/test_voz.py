@@ -86,6 +86,17 @@ class Voz(unittest.TestCase):
         self.assertEqual(r.json()["voz"], "ElevenLabs respondió 401")
         self.assertEqual(list(Path(self.tmp.name).glob("*.mp3")), [])
 
+    def test_tope_de_audios_nuevos_por_proceso(self):
+        with mock.patch.object(self.voz, "MAX_GENERACIONES", 2), mock.patch.object(self.voz, "_generadas", 0):
+            self.assertEqual(self.c.get("/voz", params={"texto": "uno"}).status_code, 200)
+            self.assertEqual(self.c.get("/voz", params={"texto": "dos"}).status_code, 200)
+            r = self.c.get("/voz", params={"texto": "tres"})
+            self.assertEqual(r.status_code, 503)
+            self.assertIn("máximo", r.json()["voz"])
+            # Lo que ya está guardado se sigue sirviendo.
+            self.assertEqual(self.c.get("/voz", params={"texto": "uno"}).status_code, 200)
+        self.assertEqual(len(self.llamadas), 2)
+
     def test_sin_red_responde_502(self):
         with mock.patch.object(self.voz, "pedir_audio", side_effect=urllib.error.URLError("sin red")):
             r = self.c.get("/voz", params={"texto": "Oye"})

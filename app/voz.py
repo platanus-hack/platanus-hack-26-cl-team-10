@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -25,6 +26,11 @@ API = "https://api.elevenlabs.io/v1"
 MODELO = "eleven_flash_v2_5"
 VOZ_POR_DEFECTO = "JBFqnCBsd6RMkjVDRZzb"  # la de tts.py; se cambia con ELEVENLABS_VOICE_ID
 MAX_TEXTO = 300
+# La URL es pública y la API no tiene autenticación: sin tope, cualquiera gasta los créditos
+# de ElevenLabs pidiendo textos al azar. Lo ya guardado se sirve siempre.
+MAX_GENERACIONES = 200
+_generadas = 0
+_candado = threading.Lock()
 CARPETA = Path(__file__).resolve().parent.parent / "datos" / "voz"
 
 router = APIRouter()
@@ -61,6 +67,12 @@ def voz(texto: str) -> Response:
     llave = os.environ.get("ELEVENLABS_API_KEY")
     if not llave:
         return _error(503, "falta ELEVENLABS_API_KEY")
+
+    global _generadas
+    with _candado:
+        if _generadas >= MAX_GENERACIONES:
+            return _error(503, "se alcanzó el máximo de avisos nuevos; reinicia la API para generar más")
+        _generadas += 1
 
     try:
         audio = pedir_audio(texto, voice_id, llave)
