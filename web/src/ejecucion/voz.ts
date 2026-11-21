@@ -1,6 +1,6 @@
 // La voz de los avisos. El audio viene de /voz (ElevenLabs en el servidor); si no hay URL,
-// si el navegador no deja reproducir o si /voz falla, el mismo texto lo dice el navegador.
-// Un aviso nunca queda mudo y dos avisos nunca se pisan.
+// si el navegador no deja reproducir, si /voz falla o tarda, el mismo texto lo dice el navegador.
+// Un aviso nunca queda mudo, dos avisos nunca se pisan y uno trabado nunca traba a los siguientes.
 
 import { config } from '../config'
 
@@ -8,6 +8,7 @@ import { config } from '../config'
 export type AudioLike = {
   src: string
   play(): Promise<void>
+  pause(): void
   onended: ((ev: Event) => unknown) | null
   onerror: ((ev: Event | string) => unknown) | null
 }
@@ -21,6 +22,13 @@ export type DepsVoz = {
 export type EstadoAudio = 'bloqueado' | 'activo'
 
 export const FRASE_DE_PRUEBA = 'Audio activo. Así vas a escuchar los avisos.'
+
+/** Si el audio de /voz no empezó en este tiempo, el aviso lo dice el navegador. */
+export const ESPERA_INICIO_AUDIO_MS = 2500
+/** Tope para un audio que empezó y nunca avisó que terminó. */
+const topeAudioMs = (texto: string) => Math.max(10_000, 150 * texto.length)
+/** Tope para la voz del navegador, que a veces no avisa que terminó (Chrome en Android, iOS). */
+const topeHablaMs = (texto: string) => Math.max(4000, 90 * texto.length)
 
 /** Una décima de segundo de silencio en WAV: lo que se reproduce para desbloquear el audio. */
 function silencioWav(): string {
@@ -50,6 +58,8 @@ export function crearVoz(deps: DepsVoz) {
   const oyentes = new Set<(e: EstadoAudio) => void>()
   let estado: EstadoAudio = 'bloqueado'
   let sonando = false
+  /** Un aviso está usando el elemento de audio (entre que se le pone src y que termina o cae al navegador). */
+  let usandoAudio = false
 
   function cambiar(e: EstadoAudio) {
     if (e === estado) return
@@ -66,26 +76,43 @@ export function crearVoz(deps: DepsVoz) {
     sonando = true
     let terminado = false
     let respaldoUsado = false
+    let reloj: ReturnType<typeof setTimeout> | null = null
+    const vigilar = (ms: number, fn: () => void) => {
+      if (reloj) clearTimeout(reloj)
+      reloj = setTimeout(fn, ms)
+    }
 
+    const soltarAudio = () => {
+      usandoAudio = false
+      audio.onended = null
+      audio.onerror = null
+    }
     const fin = () => {
       if (terminado) return
       terminado = true
-      audio.onended = null
-      audio.onerror = null
+      if (reloj) clearTimeout(reloj)
+      soltarAudio()
       siguiente()
     }
     const respaldo = () => {
       if (respaldoUsado || terminado) return
       respaldoUsado = true
-      audio.onended = null
-      audio.onerror = null
+      soltarAudio()
+      try {
+        audio.pause() // si el audio llega tarde, que no suene encima de la voz del navegador
+      } catch {
+        // nada que pausar
+      }
+      vigilar(topeHablaMs(texto), fin)
       deps.hablarNavegador(texto, fin)
     }
 
     if (!deps.urlVoz) return respaldo()
+    usandoAudio = true
     audio.onended = fin
     audio.onerror = respaldo
     audio.src = deps.urlVoz(texto)
+    vigilar(ESPERA_INICIO_AUDIO_MS, respaldo)
     // play() puede tirar al tiro o devolver undefined (Safari viejo): se trata igual que un rechazo o un éxito.
     let reproduccion: Promise<void> | undefined
     try {
@@ -93,24 +120,29 @@ export function crearVoz(deps: DepsVoz) {
     } catch {
       return respaldo()
     }
-    Promise.resolve(reproduccion).then(() => cambiar('activo'), respaldo)
+    Promise.resolve(reproduccion).then(() => {
+      cambiar('activo')
+      if (!respaldoUsado && !terminado) vigilar(topeAudioMs(texto), fin)
+    }, respaldo)
   }
 
   return {
     /** Llamar dentro de un toque del usuario: es lo que deja sonar al celular. */
     async desbloquear(): Promise<void> {
-      if (!sonando) {
+      // Primero la voz del navegador, sin esperar nada: iOS solo la deja hablar dentro del toque.
+      deps.hablarNavegador('', () => {})
+      if (!usandoAudio) {
         audio.onended = null
         audio.onerror = null
         audio.src = silencioWav()
-        try {
-          await audio.play()
-          cambiar('activo')
-        } catch {
-          // El navegador no dejó: la pantalla sigue mostrando «Audio bloqueado».
-        }
       }
-      deps.hablarNavegador('', () => {})
+      // Si un aviso está usando el audio, play() sobre el mismo elemento también lo desbloquea.
+      try {
+        await audio.play()
+        cambiar('activo')
+      } catch {
+        // El navegador no dejó: la pantalla sigue mostrando «Audio bloqueado».
+      }
     },
     decir(texto: string): void {
       cola.push(texto)
@@ -129,12 +161,20 @@ export function crearVoz(deps: DepsVoz) {
 
 export type Voz = ReturnType<typeof crearVoz>
 
+// Chrome suelta un utterance sin referencia y nunca avisa que terminó: se guarda el último.
+let hablando: SpeechSynthesisUtterance | null = null
+
 function hablarConElNavegador(texto: string, alTerminar: () => void): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return alTerminar()
   const u = new SpeechSynthesisUtterance(texto)
   u.lang = 'es-CL'
-  u.onend = alTerminar
-  u.onerror = alTerminar
+  const listo = () => {
+    if (hablando === u) hablando = null
+    alTerminar()
+  }
+  u.onend = listo
+  u.onerror = listo
+  hablando = u
   window.speechSynthesis.speak(u)
 }
 

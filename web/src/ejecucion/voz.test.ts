@@ -7,7 +7,13 @@ class FakeAudio implements AudioLike {
   onerror: (() => void) | null = null
   fuentes: string[] = []
   rechazar = false
+  colgar = false
+  pausado = false
+  pause() {
+    this.pausado = true
+  }
   async play() {
+    if (this.colgar) return new Promise<void>(() => {})
     this.fuentes.push(this.src)
     if (this.rechazar) throw new Error('NotAllowedError')
   }
@@ -115,4 +121,56 @@ it('falls back when play throws synchronously', () => {
   }
   voz.decir('a')
   expect(dichos).toEqual(['a'])
+})
+
+describe('watchdogs: one stuck warning never mutes the next', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('falls back to the browser voice when the audio does not start within 2.5 s', async () => {
+    const { voz, audio, dichos } = armar()
+    audio.colgar = true
+    voz.decir('Oye, el candado no aparece puesto')
+    await vi.advanceTimersByTimeAsync(2499)
+    expect(dichos).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(dichos).toEqual(['Oye, el candado no aparece puesto'])
+    expect(audio.pausado).toBe(true)
+  })
+
+  it('moves on when the browser voice never says it ended', async () => {
+    const { voz, dichos } = armar(null)
+    voz.decir('a')
+    voz.decir('b')
+    expect(dichos).toEqual(['a'])
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(dichos).toEqual(['a', 'b'])
+  })
+
+  it('moves on when the audio stalls after it started', async () => {
+    const { voz, audio } = armar()
+    voz.decir('a')
+    voz.decir('b')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(audio.fuentes).toEqual(['/voz?texto=a'])
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(audio.fuentes).toEqual(['/voz?texto=a', '/voz?texto=b'])
+  })
+})
+
+it('desbloquear speaks the empty utterance before waiting for the audio', () => {
+  const { voz, audio, dichos } = armar()
+  audio.colgar = true
+  void voz.desbloquear()
+  expect(dichos).toEqual([''])
+})
+
+it('desbloquear still unlocks while a warning is being spoken by the browser voice', async () => {
+  const { voz, audio } = armar()
+  audio.rechazar = true
+  voz.decir('a')
+  await esperar()
+  audio.rechazar = false
+  await voz.desbloquear()
+  expect(voz.estado()).toBe('activo')
 })
