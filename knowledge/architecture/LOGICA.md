@@ -62,14 +62,14 @@ La regla de oro del [ADR-0004](../decisions/0004-verificacion-por-capas.md): **l
 | `tipo_evidencia` | Quién cierra el paso | Qué pasa con lo que diga el operario |
 |---|---|---|
 | `sensor` | Capa 1, con la lectura del sensor | Se guarda como `declarado`, pero **no cierra el paso** |
-| `camara` | Capa 3, respondiendo la pregunta visual | Se guarda, y si contradice a la cámara el paso queda `en_conflicto` |
+| `camara` | Capa 2 si el detector del edge ve con certeza la clase que el paso declara en `deteccion`; si no, capa 3, respondiendo la pregunta visual | Se guarda, y si contradice a la cámara el paso queda `en_conflicto` |
 | `confirmacion` | La palabra del operario | Cierra el paso, y el evento deja constancia de que lo cerró una persona |
 
-Tres consecuencias que importan:
+Cinco consecuencias que importan:
 
 1. **Un paso de sensor nunca se cierra hablando.** Si el operario dice «bloqueo puesto» y el reed switch está abierto, el paso queda `en_conflicto`, no `verificado`. Hablar no lo cierra; **confirmarlo sí**, con la acción explícita de abajo.
 2. **El orden no lo juzga el modelo.** Lo impone la aplicación, que pregunta por un paso a la vez, y lo comprueba la capa 1 con las marcas de tiempo: la energía se cortó *antes* de abrir la guarda. Es justo donde un VLM falla (3 de 12 cambios de orden, REFERENCIAS 9).
-3. **La capa 2 todavía no cierra pasos.** Detecta anomalías en la señal y abre la OT. Qué algoritmo usa es `Brecha`; la [simulación de capa 2](../projects/escenarios-por-industria/capa2-simulacion.md) compara candidatos.
+3. **La capa 2 cierra pasos de cámara, no de señal.** Sobre la imagen, el detector cierra el paso en curso cuando todas sus detecciones recientes son seguras, y nunca abre un conflicto: si duda, el paso sube a la capa 3. Sobre señales, la capa 2 detecta anomalías y avisa, sin cerrar pasos. Qué algoritmo usa ahí es `Brecha`; la [simulación de capa 2](../projects/escenarios-por-industria/capa2-simulacion.md) compara candidatos.
 4. **La palabra tardía no se confunde con el paso siguiente.** La app manda el paso que mostraba al operario. Si el sensor ya lo cerró, la declaración se registra y no se evalúa contra el paso que sigue.
 5. **Un paso de cámara sin un cuadro reciente no se verifica.** Sin video de los últimos 10 s, la respuesta del juez no es evidencia, aunque diga que sí.
 
@@ -149,4 +149,4 @@ La vista del supervisor **agrupa por pauta y por área antes que por persona**: 
 
 - ADR [0002](../decisions/0002-la-aplicacion-impone-el-orden-de-la-pauta.md), [0003](../decisions/0003-patrones-de-arquitectura-para-el-mvp.md), [0004](../decisions/0004-verificacion-por-capas.md) y [0006](../decisions/0006-la-ot-nace-del-protocolo.md). Todos `proposed`: esta lógica cae si el equipo los rechaza.
 - [FLUJO](./FLUJO.md), pasos 2 a 6.
-- Números de referencia: ver [REFERENCIAS](../projects/research/REFERENCIAS.md). La (40), de ICMM, entra con el PR #7; si ese PR no se mergea, las dos menciones a controles críticos de alta consecuencia quedan sin fuente numerada.
+- Números de referencia: ver [REFERENCIAS](../projects/research/REFERENCIAS.md).

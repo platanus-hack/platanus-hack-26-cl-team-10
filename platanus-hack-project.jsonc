@@ -3,7 +3,7 @@
   "project-name": "Factum",
 
   // Short one-line summary of your project (in Spanish).
-  "project-oneliner-spanish": "AI Augmented Operator: verifica con cámara y sensores cada paso del mantenimiento y avisa al operario en el momento si se salta uno.",
+  "project-oneliner-spanish": "AI Augmented Operator: verifica con cámara y sensores cada paso de un flujo operacional, como el mantenimiento de maquinaria, y avisa al operario en el momento si se salta uno.",
 
   // Brief description of your project (in Spanish).
   "project-description-spanish": "Las operaciones críticas, como una faena minera, tienen procedimientos pero no pueden comprobar que se cumplen. Factum convierte el protocolo en una orden de trabajo y verifica cada paso con cámara, sensores y reglas deterministas. Si el operario se salta uno, recibe un aviso por audio y lo corrige ahí. Cada paso verificado queda como un hecho: esa es la bitácora.",
