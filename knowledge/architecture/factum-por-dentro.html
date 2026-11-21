@@ -322,6 +322,9 @@ table.matriz tbody tr.sel{outline:2px solid var(--ink);outline-offset:-2px;backg
 .sql{font-size:14.5px;min-height:0}
 .borrador{border-left:5px solid var(--stub);background:#eef0f4;border-radius:10px;padding:10px 14px;font-size:15px;color:#3c4653;margin:0 0 16px}
 .borrador b{color:var(--ink)}
+table.rutas{table-layout:fixed}
+table.rutas th:nth-child(1){width:40%} table.rutas th:nth-child(2){width:84px}
+table.rutas td{overflow-wrap:anywhere}
 ol.plan{margin:0;padding-left:22px}
 ol.plan li{margin:0 0 8px}
 </style>
@@ -332,7 +335,7 @@ ol.plan li{margin:0 0 8px}
   <div class="wrap">
     <span class="chip">Arquitectura</span><span class="chip">Factum por dentro</span><span class="chip">7 pantallas de lo construido</span><span class="chip">3 de diseño</span>
     <h1>Cómo un protocolo escrito se vuelve una pauta, una OT, pasos verificados y alertas cuando algo no se cumple</h1>
-    <p>Diez pantallas. Las siete primeras muestran lo que el código hace hoy, en el orden en que ocurre: el protocolo se vuelve pauta, de la pauta nace la OT, cada lectura pasa por tres capas y la calificación llega a la pantalla. Las tres últimas son diseño: la celda del brazo en 3D, los requerimientos contra la evidencia y cómo construir el paso de protocolo a pauta.</p>
+    <p>Diez pantallas. Las siete primeras muestran lo que el código hace hoy, en el orden en que ocurre: el protocolo se vuelve pauta, de la pauta nace la OT, cada lectura pasa por tres capas y la calificación llega a la pantalla. Las tres últimas son diseño: la celda del brazo en 3D, los requerimientos contra la evidencia, y el plan: protocolo, pautas creadas con un modelo y OT por API, con la complejidad en la verificación a la medida.</p>
   </div>
 </header>
 
@@ -364,7 +367,7 @@ ol.plan li{margin:0 0 8px}
     <h3>La conversión de protocolo a pauta</h3>
     <div class="dos">
       <div class="hoy"><b>Lo que hay hoy</b><code>protocolos.extraer_pasos(pdf)</code> ignora el PDF y devuelve <code>datos/pauta-correa.json</code>. Ninguna ruta de la API la llama ni recibe un PDF. Las cuatro pautas de <code>datos/</code> las escribió una persona, campo por campo. El atajo del demo, <code>POST /pauta/demo?pauta=correa|loto</code>, carga ese JSON y lo deja aprobado con el actor <code>supervisor:demo</code>.</div>
-      <div class="manana"><b>Lo que lo reemplaza</b>Recibir el PDF del cliente, extraer los pasos y proponer para cada uno su <code>tipo_evidencia</code> y su <code>pregunta_visual</code>; así lo deja escrito <code>protocolos.py</code>. El contrato de salida no cambia: una <code>Pauta</code>, que pasa por la misma validación y espera la misma aprobación de una persona. El ADR-0006 da el porqué: la OT nace del protocolo que el cliente ya tiene, no de una falla.</div>
+      <div class="manana"><b>Lo que lo reemplaza</b>Una llamada a un modelo de lenguaje: entra el protocolo y salen sus pautas, cada paso con su <code>tipo_evidencia</code> y su <code>pregunta_visual</code>. Es el plan del 2026-11-21, y está en la pantalla 10. El contrato de salida no cambia: una <code>Pauta</code>, que pasa por la misma validación y espera la misma aprobación. El ADR-0006 da el porqué: la OT nace del protocolo que el cliente ya tiene, no de una falla.</div>
     </div>
     <p class="nota" style="margin:10px 0 0">Lo que sí funciona hoy, y es todo lo que está de aquí hacia abajo: una pauta ya escrita entra por <code>POST /pautas</code>, se valida, se aprueba y se versiona.</p>
   </div>
@@ -468,12 +471,35 @@ ol.plan li{margin:0 0 8px}
     </div>
   </div>
 
+  <div class="bloque dos">
+    <div class="card">
+      <h3>A quién le toca la OT</h3>
+      <p class="nota">Un supervisor asigna la OT con <code>POST /ot/{id}/asignar</code>. Entra el evento <code>ot_asignada</code>, y el operador no se guarda en ninguna columna: se lee de la bitácora, igual que el estado. Manda el último evento que la cambia de manos: la asignación, recibir un turno o entregarlo.</p>
+      <table><tbody>
+        <tr><td><b>Solo a un operador conocido</b></td><td>Los del demo son <code>operario:1</code> y <code>operario:2</code>, escritos en <code>catalogo.OPERADORES</code>: no hay tabla de personas.</td></tr>
+        <tr><td><b>Solo si nadie la tiene</b></td><td>Nunca asignada, o entregada en un relevo que nadie recibió. Si ya tiene operador o está completa, 409.</td></tr>
+        <tr><td><b>No condiciona la ejecución</b></td><td>Abrir la sesión no pregunta por la asignación: son dos cosas independientes.</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <h3>El estado general de una OT</h3>
+      <p class="nota"><code>GET /ots</code> devuelve cada OT con cuántos pasos lleva cerrados y su <code>estado_general</code>, que también se calcula al leer:</p>
+      <table><tbody>
+        <tr><td><span class="badge gris">sin_asignar</span></td><td>Nadie la tiene todavía.</td></tr>
+        <tr><td><span class="badge gris">asignada</span></td><td>Tiene operador, y no hay sesión ni ningún veredicto.</td></tr>
+        <tr><td><span class="badge warning">en_ejecucion</span></td><td>Tiene operador y un edge la ejecuta, o ya tiene algún veredicto.</td></tr>
+        <tr><td><span class="badge warning">entregada</span></td><td>Alguien entregó el turno y nadie lo recibió.</td></tr>
+        <tr><td><span class="badge ok">completa</span></td><td>No queda ningún paso sin verificar.</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+
   <div class="bloque stub">
     <span class="sello-stub">DISEÑADO · NO CONSTRUIDO</span>
     <h3>El disparo de la OT y su confirmación</h3>
     <div class="dos">
       <div class="hoy"><b>Lo que hay hoy</b>La OT se abre a mano con <code>POST /ot/{id}/abrir?pauta_id=…</code>. No hay disparo por calendario, por pedido ni por falla, y no hay un paso en que una persona la confirme: el parámetro <code>actor</code> vale <code>sistema</code> si nadie lo manda.</div>
-      <div class="manana"><b>Lo que dice el ADR-0006</b>El sistema genera la OT desde la pauta vigente cuando hay que ejecutar la tarea, y una persona la confirma. El disparo puede ser el calendario de una mantención preventiva, el pedido de alguien o una falla del equipo; la falla es un caso más, no la definición.</div>
+      <div class="manana"><b>Lo que dice el ADR-0006, y el plan</b>El sistema genera la OT desde la pauta vigente cuando hay que ejecutar la tarea, y una persona la confirma. El disparo puede ser el calendario de una mantención preventiva, el pedido de alguien o una falla del equipo. Con el plan del 2026-11-21, ese disparo es una llamada a la API: el sistema del cliente pide una OT de una pauta de su protocolo. Está en la pantalla 10.</div>
     </div>
   </div>
   <div class="pie"><button data-ir="protocolo">← 1 · De protocolo a pauta</button><button data-ir="lectura">3 · El recorrido de una lectura →</button></div>
@@ -833,107 +859,96 @@ ol.plan li{margin:0 0 8px}
     <div class="card"><h3>Lo que frena un segundo caso</h3><p class="nota">Los sensores globales. Hoy el brazo usa <code>zona</code> y <code>energia</code>, los mismos nombres que la excavadora y la correa. En un servidor compartido, una lectura que dejó otra estación puede completar la condición de peligro de esta. La salida es que el sensor se guarde por edge.</p></div>
     <div class="card"><h3>Lo que nadie ha medido</h3><p class="nota">Falsas alarmas y latencia. Son los dos requerimientos no funcionales que el jurado va a preguntar y los dos sin número. El eval de capa 3 espera sus imágenes, y la latencia del aviso y del relé se mide con un cronómetro sobre la celda armada.</p></div>
   </div>
-  <div class="pie"><button data-ir="celda">← 8 · La celda en 3D</button><button data-ir="diseno">10 · Diseño: de protocolo a pauta →</button></div>
+  <div class="pie"><button data-ir="celda">← 8 · La celda en 3D</button><button data-ir="diseno">10 · El plan →</button></div>
 </div></section>
 
-<!-- ═══ 10 · Diseño: de protocolo a pauta ══════════════════════════════════ -->
+<!-- ═══ 10 · El plan: protocolo, pautas y OT por API ═══════════════════════ -->
 <section class="pantalla" id="p-diseno"><div class="wrap">
-  <h2>10 · Diseño: de protocolo a pauta</h2>
-  <p class="entrada">Cómo se construye lo que hoy es un stub: extraer los pasos del protocolo del cliente, llevarlos a una pauta comprobable, guardarla, validarla, probarla y medir qué tan bien quedó. Cada pieza dice de dónde sale y cómo se comprueba.</p>
-  <p class="borrador"><b>Diseño, no construido.</b> Nada de esta pantalla está en <code>app/</code>. Hay dos cosas que sí se corrieron para escribirla, y están marcadas: el validador, como prototipo sobre las cinco pautas, y la simulación del borrador del brazo. Todo el diseño es <code>Candidata a validar</code>.</p>
+  <h2>10 · El plan: protocolo, pautas y OT por API</h2>
+  <p class="entrada">El plan quedó más simple el 2026-11-21. Hay un protocolo, un modelo de lenguaje crea sus pautas, y un servicio por API genera las OT desde esas pautas. Lo simple es llegar a la OT. La complejidad se queda donde está el valor: en la verificación, que es a la medida de cada proceso estandarizado.</p>
+  <p class="borrador"><b>Diseño, no construido.</b> El recurso protocolo y la llamada al modelo no están en <code>app/</code>. Generar la OT desde una pauta sí está. El plan lo dictó Pancho el 2026-11-21 y todavía no está en un ADR: es <code>Candidata a validar</code> por el equipo.</p>
 
   <div class="bloque">
-    <h3>Las seis etapas</h3>
-    <p>Dos etapas usan un modelo y cuatro no. El modelo propone; lo que decide si una pauta sirve son reglas, una simulación y una persona. Toca una etapa.</p>
-    <div class="cadena" id="dis-etapas"></div>
-    <div class="stub" style="margin-top:14px" id="dis-etapa"></div>
+    <h3>Los tres pasos</h3>
+    <p>Toca cada paso para ver qué hay hoy en el código y qué falta.</p>
+    <div class="cadena" id="plan-pasos"></div>
+    <div class="card" style="margin-top:14px" id="plan-detalle"></div>
   </div>
 
   <div class="bloque dos">
-    <div class="card">
-      <h3>Cómo se guarda</h3>
-      <p class="nota">La pauta sigue donde está: una fila por versión en <code>pautas</code>, con su aprobación en <code>aprobaciones</code>. Lo nuevo va en tablas aparte, para no agregar campos a <code>contratos.py</code>, que es el contrato entre los cuatro frentes.</p>
-      <table><tbody>
-        <tr><td><b><code>protocolos</code></b></td><td>El documento del cliente: su huella, su nombre y quién lo entregó. El archivo va a disco con la huella como nombre.</td></tr>
-        <tr><td><b><code>pauta_origen</code></b></td><td>Por cada paso de cada versión, la página y la cita de donde salió. Es lo que deja auditar una pauta contra su protocolo.</td></tr>
-        <tr><td><b><code>extracciones</code></b></td><td>Qué modelo y qué versión de la instrucción produjo cada candidata, y cuánto coincidieron las corridas.</td></tr>
-        <tr><td><b><code>correcciones</code></b></td><td>Lo que la persona cambió antes de aprobar, campo por campo. Es la medida de calidad que sale sola del uso.</td></tr>
-        <tr><td><b><code>inventario</code></b></td><td>Los sensores de cada edge, con sus valores posibles y su valor de reposo, y las clases del detector.</td></tr>
-        <tr><td><b><code>sensores</code></b></td><td>La que ya existe, con la clave cambiada a <code>(edge_id, id)</code>: es lo que aísla una estación de otra.</td></tr>
-      </tbody></table>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="rutas">
+        <thead><tr><th>El servicio, ruta por ruta</th><th></th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr><td><code>POST /protocolos</code></td><td><span class="badge gris">nueva</span></td><td>Recibe el documento del cliente y devuelve su id.</td></tr>
+          <tr><td><code>POST /protocolos/{id}/pautas</code></td><td><span class="badge gris">nueva</span></td><td>El modelo crea las pautas de ese protocolo. Quedan sin aprobar.</td></tr>
+          <tr><td><code>GET /protocolos/{id}/pautas</code></td><td><span class="badge gris">nueva</span></td><td>Las pautas de un protocolo, con su versión y si están aprobadas.</td></tr>
+          <tr><td><code>POST /pautas/{id}/versiones/{v}/aprobar</code></td><td><span class="badge ok">existe</span></td><td>Una persona aprueba la pauta.</td></tr>
+          <tr><td><code>POST /protocolos/{id}/ots</code></td><td><span class="badge gris">nueva</span></td><td>Genera una OT de una pauta de ese protocolo. Por dentro es <code>catalogo.abrir_ot</code>, que ya existe.</td></tr>
+          <tr><td><code>POST /ot/{id}/asignar</code></td><td><span class="badge ok">existe</span></td><td>El supervisor la deja en manos de un operador.</td></tr>
+          <tr><td><code>POST /ot/{id}/sesion</code></td><td><span class="badge ok">existe</span></td><td>El operario la une a su edge, y empieza la verificación.</td></tr>
+          <tr><td><code>GET /ots</code> · <code>WS /ot/{id}/stream</code></td><td><span class="badge ok">existe</span></td><td>El estado de cada OT y todo lo que pasa en una, en vivo.</td></tr>
+        </tbody>
+      </table>
     </div>
     <div class="card">
-      <h3>El esquema propuesto</h3>
+      <h3>Lo que se guarda</h3>
+      <p class="nota">Una tabla nueva y una columna. La pauta sigue siendo una fila por versión; lo nuevo es que sabe de qué protocolo salió. <code>protocolo_id</code> es una columna de la tabla, no un campo de <code>Pauta</code>, así que <code>contratos.py</code> no cambia.</p>
 <pre class="sql">CREATE TABLE protocolos (
-  sha256 TEXT PRIMARY KEY, nombre TEXT NOT NULL,
-  paginas INTEGER NOT NULL, recibido_de TEXT NOT NULL, ts TEXT NOT NULL
+  id TEXT PRIMARY KEY, nombre TEXT NOT NULL,
+  documento TEXT NOT NULL,      -- la ruta del archivo en disco
+  recibido_de TEXT NOT NULL, ts TEXT NOT NULL
 );
-CREATE TABLE extracciones (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  protocolo TEXT NOT NULL REFERENCES protocolos(sha256),
-  pauta_id TEXT NOT NULL, version INTEGER NOT NULL,
-  modelo TEXT NOT NULL, instruccion TEXT NOT NULL,
-  corridas INTEGER NOT NULL, acuerdo REAL, ts TEXT NOT NULL
-);
-CREATE TABLE pauta_origen (
-  pauta_id TEXT NOT NULL, version INTEGER NOT NULL, paso_id TEXT NOT NULL,
-  pagina INTEGER NOT NULL, cita TEXT NOT NULL,
-  PRIMARY KEY (pauta_id, version, paso_id)
-);
-CREATE TABLE correcciones (
-  pauta_id TEXT NOT NULL, version INTEGER NOT NULL, paso_id TEXT,
-  campo TEXT NOT NULL, antes TEXT, despues TEXT, por TEXT NOT NULL, ts TEXT NOT NULL
-);
-CREATE TABLE inventario (
-  edge_id TEXT NOT NULL, sensor_id TEXT NOT NULL,
-  valores TEXT NOT NULL, reposo TEXT, que_mide TEXT,
-  PRIMARY KEY (edge_id, sensor_id)
-);</pre>
+ALTER TABLE pautas ADD COLUMN protocolo_id TEXT REFERENCES protocolos(id);</pre>
+      <p class="nota" style="margin-top:10px">Un protocolo puede dar varias pautas, una por tarea o por equipo. Una OT sigue naciendo de una pauta, y a través de ella queda atada a su protocolo.</p>
     </div>
   </div>
 
+  <div class="bloque dos">
+    <p class="honesto" style="margin:0"><b>La aprobación de una persona sigue donde está.</b> El plan no la nombra, y el código la exige: <code>abrir_ot</code> responde 409 si la pauta no está aprobada. Es una llamada más entre crear la pauta y generar la OT. Sacarla es una decisión del equipo, porque contradice el ADR-0003.</p>
+    <p class="honesto" style="margin:0"><b>El modelo no sabe qué sensores hay.</b> Un protocolo dice qué hacer, no con qué se comprueba. Para que la pauta nombre sensores que existen, la llamada tiene que llevar el inventario de la estación: sus sensores con sus valores posibles, y las clases que el detector conoce.</p>
+  </div>
+
   <div class="bloque card">
-    <h3>El validador, probado sobre las cinco pautas</h3>
-    <p class="nota">Prototipo de este documento: cuatro reglas en unas cuarenta líneas, corridas sobre las pautas de <code>datos/</code> y el borrador del brazo. No está en el repo. Elige una pauta.</p>
+    <h3>Un chequeo que conviene conservar: el validador</h3>
+    <p class="nota">Lo simple deja fuera lo que el plan anterior ponía antes de aprobar: la cita de cada paso contra el documento, la simulación de la pauta y la medición del extractor. De eso, lo único que no cuesta casi nada es un validador sin modelo, y conviene porque los defectos de una pauta se vuelven problemas de la verificación: una falsa alarma al abrir la OT, o un control que se deshace sin aviso. Es un prototipo de este documento, corrido sobre las pautas de <code>datos/</code> y el borrador del brazo. Elige una.</p>
     <div class="chips" id="val-pautas" role="group" aria-label="Pautas"></div>
     <div id="val-salida"></div>
     <p class="nota" id="val-reposo" style="margin:10px 0"></p>
     <table><thead><tr><th>Regla</th><th>Qué busca</th><th>De dónde sale</th></tr></thead><tbody id="val-reglas"></tbody></table>
-    <p class="honesto"><b>Las tres reglas que encuentran algo en la pauta LOTO son las tres cosas que se vieron al correrla.</b> Las pautas de industria y el borrador del brazo salen limpias, que es lo esperado: pasan su matriz. El borrador del brazo dio <span id="dis-brazo"></span>.</p>
+    <p class="nota" style="margin-top:8px">Las pautas de industria y el borrador del brazo salen limpias, que es lo esperado: pasan su matriz. El borrador del brazo dio <span id="dis-brazo"></span>.</p>
   </div>
 
-  <div class="bloque card">
-    <h3>Cómo se mide un extractor</h3>
-    <p class="nota">Se compara lo que extrae contra una pauta de referencia escrita y aprobada por una persona. Marca los errores que podría cometer una extracción del protocolo de la correa y mira qué métrica lo nota. Es un ejemplo armado para mostrar cómo se mide; todavía no hay ninguna extracción real que medir.</p>
-    <div class="partes" id="med-errores"></div>
-    <div class="dos" style="margin-top:12px">
-      <table><tbody id="med-tabla"></tbody></table>
-      <div>
-        <div class="resultado" id="med-veredicto" style="margin-top:0"></div>
-        <p class="nota" style="margin-top:10px">Se informa en cuentas, «5 de 6», no en porcentajes: con cinco pautas y unos 35 pasos, un porcentaje aparenta una precisión que no hay. Es como lo informa el paper que originó el ADR-0002: 3 de 12, 5 de 12.</p>
-      </div>
-    </div>
+  <div class="bloque">
+    <h3>Dónde queda la complejidad: la verificación a la medida</h3>
+    <p>Prestar verificación a la medida quiere decir que cada proceso trae lo suyo: qué evidencia cierra cada paso, qué combinación de sensores es un peligro, qué objetos tiene que reconocer la cámara y con cuánta certeza. Hoy una parte de eso ya vive en la pauta, y el resto está escrito en el código, igual para todos.</p>
+    <div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Qué es propio de cada proceso</th><th>Dónde vive hoy</th><th>Alcance</th></tr></thead><tbody id="medida-tabla"></tbody></table></div>
+    <div class="resultado gris" id="medida-resumen"></div>
   </div>
 
   <div class="bloque dos">
     <div class="card">
-      <h3>El plan de prueba, en orden</h3>
-      <ol class="plan">
-        <li><b>La referencia.</b> Para cada pauta de <code>datos/</code>, conseguir o escribir el protocolo del que salió, y que dos personas marquen la pauta por separado. Donde no coincidan, ese paso es ambiguo en el protocolo y se anota.</li>
-        <li><b>El validador y la simulación.</b> No usan modelo y sirven desde hoy para las pautas escritas a mano. Son la red de seguridad del extractor, así que van antes que él.</li>
-        <li><b>El inventario de la estación.</b> Sin él, asignar la evidencia es adivinar. Para el demo son tres sensores y una cámara.</li>
-        <li><b>El extractor.</b> Primero sobre las pautas de referencia; después sobre un protocolo que nadie del equipo haya visto.</li>
-        <li><b>La medición.</b> Las siete cuentas de arriba por pauta, más las correcciones y el tiempo de quien aprueba. Un extractor nuevo se compara con el anterior sobre el mismo set.</li>
-      </ol>
+      <h3>Lo que hace falta: un perfil por protocolo</h3>
+      <p class="nota">Lo que hoy son constantes pasa a ser un dato que viaja con el protocolo, y el código lee de ahí con los valores de hoy como defecto. A la derecha, cómo se vería para el brazo: los números son los que el código usa hoy, y las clases del detector son un ejemplo, porque el modelo actual reconoce <code>mouse</code> y <code>pencil</code>.</p>
+      <p class="nota">Es el cambio que vuelve vendible lo a la medida: un proceso nuevo deja de ser un cambio de código y un despliegue. También es lo que aísla un cliente de otro, junto con guardar los sensores por edge.</p>
     </div>
-    <div class="card">
-      <h3>Lo que este diseño no resuelve</h3>
-      <p class="nota"><b>No hay protocolos reales en el repo.</b> Las cuatro pautas se escribieron desde las normas, no desde el procedimiento de un cliente. Hasta tener uno, toda medida es sobre textos que escribimos nosotros. <code>Brecha</code>.</p>
-      <p class="nota"><b>Un protocolo no dice qué sensores hay.</b> Qué evidencia cierra cada paso depende de la estación, no del documento. El FLUJO lo deja abierto: quién lo decide, paso por paso.</p>
-      <p class="nota"><b>La pauta es una lista, no un grafo.</b> Dos pasos que se pueden hacer en cualquier orden hoy tienen que ordenarse igual. El grafo de tarea (REFERENCIAS 15) es la generalización, y cambia el contrato.</p>
-      <p class="nota"><b>Los métodos de medición son los habituales, sin respaldo en REFERENCIAS.</b> Alinear pasos, contar correcciones y repetir corridas no salen de un paper del research: son propuesta de este documento.</p>
-    </div>
+    <div class="card"><h3>El perfil del brazo, como ejemplo</h3><pre class="sql" id="medida-perfil"></pre></div>
   </div>
+
+  <div class="bloque card" style="padding:0;overflow:auto">
+    <table>
+      <thead><tr><th>Cómo se prueba y se mide la verificación de un proceso</th><th>Con qué</th><th>Estado</th></tr></thead>
+      <tbody>
+        <tr><td><b>La política de cada capa</b>: qué hace el sistema ante cada forma de ejecutar un paso</td><td>Los 24 patrones de <code>app/escenarios.py</code>, con la pauta del proceso</td><td><span class="badge ok">corre</span> Pantalla 9.</td></tr>
+        <tr><td><b>Capa 2 sobre señales</b>: qué detector aguanta qué falla</td><td><code>scripts/simular_capa2.py</code></td><td><span class="badge warning">parcial</span> Con señales sintéticas; los pisos se calibraron con un solo ESP32.</td></tr>
+        <tr><td><b>Capa 3</b>: falsa aceptación, falso rechazo y si la confianza separa aciertos de errores</td><td><code>scripts/evaluar_capa3.py</code></td><td><span class="badge warning">parcial</span> El set tiene 24 escenas y ninguna imagen.</td></tr>
+        <tr><td><b>Capa 2 sobre la imagen</b>: si el detector ve los objetos del proceso con 0,8 o más</td><td>Nada todavía</td><td><span class="badge error">falta</span> No hay una evaluación del detector.</td></tr>
+        <tr><td><b>Falsas alarmas</b> en una jornada real de trabajo</td><td>Nada todavía</td><td><span class="badge gris">sin medir</span></td></tr>
+        <tr><td><b>Latencia</b> desde que pasa hasta que el operario se entera</td><td>Nada todavía</td><td><span class="badge gris">sin medir</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="nota">Para un proceso nuevo, la puesta en marcha serían tres cosas: correr la matriz con su pauta, fotografiar sus escenas para la evaluación de capa 3, y grabar lecturas reales de sus sensores para calibrar los pisos.</p>
   <div class="pie"><button data-ir="requisitos">← 9 · Requerimientos</button><span></span></div>
 </div></section>
 
@@ -974,7 +989,7 @@ const PANTALLAS = [
   ["calificacion", "5 · Calificación", "ok, warning o error"], ["sistema", "6 · Sistema", "software y hardware"],
   ["loto", "7 · Caso LOTO", "paso a paso"],
   ["celda", "8 · Celda 3D", "el brazo del demo, paso a paso", true], ["requisitos", "9 · Requerimientos", "qué cumple la lógica de hoy", true],
-  ["diseno", "10 · Diseño", "de protocolo a pauta: extraer, guardar, validar y medir", true],
+  ["diseno", "10 · El plan", "protocolo, pautas y OT por API; y la verificación a la medida", true],
 ];
 const AL_ENTRAR = {};
 let pantallaActual = null;
@@ -1619,7 +1634,7 @@ AL_ENTRAR.loto = (esc_, i) => {
 
 
 // ═══ Pantallas de diseño (8 a 10) ═══════════════════════════════════════════
-const DISENO = {"pauta":{"id":"pauta-brazo-01","nombre":"Ajuste de pinza en brazo robótico","version":1,"equipo":"brazo BR-01, celda del demo","pasos":[{"id":"p1","orden":1,"titulo":"Cortar la energía del brazo","instruccion":"Abre el interruptor de los servos y comprueba que el brazo quedó sin energía.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"energia","espera":"cortada"}},{"id":"p2","orden":2,"titulo":"Poner el bloqueo","instruccion":"Pon el candado y la tarjeta en el interruptor.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"bloqueo","espera":"puesto"}},{"id":"p3","orden":3,"titulo":"Entrar a la celda","instruccion":"Con la energía cortada y el bloqueo puesto, acércate al brazo.","tipo_evidencia":"sensor","capa_minima":1,"sensor":{"id":"zona","espera":"ocupada"}},{"id":"p4","orden":4,"titulo":"Ajustar la pinza","instruccion":"Aprieta el tornillo de la pinza hasta que cierre sobre la pieza.","tipo_evidencia":"camara","capa_minima":3,"pregunta_visual":"¿La pinza está cerrada y sostiene la pieza?"},{"id":"p5","orden":5,"titulo":"Salir de la celda","instruccion":"Retira la herramienta y sal de la zona del brazo.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"zona","espera":"libre"}},{"id":"p6","orden":6,"titulo":"Retirar el bloqueo","instruccion":"Con la celda despejada, saca el candado y la tarjeta.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"bloqueo","espera":"retirado"}},{"id":"p7","orden":7,"titulo":"Devolver la energía","instruccion":"Cierra el interruptor de los servos.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"energia","espera":"viva"}},{"id":"p8","orden":8,"titulo":"Probar un ciclo","instruccion":"Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.","tipo_evidencia":"confirmacion","capa_minima":1}]},"regla":[{"zona":"ocupada","energia":"viva"},"PERSONA EN LA ZONA CON ENERGÍA VIVA. Salir de la zona; cortar la energía y poner el bloqueo antes de acercarse.","Celda robotizada: ADR-0010. La norma que la respalda no se buscó (Brecha)"],"tests":{"corridos":244,"resultado":"OK (skipped=1)"},"dist_max":60,"patrones":[{"codigo":"A0","grupo":"A","nombre":"La pauta completa, bien hecha","pregunta":"¿Las reglas dan alguna falsa alarma?","barrera":1},{"codigo":"A1","grupo":"A","nombre":"Lo hace y el sensor lo ve, sin hablar","pregunta":"¿El paso se cierra solo con la lectura?","barrera":1},{"codigo":"A2","grupo":"A","nombre":"El sensor lo ve y después lo dice","pregunta":"¿La declaración tardía se confunde con el paso siguiente?","barrera":1},{"codigo":"A3","grupo":"A","nombre":"Lo dice y después el sensor lo ve","pregunta":"¿Interrumpe por una diferencia de segundos?","barrera":1},{"codigo":"A4","grupo":"A","nombre":"Lo dice y el sensor nunca lo confirma","pregunta":"¿El paso queda en conflicto y a la vista?","barrera":1},{"codigo":"A6","grupo":"A","nombre":"Lo confirma una persona contra el sensor","pregunta":"¿Se le cree sin perder el rastro?","barrera":1},{"codigo":"A5","grupo":"A","nombre":"Dice que hizo el paso siguiente sin hacer este","pregunta":"¿Se detecta que se lo saltó?","barrera":1},{"codigo":"B1","grupo":"B","nombre":"Se salta el paso y hace el siguiente","pregunta":"¿La pauta avanza igual?","barrera":1},{"codigo":"B2","grupo":"B","nombre":"Se salta el paso, hace el siguiente y vuelve a hacerlo","pregunta":"¿Queda registro del orden invertido?","barrera":1},{"codigo":"B3","grupo":"B","nombre":"Se salta el paso y crea la condición de peligro","pregunta":"¿Suena la alerta de seguridad?","barrera":1},{"codigo":"C1","grupo":"C","nombre":"Deshace un control crítico ya verificado","pregunta":"¿Se avisa que el control se perdió?","barrera":1},{"codigo":"C2","grupo":"C","nombre":"Deshace el control y se crea la condición de peligro","pregunta":"¿Suena la alerta de seguridad?","barrera":1},{"codigo":"D1","grupo":"D","nombre":"El sensor repite la misma lectura","pregunta":"¿Se cuenta una sola vez?","barrera":1},{"codigo":"D3","grupo":"D","nombre":"El sensor deja de mandar lecturas","pregunta":"¿Baja la certeza de lo que dice?","barrera":1},{"codigo":"F1","grupo":"F","nombre":"La cámara confirma con confianza alta","pregunta":"¿El paso se cierra sin aviso?","barrera":3},{"codigo":"F2","grupo":"F","nombre":"La cámara confirma con confianza baja","pregunta":"¿Se cierra pero pide que alguien mire?","barrera":3},{"codigo":"F3","grupo":"F","nombre":"La cámara contradice al operario","pregunta":"¿Queda en conflicto sin interrumpir?","barrera":3},{"codigo":"F4","grupo":"F","nombre":"No hay video y el juez dice que sí","pregunta":"¿Se acepta un sí sin cuadro?","barrera":3},{"codigo":"F5","grupo":"F","nombre":"La cámara dice que sí y un sensor marca peligro","pregunta":"¿Un modelo contradice a un sensor?","barrera":3},{"codigo":"G1","grupo":"G","nombre":"Un pico aislado","pregunta":"¿Avisa una vez y se resuelve?","barrera":2},{"codigo":"G2","grupo":"G","nombre":"Un escalón que se sostiene","pregunta":"¿El aviso dura lo que dura la falla?","barrera":2},{"codigo":"G3","grupo":"G","nombre":"Una deriva lenta","pregunta":"¿Se detecta antes del daño?","barrera":2},{"codigo":"G4","grupo":"G","nombre":"Ruido normal, sin falla","pregunta":"¿Da falsas alarmas?","barrera":2},{"codigo":"G5","grupo":"G","nombre":"Un sensor pegado que se mueve apenas","pregunta":"¿Confunde un sensor quieto con una falla?","barrera":2}],"matriz":{"MIN":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"},"ELE":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"},"CON":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"}},"brazo_hoy":[{"patron":"A0","sello":"pasa","no_cumple":{},"cuando":"el operario hace cada paso en orden y lo cierra su evidencia","entonces":"la pauta queda completa sin alertas, sin conflictos y sin interrumpir nunca"},{"patron":"A1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada y el operario no dice nada","entonces":"el paso queda verificado por la capa 1 y la pauta avanza"},{"patron":"A2","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» un momento después","entonces":"la declaración queda registrada y no abre ningún conflicto"},{"patron":"A3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y el sensor llega un momento después","entonces":"el conflicto queda en la bitácora y el paso se verifica al llegar la lectura"},{"patron":"A4","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y energia sigue en viva","entonces":"el paso queda en conflicto, la OT en error y la pauta no avanza"},{"patron":"A6","sello":"pasa","no_cumple":{},"cuando":"un supervisor lo confirma con su motivo (el sensor está dañado)","entonces":"el paso queda verificado por persona, la pauta avanza, la OT queda en warning y el conflicto sigue en la bitácora"},{"patron":"A5","sello":"pasa","no_cumple":{},"cuando":"el operario dice «bloqueo puesto», que es el paso siguiente","entonces":"la palabra se evalúa contra el paso 1, que queda en conflicto"},{"patron":"B1","sello":"pasa","no_cumple":{},"cuando":"llega bloqueo = puesto, que cierra el paso 2","entonces":"la pauta no avanza y entra una alerta de orden invertido"},{"patron":"B2","sello":"pasa","no_cumple":{},"cuando":"el operario hace el paso 2 (bloqueo = puesto) y después el 1","entonces":"la bitácora registra que el orden se invirtió, y la alerta se resuelve al hacer el paso saltado"},{"patron":"B3","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"se da la condición «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"C1","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva","entonces":"entra una alerta de capa 1: el control crítico se perdió, y se resuelve al reponerlo"},{"patron":"C2","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"energia vuelve a viva y se da «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"D1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada tres veces","entonces":"hay un solo veredicto"},{"patron":"D3","sello":"pasa","no_cumple":{},"cuando":"pasan 8 s sin lecturas","entonces":"la calificación baja a warning: el sensor puede haberse caído"},{"patron":"F1","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 90 %","entonces":"el paso se verifica sin avisos"},{"patron":"F2","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 60 %","entonces":"el paso se verifica, la OT queda en warning y no interrumpe"},{"patron":"F3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «pinza ajustada» y el juez responde que no","entonces":"el paso queda en conflicto con warning, sin interrumpir"},{"patron":"F4","sello":"pasa","no_cumple":{},"cuando":"el juez de hoy responde","entonces":"el paso no se verifica: no hubo cuadro que mirar"},{"patron":"F5","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"el juez dice que sí con 95 % y se da «persona en la zona con energía viva»","entonces":"la OT queda en error por la capa 1, aunque la cámara diga que todo está bien"},{"patron":"G1","sello":"pasa","no_cumple":{},"cuando":"llega un pico de 38 °C y después un valor normal","entonces":"entra una alerta de capa 2 una vez, se resuelve y la OT nunca pasa de warning"},{"patron":"G2","sello":"falla","no_cumple":{"anomalias":{"esperado":1,"obtenido":0,"cumple":false},"alertas_abiertas":{"esperado":1,"obtenido":0,"cumple":false},"nivel":{"esperado":"warning","obtenido":"ok","cumple":false}},"cuando":"la señal sube a 25.7 °C y se queda ahí 30 lecturas","entonces":"la alerta sigue abierta mientras la señal no vuelva"},{"patron":"G3","sello":"falla","no_cumple":{"anomalias":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"la señal sube 0.075 °C por lectura durante 40 lecturas","entonces":"entra una alerta de capa 2 antes de que termine la subida"},{"patron":"G4","sello":"pasa","no_cumple":{},"cuando":"llegan 60 lecturas con su ruido normal","entonces":"no entra ninguna alerta"},{"patron":"G5","sello":"pasa","no_cumple":{},"cuando":"llega una que se mueve 0.015 °C","entonces":"avisa que el sensor está pegado, no confunde el movimiento mínimo con una falla, y el aviso se va cuando vuelve a variar"}],"brazo_regla":[{"patron":"A0","sello":"pasa","no_cumple":{},"cuando":"el operario hace cada paso en orden y lo cierra su evidencia","entonces":"la pauta queda completa sin alertas, sin conflictos y sin interrumpir nunca"},{"patron":"A1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada y el operario no dice nada","entonces":"el paso queda verificado por la capa 1 y la pauta avanza"},{"patron":"A2","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» un momento después","entonces":"la declaración queda registrada y no abre ningún conflicto"},{"patron":"A3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y el sensor llega un momento después","entonces":"el conflicto queda en la bitácora y el paso se verifica al llegar la lectura"},{"patron":"A4","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y energia sigue en viva","entonces":"el paso queda en conflicto, la OT en error y la pauta no avanza"},{"patron":"A6","sello":"pasa","no_cumple":{},"cuando":"un supervisor lo confirma con su motivo (el sensor está dañado)","entonces":"el paso queda verificado por persona, la pauta avanza, la OT queda en warning y el conflicto sigue en la bitácora"},{"patron":"A5","sello":"pasa","no_cumple":{},"cuando":"el operario dice «bloqueo puesto», que es el paso siguiente","entonces":"la palabra se evalúa contra el paso 1, que queda en conflicto"},{"patron":"B1","sello":"pasa","no_cumple":{},"cuando":"llega bloqueo = puesto, que cierra el paso 2","entonces":"la pauta no avanza y entra una alerta de orden invertido"},{"patron":"B2","sello":"pasa","no_cumple":{},"cuando":"el operario hace el paso 2 (bloqueo = puesto) y después el 1","entonces":"la bitácora registra que el orden se invirtió, y la alerta se resuelve al hacer el paso saltado"},{"patron":"B3","sello":"pasa","no_cumple":{},"cuando":"se da la condición «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"C1","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva","entonces":"entra una alerta de capa 1: el control crítico se perdió, y se resuelve al reponerlo"},{"patron":"C2","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva y se da «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"D1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada tres veces","entonces":"hay un solo veredicto"},{"patron":"D3","sello":"pasa","no_cumple":{},"cuando":"pasan 8 s sin lecturas","entonces":"la calificación baja a warning: el sensor puede haberse caído"},{"patron":"F1","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 90 %","entonces":"el paso se verifica sin avisos"},{"patron":"F2","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 60 %","entonces":"el paso se verifica, la OT queda en warning y no interrumpe"},{"patron":"F3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «pinza ajustada» y el juez responde que no","entonces":"el paso queda en conflicto con warning, sin interrumpir"},{"patron":"F4","sello":"pasa","no_cumple":{},"cuando":"el juez de hoy responde","entonces":"el paso no se verifica: no hubo cuadro que mirar"},{"patron":"F5","sello":"pasa","no_cumple":{},"cuando":"el juez dice que sí con 95 % y se da «persona en la zona con energía viva»","entonces":"la OT queda en error por la capa 1, aunque la cámara diga que todo está bien"},{"patron":"G1","sello":"pasa","no_cumple":{},"cuando":"llega un pico de 38 °C y después un valor normal","entonces":"entra una alerta de capa 2 una vez, se resuelve y la OT nunca pasa de warning"},{"patron":"G2","sello":"falla","no_cumple":{"anomalias":{"esperado":1,"obtenido":0,"cumple":false},"alertas_abiertas":{"esperado":1,"obtenido":0,"cumple":false},"nivel":{"esperado":"warning","obtenido":"ok","cumple":false}},"cuando":"la señal sube a 25.7 °C y se queda ahí 30 lecturas","entonces":"la alerta sigue abierta mientras la señal no vuelva"},{"patron":"G3","sello":"falla","no_cumple":{"anomalias":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"la señal sube 0.075 °C por lectura durante 40 lecturas","entonces":"entra una alerta de capa 2 antes de que termine la subida"},{"patron":"G4","sello":"pasa","no_cumple":{},"cuando":"llegan 60 lecturas con su ruido normal","entonces":"no entra ninguna alerta"},{"patron":"G5","sello":"pasa","no_cumple":{},"cuando":"llega una que se mueve 0.015 °C","entonces":"avisa que el sensor está pegado, no confunde el movimiento mínimo con una falla, y el aviso se va cuando vuelve a variar"}],"con_regla_pasan":72,"con_regla_total":72,"validador":{"brazo":[],"loto":[{"regla":"V1","paso":"l2","texto":"«Poner el dispositivo de bloqueo» es control crítico y se cierra con camara: si se deshace, ninguna regla avisa"},{"regla":"V1","paso":"l5","texto":"«Retirar la herramienta» es control crítico y se cierra con camara: si se deshace, ninguna regla avisa"},{"regla":"V2","paso":"l3","texto":"«Verificar energía cero: equipo frío» espera equipo = frio, que es el valor de reposo: la alerta de orden salta al llegar a «Poner el dispositivo de bloqueo», antes de que el operario haga nada"}],"correa":[],"celda":[],"excavadora":[]},"reposo":{"brazo":{"energia":"viva","bloqueo":"retirado","zona":"libre"},"loto":{"operario":"ausente","equipo":"frio"},"correa":{"guarda":"cerrada","energia":"cortada","reed_bloqueo":"abierto"},"celda":{"seccionador":"cerrado","candado_mando":"abierto","tension":"presente","tierra":"retirada","puerta_celda":"cerrada"},"excavadora":{"implementos":"levantados","motor":"encendido","palanca_seguridad":"desbloqueada","presion_hidraulica":"con_presion","zona":"libre"}}};   // lo que respondió el código real al probar el borrador del brazo y las tres industrias
+const DISENO = {"pauta":{"id":"pauta-brazo-01","nombre":"Ajuste de pinza en brazo robótico","version":1,"equipo":"brazo BR-01, celda del demo","pasos":[{"id":"p1","orden":1,"titulo":"Cortar la energía del brazo","instruccion":"Abre el interruptor de los servos y comprueba que el brazo quedó sin energía.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"energia","espera":"cortada"}},{"id":"p2","orden":2,"titulo":"Poner el bloqueo","instruccion":"Pon el candado y la tarjeta en el interruptor.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"bloqueo","espera":"puesto"}},{"id":"p3","orden":3,"titulo":"Entrar a la celda","instruccion":"Con la energía cortada y el bloqueo puesto, acércate al brazo.","tipo_evidencia":"sensor","capa_minima":1,"sensor":{"id":"zona","espera":"ocupada"}},{"id":"p4","orden":4,"titulo":"Ajustar la pinza","instruccion":"Aprieta el tornillo de la pinza hasta que cierre sobre la pieza.","tipo_evidencia":"camara","capa_minima":3,"pregunta_visual":"¿La pinza está cerrada y sostiene la pieza?"},{"id":"p5","orden":5,"titulo":"Salir de la celda","instruccion":"Retira la herramienta y sal de la zona del brazo.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"zona","espera":"libre"}},{"id":"p6","orden":6,"titulo":"Retirar el bloqueo","instruccion":"Con la celda despejada, saca el candado y la tarjeta.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"bloqueo","espera":"retirado"}},{"id":"p7","orden":7,"titulo":"Devolver la energía","instruccion":"Cierra el interruptor de los servos.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"energia","espera":"viva"}},{"id":"p8","orden":8,"titulo":"Probar un ciclo","instruccion":"Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.","tipo_evidencia":"confirmacion","capa_minima":1}]},"regla":[{"zona":"ocupada","energia":"viva"},"PERSONA EN LA ZONA CON ENERGÍA VIVA. Salir de la zona; cortar la energía y poner el bloqueo antes de acercarse.","Celda robotizada: ADR-0010. La norma que la respalda no se buscó (Brecha)"],"tests":{"corridos":260,"resultado":"OK (skipped=1)"},"dist_max":60,"patrones":[{"codigo":"A0","grupo":"A","nombre":"La pauta completa, bien hecha","pregunta":"¿Las reglas dan alguna falsa alarma?","barrera":1},{"codigo":"A1","grupo":"A","nombre":"Lo hace y el sensor lo ve, sin hablar","pregunta":"¿El paso se cierra solo con la lectura?","barrera":1},{"codigo":"A2","grupo":"A","nombre":"El sensor lo ve y después lo dice","pregunta":"¿La declaración tardía se confunde con el paso siguiente?","barrera":1},{"codigo":"A3","grupo":"A","nombre":"Lo dice y después el sensor lo ve","pregunta":"¿Interrumpe por una diferencia de segundos?","barrera":1},{"codigo":"A4","grupo":"A","nombre":"Lo dice y el sensor nunca lo confirma","pregunta":"¿El paso queda en conflicto y a la vista?","barrera":1},{"codigo":"A6","grupo":"A","nombre":"Lo confirma una persona contra el sensor","pregunta":"¿Se le cree sin perder el rastro?","barrera":1},{"codigo":"A5","grupo":"A","nombre":"Dice que hizo el paso siguiente sin hacer este","pregunta":"¿Se detecta que se lo saltó?","barrera":1},{"codigo":"B1","grupo":"B","nombre":"Se salta el paso y hace el siguiente","pregunta":"¿La pauta avanza igual?","barrera":1},{"codigo":"B2","grupo":"B","nombre":"Se salta el paso, hace el siguiente y vuelve a hacerlo","pregunta":"¿Queda registro del orden invertido?","barrera":1},{"codigo":"B3","grupo":"B","nombre":"Se salta el paso y crea la condición de peligro","pregunta":"¿Suena la alerta de seguridad?","barrera":1},{"codigo":"C1","grupo":"C","nombre":"Deshace un control crítico ya verificado","pregunta":"¿Se avisa que el control se perdió?","barrera":1},{"codigo":"C2","grupo":"C","nombre":"Deshace el control y se crea la condición de peligro","pregunta":"¿Suena la alerta de seguridad?","barrera":1},{"codigo":"D1","grupo":"D","nombre":"El sensor repite la misma lectura","pregunta":"¿Se cuenta una sola vez?","barrera":1},{"codigo":"D3","grupo":"D","nombre":"El sensor deja de mandar lecturas","pregunta":"¿Baja la certeza de lo que dice?","barrera":1},{"codigo":"F1","grupo":"F","nombre":"La cámara confirma con confianza alta","pregunta":"¿El paso se cierra sin aviso?","barrera":3},{"codigo":"F2","grupo":"F","nombre":"La cámara confirma con confianza baja","pregunta":"¿Se cierra pero pide que alguien mire?","barrera":3},{"codigo":"F3","grupo":"F","nombre":"La cámara contradice al operario","pregunta":"¿Queda en conflicto sin interrumpir?","barrera":3},{"codigo":"F4","grupo":"F","nombre":"No hay video y el juez dice que sí","pregunta":"¿Se acepta un sí sin cuadro?","barrera":3},{"codigo":"F5","grupo":"F","nombre":"La cámara dice que sí y un sensor marca peligro","pregunta":"¿Un modelo contradice a un sensor?","barrera":3},{"codigo":"G1","grupo":"G","nombre":"Un pico aislado","pregunta":"¿Avisa una vez y se resuelve?","barrera":2},{"codigo":"G2","grupo":"G","nombre":"Un escalón que se sostiene","pregunta":"¿El aviso dura lo que dura la falla?","barrera":2},{"codigo":"G3","grupo":"G","nombre":"Una deriva lenta","pregunta":"¿Se detecta antes del daño?","barrera":2},{"codigo":"G4","grupo":"G","nombre":"Ruido normal, sin falla","pregunta":"¿Da falsas alarmas?","barrera":2},{"codigo":"G5","grupo":"G","nombre":"Un sensor pegado que se mueve apenas","pregunta":"¿Confunde un sensor quieto con una falla?","barrera":2}],"matriz":{"MIN":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"},"ELE":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"},"CON":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"}},"brazo_hoy":[{"patron":"A0","sello":"pasa","no_cumple":{},"cuando":"el operario hace cada paso en orden y lo cierra su evidencia","entonces":"la pauta queda completa sin alertas, sin conflictos y sin interrumpir nunca"},{"patron":"A1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada y el operario no dice nada","entonces":"el paso queda verificado por la capa 1 y la pauta avanza"},{"patron":"A2","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» un momento después","entonces":"la declaración queda registrada y no abre ningún conflicto"},{"patron":"A3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y el sensor llega un momento después","entonces":"el conflicto queda en la bitácora y el paso se verifica al llegar la lectura"},{"patron":"A4","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y energia sigue en viva","entonces":"el paso queda en conflicto, la OT en error y la pauta no avanza"},{"patron":"A6","sello":"pasa","no_cumple":{},"cuando":"un supervisor lo confirma con su motivo (el sensor está dañado)","entonces":"el paso queda verificado por persona, la pauta avanza, la OT queda en warning y el conflicto sigue en la bitácora"},{"patron":"A5","sello":"pasa","no_cumple":{},"cuando":"el operario dice «bloqueo puesto», que es el paso siguiente","entonces":"la palabra se evalúa contra el paso 1, que queda en conflicto"},{"patron":"B1","sello":"pasa","no_cumple":{},"cuando":"llega bloqueo = puesto, que cierra el paso 2","entonces":"la pauta no avanza y entra una alerta de orden invertido"},{"patron":"B2","sello":"pasa","no_cumple":{},"cuando":"el operario hace el paso 2 (bloqueo = puesto) y después el 1","entonces":"la bitácora registra que el orden se invirtió, y la alerta se resuelve al hacer el paso saltado"},{"patron":"B3","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"se da la condición «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"C1","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva","entonces":"entra una alerta de capa 1: el control crítico se perdió, y se resuelve al reponerlo"},{"patron":"C2","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"energia vuelve a viva y se da «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"D1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada tres veces","entonces":"hay un solo veredicto"},{"patron":"D3","sello":"pasa","no_cumple":{},"cuando":"pasan 8 s sin lecturas","entonces":"la calificación baja a warning: el sensor puede haberse caído"},{"patron":"F1","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 90 %","entonces":"el paso se verifica sin avisos"},{"patron":"F2","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 60 %","entonces":"el paso se verifica, la OT queda en warning y no interrumpe"},{"patron":"F3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «pinza ajustada» y el juez responde que no","entonces":"el paso queda en conflicto con warning, sin interrumpir"},{"patron":"F4","sello":"pasa","no_cumple":{},"cuando":"el juez de hoy responde","entonces":"el paso no se verifica: no hubo cuadro que mirar"},{"patron":"F5","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"el juez dice que sí con 95 % y se da «persona en la zona con energía viva»","entonces":"la OT queda en error por la capa 1, aunque la cámara diga que todo está bien"},{"patron":"G1","sello":"pasa","no_cumple":{},"cuando":"llega un pico de 38 °C y después un valor normal","entonces":"entra una alerta de capa 2 una vez, se resuelve y la OT nunca pasa de warning"},{"patron":"G2","sello":"falla","no_cumple":{"anomalias":{"esperado":1,"obtenido":0,"cumple":false},"alertas_abiertas":{"esperado":1,"obtenido":0,"cumple":false},"nivel":{"esperado":"warning","obtenido":"ok","cumple":false}},"cuando":"la señal sube a 25.7 °C y se queda ahí 30 lecturas","entonces":"la alerta sigue abierta mientras la señal no vuelva"},{"patron":"G3","sello":"falla","no_cumple":{"anomalias":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"la señal sube 0.075 °C por lectura durante 40 lecturas","entonces":"entra una alerta de capa 2 antes de que termine la subida"},{"patron":"G4","sello":"pasa","no_cumple":{},"cuando":"llegan 60 lecturas con su ruido normal","entonces":"no entra ninguna alerta"},{"patron":"G5","sello":"pasa","no_cumple":{},"cuando":"llega una que se mueve 0.015 °C","entonces":"avisa que el sensor está pegado, no confunde el movimiento mínimo con una falla, y el aviso se va cuando vuelve a variar"}],"brazo_regla":[{"patron":"A0","sello":"pasa","no_cumple":{},"cuando":"el operario hace cada paso en orden y lo cierra su evidencia","entonces":"la pauta queda completa sin alertas, sin conflictos y sin interrumpir nunca"},{"patron":"A1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada y el operario no dice nada","entonces":"el paso queda verificado por la capa 1 y la pauta avanza"},{"patron":"A2","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» un momento después","entonces":"la declaración queda registrada y no abre ningún conflicto"},{"patron":"A3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y el sensor llega un momento después","entonces":"el conflicto queda en la bitácora y el paso se verifica al llegar la lectura"},{"patron":"A4","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y energia sigue en viva","entonces":"el paso queda en conflicto, la OT en error y la pauta no avanza"},{"patron":"A6","sello":"pasa","no_cumple":{},"cuando":"un supervisor lo confirma con su motivo (el sensor está dañado)","entonces":"el paso queda verificado por persona, la pauta avanza, la OT queda en warning y el conflicto sigue en la bitácora"},{"patron":"A5","sello":"pasa","no_cumple":{},"cuando":"el operario dice «bloqueo puesto», que es el paso siguiente","entonces":"la palabra se evalúa contra el paso 1, que queda en conflicto"},{"patron":"B1","sello":"pasa","no_cumple":{},"cuando":"llega bloqueo = puesto, que cierra el paso 2","entonces":"la pauta no avanza y entra una alerta de orden invertido"},{"patron":"B2","sello":"pasa","no_cumple":{},"cuando":"el operario hace el paso 2 (bloqueo = puesto) y después el 1","entonces":"la bitácora registra que el orden se invirtió, y la alerta se resuelve al hacer el paso saltado"},{"patron":"B3","sello":"pasa","no_cumple":{},"cuando":"se da la condición «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"C1","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva","entonces":"entra una alerta de capa 1: el control crítico se perdió, y se resuelve al reponerlo"},{"patron":"C2","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva y se da «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"D1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada tres veces","entonces":"hay un solo veredicto"},{"patron":"D3","sello":"pasa","no_cumple":{},"cuando":"pasan 8 s sin lecturas","entonces":"la calificación baja a warning: el sensor puede haberse caído"},{"patron":"F1","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 90 %","entonces":"el paso se verifica sin avisos"},{"patron":"F2","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 60 %","entonces":"el paso se verifica, la OT queda en warning y no interrumpe"},{"patron":"F3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «pinza ajustada» y el juez responde que no","entonces":"el paso queda en conflicto con warning, sin interrumpir"},{"patron":"F4","sello":"pasa","no_cumple":{},"cuando":"el juez de hoy responde","entonces":"el paso no se verifica: no hubo cuadro que mirar"},{"patron":"F5","sello":"pasa","no_cumple":{},"cuando":"el juez dice que sí con 95 % y se da «persona en la zona con energía viva»","entonces":"la OT queda en error por la capa 1, aunque la cámara diga que todo está bien"},{"patron":"G1","sello":"pasa","no_cumple":{},"cuando":"llega un pico de 38 °C y después un valor normal","entonces":"entra una alerta de capa 2 una vez, se resuelve y la OT nunca pasa de warning"},{"patron":"G2","sello":"falla","no_cumple":{"anomalias":{"esperado":1,"obtenido":0,"cumple":false},"alertas_abiertas":{"esperado":1,"obtenido":0,"cumple":false},"nivel":{"esperado":"warning","obtenido":"ok","cumple":false}},"cuando":"la señal sube a 25.7 °C y se queda ahí 30 lecturas","entonces":"la alerta sigue abierta mientras la señal no vuelva"},{"patron":"G3","sello":"falla","no_cumple":{"anomalias":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"la señal sube 0.075 °C por lectura durante 40 lecturas","entonces":"entra una alerta de capa 2 antes de que termine la subida"},{"patron":"G4","sello":"pasa","no_cumple":{},"cuando":"llegan 60 lecturas con su ruido normal","entonces":"no entra ninguna alerta"},{"patron":"G5","sello":"pasa","no_cumple":{},"cuando":"llega una que se mueve 0.015 °C","entonces":"avisa que el sensor está pegado, no confunde el movimiento mínimo con una falla, y el aviso se va cuando vuelve a variar"}],"con_regla_pasan":72,"con_regla_total":72,"validador":{"brazo":[],"loto":[{"regla":"V1","paso":"l2","texto":"«Poner el dispositivo de bloqueo» es control crítico y se cierra con camara: si se deshace, ninguna regla avisa"},{"regla":"V1","paso":"l5","texto":"«Retirar la herramienta» es control crítico y se cierra con camara: si se deshace, ninguna regla avisa"},{"regla":"V2","paso":"l3","texto":"«Verificar energía cero: equipo frío» espera equipo = frio, que es el valor de reposo: la alerta de orden salta al llegar a «Poner el dispositivo de bloqueo», antes de que el operario haga nada"}],"correa":[],"celda":[],"excavadora":[]},"reposo":{"brazo":{"energia":"viva","bloqueo":"retirado","zona":"libre"},"loto":{"operario":"ausente","equipo":"frio"},"correa":{"guarda":"cerrada","energia":"cortada","reed_bloqueo":"abierto"},"celda":{"seccionador":"cerrado","candado_mando":"abierto","tension":"presente","tierra":"retirada","puerta_celda":"cerrada"},"excavadora":{"implementos":"levantados","motor":"encendido","palanca_seguridad":"desbloqueada","presion_hidraulica":"con_presion","zona":"libre"}}};   // lo que respondió el código real al probar el borrador del brazo y las tres industrias
 const BRAZO = DISENO.pauta;
 
 // ─── El motor: lo mismo que servicios.recibir_lectura y servicios.declarar, para pautas de estados ───
@@ -2025,10 +2040,12 @@ AL_ENTRAR.celda = paso => { const n = parseInt(paso, 10); if (n > 0 && n < GUION
 // ─── 9 · Requerimientos contra evidencia ────────────────────────────────────
 const brazoPasa = k => DISENO[k].filter(c => c.sello === "pasa").length;
 const REQ = [
-  ["RF", "Convertir el protocolo del cliente en una pauta comprobable", "CONTEXTO, el flujo; ADR-0006", "falta", "<code>protocolos.extraer_pasos</code> es un stub y las pautas se escriben a mano. El diseño está en la pantalla 10."],
+  ["RF", "Convertir el protocolo del cliente en una pauta comprobable", "CONTEXTO, el flujo; ADR-0006", "falta", "<code>protocolos.extraer_pasos</code> es un stub y las pautas se escriben a mano. Con el plan del 2026-11-21 es una llamada a un modelo. Pantalla 10."],
   ["RF", "Una persona aprueba la pauta, y cada cambio es una versión nueva", "ADR-0003; PRD de servicios, CA8 y CA9", "cumple", "<code>catalogo.crear_pauta</code> y <code>aprobar_pauta</code>, con sus tests. Se prueba en la pantalla 1."],
   ["RF", "La OT nace de una pauta aprobada y guarda qué versión ejecuta", "ADR-0006; CA8", "cumple", "<code>catalogo.abrir_ot</code>. Pantalla 2."],
-  ["RF", "La OT se abre sola con un disparo (calendario, pedido o falla) y una persona la confirma", "ADR-0006; guion del demo en el FLUJO", "falta", "Hoy se abre a mano con <code>POST /ot/{id}/abrir</code>. Detectar que el brazo falló es <code>Brecha</code> en el ADR-0010."],
+  ["RF", "Un sistema externo genera la OT por API, desde una pauta de un protocolo", "Plan del 2026-11-21; ADR-0006", "parcial", "<code>POST /ot/{id}/abrir</code> ya la genera desde una pauta aprobada. Falta el recurso protocolo y que la pauta sepa a cuál pertenece. Pantalla 10."],
+  ["RF", "Cada OT tiene un operador y un estado general que se puede consultar", "SEGUIMIENTO, gestión de OT", "cumple", "<code>POST /ot/{id}/asignar</code> y <code>GET /ots</code>, con sus tests. Pantalla 2."],
+  ["RF", "En el demo, la OT se abre sola cuando el brazo falla", "Guion del demo en el FLUJO; ADR-0010", "falta", "Detectar que el brazo falló es <code>Brecha</code> en el ADR-0010. Con el plan nuevo, quien detecte la falla llama a la misma API."],
   ["RF", "Lo que manda un edge entra a una sola OT, o a ninguna", "PRD de servicios, O1; CA1 y CA2", "cumple", "La sesión. Pantalla 2."],
   ["RF", "Cada paso se cierra con su evidencia y en el orden de la pauta", "LOGICA; ADR-0002 y ADR-0004; CA3, CA4 y CA13", "cumple", "Patrones A y F de la matriz, en las tres industrias y en el borrador del brazo."],
   ["RF", "Interrumpe cuando se salta un control crítico, cuando se deshace o cuando hay un peligro", "LOGICA; REFERENCIAS 40, 44, 47, 48 y 52", "parcial", "Cumple en minería, eléctrica y construcción. En el brazo, el orden y el control ya responden con el borrador de pauta; la regla de persona en la zona con energía viva no está en <code>reglas.py</code>."],
@@ -2081,41 +2098,55 @@ function pintarMatriz() {
 const NOTA_PATRON = {G: "Es la capa 2 sobre una señal de temperatura supuesta para este borrador (24,5 °C con 0,15 °C de ruido): el piso del 2 % de la mediana vale 0,49 °C y deja pasar un escalón de 1,2 °C y una deriva lenta."};
 $("matriz").addEventListener("click", e => { const tr = e.target.closest("[data-patron]"); if (tr) { matrizSel = tr.dataset.patron; pintarMatriz(); } });
 
-// ─── 10 · Diseño: de protocolo a pauta ──────────────────────────────────────
-const ETAPAS = [
-  ["recibir", "1 · Recibir", "el protocolo, con su huella", "Entra el PDF del cliente tal como lo tiene. Se guarda el archivo con su huella SHA-256 y su texto por página.",
-    "Sin modelo. La huella ata cada pauta al documento exacto del que salió: si el cliente manda una versión nueva del procedimiento, es otro protocolo.",
-    "El archivo se recupera intacto por su huella, y el mismo PDF subido dos veces no se duplica.", "Nada todavía: es la base de la trazabilidad.",
-    "ADR-0003 (cada OT guarda qué versión ejecutó); REFERENCIAS 7 reconoce que sus cambios se auditan, pero no se versionan ni se revierten."],
-  ["extraer", "2 · Extraer", "los pasos, cada uno con su cita", "Un modelo lee el documento entero y devuelve los pasos en orden, con la salida obligada a un esquema, igual que hoy lo hace el juez de cámara. Cada paso trae la cita literal y la página de donde salió.",
-    "El documento completo cabe en el contexto, así que no hay recuperación ni base vectorial: es el mismo criterio que <code>cerebro.py</code> fija para el relevo. Se corre varias veces y lo que cambia entre corridas se marca como duda para quien aprueba.",
-    "La cita de cada paso tiene que existir, letra por letra, en la página que dice. Un paso sin cita encontrada no pasa a la etapa siguiente.", "Cobertura y precisión de pasos contra la pauta de referencia; fracción de pasos con cita encontrada; acuerdo entre corridas.",
-    "REFERENCIAS 27 y 28 generan procedimientos de diagnóstico desde manuales y desde el FMEA con modelos de lenguaje; 6 trae un esquema y un benchmark para extraer información de textos de mantenimiento; 9 midió que un VLM solo describe 54,6 % de las fases y 68 % con la pauta en la mano: alcanza para un borrador. De 27, 28 y 6 solo se leyó el resumen."],
-  ["evidencia", "3 · Asignar la evidencia", "contra lo que la estación tiene", "Para cada paso se decide qué lo cierra: un sensor con su valor, la cámara con su pregunta, o la confirmación de una persona. El modelo solo puede elegir sensores y clases del inventario de la estación.",
-    "El inventario es una lista corta: cada sensor con sus valores posibles y su valor de reposo, y las clases que el detector conoce. Lo que no tiene sensor ni clase cae en cámara con pregunta visual sobre el estado final visible, o en confirmación. Los pasos que aíslan energía se proponen como control crítico.",
-    "Ningún paso puede nombrar un sensor, un valor o una clase que no esté en el inventario: eso se comprueba sin modelo.", "Evidencia correcta por paso; sensor y valor exactos; controles críticos recuperados, que es el error que más cuesta.",
-    "ADR-0004 (cada paso declara cómo se comprueba); REFERENCIAS 18 valida cada paso por su estado final; 40 pide identificar y verificar los controles críticos; el FLUJO deja como <code>Brecha</code> quién decide la evidencia de cada paso."],
-  ["validar", "4 · Validar", "sin modelo, contra reglas", "La pauta candidata pasa por el contrato que ya existe y por un validador nuevo que busca los defectos que una pauta bien formada puede tener igual.",
-    "Reglas deterministas. Las cuatro de abajo salieron de correr las pautas reales contra el código, y están probadas en este documento sobre las cinco pautas.",
-    "Cada regla tiene una pauta que la rompe y una que no. El validador corrido sobre las pautas de <code>datos/</code> no puede marcar las tres de industria, que pasan su matriz completa.", "Hallazgos por pauta; cuántos llegaron a la persona que aprueba y cuántos corrigió.",
-    "REFERENCIAS 25 pone un verificador determinista entre el modelo y la respuesta; 33 muestra que muchas desviaciones nacen de pautas mal hechas; 48 y 50 fijan que la reposición va en orden inverso, que es lo que el validador comprueba."],
-  ["simular", "5 · Simular", "los 24 patrones, antes de aprobar", "La pauta candidata corre en la caja aislada que ya existe, contra los mismos patrones con que se prueban las tres industrias: bien hecha, con un paso saltado, con un control deshecho, con la cámara en contra.",
-    "Es <code>app/escenarios.py</code> tal cual, con la pauta nueva como una industria más. Lo que hace falta declarar por pauta es poco: sus dos primeros controles, cómo se llega al paso de cámara y su condición de peligro.",
-    "La pauta bien hecha termina sin ninguna alerta, y cada control crítico saltado o deshecho abre la suya. Así se probó el borrador del brazo en la pantalla 9.", "Patrones que pasan sobre 24, y cuáles no.",
-    "ADR-0008 (escenarios en una caja aislada); PRD de escenarios por industria."],
-  ["aprobar", "6 · Aprobar", "una persona, con las dudas a la vista", "La persona que aprueba ve cada paso junto a su cita, las dudas del modelo, los hallazgos del validador y el resultado de la simulación. Corrige lo que haga falta y aprueba. Cada corrección queda guardada.",
-    "Es la aprobación que ya existe, con una entrada mejor. Las correcciones son el dato más valioso del sistema: dicen dónde se equivoca el extractor con un cliente real.",
-    "Sin aprobación no hay OT: eso ya lo garantiza <code>catalogo.abrir_ot</code>.", "Correcciones por paso y tiempo hasta aprobar, comparado con escribir la pauta a mano.",
-    "ADR-0003 (una persona aprueba); REFERENCIAS 2 (el sistema sugiere, el técnico confirma) y 8 (con sugerencias y confirmación humana el etiquetado tomó 88 % menos tiempo, con menos exactitud que un experto)."],
+// ─── 10 · El plan: protocolo, pautas y OT por API ───────────────────────────
+const PLAN = [
+  ["protocolo", "1 · Protocolo", "el procedimiento estandarizado del cliente",
+    "No existe como recurso: no hay tabla ni ruta que lo reciba. El archivo <code>app/protocolos.py</code> lleva su nombre, pero solo lee un JSON de <code>datos/</code>.",
+    "Guardar el documento y darle un id. Una tabla y una ruta.",
+    "Es lo que el cliente ya tiene: su procedimiento de bloqueo, su pauta de mantención, su instructivo de operación. No se le pide que lo reescriba."],
+  ["pautas", "2 · Pautas", "las crea un modelo de lenguaje",
+    "<code>protocolos.extraer_pasos</code> devuelve la pauta de la correa, escrita a mano. Lo que ya sirve: el contrato valida cualquier pauta que entre (pantalla 1), y <code>verificacion.py</code> ya hace una llamada a un modelo con la salida obligada a un esquema.",
+    "La llamada. Entran el protocolo completo y el inventario de la estación; sale una lista de pautas con la forma de <code>Pauta</code>. Lo mal formado lo rechaza el contrato. Cada pauta se guarda como versión 1, sin aprobar, atada a su protocolo.",
+    "El documento entero cabe en el contexto del modelo, así que no hay recuperación ni base vectorial: es el mismo criterio que <code>cerebro.py</code> fija para el relevo."],
+  ["ot", "3 · OT", "las genera un servicio por API",
+    "Casi todo. <code>POST /ot/{id}/abrir</code> ya genera la OT desde una pauta aprobada y guarda qué versión ejecuta (pantalla 2). Desde hoy además se asigna a un operador y <code>GET /ots</code> dice en qué va cada una.",
+    "Que la pauta sepa de qué protocolo es, y una ruta que lo use: el sistema del cliente pide una OT de su protocolo sin conocer los ids internos, y el servicio le pone el id a la OT.",
+    "Quien llama es el sistema del cliente: su planificador de mantención, su calendario o una persona desde una pantalla. Por eso es una API y no un disparo interno."],
 ];
-let etapaSel = "extraer";
-function pintarEtapas() {
-  $("dis-etapas").innerHTML = ETAPAS.map(([id, t, sub], i) => `${i ? '<div class="fl">→</div>' : ""}<button class="eslabon stubito" data-etapa="${id}" aria-pressed="${id === etapaSel}"><b>${t}</b><small>${sub}</small></button>`).join("");
-  const [, t, , que, como, prueba, mide, fuente] = ETAPAS.find(e => e[0] === etapaSel);
-  $("dis-etapa").innerHTML = `<h3>${t}</h3><p>${que}</p><div class="dos"><div><h4>Cómo</h4><p class="nota">${como}</p><h4>Cómo se prueba</h4><p class="nota">${prueba}</p></div><div><h4>Qué se mide</h4><p class="nota">${mide}</p><h4>De dónde sale</h4><p class="nota">${fuente}</p></div></div>`;
-  document.body.dataset.etapa = etapaSel;
+let planSel = "pautas";
+function pintarPlan() {
+  $("plan-pasos").innerHTML = PLAN.map(([id, t, sub], i) => `${i ? '<div class="fl">→</div>' : ""}<button class="eslabon" data-plan="${id}" aria-pressed="${id === planSel}"><b>${t}</b><small>${sub}</small></button>`).join("");
+  const [, t, , hoy, falta, nota] = PLAN.find(e => e[0] === planSel);
+  $("plan-detalle").innerHTML = `<h3>${t}</h3><div class="dos"><div><h4>Lo que hay hoy en el código</h4><p class="nota">${hoy}</p></div><div><h4>Lo que falta</h4><p class="nota">${falta}</p></div></div><p class="nota" style="margin:10px 0 0">${nota}</p>`;
+  document.body.dataset.plan = planSel;
 }
-$("dis-etapas").addEventListener("click", e => { const b = e.target.closest("[data-etapa]"); if (b) { etapaSel = b.dataset.etapa; pintarEtapas(); } });
+$("plan-pasos").addEventListener("click", e => { const b = e.target.closest("[data-plan]"); if (b) { planSel = b.dataset.plan; pintarPlan(); } });
+
+const A_MEDIDA = [
+  ["Qué evidencia cierra cada paso: el sensor y su valor, la clase del detector, la pregunta visual y si es control crítico", "En la pauta", "pauta"],
+  ["El orden de los pasos, que es lo que vigilan «orden invertido» y «control deshecho»", "En la pauta", "pauta"],
+  ["Cuándo una medida se vuelve estado: bajo qué distancia hay alguien, bajo qué temperatura está frío", `Argumentos de <code>edge.py</code>: ${DISENO.dist_max} cm y 30 °C. Qué estados existen está escrito en su función <code>estados()</code>`, "estacion"],
+  ["Qué combinación de sensores es un peligro", `<code>reglas._PELIGROS</code>: ${PELIGROS.length} reglas en el código, que se evalúan para todas las OT`, "global"],
+  ["Qué objetos reconoce la cámara", "Las clases se fijan al exportar el modelo, y el servidor carga uno solo (<code>DETECTOR_ONNX</code>)", "global"],
+  ["Con cuánta certeza decide el detector", `Constantes: ${coma(K.CONF_ALTA, 1)} y ${coma(K.CONF_PISO)}, ${K.DETECCIONES_MIN} detecciones, ventana de ${coma(K.VENTANA_DETECCION_S, 1)} s`, "global"],
+  ["Qué tan grave es cada cosa y cuánto creerle", `Constantes de <code>scoring.py</code>: frescura de ${K.FRESCURA_S} s, cámara desde ${Math.round(K.CONFIANZA_CAMARA_MIN * 100)} %, ${coma(K.DESVIO_WARNING, 1)} desvíos y los dos pisos`, "global"],
+  ["Qué se le dice al juez de cámara sobre el trabajo", "<code>verificacion.INSTRUCCION</code>, que habla de «un procedimiento de mantenimiento industrial»", "global"],
+  ["Qué puede interrumpir al operario: solo la capa 1", "<code>reglas.py</code> y <code>scoring.py</code>", "producto"],
+];
+const ALCANCE = {pauta: ["ok", "por pauta"], estacion: ["warning", "por estación, a medias"], global: ["error", "igual para todos"], producto: ["gris", "regla del producto"]};
+function pintarMedida() {
+  $("medida-tabla").innerHTML = A_MEDIDA.map(([que, donde, a]) => `<tr><td><b>${que}</b></td><td class="nota">${donde}</td><td><span class="badge ${ALCANCE[a][0]}">${ALCANCE[a][1]}</span></td></tr>`).join("");
+  const n = a => A_MEDIDA.filter(x => x[2] === a).length;
+  $("medida-resumen").innerHTML = `<b class="gr">De ${A_MEDIDA.length - n("producto")} cosas propias de un proceso, ${n("pauta")} ya viajan con la pauta, ${n("estacion")} depende de la estación y ${n("global")} están en el código, iguales para todos.</b><br>La última fila no es a la medida a propósito: que solo la capa 1 interrumpa es la promesa del producto, y no debería cambiar de un cliente a otro.`;
+  $("medida-perfil").textContent = JSON.stringify({
+    peligros: [{si: DISENO.regla[0], aviso: DISENO.regla[1].split(".")[0]}],
+    edge: {zona: {mide: "dist_cm", ocupada_bajo: DISENO.dist_max}},
+    detector: {clases: ["pinza", "pieza"], conf_alta: K.CONF_ALTA, conf_piso: K.CONF_PISO, detecciones_min: K.DETECCIONES_MIN, ventana_s: K.VENTANA_DETECCION_S},
+    calificacion: {frescura_s: K.FRESCURA_S, confianza_camara_min: K.CONFIANZA_CAMARA_MIN, desvio_warning: K.DESVIO_WARNING, piso_relativo: K.PISO_RELATIVO, piso_absoluto: K.PISO_ABSOLUTO},
+    juez: {trabajo: "ajuste de la pinza de un brazo robótico"},
+  }, null, 2);
+  document.body.dataset.medida = `${n("pauta")}:${n("estacion")}:${n("global")}`;
+}
 
 const REGLAS_V = {
   V1: ["Control crítico que se cierra con la cámara", "«Control crítico deshecho» solo vigila pasos con sensor. Un control que se cierra con la cámara se puede deshacer sin aviso.", "Es el hueco de la pauta LOTO, y la razón del ADR-0010."],
@@ -2136,59 +2167,6 @@ function pintarValidador() {
 $("val-pautas").addEventListener("click", e => { const b = e.target.closest("[data-val]"); if (b) { valSel = b.dataset.val; pintarValidador(); } });
 $("val-reglas").innerHTML = Object.entries(REGLAS_V).map(([k, [t, que, fuente]]) => `<tr><td><b>${k}</b></td><td><b>${t}.</b> ${que}</td><td class="nota">${fuente}</td></tr>`).join("");
 
-// cómo se mide un extractor: una pauta de referencia y los errores típicos de una extracción
-const ERRORES = [
-  ["omite", "Se le pasa un paso", "no trae «Reinstalar la guarda», que es control crítico"],
-  ["inventa", "Inventa un paso", "agrega «Limpiar la zona», que el protocolo no dice"],
-  ["orden", "Cambia el orden", "pone «Retirar la guarda» antes de «Cortar la energía y bloquear»"],
-  ["evidencia", "Elige mal la evidencia", "deja «Retirar la guarda» como cámara, habiendo sensor"],
-  ["critico", "No marca un control crítico", "«Retirar el bloqueo y energizar» sale sin la marca"],
-  ["sensor", "Amarra el sensor equivocado", "«Cortar la energía y bloquear» queda con el sensor de la guarda"],
-];
-const errPuestos = new Set(["omite", "evidencia"]);
-function medirExtraccion() {
-  const oro = PAUTAS.correa.pasos, E = errPuestos;
-  let cand = oro.map(p => JSON.parse(JSON.stringify(p)));
-  if (E.has("evidencia")) Object.assign(cand[1], {tipo_evidencia: "camara", sensor: null, pregunta_visual: "¿La guarda está retirada?"});
-  if (E.has("critico")) cand[4].control_critico = false;
-  if (E.has("sensor")) cand[0].sensor = {id: "guarda", espera: "cerrada"};
-  if (E.has("omite")) cand = cand.filter(p => p.id !== "p4");
-  if (E.has("orden")) [cand[0], cand[1]] = [cand[1], cand[0]];
-  if (E.has("inventa")) cand.splice(Math.min(3, cand.length), 0, {id: "x1", titulo: "Limpiar la zona", tipo_evidencia: "confirmacion", control_critico: false});
-  const porId = Object.fromEntries(oro.map(p => [p.id, p])), alineados = cand.filter(p => porId[p.id]);
-  const orden = alineados.map(p => porId[p.id].orden);
-  let pares = 0, bien = 0;
-  for (let i = 0; i < orden.length; i++) for (let j = i + 1; j < orden.length; j++) { pares++; if (orden[i] < orden[j]) bien++; }
-  const igual = (a, b) => JSON.stringify(a || null) === JSON.stringify(b || null);
-  const evid = alineados.filter(p => p.tipo_evidencia === porId[p.id].tipo_evidencia).length;
-  const sens = alineados.filter(p => porId[p.id].sensor).filter(p => igual(p.sensor, porId[p.id].sensor)).length, conSensor = oro.filter(p => p.sensor).length;
-  const criticos = oro.filter(p => p.control_critico), critOk = criticos.filter(p => alineados.some(q => q.id === p.id && q.control_critico)).length;
-  const ediciones = (oro.length - alineados.length) + (cand.length - alineados.length) + (pares - bien)
-    + alineados.filter(p => p.tipo_evidencia !== porId[p.id].tipo_evidencia).length
-    + alineados.filter(p => p.tipo_evidencia === porId[p.id].tipo_evidencia && !igual(p.sensor, porId[p.id].sensor)).length
-    + alineados.filter(p => !!p.control_critico !== !!porId[p.id].control_critico).length;
-  return {cand, oro, alineados: alineados.length, pares, bien, evid, sens, conSensor, criticos: criticos.length, critOk, ediciones};
-}
-function pintarMedicion() {
-  $("med-errores").innerHTML = ERRORES.map(([id, t, que]) => `<label class="parte ${errPuestos.has(id) ? "puesta" : ""}"><input type="checkbox" data-err="${id}" ${errPuestos.has(id) ? "checked" : ""}><span>${t}<small>${que}</small></span></label>`).join("");
-  const m = medirExtraccion(), fr = (a, b) => `<b>${a} de ${b}</b>`;
-  $("med-tabla").innerHTML = [
-    ["Cobertura", fr(m.alineados, m.oro.length), "pasos de la referencia que la extracción trae"],
-    ["Precisión", fr(m.alineados, m.cand.length), "pasos extraídos que existen en la referencia"],
-    ["Orden", m.pares ? fr(m.bien, m.pares) : "—", "pares de pasos que quedaron en el orden correcto"],
-    ["Evidencia", fr(m.evid, m.alineados), "pasos con el tipo de evidencia correcto"],
-    ["Sensor y valor", fr(m.sens, m.conSensor), "pasos de sensor con el sensor y el valor exactos"],
-    ["Controles críticos", fr(m.critOk, m.criticos), "controles críticos que llegaron marcados"],
-    ["Correcciones", `<b>${m.ediciones}</b>`, "cambios que la persona tendría que hacer para dejarla igual a la referencia"],
-  ].map(([k, v, que]) => `<tr><td><b>${k}</b></td><td>${v}</td><td class="nota">${que}</td></tr>`).join("");
-  const pierde = m.critOk < m.criticos;
-  $("med-veredicto").className = "resultado " + (pierde ? "error" : m.ediciones ? "warning" : "ok");
-  $("med-veredicto").innerHTML = pierde ? `<b class="gr">No se aprueba esta versión del extractor.</b> Pierde ${m.criticos - m.critOk} de ${m.criticos} controles críticos. Es la regla propuesta: un extractor que deja caer un control crítico de la referencia no sale, aunque el resto esté perfecto.`
-    : m.ediciones ? `<b class="gr">Sirve como borrador.</b> No pierde controles críticos y deja ${m.ediciones} correcciones a la persona que aprueba.` : `<b class="gr">Igual a la referencia.</b> Sin correcciones.`;
-  document.body.dataset.medicion = [m.alineados, m.cand.length, m.bien, m.pares, m.evid, m.sens, m.critOk, m.ediciones].join(":");
-}
-$("med-errores").addEventListener("change", e => { const id = e.target.dataset.err; if (!id) return; e.target.checked ? errPuestos.add(id) : errPuestos.delete(id); pintarMedicion(); });
-
 // números de la pantalla 9, sacados de las corridas
 $("req-numeros").innerHTML = [
   [DISENO.tests.corridos, "tests del repo", DISENO.tests.resultado.startsWith("OK") ? "todos en verde" : DISENO.tests.resultado],
@@ -2203,7 +2181,7 @@ $("celda-regla-t").textContent = DISENO.regla[1];
 // ─── Arranque ───────────────────────────────────────────────────────────────
 reiniciarCat(); pintarCat(); pintarPauta(); pintarSi(0); dibujarRecorrido(); pintarSeguridad(); pintarCapa2(); pintarDet(true);
 pintarC3("sinkey"); pintarFrescura(); pintarCalificacion(); pintarSistema(); pintarLoto();
-pintarRequisitos(); pintarMatriz(); pintarEtapas(); pintarValidador(); pintarMedicion(); pintarCelda();
+pintarRequisitos(); pintarMatriz(); pintarPlan(); pintarValidador(); pintarMedida(); pintarCelda();
 navegar();
 document.body.dataset.listo = "1";
 </script>
