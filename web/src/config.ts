@@ -11,6 +11,9 @@ export const config = {
   MOCK,
   API_URL,
   EDGE_ID: texto(env.VITE_EDGE_ID) ?? 'edge-1',
-  /** Sin URL de voz, el aviso se dice con la voz del navegador (así corre el mock). */
-  VOZ_URL: texto(env.VITE_VOZ_URL) ?? (MOCK ? null : `${API_URL}/voz`),
+  /**
+   * La voz de ElevenLabs la sirve el mismo servidor del front (web/servidor/voz.ts), con mock o
+   * sin él. Si no responde (sin llave, sin red), el aviso lo dice la voz del navegador.
+   */
+  VOZ_URL: texto(env.VITE_VOZ_URL) ?? '/api/voz',
 }

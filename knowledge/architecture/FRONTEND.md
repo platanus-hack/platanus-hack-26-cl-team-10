@@ -218,7 +218,7 @@ El banner no tiene botones: informa. Lo que el operario puede hacer está en el 
 
 ### Qué suena y qué no
 
-Suena lo que llega con nivel `error`, y solo la capa 1 (sensores y reglas) llega a `error`: un salto, un control perdido, una alerta de seguridad. Lo que dice la cámara (capa 3) y las anomalías de señal (capa 2) llegan a lo más a `warning`: se muestran pero no suenan, como fija [LOGICA](./LOGICA.md#qué-puede-interrumpir-al-operario). Con tantas falsas alarmas, un aviso que suena de más le enseña al operario a ignorarlo.
+Suena, y aparece en grande sobre la pantalla, lo que llega con nivel `error`, y solo la capa 1 (sensores y reglas) llega a `error`: un salto, un control perdido, una alerta de seguridad. Un salto y un control perdido suenan siempre, aunque la API los calificara más bajo: es el aviso que pidió el equipo. Lo que dice la cámara (capa 3) y las anomalías de señal (capa 2) llegan a lo más a `warning`: se muestran en su paso pero no suenan, como fija [LOGICA](./LOGICA.md#qué-puede-interrumpir-al-operario). Con tantas falsas alarmas, un aviso que suena de más le enseña al operario a ignorarlo.
 
 ### Relevo de turno
 
@@ -248,15 +248,18 @@ Cuando la API avisa que un paso no se hizo, el aviso se convierte en voz con Ele
 **Cómo llega:**
 
 1. Al tocar «Comenzar» o «Continuar», el front abre la sesión (`POST /ot/{id}/sesion`) y se conecta a `wss://…/ot/{id}/stream`. Solo escucha. Si se corta, vuelve con `?desde=<último evento.id>`.
-2. Cuando llega un mensaje `evento` nuevo cuya `calificacion.nivel` es `error`, el front arma la frase y pide su audio a `GET /voz?texto=…`. Si el audio no empieza en 2,5 s, lo dice la voz del navegador.
-3. El `evento.id` es la llave: un evento suena una sola vez, también al reconectar. La bitácora que trae el snapshot al conectar **no** suena: es lo que ya pasó.
-4. `/voz` es un endpoint nuestro que llama a ElevenLabs con una voz fija en español y devuelve el audio. Vive en su propio archivo, `app/voz.py`, para no chocar con los cambios del equipo de Francisco *(propuesta)*.
+2. Suena un `evento` nuevo cuya `calificacion.nivel` es `error` (seguridad, un conflicto de sensor) y **siempre** una alerta de paso saltado (`orden`) o de paso que se deshizo (`control`), aunque la API la calificara más bajo. La duda de la cámara no suena: se ve en su paso. El front arma la frase y pide su audio a `GET /api/voz?texto=…`. Si el audio no empieza en 2,5 s, lo dice la voz del navegador.
+3. Lo que suena **también aparece en grande** sobre la pantalla: la misma frase, el título de la alerta («Paso saltado», «Peligro», «Control perdido»), qué hacer, «Entendido» y «Escuchar de nuevo». Con guantes y ruido de planta el operario puede no oírlo, y en el celular el banner queda fuera de la vista si bajó por la lista. Al tocar «Entendido» la pantalla va al paso afectado. Se cierra solo si la alerta se resuelve o el paso queda verificado; el banner y el paso siguen mostrando la alerta mientras esté activa.
+4. El `evento.id` es la llave: un evento suena y aparece una sola vez, también al reconectar. La bitácora que trae el snapshot al conectar **no** suena ni aparece: es lo que ya pasó.
+5. `/api/voz` es nuestro, no de la API de Francisco: lo sirve el mismo servidor del front (`web/servidor/voz.ts`, montado en `vite.config.ts`; al desplegar, una función de Vercel con el mismo código). Hace la misma llamada que `~/code/Godoy97/elevenlabs-tts/tts.py`, con `eleven_flash_v2_5` y la voz «George» (`ELEVENLABS_VOICE_ID` para otra). Cada frase se genera una vez y se guarda en `web/.cache/voz/`.
+
+**Cómo correrlo:** la llave va en `web/.env.local` (git la ignora) como `ELEVENLABS_API_KEY=…`, y `npm run dev:mock` (o `npm run dev`) ya sirve la voz. Sin llave, `/api/voz` responde 503 y el aviso lo dice el navegador.
 
 Por qué la voz sale del evento y no de `calificacion.avisos`: un aviso no trae `id` ni dice de qué paso es, así que no hay cómo saber si ya sonó. Y por qué el front pide la voz en vez de esperar que el back la adjunte: así la voz solo necesita un texto, y no depende de cómo el equipo de Francisco rehaga los eventos. Si después el back manda un `audio_url`, el front reproduce ese.
 
 **Reglas:**
 
-- La llave de ElevenLabs vive solo en el servidor, en `ELEVENLABS_API_KEY`. Nunca en el repo ni en el navegador: el repo es público.
+- La llave de ElevenLabs vive solo en el servidor, en `ELEVENLABS_API_KEY`, sin prefijo `VITE_`: así Vite nunca la manda al navegador. Nunca en el repo: el repo es público. `/api/voz` no tiene autenticación, así que genera a lo más 200 frases nuevas por arranque; las guardadas se sirven siempre.
 - Meta: menos de 2 s desde que el evento entra a la bitácora hasta que suena *(propuesta)*. El stream lo entrega al instante, así que casi todo ese tiempo es de ElevenLabs.
 - Los textos de los avisos del demo se generan una vez y se guardan, para que en el escenario suenen sin esperar a ElevenLabs.
 - Si `/voz` falla, el front dice el mismo texto con la voz del navegador (`speechSynthesis`). El aviso nunca queda mudo.
@@ -264,7 +267,7 @@ Por qué la voz sale del evento y no de `calificacion.avisos`: un aviso no trae 
 - Lo que se dice es una frase armada en el front (`textoParaVoz`), con el tono de la pizarra: un salto suena «Oye, te saltaste el paso 1: Cortar la energía y bloquear con candado. Hazlo antes de seguir.»; un control perdido, «Oye, se deshizo el paso 1: …»; lo demás, el `detalle` de la API sin las mayúsculas gritadas.
 - El navegador del celular no reproduce sonido hasta que el usuario toca algo. El toque en «Comenzar» o «Continuar» desbloquea el audio: Diego llama a `desbloquearAudio()` de `web/src/ejecucion/voz.ts` en ese botón. Si se entra a `/ot/:id` sin ese toque (una recarga o un enlace directo), la pantalla pide un toque antes de empezar. Muestra si el audio está activo, con un botón «Probar audio». Probarlo en el celular del demo, sobre todo si es iPhone.
 - Con la pantalla bloqueada, el celular corta el WebSocket y deja de sonar. La vista de ejecución le pide al navegador que mantenga la pantalla encendida (Wake Lock API) mientras la OT está abierta.
-- Con el mock, la voz es la del navegador, salvo que `/voz` esté corriendo.
+- Con el mock la voz es la misma: `/api/voz` la sirve el servidor del front, no la API.
 
 ## 8. Contrato con la API
 
@@ -290,7 +293,7 @@ La API está desplegada en `https://34-176-44-192.sslip.io`. La guía completa e
 
 Un aviso de `calificacion.avisos` es `{nivel, certeza, capa, motivos}`: sin `id` y sin `paso_id`. Un `evento` del stream trae `id, tipo, paso_id, estado, capa, detalle, evidencia, calificacion`.
 
-**Lo que falta en el servidor desplegado:** la voz, `GET /voz?texto=`. Es nuestra (`app/voz.py`) y llega con esta rama; el servidor necesita `ELEVENLABS_API_KEY` en su entorno.
+**La voz no es de esta API:** `GET /api/voz` la sirve el servidor del front (sección 7). El servidor de Francisco no necesita la llave de ElevenLabs.
 
 Respaldo si el ESP32 falla en el escenario: la lectura se puede escribir a mano en `POST /edge/edge-1/lecturas` o en `POST /sensores`.
 

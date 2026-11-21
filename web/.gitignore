@@ -10,7 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# .env.local guarda la llave de ElevenLabs: nunca al repo (es público).
 *.local
+# Los audios de /api/voz ya generados.
+.cache
 
 # Editor directories and files
 .vscode/*
