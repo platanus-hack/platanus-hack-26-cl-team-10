@@ -1,7 +1,7 @@
 {
   "id": "pauta-polin-estacion",
   "nombre": "Cambio de polín en la cinta · estación del demo",
-  "version": 3,
+  "version": 4,
   "equipo": "cinta a escala (ESP32: motor con botón, distancia y temperatura; cámara)",
   "pasos": [
     {
@@ -38,7 +38,7 @@
       "instruccion": "Deja a la vista de la cámara el polín rojo, que es el que falló, y declara el paso. En el demo los polines son latas: la cámara tiene que verlo puesto antes de que lo saques.",
       "tipo_evidencia": "camara",
       "capa_minima": 3,
-      "pregunta_visual": "¿Hay una lata de bebida de cuerpo rojo puesta en la cinta, sin que nadie la sostenga en la mano? Una lata plateada con letras rojas no cuenta como roja."
+      "pregunta_visual": "¿Hay una lata de bebida de cuerpo rojo apoyada sobre la cinta o la mesa, sin que nadie la sostenga en la mano? Una lata plateada con letras rojas no cuenta como roja."
     },
     {
       "id": "e5",
