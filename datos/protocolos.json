@@ -11,7 +11,8 @@
       "pauta-polin-ct-01",
       "pauta-celda-mt-01",
       "pauta-excavadora-01",
-      "pauta-brazo-01"
+      "pauta-brazo-01",
+      "pauta-polin-demo"
     ]
   },
   {
@@ -22,7 +23,8 @@
     "documento": "protocolos/prot-correa-01.md",
     "pautas": [
       "pauta-correa-ct-01",
-      "pauta-polin-ct-01"
+      "pauta-polin-ct-01",
+      "pauta-polin-demo"
     ]
   },
   {

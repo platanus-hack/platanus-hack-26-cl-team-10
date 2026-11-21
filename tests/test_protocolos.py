@@ -287,6 +287,39 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 9))
 
 
+    def demo(self):
+        self.abrir("pauta-polin-demo.json", ["temp_c", "energia", "bloqueo", "operario"],
+                   {"temp_c": "24.0", "energia": "viva", "bloqueo": "retirado", "operario": "ausente"})
+        for t in ("24.0", "24.2", "23.9", "24.1", "24.3", "23.8", "24.1", "24.0", "24.2", "23.9"):
+            self.leer(temp_c=t)
+
+    def test_demo_acercarse_con_el_motor_encendido_avisa_siempre(self):
+        self.demo()
+        alertas = self.leer(operario="presente")
+        self.assertTrue(any(a.startswith("PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO") for a in alertas), alertas)
+        self.assertTrue(any(a.startswith("ORDEN INVERTIDO: «Acercarte a la correa»") for a in alertas), alertas)
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "error")
+        self.leer(operario="ausente")
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
+
+    def test_demo_el_polin_caliente_avisa_sin_detener_y_se_calma_con_el_nuevo(self):
+        self.demo()
+        alertas = self.leer(temp_c="41.0")
+        self.assertTrue(any(a.startswith("temp_c = 41, lejos de su mediana") for a in alertas), alertas)
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "warning")
+        self.leer(temp_c="24.4")
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
+
+    def test_demo_en_su_orden_se_completa_sin_avisos(self):
+        self.demo()
+        alertas = self.leer(energia="cortada") + self.leer(bloqueo="puesto") + self.leer(operario="presente")
+        self.declarar("saqué el polín caliente")
+        self.declarar("puse el polín nuevo")
+        alertas += self.leer(operario="ausente") + self.leer(bloqueo="retirado") + self.leer(energia="viva")
+        self.assertEqual(alertas, [])
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 8))
+
+
 class LaSemillaDeLosCasos(Base):
     def test_cada_protocolo_de_datos_tiene_su_documento_y_pautas_que_existen(self):
         pautas = {json.loads(r.read_text(encoding="utf-8"))["id"] for r in DATOS.glob("pauta-*.json")}
@@ -308,7 +341,7 @@ class LaSemillaDeLosCasos(Base):
 
     def test_un_protocolo_da_dos_pautas_la_del_rodillo_y_la_del_polin(self):
         protocolos.cargar_semilla(self.cx)
-        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01"])
+        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01", "pauta-polin-demo"])
 
     def test_se_puede_repetir_sin_duplicar(self):
         a = protocolos.cargar_semilla(self.cx)

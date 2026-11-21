@@ -185,6 +185,9 @@ _PELIGROS: tuple[tuple[dict[str, str], str, str], ...] = (
     ({"zona": "ocupada", "implementos": "levantados"},
      "PERSONA BAJO LOS IMPLEMENTOS LEVANTADOS. Salir de la zona o bajar y calzar los implementos.",
      "Construcción: 29 CFR 1926.600(a)(3)(i) (52)"),
+    ({"operario": "presente", "energia": "viva"},
+     "PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO. Alejarse; cortar la corriente y poner el candado antes de acercarse.",
+     "Minería: DS 132 art. 52 (44); estrategia de controles de correas, control crítico 1 (56)"),
 )
 
 

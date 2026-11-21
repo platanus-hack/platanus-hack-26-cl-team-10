@@ -68,4 +68,5 @@ El polín cambiado y su estación, por qué se cambió, quién cortó la corrien
 ## 10. Pautas que salen de este protocolo
 
 - `pauta-polin-ct-01`: el cambio de polín, con los tres bloques completos. Sus pasos se llaman igual que aquí.
+- `pauta-polin-demo`: la versión de 2 minutos para el demo, con la correa a escala. Deja fuera la tapa protectora y la prueba sin carga, y agrega «acercarte a la correa» y «alejarte», que mide el sensor de distancia.
 - `pauta-correa-ct-01`: el cambio de rodillo del demo anterior. Junta cortar la corriente y poner candado en un paso y no prueba que no arranca.
