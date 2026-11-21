@@ -168,6 +168,35 @@ class PorHTTP(unittest.TestCase):
         self.assertEqual(self.c.post("/cliente/ots", json={"pauta_id": "pauta-polin-demo"}, headers=ana).status_code, 403)
         self.assertEqual(self.c.get("/cliente/operadores", headers=ana).status_code, 403)
 
+    def test_la_lista_trae_la_calificacion_de_cada_ot(self):
+        carla = self.cabecera("carla.munoz@oculta.example")
+        lista = self.c.get("/cliente/ots", headers=carla).json()
+        self.assertEqual(len(lista), 16)
+        for o in lista:
+            self.assertEqual(o["calificacion"], self.c.get(f"/cliente/ots/{o['ot']}", headers=carla).json()["calificacion"], o["ot"])
+        self.assertGreater(len({o["calificacion"]["nivel"] for o in lista}), 1)
+        ana = self.c.get("/cliente/ots", headers=self.cabecera("ana.rojas@oculta.example")).json()
+        self.assertTrue(ana)
+        self.assertTrue(all("nivel" in o["calificacion"] for o in ana))
+
+    def test_un_operador_lee_los_nombres_de_su_empresa_y_nada_mas(self):
+        ana = self.cabecera("ana.rojas@oculta.example")
+        personas = self.c.get("/cliente/personas", headers=ana).json()
+        self.assertEqual({p["id"]: (p["nombre"], p["rol"]) for p in personas},
+                         {"supervisor:oculta": ("Carla Muñoz", "supervisor"), "operario:1": ("Ana Rojas", "operador"),
+                          "operario:2": ("Bruno Díaz", "operador")})
+        self.assertEqual({k for p in personas for k in p}, {"id", "nombre", "rol"})
+        self.assertEqual(self.c.get("/cliente/personas", headers=self.cabecera("carla.munoz@oculta.example")).json(), personas)
+        self.assertEqual(self.c.get("/cliente/personas").status_code, 401)
+
+    def test_los_nombres_de_una_empresa_no_salen_para_otra(self):
+        with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": ""}):
+            self.assertEqual(self.c.post("/interno/clientes", json={"id": "otra", "nombre": "Otra Minera"}).status_code, 201)
+            r = self.c.post("/interno/clientes/otra/personas", json={"id": "operario:otra-1", "nombre": "Luis", "usuario": "luis@otra.example", "rol": "operador"})
+        token = self.c.post("/auth/entrar", json={"usuario": "luis@otra.example", "clave": r.json()["clave"]}).json()["token"]
+        personas = self.c.get("/cliente/personas", headers={"Authorization": f"Bearer {token}"}).json()
+        self.assertEqual(personas, [{"id": "operario:otra-1", "nombre": "Luis", "rol": "operador"}])
+
     def test_salir_invalida_el_token(self):
         ana = self.cabecera("ana.rojas@oculta.example")
         self.assertEqual(self.c.post("/auth/salir", headers=ana).status_code, 204)

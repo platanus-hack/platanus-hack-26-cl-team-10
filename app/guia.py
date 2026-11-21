@@ -145,8 +145,10 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
 - **Para clientes (`/cliente/...`), con login**: se entra con `POST /auth/entrar` (`usuario` y `clave`) y el token
   va en cada llamada como `Authorization: Bearer <token>`; dura 12 horas y `POST /auth/salir` lo cierra. `GET /yo`
   dice quién es. Cada empresa ve solo lo suyo: `GET /cliente/pautas` lista las pautas que el equipo le habilitó, y
-  `GET /cliente/ots` sus OT (el operador, solo las que tiene asignadas). El supervisor pide OT con `POST /cliente/ots`
-  y las asigna a un operador de su empresa con `POST /cliente/ots/{{ot_id}}/asignar`. Las empresas, sus personas y
+  `GET /cliente/ots` sus OT (el operador, solo las que tiene asignadas), cada una con su `calificacion`. El supervisor
+  pide OT con `POST /cliente/ots` y las asigna a un operador de su empresa con `POST /cliente/ots/{{ot_id}}/asignar`.
+  `GET /cliente/personas` da el `id`, el `nombre` y el `rol` de las personas de la empresa, a cualquiera de ellas, para
+  mostrar nombres donde la bitácora guarda ids como `operario:1`. Las empresas, sus personas y
   sus pautas las crea el equipo en `/interno/clientes`; la clave de cada persona se genera y se ve una sola vez.
 
 ## Clave del equipo

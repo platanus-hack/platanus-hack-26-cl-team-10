@@ -442,8 +442,10 @@ def pedir_ot(p: PedidoOt, authorization: str | None = Header(default=None)) -> d
 
 @app.get("/cliente/ots")
 def ots_para_clientes(authorization: str | None = Header(default=None)) -> list[dict]:
-    """El supervisor ve todas las OT de su empresa; el operador, las que tiene asignadas."""
-    return acceso.ots_de(cx, _persona(authorization), servicios._ots_en_sesion())
+    """El supervisor ve todas las OT de su empresa; el operador, las que tiene asignadas. Cada una trae su
+    `calificacion`, la misma de `GET /cliente/ots/{ot_id}`."""
+    ots = acceso.ots_de(cx, _persona(authorization), servicios._ots_en_sesion())
+    return [{**o, "calificacion": servicios.calificacion(o["ot"])} for o in ots]
 
 
 @app.get("/cliente/ots/{ot_id}")
@@ -459,6 +461,13 @@ def operadores_del_cliente(authorization: str | None = Header(default=None)) -> 
     p = _persona(authorization)
     acceso.exige_rol(p, "supervisor")
     return acceso.personas_de(cx, p["cliente"]["id"], "operador")
+
+
+@app.get("/cliente/personas")
+def personas_del_cliente(authorization: str | None = Header(default=None)) -> list[dict]:
+    """El `id`, el `nombre` y el `rol` de cada persona de la empresa, para mostrar nombres donde la bitácora
+    guarda ids. Lo lee cualquier persona de la empresa, también un operador."""
+    return acceso.nombres_de(cx, _persona(authorization)["cliente"]["id"])
 
 
 @app.post("/cliente/ots/{ot_id}/asignar")

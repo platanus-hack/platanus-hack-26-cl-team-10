@@ -157,6 +157,11 @@ def personas_de(cx: sqlite3.Connection, cliente_id: str, rol: str | None = None)
     return [_persona_dict(cx, f) for f in filas]
 
 
+def nombres_de(cx: sqlite3.Connection, cliente_id: str) -> list[dict]:
+    """Lo que una persona puede saber de las demás de su empresa. El usuario no va: es la mitad del login."""
+    return [{"id": p["id"], "nombre": p["nombre"], "rol": p["rol"]} for p in personas_de(cx, cliente_id)]
+
+
 # ─── Entrar, saber quién es y salir ─────────────────────────────────────────
 
 

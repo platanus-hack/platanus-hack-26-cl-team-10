@@ -11,6 +11,7 @@ Con el [ADR-0011](./0011-protocolos-y-pautas-por-servicio-interno-ot-por-servici
 El servicio para clientes (`/cliente/...`) pide login. Una persona entra con usuario y clave en `POST /auth/entrar` y recibe un token que dura 12 horas. Con ese token, el servidor sabe quién pide y de qué empresa es, sin creerle a lo que venga en el cuerpo.
 
 - **Un cliente es una empresa**, con sus personas. Cada persona tiene uno de dos roles: el **supervisor** pide OT, las asigna a operadores de su empresa y ve todas las de su empresa; el **operador** ve las que tiene asignadas.
+- **Cualquier persona de la empresa lee el nombre y el rol de las demás** (`GET /cliente/personas`), para que un relevo diga «Ana Rojas» y no `operario:1`. El usuario con que cada una entra no sale: es la mitad del login. La lista de operadores para asignar (`GET /cliente/operadores`) sigue siendo del supervisor.
 - **Cada OT queda de la empresa que la pidió.** Una OT de otra empresa no existe para quien pregunta: 404, no 403, para no confirmar que existe.
 - **El equipo habilita qué pautas puede pedir cada cliente.** Un cliente ve y pide solo esas.
 - **El equipo crea las empresas y sus personas** en `/interno/clientes`, con la clave del equipo. La clave de cada persona la genera el sistema y se ve una sola vez; si se pierde, se genera otra, y eso cierra sus sesiones.
