@@ -1,7 +1,7 @@
 import { Button, Container, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core'
 import { IconAlertTriangle, IconCheck, IconHandFinger, IconUserCheck } from '@tabler/icons-react'
 import type { EstadoOt, Evento } from '../api/tipos'
-import { nombreDe } from '../sesion/usuarios'
+import { useNombres } from '../sesion/usuarios'
 import { cerradoPor } from './estado'
 
 const COMO: Record<string, string> = { '1': 'por sensor', '2': 'por la cámara', '3': 'por la cámara' }
@@ -18,6 +18,7 @@ type Props = {
 
 /** Lo que lee el que llega antes de seguir: qué está cerrado y cómo, qué warns hereda y desde dónde sigue. */
 export function Briefing({ ot, bitacora, alertas, relevo, onRecibido }: Props) {
+  const nombreDe = useNombres()
   const cerrados = ot.pasos.filter((p) => p.estado === 'verificado')
   const enConflicto = ot.pasos.filter((p) => p.estado === 'en_conflicto')
   const sigue = ot.pasos.find((p) => p.id === ot.paso_actual)

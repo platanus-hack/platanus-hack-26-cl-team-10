@@ -96,6 +96,9 @@ export type Persona = {
   cliente: { id: string; nombre: string; industria: string }
 }
 
+/** `GET /cliente/personas`: lo que cualquier persona de la empresa sabe de las demás. */
+export type Companero = { id: string; nombre: string; rol: Rol }
+
 /** `POST /auth/entrar`: el token dura 12 horas y se manda como `Authorization: Bearer`. */
 export type Entrada = { token: string; expira: string; persona: Persona }
 
@@ -119,11 +122,14 @@ export type OtResumen = {
   /** Pasos verificados (por su evidencia o confirmados por una persona) de `total`. */
   cerrados?: number
   total?: number
+  /** Todo bien, atención o detente: `GET /cliente/ots` la trae en cada OT. */
+  calificacion?: CalificacionOt
 }
 
 /** `GET /cliente/ots/{id}`: el resumen con su calificación (todo bien, atención o detente). */
 export type OtDetalle = OtResumen & { calificacion: CalificacionOt }
 
+/** Qué OT ejecuta una estación (edge), con qué operario y desde cuándo. */
 export type Sesion = { edge_id: string; ot_id: string; operario: string; desde: string }
 
 export type Snapshot = {

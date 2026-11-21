@@ -3,6 +3,7 @@
 import { config } from '../config'
 import { cerrarSesion, tokenDeSesion } from '../sesion/sesion'
 import type {
+  Companero,
   Entrada,
   EstadoOt,
   OtDetalle,
@@ -18,10 +19,9 @@ import type {
 
 /**
  * `sesion`: la API no reconoce el token (venció o se cerró). `credenciales`: el login no calzó.
- * `permiso`: la persona entró, pero su rol o su empresa no la dejan. `clave`: la estación ejecuta
- * otra OT y quitársela pide la clave del equipo (`X-Clave-Equipo`).
+ * `permiso`: la persona entró, pero su rol o su empresa no la dejan.
  */
-export type TipoError = 'regla' | 'no_existe' | 'timeout' | 'red' | 'http' | 'sesion' | 'credenciales' | 'permiso' | 'clave'
+export type TipoError = 'regla' | 'no_existe' | 'timeout' | 'red' | 'http' | 'sesion' | 'credenciales' | 'permiso'
 
 /** `regla` trae, en un 409, la regla de negocio que se violó: se muestra tal cual y no se reintenta. */
 export class ApiError extends Error {
@@ -56,9 +56,18 @@ export type Cliente = {
   listarPautas(): Promise<PautaResumen[]>
   /** Los operadores de la empresa, para asignarles OT. Solo supervisor. */
   listarOperadores(): Promise<Persona[]>
+  /** Nombre y rol de todas las personas de la empresa; lo lee cualquiera de ellas. */
+  listarPersonas(): Promise<Companero[]>
   /** Un supervisor pide una OT nueva de una pauta habilitada; queda sin asignar. */
   pedirOt(pautaId: string): Promise<OtPedida>
-  abrirSesion(otId: string, edgeId: string, operario: string): Promise<Sesion>
+  /**
+   * El operador une su OT a la estación con su token: el operario de la sesión es quien entró.
+   * Si la estación ejecuta otra OT abierta responde 409; `tomar` se la quita, y solo se manda
+   * cuando la persona lo pide con un toque. 403 si esa OT es de otra empresa.
+   */
+  abrirSesion(otId: string, edgeId: string, tomar?: boolean): Promise<Sesion>
+  /** Qué OT ejecuta la estación ahora, o null si está libre. Es público. */
+  leerSesionEdge(edgeId: string): Promise<Sesion | null>
   /** `pasoId` es el paso que la pantalla mostraba: si su evidencia ya lo cerró, no se evalúa el siguiente. */
   declarar(otId: string, actor: string, texto: string, pasoId?: string): Promise<RespuestaDeclarar>
   /** Una persona cierra el paso en curso contra la evidencia, con un motivo (obligatorio). */
@@ -110,8 +119,6 @@ export function crearCliente(
     if (r.ok) return datos as T
     if (r.status === 401) {
       if (ruta === '/auth/entrar') throw new ApiError(401, 'credenciales', 'Correo o clave incorrectos.')
-      // La estación está ejecutando otra OT y quitársela pide la clave del equipo: el login está bien.
-      if (typeof datos?.clave === 'string') throw new ApiError(401, 'clave', datos.clave)
       // Al salir, un token que ya no sirve no es una sesión vencida: la persona ya se fue.
       if (ruta !== '/auth/salir') acceso.alVencer()
       throw new ApiError(401, 'sesion', 'Tu sesión venció. Vuelve a entrar.')
@@ -131,8 +138,14 @@ export function crearCliente(
     leerPauta: (id, version) => pedir('GET', `/pautas/${encodeURIComponent(id)}?version=${version}`),
     listarPautas: () => pedir('GET', '/cliente/pautas'),
     listarOperadores: () => pedir('GET', '/cliente/operadores'),
+    listarPersonas: () => pedir('GET', '/cliente/personas'),
     pedirOt: (pautaId) => pedir('POST', '/cliente/ots', { pauta_id: pautaId }),
-    abrirSesion: (id, edgeId, operario) => pedir('POST', `${ot(id)}/sesion`, { edge_id: edgeId, operario }),
+    abrirSesion: (id, edgeId, tomar = false) => pedir('POST', `${otCliente(id)}/sesion`, { edge_id: edgeId, tomar }),
+    leerSesionEdge: (edgeId) =>
+      pedir<Sesion>('GET', `/edge/${encodeURIComponent(edgeId)}/sesion`).catch((e: unknown) => {
+        if (e instanceof ApiError && e.tipo === 'no_existe') return null
+        throw e
+      }),
     declarar: (id, actor, texto, pasoId) =>
       pedir('POST', `${ot(id)}/declarar`, pasoId ? { actor, texto, paso_id: pasoId } : { actor, texto }, TIMEOUT_DECLARAR_MS),
     confirmarPaso: (id, pasoId, actor, motivo) =>

@@ -214,11 +214,24 @@ export class Mundo {
     this.ot(otId).operador = operador
   }
 
+  /** Qué OT ejecuta una estación, como `GET /edge/{id}/sesion`; null si está libre. */
+  sesionDeEdge(edgeId: string): Sesion | null {
+    for (const ot of this.ots.values()) if (ot.sesion?.edge_id === edgeId) return ot.sesion
+    return null
+  }
+
+  /** Una estación ejecuta una OT a la vez: la que tenía queda sin sesión (sin sus sensores). */
   abrirSesion(otId: string, edgeId: string, operario: string): Sesion {
+    this.terminarSesion(edgeId)
     const sesion: Sesion = { edge_id: edgeId, ot_id: otId, operario, desde: new Date().toISOString() }
     this.ot(otId).sesion = sesion
     this.publicar(otId, { tipo: 'sesion', sesion, video: null })
     return sesion
+  }
+
+  /** La estación queda libre, como `DELETE /edge/{id}/sesion`. */
+  terminarSesion(edgeId: string): void {
+    for (const ot of this.ots.values()) if (ot.sesion?.edge_id === edgeId) ot.sesion = null
   }
 
   /** El relevo entregado que nadie ha recibido todavía, si la OT quedó sin operador. */

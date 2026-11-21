@@ -29,6 +29,7 @@ export type NombreEscenario =
   | 'api-caida'
   | 'completa'
   | 'incidente'
+  | 'estacion-ocupada'
 
 export const SENSOR_TARDA_MS = 4000
 export const CAMARA_TARDA_MS = 5000
@@ -290,6 +291,16 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
     },
     alIniciar(m, t) {
       t(8000, () => alertaDeGuarda(m, 'ot-13', t, 40_000))
+    },
+  }),
+
+  // La estación edge-1 ejecuta la OT de Bruno cuando Ana abre la suya: Ana ve de quién es y puede
+  // tomarla con un toque. /ot/ot-12?escenario=estacion-ocupada&como=operario:1
+  'estacion-ocupada': como({
+    preparar(m) {
+      otsBase(m)
+      m.abrirSesion('ot-13', 'edge-1', 'operario:2')
+      cerrarYa(m, 'ot-13', m.pauta.pasos[0])
     },
   }),
 }

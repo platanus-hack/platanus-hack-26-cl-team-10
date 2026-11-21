@@ -145,18 +145,14 @@ describe('login and token', () => {
     expect(alVencer).toHaveBeenCalledOnce()
   })
 
-  it('a busy station asking for the team key is not an expired session', async () => {
+  it('a station busy with another OT is a rule, not an expired session', async () => {
     const alVencer = vi.fn()
     const c = crearCliente(
       'https://x',
-      async () => json({ clave: 'el edge edge-1 ejecuta la OT ot-prueba: quitárselo pide la clave del equipo' }, 401),
+      async () => json({ regla: 'la estación edge-1 ejecuta la OT ot-1002 desde …; para quitársela, repetir con `tomar` en true' }, 409),
       { token: () => 't-ana', alVencer },
     )
-    await expect(c.abrirSesion('ot-1007', 'edge-1', 'operario:1')).rejects.toMatchObject({
-      status: 401,
-      tipo: 'clave',
-      message: 'el edge edge-1 ejecuta la OT ot-prueba: quitárselo pide la clave del equipo',
-    })
+    await expect(c.abrirSesion('ot-1007', 'edge-1')).rejects.toMatchObject({ status: 409, tipo: 'regla' })
     expect(alVencer).not.toHaveBeenCalled()
   })
 
@@ -170,6 +166,46 @@ describe('login and token', () => {
   it('maps 403 to ApiError permiso with the reason', async () => {
     const c = crearCliente('https://x', async () => json({ permiso: 'eso lo hace un supervisor; operario:1 es operador' }, 403))
     await expect(c.listarOperadores()).rejects.toMatchObject({ status: 403, tipo: 'permiso', message: 'eso lo hace un supervisor; operario:1 es operador' })
+  })
+})
+
+describe('stations and people', () => {
+  it('joins a station with the token: the body carries the edge and tomar, never the operario', async () => {
+    const pedidos: { url: string; metodo?: string; cuerpo: unknown }[] = []
+    const c = crearCliente('https://x', async (url, init) => {
+      pedidos.push({ url: String(url), metodo: init?.method, cuerpo: JSON.parse(String(init?.body)) })
+      return json({ edge_id: 'edge-1', ot_id: 'ot-1', operario: 'operario:1', desde: '2026-11-21T10:00:00' })
+    })
+    await c.abrirSesion('ot-1', 'edge-1')
+    await c.abrirSesion('ot-1', 'edge-1', true)
+    expect(pedidos).toEqual([
+      { url: 'https://x/cliente/ots/ot-1/sesion', metodo: 'POST', cuerpo: { edge_id: 'edge-1', tomar: false } },
+      { url: 'https://x/cliente/ots/ot-1/sesion', metodo: 'POST', cuerpo: { edge_id: 'edge-1', tomar: true } },
+    ])
+  })
+
+  it('reads what a station runs; a free station is null', async () => {
+    const sesion = { edge_id: 'edge-1', ot_id: 'ot-1002', operario: 'operario:2', desde: '2026-11-21T10:42:00' }
+    const urls: string[] = []
+    let libre = false
+    const c = crearCliente('https://x', async (url) => {
+      urls.push(String(url))
+      return libre ? json({ no_existe: 'sesión del edge edge-1' }, 404) : json(sesion)
+    })
+    expect(await c.leerSesionEdge('edge-1')).toEqual(sesion)
+    libre = true
+    expect(await c.leerSesionEdge('edge-1')).toBeNull()
+    expect(urls).toEqual(['https://x/edge/edge-1/sesion', 'https://x/edge/edge-1/sesion'])
+  })
+
+  it('reads the names of the people of the company', async () => {
+    const urls: string[] = []
+    const c = crearCliente('https://x', async (url) => {
+      urls.push(String(url))
+      return json([{ id: 'operario:1', nombre: 'Ana Rojas', rol: 'operador' }])
+    })
+    expect(await c.listarPersonas()).toEqual([{ id: 'operario:1', nombre: 'Ana Rojas', rol: 'operador' }])
+    expect(urls).toEqual(['https://x/cliente/personas'])
   })
 })
 

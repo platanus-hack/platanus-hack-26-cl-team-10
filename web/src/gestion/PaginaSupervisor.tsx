@@ -6,7 +6,7 @@ import { Link } from 'react-router'
 import { api } from '../api/cliente'
 import type { EstadoGeneral, OtPedida, PautaResumen, Persona } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
-import { nombreDe, recordarNombres } from '../sesion/usuarios'
+import { recordarNombres, useNombres } from '../sesion/usuarios'
 import { campana } from './campana'
 import { ESTADOS, incidentesDe, porPrioridad, puedeAsignarse, type Incidente } from './estados'
 import { EstadoBadge, Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
@@ -86,6 +86,7 @@ function Avance({ ot }: { ot: OtVista }) {
 }
 
 function Operador({ ot }: { ot: OtVista }) {
+  const nombreDe = useNombres()
   if (ot.operador) return <Text fw={600}>{nombreDe(ot.operador)}</Text>
   const entregado = ot.entregada_por ? `Turno entregado por ${nombreDe(ot.entregada_por)}` : 'Turno entregado'
   return (
@@ -179,6 +180,7 @@ function Ver({ ot, ancho = false }: { ot: OtVista; ancho?: boolean }) {
 
 /** Lo que pide mirar ya: OT abiertas en «detente». Cada una lleva a su vista en vivo. */
 function BarraIncidentes({ incidentes }: { incidentes: Incidente[] }) {
+  const nombreDe = useNombres()
   if (incidentes.length === 0) return null
   return (
     <Paper radius="md" p="md" bg="peligro.6" role="alert" aria-label="Incidentes en curso">
@@ -381,7 +383,7 @@ function PedirOt({ onPedida }: { onPedida: (o: OtPedida) => Promise<void> }) {
 
 export function PaginaSupervisor() {
   const usuario = useSesion()
-  const { ots, error, recargar } = useOts(undefined, undefined, null, true)
+  const { ots, error, recargar } = useOts()
   const operadores = useOperadores()
   const incidentes = useMemo(() => (ots ? incidentesDe(ots) : null), [ots])
   useCampanaDeIncidentes(incidentes)

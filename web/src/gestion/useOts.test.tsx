@@ -38,56 +38,29 @@ it('keeps the newest answer when an older one arrives late', async () => {
   expect(result.current.ots?.[0].avance).toBeNull()
 })
 
-describe('grading for the supervisor', () => {
-  const con = (id: string, estado: OtResumen['estado_general'], cerrados = 0): OtResumen => ({ ...ot(id), estado_general: estado, operador: 'operario:1', cerrados, total: 6 })
+describe('grading', () => {
   const calificacion = { nivel: 'warning' as const, certeza: 0.5, capa: 2, motivos: ['temp alta'], avisos: [] }
+  const con = (id: string, estado: OtResumen['estado_general'], conCalificacion = true): OtResumen => ({
+    ...ot(id), estado_general: estado, operador: 'operario:1', cerrados: 0, total: 6, ...(conCalificacion ? { calificacion } : {}),
+  })
 
-  function preparar(lista: () => OtResumen[]) {
-    vi.spyOn(api, 'listarOts').mockImplementation(async () => lista())
+  it('comes with the list, with no call per OT; unassigned OTs show none', async () => {
+    vi.spyOn(api, 'listarOts').mockResolvedValue([con('ot-run', 'en_ejecucion'), con('ot-fin', 'completa'), con('ot-libre', 'sin_asignar')])
     vi.spyOn(api, 'listarPautas').mockResolvedValue([])
-    return vi.spyOn(api, 'leerOtCliente').mockImplementation(async (id) => ({ ...lista().find((o) => o.ot === id)!, calificacion }))
-  }
-
-  it('the operator view asks for no grading', async () => {
-    const leer = preparar(() => [con('ot-1', 'en_ejecucion')])
-    const { result } = renderHook(() => useOts(60_000, 60_000, null, false))
+    const leer = vi.spyOn(api, 'leerOtCliente')
+    const { result } = renderHook(() => useOts(60_000, 60_000))
     await waitFor(() => expect(result.current.ots).not.toBeNull())
     expect(leer).not.toHaveBeenCalled()
-    expect(result.current.ots?.[0].calificacion).toBeNull()
-  })
-
-  it('grades every OT but the unassigned ones, and asks again only for running or changed ones', async () => {
-    let cerradosAsignada = 0
-    const leer = preparar(() => [con('ot-run', 'en_ejecucion'), con('ot-asig', 'asignada', cerradosAsignada), con('ot-fin', 'completa'), con('ot-libre', 'sin_asignar')])
-    const { result } = renderHook(() => useOts(60_000, 60_000, null, true))
-    // La primera carga la hace el hook al montarse.
-    await waitFor(() => expect(result.current.ots).not.toBeNull())
-    expect(leer.mock.calls.map(([id]) => id).sort()).toEqual(['ot-asig', 'ot-fin', 'ot-run'])
     expect(result.current.ots?.find((o) => o.ot === 'ot-run')?.calificacion?.nivel).toBe('warning')
+    expect(result.current.ots?.find((o) => o.ot === 'ot-fin')?.calificacion?.nivel).toBe('warning')
     expect(result.current.ots?.find((o) => o.ot === 'ot-libre')?.calificacion).toBeNull()
-
-    leer.mockClear()
-    await act(async () => {
-      await result.current.recargar()
-    })
-    expect(leer.mock.calls.map(([id]) => id)).toEqual(['ot-run'])
-
-    leer.mockClear()
-    cerradosAsignada = 1
-    await act(async () => {
-      await result.current.recargar()
-    })
-    expect(leer.mock.calls.map(([id]) => id).sort()).toEqual(['ot-asig', 'ot-run'])
   })
 
-  it('keeps the last grading when asking again fails', async () => {
-    const leer = preparar(() => [con('ot-run', 'en_ejecucion')])
-    const { result } = renderHook(() => useOts(60_000, 60_000, null, true))
-    await waitFor(() => expect(result.current.ots?.[0].calificacion).not.toBeNull())
-    leer.mockRejectedValue(new Error('caída'))
-    await act(async () => {
-      await result.current.recargar()
-    })
-    expect(result.current.ots?.[0].calificacion?.nivel).toBe('warning')
+  it('an OT that comes without grading shows none', async () => {
+    vi.spyOn(api, 'listarOts').mockResolvedValue([con('ot-run', 'en_ejecucion', false)])
+    vi.spyOn(api, 'listarPautas').mockResolvedValue([])
+    const { result } = renderHook(() => useOts(60_000, 60_000))
+    await waitFor(() => expect(result.current.ots).not.toBeNull())
+    expect(result.current.ots?.[0].calificacion).toBeNull()
   })
 })

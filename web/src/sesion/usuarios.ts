@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import type { Persona, Rol } from '../api/tipos'
 
 export type { Rol }
@@ -10,12 +11,34 @@ export function usuarioDe(p: Persona): Usuario {
   return { id: p.id, nombre: p.nombre, rol: p.rol, cliente: { id: p.cliente.id, nombre: p.cliente.nombre } }
 }
 
-// Los nombres que el front conoce: el de quien entró y, para el supervisor, los operadores de su
-// empresa (`GET /cliente/operadores`). Un operador no puede listar a los demás.
+// Los nombres que el front conoce: el de quien entró y los de su empresa (`GET /cliente/personas`,
+// que lee cualquier persona). Quien los muestra con useNombres se vuelve a pintar cuando llegan.
 const nombres = new Map<string, string>()
+const oyentes = new Set<() => void>()
+let version = 0
 
 export function recordarNombres(personas: { id: string; nombre: string }[]): void {
-  for (const p of personas) nombres.set(p.id, p.nombre)
+  let cambio = false
+  for (const p of personas) {
+    if (nombres.get(p.id) === p.nombre) continue
+    nombres.set(p.id, p.nombre)
+    cambio = true
+  }
+  if (!cambio) return
+  version++
+  // Fuera del render: useSesion también recuerda el nombre propio mientras pinta.
+  queueMicrotask(() => oyentes.forEach((avisar) => avisar()))
+}
+
+function suscribir(avisar: () => void): () => void {
+  oyentes.add(avisar)
+  return () => oyentes.delete(avisar)
+}
+
+/** `nombreDe`, y la pantalla se vuelve a pintar cuando llegan nombres nuevos. */
+export function useNombres(): typeof nombreDe {
+  useSyncExternalStore(suscribir, () => version)
+  return nombreDe
 }
 
 /**

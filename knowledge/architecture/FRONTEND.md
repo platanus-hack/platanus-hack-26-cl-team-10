@@ -129,7 +129,7 @@ export const tema = createTheme({
 
 **Pedir OT.** El supervisor elige una de las pautas de su empresa y la OT aparece por asignar, con un aviso de cuál pidió.
 
-**Verificación.** Cada OT de la lista dice cómo va lo que Factum verifica: «Todo bien», «Atención» o «Detente», con ícono y texto. Sale de `GET /cliente/ots/{id}`: las OT en ejecución se piden en cada recarga, las demás solo cuando cambia su resumen, y las sin asignar no se califican.
+**Verificación.** Cada OT de la lista dice cómo va lo que Factum verifica: «Todo bien», «Atención» o «Detente», con ícono y texto. La trae `GET /cliente/ots` en cada OT (`calificacion`), sin una llamada por OT. Las sin asignar no la muestran.
 
 **Incidentes.** Una OT abierta en «Detente» es un incidente. Arriba de la lista aparece una barra roja con cada uno (OT, operador y el motivo más grave) y «Ver en vivo». Cuando aparece uno nuevo suena una campana corta (Web Audio, sin archivos); los que ya estaban al entrar no suenan. El supervisor solo mira: no confirma ni detiene nada.
 
@@ -249,7 +249,13 @@ Pantalla de cierre con los pasos verificados, los confirmados por una persona y 
 
 Banner «Sin conexión, reintentando». Se mantiene el último estado conocido, los botones que escriben se deshabilitan y el WebSocket reintenta con espera creciente, volviendo con `?desde=`. Si vuelve la red, o la pantalla vuelve después de 10 s oculta, reconecta al tiro.
 
-Un 409 trae en `regla` la regla de negocio que se violó: se le muestra al operario tal cual y no se reintenta igual.
+Un 409 trae en `regla` la regla de negocio que se violó: se le muestra al operario tal cual y no se reintenta igual. La excepción es la estación ocupada (abajo): esa regla está escrita para quien llama a la API, y el operario ve otra cosa.
+
+### Estación ocupada
+
+Al empezar, el front une la OT con la estación (`POST /cliente/ots/{id}/sesion`, con el token del operador). Si la estación ejecuta otra OT abierta de la empresa, la API responde 409; el front pregunta cuál (`GET /edge/{edge}/sesion`) y, en vez de la regla, muestra «La estación edge-1 está con la OT-13 de Bruno Díaz desde las 10:42», que si la toma esa OT deja de recibir sus sensores, y un botón grande «Tomar la estación». Ese toque repite la llamada con `tomar: true`, y es el único camino que la manda. Mientras tanto la sesión se reintenta sola cada 3 s, siempre sin `tomar`: si la estación queda libre, la OT parte sola y el aviso se va.
+
+Si la estación ejecuta una OT de otra empresa (403) no hay botón: «La estación está ocupada con una OT de otra empresa. Pide que la liberen; esta OT parte sola apenas quede libre.», y sigue reintentando. Otro 409 (la OT ya está completa) se muestra tal cual y no se reintenta.
 
 ## 7. Aviso por voz (ElevenLabs)
 
@@ -257,7 +263,7 @@ Cuando la API avisa que un paso no se hizo, el aviso se convierte en voz con Ele
 
 **Cómo llega:**
 
-1. Al tocar «Comenzar» o «Continuar», el front abre la sesión (`POST /ot/{id}/sesion`) y se conecta a `wss://…/ot/{id}/stream`. Solo escucha. Si se corta, vuelve con `?desde=<último evento.id>`.
+1. Al tocar «Comenzar» o «Continuar», el front abre la sesión (`POST /cliente/ots/{id}/sesion`) y se conecta a `wss://…/ot/{id}/stream`. Solo escucha. Si se corta, vuelve con `?desde=<último evento.id>`.
 2. Suena un `evento` nuevo cuya `calificacion.nivel` es `error` (seguridad, un conflicto de sensor) y **siempre** una alerta de paso saltado (`orden`) o de paso que se deshizo (`control`), aunque la API la calificara más bajo. La duda de la cámara no suena: se ve en su paso. El front arma la frase y pide su audio a `GET /api/voz?texto=…`. Si el audio no empieza en 2,5 s, lo dice la voz del navegador.
 3. Lo que suena **también aparece en grande** sobre la pantalla: la misma frase, el título de la alerta («Paso saltado», «Peligro», «Control perdido»), qué hacer, «Entendido» y «Escuchar de nuevo». Con guantes y ruido de planta el operario puede no oírlo, y en el celular el banner queda fuera de la vista si bajó por la lista. Al tocar «Entendido» la pantalla va al paso afectado. Se cierra solo si la alerta se resuelve o el paso queda verificado; el banner y el paso siguen mostrando la alerta mientras esté activa.
 4. El `evento.id` es la llave: un evento suena y aparece una sola vez, también al reconectar. La bitácora que trae el snapshot al conectar **no** suena ni aparece: es lo que ya pasó.
@@ -290,14 +296,16 @@ La API está desplegada en `https://34-176-44-192.sslip.io`. La guía completa e
 | Qué | Para | Nota |
 |---|---|---|
 | `POST /auth/entrar` `{usuario, clave}` → `{token, expira, persona}` | los dos | `persona`: `{id, nombre, usuario, rol, cliente}`. El token dura 12 horas y va como `Authorization: Bearer`. 401 si no calzan. `POST /auth/salir` lo invalida |
-| `GET /cliente/ots` → `[{ot, pauta, version, equipo, abierta_en, paso_actual, completa, operador, estado_general, entregada_por, cerrados, total}]` | Diego | El supervisor ve todas las de su empresa; el operador, las suyas. El id viene en `ot`, no en `id`. El avance es `cerrados` sobre `total`, sin pedir cada OT. 401 sin token |
+| `GET /cliente/ots` → `[{ot, pauta, version, equipo, abierta_en, paso_actual, completa, operador, estado_general, entregada_por, cerrados, total, calificacion}]` | Diego | El supervisor ve todas las de su empresa; el operador, las suyas. El id viene en `ot`, no en `id`. El avance es `cerrados` sobre `total` y la verificación es `calificacion`, sin pedir cada OT. 401 sin token |
 | `GET /ot/{id}` → `{pauta, equipo, paso_actual, completa, pasos, verificados, en_conflicto, pendientes}` | los dos | Cada paso: `id, orden, titulo, estado, control_critico, capa, evidencia, detalle`. El dashboard del operador lo pide solo para sus OT abiertas, para mostrar en qué paso siguen |
 | `GET /cliente/pautas` → `[{id, nombre, version, equipo, pasos, protocolos}]` | Diego | Las pautas que la empresa puede pedir: su nombre legible para la lista de OT y las opciones de «Pedir OT» |
-| `GET /cliente/operadores` → `[persona]` | Diego | Los operadores de la empresa, para asignar y para sus nombres. Solo supervisor (403) |
+| `GET /cliente/operadores` → `[persona]` | Diego | Los operadores de la empresa, para asignar. Solo supervisor (403) |
+| `GET /cliente/personas` → `[{id, nombre, rol}]` | los dos | Los nombres de toda la empresa; lo lee cualquier persona, también un operador. Se pide una vez por sesión (al entrar o al abrir con una sesión guardada), para que el relevo y la bitácora digan «Ana Rojas» y no `operario:1` |
 | `POST /cliente/ots` `{pauta_id}` → `{ot, pauta, version, nombre, cliente}` | Diego | «Pedir OT»: la OT nace sin operador. Solo supervisor; 403 si la pauta no está habilitada para su empresa |
 | `GET /pautas/{pauta_id}?version=` | Dani | La pauta completa, con `instruccion`, `tipo_evidencia` y `deteccion` de cada paso: con eso se sabe si un paso se cierra solo. Se pide una vez |
 | `POST /cliente/ots/{id}/asignar` `{operador}` | Diego | Asigna una OT sin operador o reasigna una entregada. Quién asigna sale del token y queda en la bitácora como `ot_asignada`. 403 si el operador no es de la empresa; 409 si está completa o ya tiene operador |
-| `POST /ot/{id}/sesion` `{edge_id, operario}` | Dani | Une la OT con el edge. Sin sesión, las lecturas no llegan a ninguna OT. El demo tiene un solo edge, `edge-1`, que va en `VITE_EDGE_ID` |
+| `POST /cliente/ots/{id}/sesion` `{edge_id, tomar}` → `{edge_id, ot_id, operario, desde}` | Dani | Une la OT con el edge, con el token del operador y sin `X-Clave-Equipo`: el operario de la sesión es quien entró. Sin sesión, las lecturas no llegan a ninguna OT. 409 si la estación ejecuta otra OT abierta (se repite con `tomar: true`, solo con el toque del operador), 403 si esa OT es de otra empresa, 404 si la OT no es suya, 409 si ya está completa. El demo tiene un solo edge, `edge-1`, que va en `VITE_EDGE_ID` ([PR #39](https://github.com/platanus-hack/platanus-hack-26-cl-team-10/pull/39)) |
+| `GET /edge/{edge_id}/sesion` → `{edge_id, ot_id, operario, desde}` | Dani | Qué OT ejecuta la estación, para decir de quién es cuando está ocupada. Público; 404 si está libre |
 | `WS /ot/{id}/stream?desde=` | Dani | Primero un `snapshot` (estado, calificación, alertas activas, sesión, sensores y bitácora) y después `lectura`, `evento`, `calificacion_ot`, `sesion` y `detecciones` (lo que ve la cámara del edge) |
 | `POST /ot/{id}/declarar` `{actor, texto, paso_id}` | Dani | «Hecho». `paso_id` es el paso que la pantalla mostraba: si su evidencia ya lo cerró, no se evalúa el siguiente. Un paso de cámara se juzga con el último cuadro del edge |
 | `POST /ot/{id}/pasos/{paso_id}/confirmar` `{actor, motivo}` | Dani | «Ya lo hice». Solo el paso en curso, nunca uno de confirmación, nunca sin motivo (409). Deja un `veredicto` `verificado`, capa nula, con `evidencia: {tipo: persona, motivo, contra}` |
@@ -312,7 +320,7 @@ Respaldo si el ESP32 falla en el escenario: la lectura se puede escribir a mano 
 
 `GET /cliente/ots/{id}` trae la OT con su `calificacion` (todo bien, atención o detente). El front la usa para la verificación de la lista, para los incidentes y para saber si una persona puede abrir una OT: responde 404 si no es de su empresa o, para un operador, si no está asignada a él. Con 404 la ejecución dice «Esta OT no está en tu lista» y no abre sesión.
 
-`GET /edge/{edge_id}/video.mjpg` es el video en vivo de la estación, para un `<img>`. `POST /ot/{id}/sesion` responde 401 `{clave}` si la estación ejecuta otra OT: quitársela pide `X-Clave-Equipo`. El front no manda esa clave (iría en el navegador, a la vista); dice que la estación está ocupada y reintenta.
+`GET /edge/{edge_id}/video.mjpg` es el video en vivo de la estación, para un `<img>`. El front nunca manda `X-Clave-Equipo` (iría en el navegador, a la vista): por eso usa `POST /cliente/ots/{id}/sesion` y no `POST /ot/{id}/sesion`.
 
 ## 9. Escenarios del mock
 
@@ -329,6 +337,7 @@ Ejecución (Dani). Todos sirven para las dos pautas del repo: la correa (por def
 | Sin evidencia | `sin-senal` | Nada se cierra solo: a los 20 s el paso ofrece «Ya lo hice» |
 | Relevo | `relevo` | OT en 3/6 con un paso confirmado por Ana; Bruno entra y la termina |
 | Incidente | `incidente` | Para el supervisor: la OT de Bruno va en la estación y a los 8 s se abre la guarda con la energía viva. Barra roja, campana y vista en vivo. `/supervisor?escenario=incidente&como=supervisor:oculta` |
+| Estación ocupada | `estacion-ocupada` | `edge-1` ejecuta la OT de Bruno cuando Ana abre la suya: el aviso dice de quién es y «Tomar la estación» se la quita. `/ot/ot-12?escenario=estacion-ocupada&como=operario:1` |
 | API caída | `api-caida` | Errores y timeouts con el operario a mitad de un paso |
 | Ya completa | `completa` | La OT está terminada cuando el operario la abre |
 

@@ -8,6 +8,7 @@ import { PaginaLogin } from './gestion/PaginaLogin'
 import { PaginaOperador } from './gestion/PaginaOperador'
 import { PaginaOtSupervisor } from './gestion/PaginaOtSupervisor'
 import { PaginaSupervisor } from './gestion/PaginaSupervisor'
+import { NombresDeLaEmpresa } from './sesion/nombres'
 import { RequiereRol } from './sesion/RequiereRol'
 import { FONDO, tema } from './tema'
 
@@ -15,6 +16,7 @@ import { FONDO, tema } from './tema'
 export default function App() {
   return (
     <MantineProvider theme={tema} forceColorScheme="light">
+      <NombresDeLaEmpresa />
       <div style={{ minHeight: '100vh', background: FONDO }}>
         <BrowserRouter>
           <Routes>

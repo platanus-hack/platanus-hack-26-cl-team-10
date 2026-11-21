@@ -2,11 +2,12 @@ import { Badge, Box, Button, Container, Divider, Group, Paper, Progress, Stack, 
 import { IconVolume, IconVolumeOff } from '@tabler/icons-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Nivel } from '../api/tipos'
-import { nombreDe, type Usuario } from '../sesion/usuarios'
+import { useNombres, type Usuario } from '../sesion/usuarios'
 import { AvisoEnPantalla } from './AvisoEnPantalla'
 import { FranjaSinConexion, MensajeError } from './Avisos'
 import { BannerAlertas } from './BannerAlertas'
 import { BarraOt } from './BarraOt'
+import { EstacionOcupada } from './EstacionOcupada'
 import { avance, avisoDelPaso, cerradoPor, estadoUi } from './estado'
 import { Paso } from './Paso'
 import type { Ejecutor } from './useEjecucion'
@@ -89,6 +90,7 @@ function Cabecera({ otId, e }: { otId: string; e: Ejecutor }) {
 export function PantallaEjecucion({ otId, usuario, e, pie }: { otId: string; usuario: Usuario; e: Ejecutor; pie?: ReactNode }) {
   const { s, pauta } = e
   const ot = s.ot!
+  const nombreDe = useNombres()
   const habilitado = s.conexion === 'en_vivo' && !s.pendiente
   const quienCerro = (pasoId: string) => {
     const actor = cerradoPor(s.bitacora, pasoId)
@@ -104,6 +106,9 @@ export function PantallaEjecucion({ otId, usuario, e, pie }: { otId: string; usu
       <Container size={560} px="md" pt="md">
         <Stack gap="sm">
           <BannerAlertas alertas={s.alertas} ot={ot} />
+          {e.estacionOcupada && (
+            <EstacionOcupada sesion={e.estacionOcupada} tomando={e.tomandoEstacion} onTomar={() => void e.tomarEstacion()} />
+          )}
           {s.mensaje && <MensajeError mensaje={s.mensaje} onVisto={e.verMensaje} />}
           {ot.pasos.map((p) => (
             <Paso

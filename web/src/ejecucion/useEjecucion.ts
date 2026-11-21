@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore } from 'react'
 import { api, ApiError, urlStream } from '../api/cliente'
 import { cierraSolo } from '../api/pauta'
-import type { Deteccion, Pauta } from '../api/tipos'
+import type { Deteccion, Pauta, Sesion } from '../api/tipos'
 import { config } from '../config'
 import type { Usuario } from '../sesion/usuarios'
 import { inicial, reducir, saltoDe, textoParaVoz } from './estado'
@@ -21,12 +21,12 @@ export const tiempos = {
 }
 
 function mensajeDe(e: unknown): string {
-  if (e instanceof ApiError && e.tipo === 'clave') {
-    return 'La estación está ocupada con otra OT. Pide que la liberen; esta OT parte sola apenas quede libre.'
-  }
   if (e instanceof ApiError) return e.tipo === 'regla' && e.regla ? e.regla : e.message
   return 'Algo falló. Intenta de nuevo.'
 }
+
+/** 403 al abrir la sesión: la estación ejecuta la OT de otra empresa, que no se toma. */
+const ESTACION_AJENA = 'La estación está ocupada con una OT de otra empresa. Pide que la liberen; esta OT parte sola apenas quede libre.'
 
 const mismasClases = (a: Deteccion[], b: Deteccion[]) =>
   a.length === b.length && a.every((d, i) => d.clase === b[i].clase)
@@ -139,26 +139,72 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     return () => clearTimeout(reloj)
   }, [pasoEsperando])
 
+  // Abrir la sesión une la OT con la estación (`POST /cliente/ots/{id}/sesion`). Si falla, se
+  // reintenta sola cada tantos segundos, siempre sin `tomar`: quitarle la estación a otra OT es un
+  // toque de la persona («Tomar la estación»), porque esa OT deja de recibir sus sensores.
   const [fallosSesion, setFallosSesion] = useState(0)
-  const abrirSesion = useCallback(async () => {
-    try {
-      await api.abrirSesion(otId, config.EDGE_ID, usuario.id)
-      setSesionDesde((d) => d ?? Date.now())
-    } catch (e) {
-      dispatch({ tipo: 'error', mensaje: mensajeDe(e) })
-      setFallosSesion((n) => n + 1)
-    }
-  }, [otId, usuario.id])
+  /** La otra OT que ejecuta la estación, mientras esta espera. */
+  const [estacionOcupada, setEstacionOcupada] = useState<Sesion | null>(null)
+  const [tomando, setTomando] = useState(false)
+  const abrirSesion = useCallback(
+    async (tomar: boolean) => {
+      try {
+        await api.abrirSesion(otId, config.EDGE_ID, tomar)
+        setEstacionOcupada(null)
+        setSesionDesde((d) => d ?? Date.now())
+        return
+      } catch (e) {
+        if (e instanceof ApiError && e.tipo === 'regla') {
+          // Un 409 puede ser la estación ocupada: se pregunta cuál OT la tiene. La regla de la API
+          // está escrita para quien la llama, no para el operario, así que no se muestra.
+          const ocupante = await api.leerSesionEdge(config.EDGE_ID).catch(() => undefined)
+          if (ocupante === undefined) {
+            setFallosSesion((n) => n + 1)
+            return
+          }
+          if (ocupante && ocupante.ot_id !== otId) {
+            setEstacionOcupada(ocupante)
+            setFallosSesion((n) => n + 1)
+            return
+          }
+          // Otra regla (la OT ya está completa): se muestra y no se reintenta.
+          setEstacionOcupada(null)
+          dispatch({ tipo: 'error', mensaje: mensajeDe(e) })
+          return
+        }
+        if (e instanceof ApiError && e.tipo === 'permiso') {
+          setEstacionOcupada(null)
+          dispatch({ tipo: 'error', mensaje: ESTACION_AJENA })
+        } else {
+          dispatch({ tipo: 'error', mensaje: mensajeDe(e) })
+        }
+        // La OT que no es suya o el login vencido no se arreglan reintentando.
+        if (e instanceof ApiError && (e.tipo === 'no_existe' || e.tipo === 'sesion')) return
+        setFallosSesion((n) => n + 1)
+      }
+    },
+    [otId],
+  )
   useEffect(() => {
     if (fallosSesion === 0 || sesionDesde !== null) return
-    const reintento = setTimeout(() => void abrirSesion(), tiempos.reintentoSesionMs)
+    const reintento = setTimeout(() => void abrirSesion(false), tiempos.reintentoSesionMs)
     return () => clearTimeout(reintento)
   }, [fallosSesion, sesionDesde, abrirSesion])
 
   /** Dentro de un toque: desbloquea el audio (si hace falta) y une la OT con el edge. */
   const comenzar = useCallback(async () => {
     if (voz.estado() !== 'activo') await voz.desbloquear()
-    await abrirSesion()
+    await abrirSesion(false)
+  }, [abrirSesion])
+
+  /** «Tomar la estación»: el único camino que manda `tomar`. */
+  const tomarEstacion = useCallback(async () => {
+    setTomando(true)
+    try {
+      await abrirSesion(true)
+    } finally {
+      setTomando(false)
+    }
   }, [abrirSesion])
 
   /** «Hecho» en un paso que se cierra declarando (confirmación, o cámara que se juzga al declarar). */
@@ -217,7 +263,7 @@ export function useEjecucion(otId: string, usuario: Usuario) {
       dispatch({ tipo: 'error', mensaje: mensajeDe(e) })
       return
     }
-    await abrirSesion()
+    await abrirSesion(false)
   }, [otId, usuario.id, abrirSesion])
 
   return {
@@ -229,6 +275,10 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     vistas,
     sesionAbierta: sesionDesde !== null,
     sesionDesde,
+    /** La otra OT que ejecuta la estación, mientras esta espera para empezar. */
+    estacionOcupada: sesionDesde === null ? estacionOcupada : null,
+    tomandoEstacion: tomando,
+    tomarEstacion,
     comenzar,
     hecho,
     confirmar,

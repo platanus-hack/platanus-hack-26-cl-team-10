@@ -17,7 +17,7 @@ import { queDice, tituloDe } from '../ejecucion/alertas'
 import { FranjaSinConexion } from '../ejecucion/Avisos'
 import { cerradoPor, type Conexion } from '../ejecucion/estado'
 import { useSesion } from '../sesion/sesion'
-import { nombreDe, type Usuario } from '../sesion/usuarios'
+import { useNombres, type Usuario } from '../sesion/usuarios'
 import { estadoDe } from './estados'
 import { Encabezado, EstadoBadge, Pagina, VerificacionBadge } from './ui'
 import { useOtEnVivo } from './useOtEnVivo'
@@ -211,6 +211,7 @@ function IconoPaso({ paso, actual }: { paso: PasoEstado; actual: boolean }) {
 }
 
 function Pasos({ ot, bitacora }: { ot: EstadoOt; bitacora: Evento[] }) {
+  const nombreDe = useNombres()
   const cerrados = ot.pasos.filter((p) => p.estado === 'verificado').length
   return (
     <Paper withBorder radius="md" p="md">
@@ -290,6 +291,7 @@ function colorDe(ev: Evento): string {
 
 /** Todo lo que pasó en la OT, lo último arriba. Una alerta abierta se marca; la elegida, más. */
 function Bitacora({ bitacora, ot, abiertas, elegido }: { bitacora: Evento[]; ot: EstadoOt | null; abiertas: Set<number>; elegido: number | null }) {
+  const nombreDe = useNombres()
   const eventos = [...bitacora].sort((a, b) => b.id - a.id)
   const orden = (pasoId: string | null) => ot?.pasos.find((p) => p.id === pasoId)?.orden
   return (
@@ -347,6 +349,7 @@ function Bitacora({ bitacora, ot, abiertas, elegido }: { bitacora: Evento[]; ot:
 }
 
 function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
+  const nombreDe = useNombres()
   const v = useOtEnVivo(otId)
   const { s } = v
   const [elegido, setElegido] = useState<number | null>(null)

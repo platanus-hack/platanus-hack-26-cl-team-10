@@ -89,7 +89,9 @@ export function crearHandlers(
 
     http.get(`${raiz}/yo`, vivo(conLogin((_, p) => HttpResponse.json(p)))),
 
-    http.get(`${raiz}/cliente/ots`, vivo(conLogin((_, p) => HttpResponse.json(otsDe(p))))),
+    http.get(`${raiz}/cliente/ots`, vivo(conLogin((_, p) =>
+      HttpResponse.json(otsDe(p).map((o) => ({ ...o, calificacion: m.calificacion(o.ot) }))),
+    ))),
 
     http.get(`${raiz}/cliente/ots/:id`, vivo(conLogin(({ params }, p) => {
       const id = otDe(params)
@@ -103,6 +105,37 @@ export function crearHandlers(
     }))),
 
     http.get(`${raiz}/cliente/operadores`, vivo(conLogin(soloSupervisor(() => HttpResponse.json(operadores()))))),
+
+    // Nombre y rol de todos los de la empresa, sin el usuario del login (acceso.nombres_de).
+    http.get(`${raiz}/cliente/personas`, vivo(conLogin(() =>
+      HttpResponse.json(PERSONAS.map(({ id, nombre, rol }) => ({ id, nombre, rol }))),
+    ))),
+
+    // El operador une su OT a una estación con su token (acceso.exige_estacion): sin la clave del
+    // equipo, y quitársela a otra OT abierta solo con `tomar`.
+    http.post(`${raiz}/cliente/ots/:id/sesion`, vivo(conLogin(async ({ params, request }, p) => {
+      if (p.rol !== 'operador') return sinPermiso(`eso lo hace un operador; ${p.id} es ${p.rol}`)
+      const id = otDe(params)
+      const o = otsDe(p).find((x) => x.ot === id)
+      if (!o) return noExiste(`OT ${id}`)
+      const { edge_id = config.EDGE_ID, tomar = false } = ((await request.json().catch(() => null)) ?? {}) as { edge_id?: string; tomar?: boolean }
+      if (o.completa) return regla(`la OT ${id} ya está completa`)
+      const ocupante = m.sesionDeEdge(edge_id)
+      if (ocupante && ocupante.ot_id !== id && !m.estado(ocupante.ot_id).completa && !tomar) {
+        return regla(`la estación ${edge_id} ejecuta la OT ${ocupante.ot_id} desde ${ocupante.desde}, con ${ocupante.operario}; para quitársela, repetir con \`tomar\` en true`)
+      }
+      const sesion = m.abrirSesion(id, edge_id, p.id)
+      e.alAbrirSesion?.(m, id, t)
+      const actual = m.estado(id).paso_actual
+      const paso = actual ? m.paso(actual) : undefined
+      if (paso) e.alAvanzar?.(m, id, paso, t)
+      return HttpResponse.json(sesion)
+    }))),
+
+    http.get(`${raiz}/edge/:edge/sesion`, vivo(({ params }) => {
+      const s = m.sesionDeEdge(String(params.edge))
+      return s ? HttpResponse.json(s) : noExiste(`sesión del edge ${String(params.edge)}`)
+    })),
 
     // Un supervisor pide una OT de una pauta habilitada; nace sin operador (catalogo.generar_ot).
     http.post(`${raiz}/cliente/ots`, vivo(conLogin(soloSupervisor(async ({ request }, p) => {
@@ -141,18 +174,6 @@ export function crearHandlers(
     http.get(`${raiz}/pautas/:id`, vivo(({ params }) =>
       params.id === m.pauta.id ? HttpResponse.json(m.pauta) : noExiste(`pauta ${String(params.id)}`),
     )),
-
-    http.post(`${raiz}/ot/:id/sesion`, vivo(async ({ params, request }) => {
-      const id = otDe(params)
-      if (!m.existe(id)) return noExiste(`OT ${id}`)
-      const { edge_id = config.EDGE_ID, operario } = (await request.json()) as { edge_id?: string; operario: string }
-      const sesion = m.abrirSesion(id, edge_id, operario)
-      e.alAbrirSesion?.(m, id, t)
-      const actual = m.estado(id).paso_actual
-      const paso = actual ? m.paso(actual) : undefined
-      if (paso) e.alAvanzar?.(m, id, paso, t)
-      return HttpResponse.json(sesion)
-    })),
 
     http.post(`${raiz}/ot/:id/declarar`, vivo(async ({ params, request }) => {
       const id = otDe(params)
