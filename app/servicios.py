@@ -113,6 +113,17 @@ class Servicios:
     def _video_de(self, edge_id: str) -> dict:
         return {**self.video.estado(edge_id), "url": f"/edge/{edge_id}/video.mjpg"}
 
+    def recibir_detecciones(self, edge_id: str, d: dict) -> dict:
+        """Lo que vio el modelo del edge. Va en vivo a la UI; no escribe en la bitácora
+        (son varias por segundo): queda como evidencia cuando un paso de cámara se juzga."""
+        det = self.video.recibir_detecciones(edge_id, d)
+        mensaje = {"tipo": "detecciones", "edge_id": edge_id, **det}
+        self.bus.publicar(canal_edge(edge_id), mensaje)
+        sesion = self.sesion(edge_id)
+        if sesion is not None:
+            self.bus.publicar(canal_ot(sesion["ot_id"]), mensaje)
+        return det
+
     # ─── Bitácora: agregar y repartir ──────────────────────────────────────
 
     def agregar(self, ev: Evento) -> Evento:
