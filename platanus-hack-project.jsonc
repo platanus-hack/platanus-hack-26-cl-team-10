@@ -1,16 +1,16 @@
 {
   // Your project's name, as it will appear on the voting page.
-  "project-name": "<FILL THIS>",
+  "project-name": "Mantenimiento Verificado",
 
   // Short one-line summary of your project (in Spanish).
-  "project-oneliner-spanish": "<FILL THIS>",
+  "project-oneliner-spanish": "Un copiloto de IA que verifica con cámara y sensores cada paso de la pauta de mantenimiento y avisa al operario en el momento si se salta uno.",
 
   // Brief description of your project (in Spanish).
-  "project-description-spanish": "<FILL THIS>",
+  "project-description-spanish": "Las operaciones con equipos críticos, como una faena minera, ya tienen procedimientos estandarizados, pero no pueden comprobar que se cumplen: depende solo del operario. Mantenimiento Verificado convierte el protocolo del cliente en una pauta comprobable, genera la orden de trabajo desde ella y verifica cada paso en terreno con cámara, sensores y reglas deterministas. Si el operario se salta un paso, recibe el aviso por audio y lo corrige ahí, no después. La bitácora no se escribe: es la lista de pasos verificados con su evidencia, que permite al turno siguiente retomar el trabajo, mejorar la pauta y mostrarle al supervisor dónde mirar.",
 
   // Public URL where your project is deployed and running.
   // Must be a valid URL, for example: https://my-project.vercel.app
   // If your project is an app, put the download link here instead
   // (for example, a URL to download an APK).
-  "deploy-url": "<FILL THIS>"
+  "deploy-url": "https://github.com/platanus-hack/platanus-hack-26-cl-team-10"
 }
