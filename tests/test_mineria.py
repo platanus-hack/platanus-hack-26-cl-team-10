@@ -41,6 +41,17 @@ class CambioDeRodilloEnCorrea(unittest.TestCase):
     def test_a4_decir_bloqueo_puesto_con_el_candado_abierto_deja_el_bloqueo_en_conflicto(self):
         self.assertEqual(self.corre("A4")["obtenido"]["estados"]["p1"], "en_conflicto")
 
+    def test_a6_un_supervisor_confirma_el_bloqueo_con_el_reed_danado_y_queda_el_rastro(self):
+        r = self.corre("A6")
+        ev = [e for e in r["bitacora"] if (e["evidencia"] or {}).get("tipo") == "persona"][0]
+        self.assertEqual(ev["evidencia"]["contra"], {"sensor": "reed_bloqueo", "valor": "abierto", "espera": "cerrado"})
+
+    def test_confirmar_el_bloqueo_a_mano_no_apaga_la_alerta_de_guarda_con_energia_viva(self):
+        e = buscar("MIN-A6")
+        e = replace(e, pasos=[*e.pasos, {"lee": [["energia", "viva"], ["guarda", "abierta"]]}],
+                    espera={"alertas_seguridad": 1, "nivel": "error"})
+        self.assertIn("GUARDA ABIERTA CON ENERGÍA VIVA", self.avisos(self.corre("A6", e)))
+
     def test_a5_decir_guarda_retirada_sin_haber_bloqueado_deja_el_bloqueo_en_conflicto(self):
         self.assertEqual(self.corre("A5")["obtenido"]["paso_actual"], "p1")
 

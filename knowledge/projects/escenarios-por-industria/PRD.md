@@ -18,7 +18,7 @@
 
 ## 3. Objetivos y no-objetivos
 
-- **O1 —** Cada industria tiene los mismos 23 patrones, cada uno con su test de caso de uso en el archivo de su industria, y la matriz completa corre sin tocar la bitácora ni los sensores del servidor.
+- **O1 —** Cada industria tiene los mismos 24 patrones, cada uno con su test de caso de uso en el archivo de su industria, y la matriz completa corre sin tocar la bitácora ni los sensores del servidor.
 - **O2 —** Cada escenario dice de dónde sale lo que espera: una regla de LOGICA, un ADR o una norma con número en REFERENCIAS.
 - **O3 —** Cada brecha dice qué hace hoy el sistema, por qué y qué la cierra; y si alguien la cierra, el test lo avisa.
 - **O4 —** Para la capa 2, una simulación compara detectores contra fallas típicas de cada industria y dice cuál aguanta cuál.
@@ -56,7 +56,7 @@ En construcción, bloquear la palanca y aliviar la presión **no tienen norma**:
 
 ### 5.2 Patrones de ejecución
 
-Los mismos en las tres industrias. La barrera es la capa del [ADR-0004](../../decisions/0004-verificacion-por-capas.md) que decide el caso. Los 69 escenarios pasan; la última columna dice qué lo hace pasar.
+Los mismos en las tres industrias. La barrera es la capa del [ADR-0004](../../decisions/0004-verificacion-por-capas.md) que decide el caso. Los 72 escenarios pasan; la última columna dice qué lo hace pasar.
 
 | Grupo | Patrón | Barrera | Lo que pregunta | Qué lo decide |
 | --- | --- | --- | --- | --- |
@@ -66,6 +66,7 @@ Los mismos en las tres industrias. La barrera es la capa del [ADR-0004](../../de
 | | A3 Lo dice y después el sensor lo ve | 1 | ¿Interrumpe por segundos de diferencia? | Sí: conflicto y después verificado. Ver §9 |
 | | A4 Lo dice y el sensor nunca lo confirma | 1 | ¿Queda en conflicto y a la vista? | El paso por sensor |
 | | A5 Dice que hizo el siguiente sin hacer este | 1 | ¿Se detecta el salto? | La app evalúa el paso actual |
+| | A6 Lo confirma una persona contra el sensor | 1 | ¿Se le cree sin perder el rastro? | `POST /ot/{id}/pasos/{paso}/confirmar`: verificado por persona, OT en warning, la seguridad sigue mandando |
 | B · El orden | B1 Se salta el paso y hace el siguiente | 1 | ¿La pauta avanza igual? | No avanza, y entra el orden invertido |
 | | B2 Se lo salta, hace el siguiente y vuelve | 1 | ¿Queda registro del orden invertido? | Orden invertido, resuelto al hacer el paso saltado |
 | | B3 Se lo salta y crea la condición de peligro | 1 | ¿Suena la alerta? | La regla de peligro de su industria |
@@ -141,13 +142,13 @@ Promesas: la misma matriz para las tres industrias; lo esperado siempre con fuen
 
 ## 7. Alcance
 
-**Entra:** las tres pautas, los 23 patrones por industria, las reglas de §5.3 en `reglas.py`, la frescura, la declaración con su paso y el paso de cámara sin cuadro en `servicios.py`, el detector de capa 2 que no aprende de la falla, la caja aislada, `GET /escenarios` y `POST /escenarios[/{id}]/correr`, la matriz, el detalle y una sección por industria con su recorrido animado en `/casos` (`GET /industrias`), `tests/test_escenarios.py`, la simulación de capa 2 y el eval de capa 3 con su set de escenas.
+**Entra:** las tres pautas, los 24 patrones por industria, las reglas de §5.3 en `reglas.py`, la frescura, la declaración con su paso y el paso de cámara sin cuadro en `servicios.py`, el detector de capa 2 que no aprende de la falla, la caja aislada, `GET /escenarios` y `POST /escenarios[/{id}]/correr`, la matriz, el detalle y una sección por industria con su recorrido animado en `/casos` (`GET /industrias`), `tests/test_escenarios.py`, la simulación de capa 2 y el eval de capa 3 con su set de escenas.
 
 **No entra:** el detector de capa 2 para equipos con ciclo de carga (§9), conectar un VLM (frente 3), juntar las imágenes del eval y patrones de relevo de turno.
 
 ## 8. Criterios de aceptación
 
-- **CA1 —** **Dado** el catálogo, **cuando** se corre, **entonces** cada industria tiene los 23 patrones, cada patrón tiene su test en el archivo de su industria, y cada escenario sin brecha cumple lo esperado.
+- **CA1 —** **Dado** el catálogo, **cuando** se corre, **entonces** cada industria tiene los 24 patrones, cada patrón tiene su test en el archivo de su industria, y cada escenario sin brecha cumple lo esperado.
 - **CA2 —** **Dado** un escenario con brecha, **cuando** alguien cambia el código y el escenario empieza a cumplir, **entonces** el test falla y pide quitar la marca.
 - **CA3 —** **Dado** un servidor con su bitácora, **cuando** se corre la matriz, **entonces** su base no cambia.
 - **CA4 —** **Dado** cualquier escenario, **cuando** se lee, **entonces** dice de dónde sale lo que espera.
@@ -156,7 +157,7 @@ Promesas: la misma matriz para las tres industrias; lo esperado siempre con fuen
 - **CA8 —** **Dado** `/casos`, **cuando** se abre la sección de una industria, **entonces** se ven su trasfondo (la norma, lo que pasa cuando falla, sus reglas y sensores), su pauta y su arquitectura (tests, controladores, servicios y tablas). Al elegir un test, el recorrido de su escenario se anima tramo por tramo: qué controlador recibe, qué servicios corren y cuáles deciden, qué tablas se escriben y cómo queda cada paso de la pauta.
 - **CA7 —** **Dado** un juez de cámara, **cuando** se corre el eval de capa 3, **entonces** informa la falsa aceptación, el falso rechazo y la confianza en aciertos y errores, y cuenta aparte los casos sin imagen.
 
-Los tests: los casos de uso de cada industria en `tests/test_mineria.py`, `tests/test_electrica.py` y `tests/test_construccion.py`, 25 por industria; la matriz como un todo en `tests/test_escenarios.py` (CA1 a CA4); `tests/test_casos.py` (CA5 y CA8) y `tests/test_barreras.py` (CA6 y CA7).
+Los tests: los casos de uso de cada industria en `tests/test_mineria.py`, `tests/test_electrica.py` y `tests/test_construccion.py`, 26 a 28 por industria; la matriz como un todo en `tests/test_escenarios.py` (CA1 a CA4); `tests/test_casos.py` (CA5 y CA8) y `tests/test_barreras.py` (CA6 y CA7).
 
 ## 9. Riesgos y decisiones abiertas
 

@@ -38,6 +38,9 @@ class InterruptorEnCeldaDeMediaTension(unittest.TestCase):
     def test_a4_decir_seccionador_abierto_con_el_seccionador_cerrado_queda_en_conflicto(self):
         self.assertEqual(self.corre("A4")["obtenido"]["estados"]["p1"], "en_conflicto")
 
+    def test_a6_un_supervisor_confirma_el_corte_con_el_sensor_del_seccionador_danado(self):
+        self.assertEqual(self.corre("A6")["obtenido"]["paso_actual"], "p2")
+
     def test_a5_decir_mando_bloqueado_sin_abrir_el_seccionador_deja_el_corte_en_conflicto(self):
         self.assertEqual(self.corre("A5")["obtenido"]["paso_actual"], "p1")
 

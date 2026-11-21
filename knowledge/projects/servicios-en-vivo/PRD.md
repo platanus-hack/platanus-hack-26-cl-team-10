@@ -76,6 +76,8 @@ CUANDO la condición de una alerta abierta desaparece
   ENTONCES entra alerta_resuelta que la apunta, y el aviso deja de venir en calificacion.avisos
 CUANDO el sensor del paso en curso lleva más de 5 s sin lecturas
   ENTONCES la OT baja a warning: el sensor puede haberse caído
+CUANDO una persona confirma el paso en curso contra la evidencia, con motivo
+  ENTONCES el paso queda verificado por persona (capa nula), la OT en warning, y la seguridad se sigue evaluando con los sensores
 CUANDO el operario declara
   SI nombra un paso que su sensor ya cerró → se registra y no se evalúa contra el siguiente
   SI el paso es de cámara y no hay un cuadro de los últimos 10 s → no se verifica y no se le pregunta al juez
@@ -105,9 +107,10 @@ Promesas: un modelo nunca contradice a un sensor; solo la capa 1 llega a ERROR; 
 - **CA12 —** **Dado** un pico de vibración con alerta abierta, **cuando** la señal vuelve a lo normal, **entonces** la alerta de capa 2 se resuelve.
 - **CA13 —** **Dado** la cámara del edge transmitiendo, **cuando** el operario declara un paso de cámara, **entonces** el juez recibe el último cuadro y ese cuadro queda como evidencia del veredicto.
 - **CA14 —** **Dado** un agente nuevo, **cuando** lee `/agente`, **entonces** encuentra todas las rutas de la API con la URL del servidor.
+- **CA16 —** **Dado** un paso en curso cuyo sensor no muestra lo hecho, **cuando** una persona lo confirma con su motivo en `POST /ot/{id}/pasos/{paso}/confirmar`, **entonces** el paso queda verificado por persona, la bitácora guarda quién, por qué y qué marcaba el sensor, la OT queda en `warning`, y las reglas de seguridad siguen mandando. Sin motivo, como `sistema` o sobre un paso que no es el actual, recibe 409.
 - **CA15 —** **Dado** el banco `/casos` apuntando a un servidor, **cuando** se corre un criterio, **entonces** usa una OT y un edge propios de la corrida, muestra cada llamada con su respuesta y cada mensaje del stream, compara lo esperado con lo obtenido, y al terminar deja los sensores como estaban y su sesión cerrada.
 
-Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.py`, `tests/test_stream.py`, `tests/test_api_crud.py`, `tests/test_video.py` y `tests/test_casos.py`, y del CA1 al CA14 su tarjeta en `/casos`; `tests/test_casos.py` falla si un criterio queda sin tarjeta.
+Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.py`, `tests/test_stream.py`, `tests/test_api_crud.py`, `tests/test_video.py`, `tests/test_casos.py` y `tests/test_confirmar.py`, y del CA1 al CA14 su tarjeta en `/casos`; `tests/test_casos.py` falla si un criterio queda sin tarjeta.
 
 ## 9. Riesgos y decisiones abiertas
 

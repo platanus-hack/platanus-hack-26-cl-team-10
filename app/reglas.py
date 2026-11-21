@@ -10,7 +10,7 @@ modelo nunca contradice a un sensor.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 
 from app.contratos import Capa, Estado, Evento, Paso, Pauta, TipoEvidencia, Veredicto
 
@@ -207,7 +207,9 @@ def desviacion_de_orden(pauta: Pauta, estados: Mapping[str, Estado], sensor_id: 
     )
 
 
-def controles_deshechos(pauta: Pauta, estados: Mapping[str, Estado], sensores: Mapping[str, str]) -> list[Veredicto]:
+def controles_deshechos(
+    pauta: Pauta, estados: Mapping[str, Estado], sensores: Mapping[str, str], por_persona: Collection[str] = ()
+) -> list[Veredicto]:
     """Un control crítico ya verificado que se deshace antes de tiempo (LOGICA).
 
     Para cada sensor cuenta el último paso verificado que lo usa: si es control
@@ -215,6 +217,9 @@ def controles_deshechos(pauta: Pauta, estados: Mapping[str, Estado], sensores: M
     paso de la pauta que lo deshace a propósito queda verificado antes de llegar acá,
     así que no cuenta. Deja de mirar cuando solo quedan pasos de confirmación, que es
     cuando la pauta devuelve el equipo a servicio.
+
+    Un paso que confirmó una persona contra su sensor (`por_persona`) no cuenta: su
+    sensor nunca lo mostró hecho, así que no se puede «deshacer».
     """
     actual = paso_actual(pauta, estados)
     if actual is None or all(
@@ -225,6 +230,7 @@ def controles_deshechos(pauta: Pauta, estados: Mapping[str, Estado], sensores: M
     for p in pauta.en_orden:
         if p.sensor and estados.get(p.id) is Estado.VERIFICADO:
             ultimo[p.sensor.id] = p
+    ultimo = {k: p for k, p in ultimo.items() if p.id not in por_persona}
     return [
         Veredicto(
             Estado.EN_CONFLICTO,

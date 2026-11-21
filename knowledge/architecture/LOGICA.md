@@ -66,11 +66,23 @@ La regla de oro del [ADR-0004](../decisions/0004-verificacion-por-capas.md): **l
 
 Tres consecuencias que importan:
 
-1. **Un paso de sensor nunca se cierra hablando.** Si el operario dice «bloqueo puesto» y el reed switch está abierto, el paso queda `en_conflicto`, no `verificado`.
+1. **Un paso de sensor nunca se cierra hablando.** Si el operario dice «bloqueo puesto» y el reed switch está abierto, el paso queda `en_conflicto`, no `verificado`. Hablar no lo cierra; **confirmarlo sí**, con la acción explícita de abajo.
 2. **El orden no lo juzga el modelo.** Lo impone la aplicación, que pregunta por un paso a la vez, y lo comprueba la capa 1 con las marcas de tiempo: la energía se cortó *antes* de abrir la guarda. Es justo donde un VLM falla (3 de 12 cambios de orden, REFERENCIAS 9).
 3. **La capa 2 todavía no cierra pasos.** Detecta anomalías en la señal y abre la OT. Qué algoritmo usa es `Brecha`; la [simulación de capa 2](../projects/escenarios-por-industria/capa2-simulacion.md) compara candidatos.
 4. **La palabra tardía no se confunde con el paso siguiente.** La app manda el paso que mostraba al operario. Si el sensor ya lo cerró, la declaración se registra y no se evalúa contra el paso que sigue.
 5. **Un paso de cámara sin un cuadro reciente no se verifica.** Sin video de los últimos 10 s, la respuesta del juez no es evidencia, aunque diga que sí.
+
+## Cuando la persona y el sensor no coinciden
+
+Un sensor se cae, se descalibra o queda mal montado, y la pauta no puede quedar trabada por eso. Si una persona afirma que el paso está hecho y la evidencia no lo muestra, **se le cree, pero no en silencio**:
+
+- Es una acción aparte de declarar: `POST /ot/{id}/pasos/{paso}/confirmar`, con quién y por qué. Hablar sigue sin cerrar el paso.
+- Solo el paso en curso, porque el orden lo impone la app. Un paso de confirmación se cierra declarando, no por acá.
+- El paso queda `verificado` por una persona (`capa` nula). El evento guarda quién, el motivo y qué marcaba el sensor en ese momento. El conflicto anterior, si lo hubo, sigue en la bitácora.
+- La OT queda en `warning` mientras dure: el registro dice que ese control lo afirmó una persona contra la evidencia. No interrumpe.
+- **No apaga la seguridad.** Las reglas de peligro se siguen evaluando con los sensores reales. Si el bloqueo se confirmó a mano y después la guarda se abre con energía viva, la alerta suena igual. Un control cerrado por una persona no cuenta para «control crítico deshecho», porque su sensor nunca lo mostró hecho.
+
+Quién puede confirmar un control crítico (el operario o solo un supervisor) está abierto. `Candidata a validar`.
 
 ## Qué puede interrumpir al operario
 
@@ -126,7 +138,7 @@ La vista del supervisor **agrupa por pauta y por área antes que por persona**: 
 
 ## Lo que esta lógica todavía no resuelve
 
-- Qué pasa con un paso `en_conflicto` cuando el operario insiste. ¿Se escala a un supervisor? `Brecha`.
+- Si confirmar un control crítico contra el sensor exige a un supervisor y no al operario. Ver [Cuando la persona y el sensor no coinciden](#cuando-la-persona-y-el-sensor-no-coinciden). `Brecha`.
 - Qué fracción de los pasos de una pauta real tiene una señal de sensor disponible sin tocar el PLC. `Brecha`.
 - Qué algoritmo usa la capa 2. Para el demo, sin ciclo de trabajo, basta el desvío robusto contra la historia normal. Con un ciclo de carga, como en una subestación o una excavadora, hace falta saber en qué parte del ciclo va el equipo ([simulación](../projects/escenarios-por-industria/capa2-simulacion.md)). `Brecha`.
 - La latencia del aviso de punta a punta, y si el auricular convive con la protección auditiva de una planta. `Brecha`.

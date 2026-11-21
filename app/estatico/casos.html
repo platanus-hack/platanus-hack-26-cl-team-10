@@ -786,6 +786,45 @@ const CASOS = [
     },
   },
   {
+    id: "CA16", servicio: "servicios", objetivo: "O1",
+    titulo: "Una persona confirma el paso que el sensor no ve, y queda el rastro",
+    dado: "un paso en curso cuyo sensor no muestra lo hecho",
+    cuando: "una persona lo confirma con su motivo",
+    entonces: "el paso queda verificado por persona, con quién, por qué y qué marcaba el sensor; la OT en warning y la seguridad sigue mandando",
+    porque: `Un sensor se cae o queda mal montado, y la pauta no puede quedar trabada. Se le cree a la persona, pero no en silencio: es una acción aparte de declarar, solo sobre el paso en curso y con motivo (${LOGICA}, «Cuando la persona y el sensor no coinciden»). Quién puede confirmar un control crítico, si el operario o solo un supervisor, sigue abierto.`,
+    test: "tests/test_confirmar.py · PorHTTP",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      await c.lecturas([["reed_bloqueo", "abierto"]]);
+      const dijo = await c.http("POST", `/ot/${c.ot}/declarar`, {actor: "operario:casos", texto: "bloqueo puesto"});
+      const url = `/ot/${c.ot}/pasos/p1/confirmar`;
+      c.fase("cuando");
+      const sinMotivo = await c.http("POST", url, {actor: "supervisor:casos", motivo: ""});
+      const otroPaso = await c.http("POST", `/ot/${c.ot}/pasos/p2/confirmar`, {actor: "supervisor:casos", motivo: "adelanto"});
+      const r = await c.http("POST", url, {actor: "supervisor:casos", motivo: "el reed está dañado; el candado está puesto, lo vi"});
+      await s.esperar(ms => ms.some(m => m.tipo === "evento" && m.evento.evidencia?.tipo === "persona"));
+      const estado = await c.http("GET", `/ot/${c.ot}`);
+      const cal = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      await c.lecturas([["energia", "viva"], ["guarda", "abierta"]]);
+      c.fase("entonces");
+      const cal2 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      const evs = await c.http("GET", `/ot/${c.ot}/eventos`);
+      c.comprobar("Dado: declarar no lo cerró, quedó en conflicto", "en_conflicto", dijo.cuerpo?.estado);
+      c.comprobar("Sin motivo, o sobre un paso que no es el actual, es 409", [409, 409], [sinMotivo.status, otroPaso.status]);
+      c.comprobar("Con motivo, el paso queda verificado y la pauta avanza", {estado: "verificado", paso_actual: "p2"},
+        {estado: r.cuerpo?.estado, paso_actual: estado.cuerpo?.paso_actual});
+      c.comprobar("La evidencia dice quién, por qué y qué marcaba el sensor",
+        {tipo: "persona", contra: {sensor: "reed_bloqueo", valor: "abierto", espera: "cerrado"}},
+        {tipo: r.cuerpo?.evidencia?.tipo, contra: r.cuerpo?.evidencia?.contra});
+      c.comprobar("La OT queda en warning, no en ok", "warning", cal.cuerpo.nivel);
+      c.comprobar("El conflicto anterior sigue en la bitácora", ["en_conflicto", "verificado"],
+        deTipo(evs.cuerpo, "veredicto").filter(e => e.paso_id === "p1").map(e => e.estado));
+      c.comprobar("La seguridad sigue mandando: guarda abierta con energía viva es error", "error", cal2.cuerpo.nivel);
+    },
+  },
+  {
     id: "CA6", servicio: "bus", objetivo: "O2",
     titulo: "La UI recibe lectura, evento y calificación, en ese orden",
     dado: "una UI conectada al stream",

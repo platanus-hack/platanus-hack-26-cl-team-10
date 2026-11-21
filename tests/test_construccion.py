@@ -38,6 +38,9 @@ class MangueraHidraulicaEnExcavadora(unittest.TestCase):
     def test_a4_decir_implementos_abajo_con_los_implementos_arriba_queda_en_conflicto(self):
         self.assertEqual(self.corre("A4")["obtenido"]["estados"]["p1"], "en_conflicto")
 
+    def test_a6_un_supervisor_confirma_los_implementos_abajo_con_el_sensor_danado(self):
+        self.assertEqual(self.corre("A6")["obtenido"]["nivel"], "warning")
+
     def test_a5_decir_motor_apagado_sin_bajar_los_implementos_deja_el_paso_1_en_conflicto(self):
         self.assertEqual(self.corre("A5")["obtenido"]["paso_actual"], "p1")
 

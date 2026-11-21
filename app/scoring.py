@@ -179,6 +179,9 @@ def calificar_evento(ev: Evento) -> Calificacion | None:
         return Calificacion(Nivel.OK, 1.0, ev.capa, (ev.detalle,))
     if ev.tipo not in (TipoEvento.VEREDICTO, TipoEvento.ALERTA):
         return None
+    if ev.tipo is TipoEvento.VEREDICTO and (ev.evidencia or {}).get("tipo") == "persona":
+        return Calificacion(Nivel.WARNING, 0.5, None,
+                            (ev.detalle, "una persona lo cerró contra la evidencia: conviene revisar el sensor"))
     if ev.tipo is TipoEvento.ALERTA and ev.capa == Capa.APRENDIZAJE:
         certeza = float((ev.evidencia or {}).get("certeza", 1.0))
         return Calificacion(Nivel.WARNING, certeza, Capa.APRENDIZAJE, (ev.detalle,))

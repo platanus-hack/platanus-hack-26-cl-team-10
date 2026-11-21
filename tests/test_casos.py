@@ -57,7 +57,7 @@ class ElBancoSeSirve(unittest.TestCase):
     def test_la_pagina_trae_la_matriz_de_escenarios_y_el_servidor_la_corre(self):
         self.assertIn("Escenarios por industria", self.c.get("/casos").text)
         catalogo = self.c.get("/escenarios").json()
-        self.assertEqual(len(catalogo), 69)
+        self.assertEqual(len(catalogo), 72)
         r = self.c.post("/escenarios/correr").json()
         self.assertEqual({x["sello"] for x in r}, {"pasa"})
         uno = self.c.post("/escenarios/MIN-B2/correr").json()
@@ -76,9 +76,9 @@ class ElBancoSeSirve(unittest.TestCase):
                 self.assertGreaterEqual(len(i["trasfondo"]), 3)
                 self.assertTrue(all("REFERENCIAS" in t["texto"] for t in i["trasfondo"][:2]))
                 self.assertGreaterEqual(len(i["reglas"]), 3)
-                self.assertEqual(len(i["tests"]), 25)
+                self.assertGreaterEqual(len(i["tests"]), 26)
                 corren = [t for t in i["tests"] if t["escenario"]]
-                self.assertGreaterEqual(len(corren), 23)
+                self.assertGreaterEqual(len(corren), 24)
         piezas = r["arquitectura"]
         self.assertIn("POST /edge/{id}/lecturas", piezas["controladores"])
         self.assertEqual({t["id"] for t in piezas["tablas"]} >= {"sensores", "eventos", "sesiones"}, True)

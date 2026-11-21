@@ -87,6 +87,11 @@ pendiente) y **control perdido** (se deshizo un control crítico ya verificado).
 (`{{"actor":"operario:A","texto":"bloqueo puesto","paso_id":"p1"}}`). Si su sensor ya lo cerró, la palabra se
 registra y no se evalúa contra el paso siguiente. Un paso de cámara necesita un cuadro de los últimos 10 s.
 
+**Si el sensor no ve lo que la persona hizo** (sensor caído, mal montado, cámara sin vista), hablar no cierra el
+paso: se confirma aparte, con quién y por qué, en `POST /ot/{{ot_id}}/pasos/{{paso_id}}/confirmar`
+(`{{"actor":"supervisor:B","motivo":"el reed está dañado; el candado está puesto"}}`). Solo el paso en curso. El paso
+queda verificado por persona, la OT en `warning` y las reglas de seguridad siguen evaluándose con los sensores.
+
 ## En vivo: `WS {ws}/ot/{{ot_id}}/stream?desde=<id>`
 
 Conéctate y solo escucha; no hay que mandar nada. El primer mensaje es el snapshot y después llega

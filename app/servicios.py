@@ -261,6 +261,53 @@ class Servicios:
                 "interrumpe": v.interrumpe, "evidencia": evidencia,
                 "calificacion": evento_dict(ev)["calificacion"], "calificacion_ot": calificacion}
 
+    def confirmar_por_persona(self, ot_id: str, paso_id: str, actor: str, motivo: str) -> dict:
+        """Una persona afirma que el paso en curso está hecho aunque la evidencia no lo muestre.
+
+        Se le cree, pero no en silencio (LOGICA): queda quién, el motivo y qué marcaba
+        el sensor, la OT queda en warning y la seguridad se sigue evaluando con los
+        sensores reales. Solo el paso en curso, y no un paso de confirmación.
+        """
+        pauta, estados = self._pauta_y_estados(ot_id)
+        paso = pauta.paso(paso_id)
+        actual = paso_actual(pauta, estados)
+        if actual is None:
+            raise ReglaDeNegocio("la pauta ya está completa")
+        if paso.id != actual.id:
+            raise ReglaDeNegocio(f"solo se confirma el paso en curso ({actual.id}): el orden lo impone la app")
+        if paso.tipo_evidencia is TipoEvidencia.CONFIRMACION:
+            raise ReglaDeNegocio(f"«{paso.titulo}» es de confirmación: se cierra declarando")
+        if not actor or actor == "sistema":
+            raise ReglaDeNegocio("un paso lo confirma una persona, no el sistema")
+        if not motivo.strip():
+            raise ReglaDeNegocio("confirmar contra la evidencia necesita un motivo")
+
+        valor = db.estado_sensores(self.cx).get(paso.sensor.id) if paso.sensor else None
+        contra = ({"sensor": paso.sensor.id, "valor": valor, "espera": paso.sensor.espera} if paso.sensor
+                  else {"camara": paso.pregunta_visual})
+        que = (f"{paso.sensor.id} = {valor}, se esperaba {paso.sensor.espera}" if paso.sensor
+               else "la cámara no lo confirmó")
+        ev = self.agregar(Evento(
+            ot_id=ot_id, tipo=TipoEvento.VEREDICTO, ts=db.ahora(), actor=actor, paso_id=paso.id,
+            estado=Estado.VERIFICADO, capa=None, declarado=motivo,
+            evidencia={"tipo": "persona", "motivo": motivo, "contra": contra},
+            detalle=f"{actor} confirma «{paso.titulo}» contra la evidencia ({que}): {motivo}",
+        ))
+        self._resolver_orden(ot_id, f"lo confirmó {actor}")
+        calificacion = self.publicar_calificacion(ot_id)
+        d = evento_dict(ev)
+        return {"paso": paso.id, "estado": str(Estado.VERIFICADO), "capa": None, "detalle": ev.detalle,
+                "interrumpe": False, "evidencia": ev.evidencia, "calificacion": d["calificacion"],
+                "calificacion_ot": calificacion}
+
+    def _por_persona(self, ot_id: str) -> set[str]:
+        """Pasos cuyo último veredicto lo puso una persona contra la evidencia."""
+        ultimo: dict[str, Evento] = {}
+        for ev in db.eventos(self.cx, ot_id):
+            if ev.tipo is TipoEvento.VEREDICTO and ev.paso_id:
+                ultimo[ev.paso_id] = ev
+        return {p for p, ev in ultimo.items() if (ev.evidencia or {}).get("tipo") == "persona"}
+
     # ─── Lo que llega del edge ─────────────────────────────────────────────
 
     def recibir_lectura(
@@ -333,7 +380,8 @@ class Servicios:
     def _controles(self, ot_id: str, sensor_id: str, valor: str) -> list[Evento]:
         pauta, estados = self._pauta_y_estados(ot_id)
         sensores = db.estado_sensores(self.cx)
-        ahora = {f"control:{v.evidencia['paso']}": v for v in controles_deshechos(pauta, estados, sensores)}
+        ahora = {f"control:{v.evidencia['paso']}": v
+                 for v in controles_deshechos(pauta, estados, sensores, self._por_persona(ot_id))}
         activas = {k: e for k, e in self.alertas_activas(ot_id).items() if k.startswith("control:")}
         nuevos = [self._abrir(ot_id, v, clave) for clave, v in ahora.items() if clave not in activas]
         nuevos += [
@@ -343,23 +391,29 @@ class Servicios:
         ]
         return nuevos
 
-    def _orden(self, ot_id: str, sensor_id: str, valor: str) -> list[Evento]:
-        pauta, estados = self._pauta_y_estados(ot_id)
+    def _resolver_orden(self, ot_id: str, por: str = "") -> list[Evento]:
+        """Cierra las alertas de orden cuyo paso saltado ya se hizo o cuyo adelanto se deshizo."""
+        _, estados = self._pauta_y_estados(ot_id)
         sensores = db.estado_sensores(self.cx)
-        activas = self.alertas_activas(ot_id)
         nuevos = []
-        for clave, abierta in activas.items():
+        for clave, abierta in self.alertas_activas(ot_id).items():
             if not clave.startswith("orden:"):
                 continue
             ev = abierta.evidencia or {}
             if estados.get(ev.get("pendiente")) is Estado.VERIFICADO:
-                motivo = f"se hizo el paso saltado ({ev.get('pendiente')})"
+                motivo = f"se hizo el paso saltado ({ev.get('pendiente')}{', ' + por if por else ''})"
             elif sensores.get(ev.get("sensor")) != ev.get("valor"):
                 motivo = f"se deshizo lo adelantado ({ev.get('sensor')} = {sensores.get(ev.get('sensor'))})"
             else:
                 continue
             nuevos.append(self._resolver(ot_id, abierta, f"Orden resuelto: {motivo}. {abierta.detalle}",
-                                         {"tipo": "orden", "sensor": sensor_id, "valor": valor}))
+                                         {"tipo": "orden", "sensor": ev.get("sensor"),
+                                          "valor": sensores.get(ev.get("sensor"))}))
+        return nuevos
+
+    def _orden(self, ot_id: str, sensor_id: str, valor: str) -> list[Evento]:
+        pauta, estados = self._pauta_y_estados(ot_id)
+        nuevos = self._resolver_orden(ot_id)
         # Deshacer un control ya cuenta como control perdido: no se avisa dos veces lo mismo.
         perdido = any(k.startswith("control:") and (e.evidencia or {}).get("sensor") == sensor_id
                       for k, e in self.alertas_activas(ot_id).items())

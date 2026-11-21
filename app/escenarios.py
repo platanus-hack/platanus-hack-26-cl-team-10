@@ -234,6 +234,7 @@ PATRONES = (
     Patron("A3", "A", "Lo dice y después el sensor lo ve", 1, "¿Interrumpe por una diferencia de segundos?"),
     Patron("A4", "A", "Lo dice y el sensor nunca lo confirma", 1, "¿El paso queda en conflicto y a la vista?"),
     Patron("A5", "A", "Dice que hizo el paso siguiente sin hacer este", 1, "¿Se detecta que se lo saltó?"),
+    Patron("A6", "A", "Lo confirma una persona contra el sensor", 1, "¿Se le cree sin perder el rastro?"),
     Patron("B1", "B", "Se salta el paso y hace el siguiente", 1, "¿La pauta avanza igual?"),
     Patron("B2", "B", "Se salta el paso, hace el siguiente y vuelve a hacerlo", 1, "¿Queda registro del orden invertido?"),
     Patron("B3", "B", "Se salta el paso y crea la condición de peligro", 1, "¿Suena la alerta de seguridad?"),
@@ -337,6 +338,14 @@ def escenarios_de(i: Industria) -> list[Escenario]:
           pasos=[_lee((p1.sensor, p1.sin_hacer)), {"dice": p1.dice}],
           espera={"estados": {"p1": "en_conflicto"}, "paso_actual": "p1", "nivel": "error", "interrupciones": 1},
           fuente="Si el operario declara y el sensor dice otra cosa, el paso queda en conflicto y no se cierra (LOGICA)"),
+        E("A6", dado=f"el paso 1 en conflicto: el operario dijo «{p1.dice}» y {p1.sensor} sigue en {p1.sin_hacer}",
+          cuando="un supervisor lo confirma con su motivo (el sensor está dañado)",
+          entonces="el paso queda verificado por persona, la pauta avanza, la OT queda en warning y el conflicto sigue en la bitácora",
+          pasos=[_lee((p1.sensor, p1.sin_hacer)), {"dice": p1.dice},
+                 {"confirma": f"el sensor {p1.sensor} está dañado; lo verifiqué en terreno", "por": "supervisor:escenario"}],
+          espera={"estados": {"p1": "verificado"}, "paso_actual": "p2", "cerrados_por_persona": 1, "conflictos": 1,
+                  "nivel": "warning", "controles_deshechos": 0},
+          fuente="Cuando la persona y el sensor no coinciden, se le cree con rastro (LOGICA)"),
         E("A5", dado="el paso 1 sin hacer", cuando=f"el operario dice «{p2.dice}», que es el paso siguiente",
           entonces="la palabra se evalúa contra el paso 1, que queda en conflicto",
           pasos=[{"dice": p2.dice}],
@@ -454,6 +463,7 @@ SERVICIOS = {
     "senal": ("scoring.capa2", "desvío contra la historia normal"),
     "pegado": ("servicios._pegado", "diez lecturas idénticas seguidas"),
     "declarar": ("servicios.declarar", "lo que dice el operario, contra su paso"),
+    "confirmar": ("servicios.confirmar_por_persona", "una persona cierra el paso contra la evidencia"),
     "juez": ("verificacion.juez_camara", "la pregunta visual, con el último cuadro"),
     "calificacion": ("scoring.calificacion", "ok · warning · error, con motivos"),
     "bus": ("bus.publicar", "lo nuevo sale por el stream de la OT"),
@@ -462,6 +472,7 @@ CONTROLADORES = {
     "preparar": ["POST /pautas", "POST /ot/{id}/abrir", "POST /ot/{id}/sesion"],
     "lee": ["POST /edge/{id}/lecturas"],
     "dice": ["POST /ot/{id}/declarar"],
+    "confirma": ["POST /ot/{id}/pasos/{paso}/confirmar"],
     "cuadro": ["POST /edge/{id}/cuadro"],
     "pasa": [],
     "juez": [],
@@ -554,7 +565,8 @@ def arquitectura() -> dict:
 
 
 CONTROLADORES_ORDEN = ("POST /pautas", "POST /ot/{id}/abrir", "POST /ot/{id}/sesion", "POST /edge/{id}/lecturas",
-                       "POST /ot/{id}/declarar", "POST /edge/{id}/cuadro", "WS /ot/{id}/stream")
+                       "POST /ot/{id}/declarar", "POST /ot/{id}/pasos/{paso}/confirmar", "POST /edge/{id}/cuadro",
+                       "WS /ot/{id}/stream")
 
 
 def catalogo() -> list[Escenario]:
@@ -629,6 +641,11 @@ def correr(e: Escenario) -> dict:
                         s.recibir_lectura(EDGE, sensor, str(valor), seq)
                 elif "dice" in paso:
                     s.declarar(OT, OPERARIO, paso["dice"], paso.get("paso"))
+                elif "confirma" in paso:
+                    pauta_ahora = protocolos.desde_json(e.industria.pauta)
+                    actual = paso_actual(pauta_ahora, estados_desde_eventos(db.eventos(cx, OT)))
+                    s.confirmar_por_persona(OT, paso.get("paso") or actual.id, paso.get("por", "supervisor:escenario"),
+                                            paso["confirma"])
                 elif "juez" in paso:
                     juez_actual[0] = paso["juez"] if paso["juez"] == "stub" else tuple(paso["juez"])
                 elif "cuadro" in paso:
@@ -676,12 +693,14 @@ def _nuevos(cx, desde: int) -> list[dict]:
 def _tramo(cx, s: Servicios, paso: Paso, antes: int) -> dict:
     """Por dónde pasó un paso del escenario: controlador, servicios que corrieron y los que dispararon, tablas."""
     eventos = _nuevos(cx, antes)
-    accion = next(k for k in ("lee", "dice", "cuadro", "pasa", "juez") if k in paso)
+    accion = next(k for k in ("lee", "dice", "confirma", "cuadro", "pasa", "juez") if k in paso)
     disparan: list[str] = []
     for ev in eventos:
         clave = ev["clase"]
         if ev["tipo"] in ("alerta", "alerta_resuelta") and clave:
             disparan.append({"senal": "senal"}.get(clave, clave))
+        elif ev["tipo"] == "veredicto" and accion == "confirma":
+            disparan.append("confirmar")
         elif ev["tipo"] == "veredicto":
             disparan += ["paso"] if accion == "lee" else ["declarar", *(["juez"] if ev["capa"] == Capa.MODELO else [])]
         elif ev["tipo"] == "declaracion":
@@ -701,6 +720,10 @@ def _tramo(cx, s: Servicios, paso: Paso, antes: int) -> dict:
         tablas = ["sensores", "eventos"] + (["video"] if "juez" in disparan else [])
         if "juez" in disparan:
             corren.insert(1, "juez")
+    elif accion == "confirma":
+        corren = ["confirmar", "calificacion", "bus"]
+        texto = f"{paso.get('por', 'supervisor:escenario')} confirma contra la evidencia: «{paso['confirma']}»"
+        tablas = ["sensores", "eventos"]
     elif accion == "cuadro":
         corren, texto, tablas = [], "llega un cuadro de la cámara", ["video"]
     elif accion == "pasa":
@@ -764,6 +787,8 @@ def _medir(cx, s: Servicios, pauta, bus: _Captura) -> dict:
         "interrupciones": sum(1 for ev in evs if (c := calificar_evento(ev)) and c.nivel is Nivel.ERROR
                               and ev.tipo is not TipoEvento.ALERTA_RESUELTA),
         "verificados_por_paso": verificados,
+        "cerrados_por_persona": sum(1 for ev in evs if ev.tipo is TipoEvento.VEREDICTO
+                                    and (ev.evidencia or {}).get("tipo") == "persona"),
     }
 
 

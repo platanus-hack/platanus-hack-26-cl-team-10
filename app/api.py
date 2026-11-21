@@ -68,6 +68,11 @@ class LecturaSensor(BaseModel):
     valor: str
 
 
+class ConfirmacionPersona(BaseModel):
+    actor: str
+    motivo: str
+
+
 class Pregunta(BaseModel):
     actor: str
     texto: str
@@ -185,6 +190,13 @@ def declarar(ot_id: str, d: Declaracion) -> dict:
     """El operario habla. La evidencia manda: el veredicto lo decide reglas.py, y un paso
     de cámara se juzga con el último cuadro del edge de la OT."""
     return servicios.declarar(ot_id, d.actor, d.texto, d.paso_id)
+
+
+@app.post("/ot/{ot_id}/pasos/{paso_id}/confirmar")
+def confirmar_paso(ot_id: str, paso_id: str, c: ConfirmacionPersona) -> dict:
+    """Una persona confirma el paso en curso aunque su sensor o la cámara no lo muestren. Queda quién, por qué y qué
+    marcaba el sensor; la OT queda en warning y la seguridad sigue mandando. Solo el paso en curso; sin motivo, 409."""
+    return servicios.confirmar_por_persona(ot_id, paso_id, c.actor, c.motivo)
 
 
 @app.post("/sensores")
