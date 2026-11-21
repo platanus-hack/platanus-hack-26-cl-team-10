@@ -7,7 +7,7 @@
 <!-- El flujo completo en una sola pantalla: protocolo, pautas, OT y ejecución, con lo que pasa por detrás
      en cada etapa. Tres casos: el brazo del demo, una celda de media tensión y una excavadora.
      Lo que responde cada llamada y cada tramo del guion sale de correr app/ en una base en memoria;
-     las pautas de energía y construcción son las de datos/. Lo que no está construido va marcado.
+     las pautas de energía y construcción son las de datos/. Lo que no está construido va marcado, y lo que está en un PR sin integrar también.
      Un solo archivo, sin build ni red. Si el código cambia, se corrige en el mismo commit. -->
 <style>
 :root{--ink:#16202b;--muted:#5b6673;--line:#d9dee5;--soft:#f1f3f6;--bg:#f7f8fa;--paper:#fff;--brand:#2f5f9e;--brand-soft:#e7eef8;
@@ -63,6 +63,7 @@ aside h2{display:flex;align-items:center;gap:10px}
 .pieza h4:first-of-type{margin-top:0;color:var(--ink);font-size:16px}
 .pieza .tag{float:right;font-size:15px;font-weight:800;letter-spacing:.03em;color:#fff;background:var(--ok);border-radius:6px;padding:0 8px;margin-left:8px}
 .pieza.no .tag{background:var(--stub)}
+.pieza.pr{border-left-color:var(--warn)}.pieza.pr .tag{background:var(--warn)}
 .pieza pre{font-family:var(--mono);font-size:14.5px;background:var(--deep);color:#dfe7f1;border-radius:9px;padding:8px 10px;margin:6px 0 0;white-space:pre-wrap;word-break:break-word}
 .entra{margin:0;padding-left:20px} .entra li{margin:0 0 6px}
 details{margin-top:4px} summary{cursor:pointer;color:var(--brand);font-size:15px} .cita{font-style:italic;color:#3c4653;margin:6px 0 0} .campos{margin:6px 0 0;line-height:1.9}
@@ -502,7 +503,8 @@ function estadoEn(k, hasta) {
 const estadoActual = () => estadoEn(caso, pos);
 const evidenciaDe = p => p.sensor ? `<span class="ev sensor">sensor</span> <code>${p.sensor.id} = ${p.sensor.espera}</code>` : p.tipo_evidencia === "camara" ? `<span class="ev camara">cámara</span> ${esc(p.pregunta_visual)}` : '<span class="ev persona">confirmación</span> la palabra del operario';
 const jsonCorto = (o, campos) => esc(JSON.stringify(campos ? Object.fromEntries(campos.map(k => [k, o[k]])) : o).replace(/","/g, '", "').replace(/":/g, '": ').replace(/,"/g, ', "'));
-const bloque = (hecho, titulo, cuerpo) => `<div class="pieza ${hecho ? "si" : "no"}"><span class="tag">${hecho ? "construido" : "no construido"}</span><h4>${titulo}</h4>${cuerpo}</div>`;
+const PR = "pr";
+const bloque = (hecho, titulo, cuerpo) => `<div class="pieza ${hecho === PR ? "pr" : hecho ? "si" : "no"}"><span class="tag">${hecho === PR ? "en el PR #34" : hecho ? "construido" : "no construido"}</span><h4>${titulo}</h4>${cuerpo}</div>`;
 
 function pintar() {
   const c = C(), E = estadoActual(), n = total(), etapa = Math.min(pos, 3), p = c.pauta;
@@ -514,8 +516,8 @@ function pintar() {
   if (etapa === 0) {
     v = `<h3>El protocolo que el cliente ya tiene</h3><p>Es el punto de partida: el procedimiento estandarizado de la operación, tal como está escrito hoy. No se le pide que lo reescriba. Se carga una vez, cuando se instala la estación.</p>
       <div class="papel"><b>${esc(p.nombre)}</b><small>Equipo: ${esc(p.equipo)}</small><ol>${p.pasos.map(x => `<li><b>${esc(x.titulo)}.</b> ${esc(x.instruccion)}</li>`).join("")}</ol></div>`;
-    d = bloque(false, "<code>POST /protocolos</code>", `<p>Recibe el documento y le da un id, aquí <code>${c.protocolo}</code>. Se guarda una fila en una tabla <code>protocolos</code>, y el archivo va a disco.</p>`)
-      + bloque(true, "Lo que hay hoy", `<p><code>app/protocolos.py</code> lleva el nombre, pero solo lee un JSON de <code>datos/</code>. El repo no tiene protocolos de clientes: el texto de la izquierda está armado con los títulos y las instrucciones de ${caso === "brazo" ? "un borrador de pauta escrito para este documento" : `la pauta <code>${p.id}</code>`}.</p>`);
+    d = bloque(PR, "<code>POST /interno/protocolos</code>", `<p>El servicio interno, que usa el equipo de Factum con la clave del equipo. Guarda el protocolo como un recurso, aquí <code>${c.protocolo}</code>: su nombre, la industria, de dónde salió y su texto. Se puede leer, corregir y borrar; borrarlo se rechaza mientras tenga pautas.</p>`)
+      + bloque(true, "Lo que hay hoy", `<p><code>app/protocolos.py</code> lleva el nombre, pero solo lee un JSON de <code>datos/</code>. El repo no tiene protocolos de clientes, y los seis que carga el PR #34 los redactó el equipo: el texto de la izquierda está armado con los títulos y las instrucciones de ${caso === "brazo" ? "un borrador de pauta escrito para este documento" : `la pauta <code>${p.id}</code>`}.</p>`);
   } else if (etapa === 1) {
     const inventario = Object.fromEntries(Object.entries(c.valores).map(([k, vs]) => [k, {valores: vs, reposo: c.reposo[k], mide: c.mide[k]}]));
     v = `<h3>Un modelo de lenguaje crea las pautas</h3><p>Se hace una vez por protocolo, al instalar la estación, y lo hace el equipo de Factum. El modelo lee el procedimiento y le agrega lo que el documento no dice: qué evidencia cierra cada paso y cuáles son controles críticos. Cada pauta queda atada a su protocolo.</p>
@@ -541,8 +543,9 @@ if r.stop_reason != "end_turn":     # sin respuesta confiable: no hay pauta
     raise SinPauta(r.stop_reason)
 pautas = json.loads(next(b.text for b in r.content if b.type == "text"))["pautas"]
 for pauta in pautas:
-    catalogo.crear_pauta(cx, pauta)  # el contrato rechaza lo mal formado</pre><p class="nota">Borrador sin correr: falta un protocolo real para probarlo.</p></details>`)
-      + bloque(false, "Atarla a su protocolo", `<p>Cada pauta guarda de qué protocolo salió: <code>protocolo_id = ${c.protocolo}</code>. Es una columna en la tabla <code>pautas</code>, no un campo del contrato.</p>`)
+    # el contrato rechaza lo mal formado
+    catalogo.crear_pauta_de(cx, [protocolo_id], pauta, actor)</pre><p class="nota">Borrador sin correr: falta un protocolo real para probarlo.</p></details>`)
+      + bloque(PR, `<code>POST /interno/protocolos/${c.protocolo}/pautas</code>`, `<p>La pauta se crea ya atribuida a su protocolo. La relación es de muchos a muchos y vive en una tabla aparte, <code>pauta_protocolo</code>, no en el contrato: un protocolo da varias pautas, y esta también sale de <code>prot-aislamiento-01</code>, el protocolo transversal de aislamiento de energías.</p>`)
       + bloque(true, "El contrato valida lo que entre", "<p>Un paso de sensor tiene que nombrar su sensor, uno de cámara su pregunta, y no se repiten ni el orden ni el id. Lo mal formado se rechaza, venga de una persona o de un modelo.</p>")
       + bloque(true, "<code>POST /pautas</code> y su aprobación", `<p>La pauta nace sin aprobar, y una persona la aprueba una sola vez antes de que se pueda usar. En la puesta en marcha, esa persona es quien revisa lo que propuso el modelo.</p><pre>${jsonCorto(c.real.crear, ["id", "version", "pasos", "aprobada"])}\n${jsonCorto(c.real.aprobar, ["id", "version", "aprobada"])}</pre>
         <p class="nota">${caso === "brazo" ? "Hoy esta pauta es un borrador escrito a mano para este documento." : "Hoy esta pauta está escrita a mano, en <code>datos/</code>."}</p>`);
@@ -551,7 +554,7 @@ for pauta in pautas:
     v = `<h3>Un servicio genera la OT</h3><p>Con las pautas aprobadas y el equipo ya instalado en la estación, esto es lo único que se repite: cada vez que hay que hacer el trabajo, el cliente pide una OT. La OT guarda qué versión de la pauta corre, se asigna a un operador, y la sesión la une a la estación.</p>
       <div class="ot-card"><b>${esc(c.ot)}</b><span>${esc(c.real.abrir.nombre)} · versión ${c.real.abrir.version} · de <code>${c.protocolo}</code></span><span>${esc(a.equipo)}</span>
       <span><span class="badge gris">${a.operador}</span> <span class="badge warning">en_ejecucion</span> <span class="badge gris">${a.cerrados} de ${a.total} pasos</span> <span class="badge gris">${esc(c.edge)}</span></span></div>`;
-    d = bloque(false, "<code>POST /protocolos/{id}/ots</code>", "<p>El sistema del cliente pide una OT de una pauta de su protocolo, sin conocer ids internos. Falta que la pauta sepa de qué protocolo es: una columna en su tabla.</p>")
+    d = bloque(PR, "<code>POST /cliente/ots</code>", `<p>El servicio del cliente, sin la clave del equipo. El cliente ve en <code>GET /cliente/pautas</code> las pautas que tienen una versión aprobada y al menos un protocolo, y pide una OT nombrando la pauta. El servicio elige la última versión aprobada, le pone el id a la OT y responde de qué protocolos sale.</p><pre>{"pauta_id": "${p.id}", "solicitante": "cliente:planta"}</pre><p class="nota">Por dentro llama a la misma apertura de abajo. Falta una credencial por cliente.</p>`)
       + bloque(true, `<code>POST /ot/${c.ot}/abrir</code>`, `<p>Solo desde una pauta aprobada. Guarda la versión y escribe la primera fila de la bitácora: «${esc(c.apertura[0][1])}».</p><pre>${jsonCorto(c.real.abrir)}</pre>`)
       + bloque(true, `<code>POST /ot/${c.ot}/asignar</code>`, `<p>Un supervisor la deja en manos de un operador. Quién la tiene se lee de la bitácora, no de una columna.</p><pre>${jsonCorto(a, ["operador", "estado_general", "cerrados", "total"])}</pre>`)
       + bloque(true, `<code>POST /ot/${c.ot}/sesion</code>`, `<p>Une el edge de la estación con la OT. Desde aquí cada lectura de ese edge entra a esta OT y solo a esta.</p><pre>${jsonCorto(c.real.sesion)}</pre>`);
