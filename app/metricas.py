@@ -22,6 +22,7 @@ from datetime import date, datetime, timedelta
 
 from app import catalogo, db
 from app.contratos import Estado, Evento, Pauta, TipoEvento
+from app.scoring import CONFIANZA_CAMARA_MIN
 
 DE_EJECUCION = ("seguridad", "orden", "control")
 DE_SENSORES = ("senal", "pegado")
@@ -53,6 +54,16 @@ class Ejecucion:
     observaciones: list[dict] = field(default_factory=list)
     operarios: set[str] = field(default_factory=set)
     relevos: Counter = field(default_factory=Counter)
+    veredictos: dict[str, list[Evento]] = field(default_factory=lambda: defaultdict(list))
+    cierres: dict[str, datetime] = field(default_factory=dict)
+
+    def segundos_del_paso(self, paso_id: str) -> float | None:
+        """Desde que se cerró el paso anterior hasta que se cerró este. El primero no tiene: la bitácora no guarda
+        cuándo empezó a trabajar el operario, solo cuándo se cerró cada paso."""
+        if paso_id not in self.cierres:
+            return None
+        antes = [t for p, t in self.cierres.items() if t <= self.cierres[paso_id] and p != paso_id]
+        return (self.cierres[paso_id] - max(antes)).total_seconds() if antes else None
 
     @property
     def desviaciones(self) -> Counter:
@@ -106,6 +117,9 @@ def leer(cx: sqlite3.Connection, ot: dict) -> Ejecucion:
                 a.resuelta = _hora(ev.ts)
         elif ev.tipo is TipoEvento.VEREDICTO and ev.paso_id:
             ultimo[ev.paso_id] = ev
+            e.veredictos[ev.paso_id].append(ev)
+            if ev.estado is Estado.VERIFICADO:
+                e.cierres[ev.paso_id] = _hora(ev.ts)
             if ev.estado is Estado.EN_CONFLICTO:
                 e.por_paso[ev.paso_id]["conflicto"] += 1
             if (ev.evidencia or {}).get("tipo") == "persona":
@@ -263,14 +277,29 @@ def por_paso(es: list[Ejecucion], pauta: Pauta, orden: str = "pauta") -> list[di
     for paso in pauta.en_orden:
         senales = Counter({s: 0 for s in POR_PASO})
         evidencia = Counter({k: 0 for k in EVIDENCIAS})
+        capas: Counter = Counter()
+        confianzas, intentos, segundos, bajo_umbral = [], [], [], 0
         for e in es:
             senales.update(e.por_paso.get(paso.id, Counter()))
             if paso.id in e.verificados:
                 evidencia[e.verificados[paso.id]] += 1
+                cierre = next(v for v in reversed(e.veredictos[paso.id]) if v.estado is Estado.VERIFICADO)
+                capas[_capa(cierre)] += 1
+                conf = (cierre.evidencia or {}).get("confianza")
+                if conf is not None:
+                    confianzas.append(float(conf))
+                    bajo_umbral += cierre.capa == 3 and float(conf) < CONFIANZA_CAMARA_MIN
+                intentos.append(len(e.veredictos[paso.id]))
+                if (s := e.segundos_del_paso(paso.id)) is not None:
+                    segundos.append(s)
         salida.append({
             "paso": paso.id, "orden": paso.orden, "titulo": paso.titulo, "control_critico": paso.control_critico,
             "tipo_evidencia": str(paso.tipo_evidencia), "ejecuciones": len(es),
             "verificado": sum(evidencia.values()), "verificado_por": dict(evidencia),
+            "capa_minima": paso.capa_minima, "cerrado_en_capa": {str(k): n for k, n in sorted(capas.items(), key=str)},
+            "confianza": {"min": min(confianzas), "media": _media(confianzas), "max": max(confianzas),
+                          "bajo_el_umbral": bajo_umbral} if confianzas else None,
+            "intentos_medios": _media(intentos), "segundos_medios": _media(segundos),
             "desviaciones": sum(senales[s] for s in POR_PASO), "por_clase": {s: senales[s] for s in POR_PASO},
             "observaciones": [{"categoria": o["categoria"], "texto": o["texto"], "ts": o["ts"]}
                               for e in es for o in e.observaciones if o["paso"] == paso.id],
@@ -278,6 +307,13 @@ def por_paso(es: list[Ejecucion], pauta: Pauta, orden: str = "pauta") -> list[di
     if orden == "desviaciones":
         salida.sort(key=lambda p: (-p["desviaciones"], p["orden"]))
     return salida
+
+
+def _capa(ev: Evento) -> int | str:
+    """La capa que cerró el paso, o quién: `persona` si lo confirmó contra la evidencia, `palabra` si es de confirmación."""
+    if (ev.evidencia or {}).get("tipo") == "persona":
+        return "persona"
+    return ev.capa if ev.capa is not None else "palabra"
 
 
 def serie(es: list[Ejecucion], intervalo: str = "dia") -> list[dict]:

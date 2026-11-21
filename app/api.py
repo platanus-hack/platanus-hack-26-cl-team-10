@@ -18,10 +18,11 @@ from typing import Literal
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from app import acceso, catalogo, cerebro, db, escenarios, mejora, metricas, protocolos, referencia, semilla, verificacion
+from app import (acceso, catalogo, cerebro, db, escenarios, inventario, mejora, metricas, protocolos, referencia, reporte,
+                 semilla, verificacion)
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -181,6 +182,22 @@ class Revision(BaseModel):
     decision: Literal["aceptar", "descartar"] = Field(description="Aceptar la manda al equipo de Factum para la versión "
                                                       "siguiente de la pauta; descartar la cierra.")
     nota: str = Field(default="", description="Por qué. Descartar la exige.")
+
+
+class DeclaracionCliente(BaseModel):
+    texto: str = Field(description="Lo que dice el operario, en sus palabras.")
+    paso_id: str | None = Field(default=None, description="El paso que la interfaz le mostraba. Si su evidencia ya lo "
+                                "cerró, la palabra se registra y no se evalúa contra el paso siguiente.")
+
+
+class ConfirmacionCliente(BaseModel):
+    motivo: str = Field(description="Por qué se confirma aunque la evidencia no lo muestre. Sin motivo, 409.")
+
+
+class PautaAValidar(BaseModel):
+    pauta: dict = Field(description="La pauta como se crearía en `POST /interno/protocolos/{id}/pautas`.")
+    reposo: dict[str, str] = Field(default={}, description="El valor de cada sensor antes de empezar. Sin él, se toma el "
+                                   "que deja el último paso que usa ese sensor.")
 
 
 class LecturaEdge(BaseModel):
@@ -510,6 +527,108 @@ def asignar_ot_del_cliente(ot_id: str, a: AsignacionCliente, authorization: str 
     return servicios.asignar(ot_id, a.operador, p["id"])
 
 
+# ─── Ejecutar la OT con login: el actor sale del token, no del cuerpo ───────
+
+
+def _relevo_entregar(ot_id: str, actor: str) -> dict:
+    fila = db.leer_ot(cx, ot_id)
+    pauta = db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"])
+    evs = db.eventos(cx, ot_id)
+    estado = cerebro.estado_de_ot(pauta, evs)
+    resumen = cerebro.redactar_resumen(estado, evs)
+    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(), actor=actor, detalle=resumen))
+    return {"resumen": resumen, "estado": estado}
+
+
+def _relevo_recibir(ot_id: str, actor: str) -> dict:
+    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_RECIBIDO, ts=db.ahora(), actor=actor,
+                             detalle=f"{actor} confirma que recibió el turno"))
+    return {"firmado_por": actor}
+
+
+def _de_la_empresa(p: dict, ot_id: str) -> dict:
+    """La OT de la empresa de quien pide, aunque no la tenga asignada. 404 si es de otra."""
+    supervisor = {**p, "rol": "supervisor"}
+    return acceso.ot_de(cx, supervisor, ot_id, servicios._ots_en_sesion())
+
+
+@app.get("/cliente/ots/{ot_id}/pasos")
+def pasos_de_la_ot(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Cada paso de la OT en el orden de la pauta, con su estado, la capa y la evidencia que lo cerró, y cuál es el
+    paso en curso. Es lo que la interfaz le muestra al operario. 404 si la OT no es suya."""
+    acceso.ot_de(cx, _persona(authorization), ot_id)
+    fila = db.leer_ot(cx, ot_id)
+    return cerebro.estado_de_ot(db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"]), db.eventos(cx, ot_id))
+
+
+@app.post("/cliente/ots/{ot_id}/declarar")
+def declarar_del_cliente(ot_id: str, d: DeclaracionCliente, authorization: str | None = Header(default=None)) -> dict:
+    """El operario que tiene la OT dice que hizo el paso. La evidencia manda: un paso de sensor no se cierra hablando, y
+    un paso de cámara se juzga con el último cuadro de su estación. 403 si no es operador; 404 si la OT no es suya;
+    409 si la OT ya está completa."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "operador")
+    acceso.ot_de(cx, p, ot_id)
+    return servicios.declarar(ot_id, p["id"], d.texto, d.paso_id)
+
+
+@app.post("/cliente/ots/{ot_id}/pasos/{paso_id}/confirmar")
+def confirmar_del_cliente(ot_id: str, paso_id: str, c: ConfirmacionCliente,
+                          authorization: str | None = Header(default=None)) -> dict:
+    """El operario que tiene la OT, o el supervisor, confirma el paso en curso aunque su sensor o la cámara no lo
+    muestren. Queda quién y por qué, la OT pasa a warning y cuenta como desviación en las métricas. 404 si la OT no es
+    suya; 409 si no es el paso en curso o falta el motivo."""
+    p = _persona(authorization)
+    acceso.ot_de(cx, p, ot_id)
+    return servicios.confirmar_por_persona(ot_id, paso_id, p["id"], c.motivo)
+
+
+@app.post("/cliente/ots/{ot_id}/relevo/entregar")
+def entregar_del_cliente(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """El operario que tiene la OT entrega el turno: la OT queda sin operador, en `entregada`, con el estado de cada paso
+    para quien la reciba. 403 si no es operador; 404 si la OT no es suya; 409 si ya está completa."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "operador")
+    if acceso.ot_de(cx, p, ot_id)["completa"]:
+        raise ReglaDeNegocio(f"la OT {ot_id} ya está completa: no hay turno que entregar")
+    return _relevo_entregar(ot_id, p["id"])
+
+
+@app.post("/cliente/ots/{ot_id}/relevo/recibir")
+def recibir_del_cliente(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Un operador de la empresa recibe una OT entregada y queda a su cargo. La firma queda en la bitácora con su nombre.
+    403 si no es operador; 404 si la OT es de otra empresa; 409 si nadie la entregó."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "operador")
+    if _de_la_empresa(p, ot_id)["estado_general"] != "entregada":
+        raise ReglaDeNegocio(f"la OT {ot_id} no está entregada: no hay turno que recibir")
+    return _relevo_recibir(ot_id, p["id"])
+
+
+@app.get("/cliente/ots/{ot_id}/eventos")
+def bitacora_del_cliente(ot_id: str, authorization: str | None = Header(default=None)) -> list[dict]:
+    """La bitácora de la OT, en orden, como la guarda el servidor: solo agrega. 404 si la OT no es suya."""
+    acceso.ot_de(cx, _persona(authorization), ot_id)
+    return [evento_dict(e) for e in db.eventos(cx, ot_id)]
+
+
+@app.get("/cliente/ots/{ot_id}/reporte", response_model=None)
+def reporte_de_la_ot(ot_id: str, formato: Literal["json", "markdown"] = Query(default="json", description="`markdown` "
+                     "devuelve el mismo reporte listo para leer o adjuntar."),
+                     authorization: str | None = Header(default=None)) -> dict | PlainTextResponse:
+    """El reporte de la OT, armado desde la bitácora por el código y no por un modelo: cada paso con la evidencia que lo
+    cerró, su capa, su hora y sus intentos; las desviaciones con su clase y cuánto tardaron en resolverse; las
+    confirmaciones por persona con su motivo; las observaciones; los relevos; y lo que quedó pendiente. Cada línea trae
+    el `evento` que la sostiene, para citarlo. 404 si la OT no es suya."""
+    p = _persona(authorization)
+    ot = acceso.ot_de(cx, p, ot_id, servicios._ots_en_sesion())
+    nombres = {x["id"]: x["nombre"] for x in acceso.nombres_de(cx, p["cliente"]["id"])}
+    r = reporte.armar(cx, ot, servicios.calificacion(ot_id), nombres)
+    if formato == "markdown":
+        return PlainTextResponse(reporte.markdown(r), media_type="text/markdown; charset=utf-8")
+    return r
+
+
 # ─── Mejora continua y métricas de la empresa (app/mejora.py, app/metricas.py) ─
 # Se leen de la bitácora al pedirlas, por pauta, equipo, paso o día, nunca por persona (ADR-0013, ADR-0014).
 
@@ -650,6 +769,26 @@ def cambiar_clave(persona_id: str, x_clave_equipo: str | None = Header(default=N
     """Una clave nueva al azar, que se ve una sola vez. Cierra las sesiones abiertas de esa persona."""
     _solo_equipo(x_clave_equipo)
     return {"persona": persona_id, "clave": acceso.nueva_clave(cx, persona_id)}
+
+
+@app.get("/interno/inventario")
+def inventario_del_servidor(x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Qué puede comprobar este servidor, leído de la base: cada sensor con su valor actual, los valores que llegaron en la
+    bitácora (o su rango, si es numérico), las pautas y pasos que lo usan y las reglas de peligro que lo miran; las clases
+    del detector con la confianza con que se vieron y cuántas veces decidieron; y las preguntas visuales con lo que
+    respondió la cámara. Es lo que necesita quien escribe una pauta para nombrar solo lo que existe."""
+    _solo_equipo(x_clave_equipo)
+    return inventario.inventario(cx, detector, servicios.sesiones())
+
+
+@app.post("/interno/pautas/validar")
+def validar_pauta(v: PautaAValidar, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Valida una pauta sin guardarla. `errores` impide crearla (mal formada o versión equivocada); `hallazgos` dice qué
+    le va a fallar a la verificación: un control crítico que no cierra un sensor (V1), un paso que espera el valor de
+    reposo de su sensor (V2), una reposición fuera de orden inverso (V3), una capa_minima que no calza (V4), y sensores,
+    valores o clases que el servidor no conoce (I1 a I3)."""
+    _solo_equipo(x_clave_equipo)
+    return inventario.validar(cx, v.pauta, inventario.inventario(cx, detector, servicios.sesiones()), v.reposo)
 
 
 @app.get("/interno/mejoras")
@@ -940,22 +1079,13 @@ def sensores() -> dict:
 
 @app.post("/ot/{ot_id}/relevo/entregar")
 def entregar_turno(ot_id: str, actor: str) -> dict:
-    fila = db.leer_ot(cx, ot_id)
-    pauta = db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"])
-    evs = db.eventos(cx, ot_id)
-    estado = cerebro.estado_de_ot(pauta, evs)
-    resumen = cerebro.redactar_resumen(estado, evs)
-    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(),
-                             actor=actor, detalle=resumen))
-    return {"resumen": resumen, "estado": estado}
+    return _relevo_entregar(ot_id, actor)
 
 
 @app.post("/ot/{ot_id}/relevo/recibir")
 def recibir_turno(ot_id: str, actor: str) -> dict:
     """El traspaso se firma: quién recibió y cuándo queda como evento."""
-    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_RECIBIDO, ts=db.ahora(),
-                             actor=actor, detalle=f"{actor} confirma que recibió el turno"))
-    return {"firmado_por": actor}
+    return _relevo_recibir(ot_id, actor)
 
 
 @app.post("/ot/{ot_id}/preguntar")
