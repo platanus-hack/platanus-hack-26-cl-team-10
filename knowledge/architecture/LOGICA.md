@@ -19,6 +19,7 @@ Una unidad de la pauta que se puede cerrar con evidencia. Sale de convertir el p
 | `tipo_evidencia` | `sensor` · `camara` · `confirmacion` | **Qué cierra el paso.** Es el campo que decide todo lo demás |
 | `pregunta_visual` | texto o nulo | La pregunta concreta para la cámara, si el tipo es `camara` |
 | `sensor` | objeto o nulo | Qué sensor y qué valor se espera, si el tipo es `sensor` |
+| `deteccion` | objeto o nulo | Solo en pasos `camara`: `{clase, presente}`. Qué clase del modelo del edge lo responde en capa 2 (presente o ya retirada). Si el modelo no está seguro, decide el VLM (capa 3) |
 | `control_critico` | sí · no | Si su falla permite un evento de alta consecuencia |
 | `capa_minima` | 1 · 2 · 3 | La capa más baja que puede cerrarlo |
 

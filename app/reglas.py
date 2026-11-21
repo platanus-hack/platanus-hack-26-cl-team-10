@@ -127,6 +127,35 @@ def _por_camara(paso: Paso, declarado: str | None, juez: JuezCamara | None) -> V
     )
 
 
+CONF_ALTA = 0.8   # capa 2 de cámara decide "se ve" solo con esta certeza en cada detección
+CONF_PISO = 0.25  # y decide "ya no se ve" solo si ninguna detección llega a esto
+
+
+def por_deteccion(paso: Paso, detecciones: Sequence[Mapping]) -> Veredicto | None:
+    """Capa 2 de un paso de cámara: el modelo del edge (YOLO) decide si está seguro.
+
+    Recibe las detecciones recientes del edge, de la más vieja a la más nueva. Decide
+    solo si TODAS coinciden con certeza (un cuadro dudoso basta para no decidir), y
+    solo puede verificar: nunca abre un conflicto. Si no puede decidir devuelve None,
+    y el paso sube a la capa 3 (VLM) cuando el operario declara (ADR-0004: la primera
+    capa que puede decidir, decide).
+    """
+    if paso.deteccion is None or not detecciones:
+        return None
+    clase, presente = paso.deteccion.clase, paso.deteccion.presente
+    confs = [max((o["conf"] for o in d["objetos"] if o["clase"] == clase), default=0.0) for d in detecciones]
+    if presente and min(confs) >= CONF_ALTA:
+        confianza, detalle = min(confs), f"el modelo del edge ve {clase} en {len(confs)} cuadros seguidos (mín. {min(confs):.0%})"
+    elif not presente and max(confs) < CONF_PISO:
+        confianza, detalle = 1 - max(confs), f"el modelo del edge ya no ve {clase} en {len(confs)} cuadros seguidos"
+    else:
+        return None
+    evidencia = {"tipo": "deteccion", "clase": clase, "presente": presente, "confianza": round(confianza, 3),
+                 "cuadros": len(confs), "modelo": detecciones[-1].get("modelo"),
+                 "objetos": detecciones[-1]["objetos"]}
+    return Veredicto(Estado.VERIFICADO, Capa.APRENDIZAJE, detalle, evidencia)
+
+
 def _por_confirmacion(declarado: str | None) -> Veredicto:
     """La palabra del operario cierra el paso, y el evento deja constancia."""
     if declarado:

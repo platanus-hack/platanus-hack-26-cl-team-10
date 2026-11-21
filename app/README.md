@@ -22,7 +22,7 @@ python3 scripts/recorrido_demo.py     # los cinco momentos del demo, de punta a 
 | `guia.py` | Servicios | La guía para agentes en `/agente`, con el catálogo de endpoints armado desde las rutas |
 | `estatico/camara.html` · `estatico/monitor.html` | Servicios | El celular como cámara del edge, y la OT en vivo con video, avisos y bitácora |
 | `../deploy/vm/` | Servicios | El servidor del demo: `deploy/vm/desplegar.sh` sube la rama actual a la VM sin borrar la bitácora |
-| `verificacion.py` | Frente 3 | `juez_camara` por el VLM real; el ESP32 escribe en `POST /sensores` |
+| `verificacion.py` | Frente 3 | Capa 3 de cámara con Claude Haiku 5.5 (`ANTHROPIC_API_KEY`; en la VM va en `/srv/factum/entorno`; modelo en `VLM_MODELO`; sin key queda el stub). La capa 2 de cámara (YOLO del edge) está en `reglas.por_deteccion` |
 | `cerebro.py` | Frente 4 | `redactar_resumen` y `responder` por el modelo, con el registro completo |
 
 **No se tocan sin avisar:** `contratos.py` y `reglas.py` — son el contrato entre
