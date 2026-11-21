@@ -4,7 +4,7 @@ Lee lo que deja colector.py (data/sensores.jsonl y data/frames/), detecta la tar
 y la herramienta con YOLO-World, avanza el protocolo y avisa (texto + voz) si se salta
 un paso. Al cerrar guarda la evidencia de la orden de trabajo en data/ot/<id>/.
 
-Uso: .venv/bin/python loto.py [--temp-max 30] [--dist-max 60]
+Uso: .venv/bin/python loto.py [--temp-max 26] [--dist-max 60]
 """
 import argparse, json, subprocess, time
 from collections import deque
@@ -25,7 +25,7 @@ PASOS = [
 FIN = len(PASOS)
 
 
-def avanzar(paso, o, temp_max=30.0, dist_max=60.0):
+def avanzar(paso, o, temp_max=26.0, dist_max=60.0):
     """(paso, observación) -> (paso siguiente, alerta o None).
     o = {"dist": cm|None, "temp": °C|None, "tarjeta": bool, "herramienta": bool}"""
     if paso < FIN and o["herramienta"] and not o["tarjeta"]:
@@ -69,7 +69,7 @@ def mostrar(paso, alerta, o):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--temp-max", type=float, default=30.0)
+    ap.add_argument("--temp-max", type=float, default=26.0)
     ap.add_argument("--dist-max", type=float, default=60.0)
     ap.add_argument("--conf", type=float, default=0.5)
     ap.add_argument("--estable", type=int, default=3, help="fotos seguidas que deben coincidir para cambiar de estado")
