@@ -29,7 +29,7 @@
 - [notas/](./projects/research/notas/): una nota por paper leído completo.
 - [Presentaciones del último año](./projects/research/tour-platanus.md): tracks, preguntas del jurado y ganadores de Santiago 2025 y las cuatro paradas del Latam Tour 26, y las preguntas que nos van a hacer. Una nota por edición en [tour/](./projects/research/tour/) y las transcripciones en [fuentes/videos-platanus/](./projects/research/fuentes/videos-platanus/).
 - [fuentes/](./projects/research/fuentes/): la revisión IEEE original en CSV.
-- [Board interactivo](./projects/research/board-mantenimiento-verificado.html): problema, flujo y referencias en una página. Es anterior al planteamiento del equipo del 2026-11-21 y a los ADR 0005 y 0006, y no los incluye: ahí la OT todavía nace de una anomalía. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
+- [Board interactivo](./projects/research/board-mantenimiento-verificado.html): problema, flujo y referencias en una página. Resume el FLUJO con el planteamiento del equipo y los ADR 0004 a 0006; ante una diferencia, manda el FLUJO. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
 
 ## Cómo se trabaja
 

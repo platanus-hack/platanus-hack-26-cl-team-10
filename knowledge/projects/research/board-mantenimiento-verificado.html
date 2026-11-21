@@ -25,6 +25,7 @@ svg .lh{font-weight:600}
 svg .mu{fill:var(--muted-foreground);font-size:11.5px}
 .ln{stroke:var(--border);stroke-dasharray:3 4}
 .ar{stroke:var(--muted-foreground);stroke-width:1.3;fill:none}
+.ar.vi,.vi rect{stroke-dasharray:4 3}
 .ah{fill:var(--muted-foreground)}
 .n{cursor:pointer}
 .n rect{fill:var(--card);stroke:var(--border);stroke-width:1.2}
@@ -60,7 +61,7 @@ details ul{margin:8px 0 0;padding-left:18px}
 <div class="w">
 
 <h1>Mantenimiento verificado en operaciones críticas</h1>
-<p class="d">Un operario que ejecuta bien, con menos accidentes y una bitácora confiable, en equipos donde una falla o un error salen caros.</p>
+<p class="d">Un operario que ejecuta bien, con menos accidentes y una bitácora confiable, en equipos donde una falla o un error salen caros. Sirve a cualquier operación con procedimientos estandarizados; el caso del demo es minero (ADR-0005, propuesto).</p>
 
 <h2>Problema</h2>
 <p class="d">El error de ejecución es caro y casi nunca queda registrado.</p>
@@ -81,7 +82,7 @@ details ul{margin:8px 0 0;padding-left:18px}
 <p class="gap">Lo que no existe: nadie convierte la ejecución verificada en la bitácora, no hay verificación de bloqueo con cámara revisada por pares y nada de esto se ha probado en equipo pesado. Lo que todavía no funciona: un modelo general de visión detecta 3 de 12 cambios de orden y rechaza 5 de 12 ejecuciones correctas (referencia 9).</p>
 
 <h2>Solución</h2>
-<p class="d">La ejecución verificada es la bitácora. Toca un paso del flujo para ver la evidencia, cómo construirlo y qué leer.</p>
+<p class="d">El cliente entrega su protocolo, de ahí sale la OT y la ejecución se guía paso a paso. La ejecución verificada es la bitácora. Toca un paso del flujo para ver la evidencia, cómo construirlo y qué leer. Lo punteado es visión, fuera del alcance del demo.</p>
 
 <div class="sv">
 <svg viewBox="0 0 728 624" role="img" aria-label="Flujo por actor: equipo, sistema, operario y supervisor">
@@ -103,37 +104,37 @@ details ul{margin:8px 0 0;padding-left:18px}
   <path class="ar" marker-end="url(#a)" d="M273,468 V490"/>
   <path class="ar" marker-end="url(#a)" d="M352,515 H556"/>
   <path class="ar" marker-end="url(#a)" d="M690,492 V250"/>
-  <path class="ar" marker-end="url(#a)" d="M273,538 V560"/>
-  <path class="ar" marker-end="url(#a)" d="M194,585 H186 V318 H192"/>
+  <path class="ar vi" marker-end="url(#a)" d="M273,538 V560"/>
+  <path class="ar vi" marker-end="url(#a)" d="M194,585 H186 V318 H192"/>
   <text class="mu" x="470" y="299">pauta vigente</text>
   <text class="mu" x="683" y="404" style="text-anchor:end">la pauta mejora</text>
   <text class="mu" x="176" y="456" style="text-anchor:end">anticipa la falla</text>
   <g class="n" data-s="1" transform="translate(12,62)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Sensores y cámara,</text><text x="79" y="35">sin tocar el PLC</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">1</text></g>
-  <g class="n" data-s="1" transform="translate(194,62)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Lee telemetría y</text><text x="79" y="35">OT históricas</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">1</text></g>
-  <g class="n" data-s="2" transform="translate(194,132)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Redacta el borrador</text><text x="79" y="35">de la pauta</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">2</text></g>
+  <g class="n" data-s="1" transform="translate(194,62)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Recibe telemetría</text><text x="79" y="35">y cámara en vivo</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">1</text></g>
+  <g class="n" data-s="2" transform="translate(194,132)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Extrae el protocolo</text><text x="79" y="35">o redacta el borrador</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">2</text></g>
   <g class="n" data-s="2" transform="translate(376,132)"><rect width="158" height="46" rx="8"/><text x="79" y="20">El experto hace la</text><text x="79" y="35">tarea y corrige</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">2</text></g>
   <g class="n" data-s="2" transform="translate(558,202)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Aprueba la pauta</text><text x="79" y="35">matriz</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">2</text></g>
-  <g class="n" data-s="3" transform="translate(12,282)"><rect width="158" height="46" rx="8"/><text x="79" y="28">Vibra fuera de rango</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">3</text></g>
-  <g class="n" data-s="3" transform="translate(194,282)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Detecta la anomalía</text><text x="79" y="35">y abre la OT</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">3</text></g>
+  <g class="n" data-s="3" transform="translate(12,282)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Calendario, pedido</text><text x="79" y="35">o falla del equipo</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">3</text></g>
+  <g class="n" data-s="3" transform="translate(194,282)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Genera la OT</text><text x="79" y="35">desde la pauta</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">3</text></g>
   <g class="n" data-s="4" transform="translate(194,352)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Comprueba el paso</text><text x="79" y="35">actual con la cámara</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">4</text></g>
   <g class="n" data-s="4" transform="translate(376,352)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Bloquea, ejecuta</text><text x="79" y="35">y confirma</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">4</text></g>
   <g class="n" data-s="5" transform="translate(194,422)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Bitácora: los pasos</text><text x="79" y="35">verificados</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">5</text></g>
   <g class="n" data-s="6" transform="translate(194,492)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Propone un cambio</text><text x="79" y="35">a la pauta</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">6</text></g>
   <g class="n" data-s="6" transform="translate(558,492)"><rect width="158" height="46" rx="8"/><text x="79" y="28">Aprueba o rechaza</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">6</text></g>
-  <g class="n" data-s="7" transform="translate(194,562)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Predice con el</text><text x="79" y="35">historial limpio</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">7</text></g>
+  <g class="n vi" data-s="7" transform="translate(194,562)"><rect width="158" height="46" rx="8"/><text x="79" y="20">Visión: predecir con</text><text x="79" y="35">el historial limpio</text><circle r="9" cx="4" cy="4"/><text class="b" x="4" y="8">7</text></g>
 </svg>
 </div>
 
 <div class="tabs">
-  <button data-s="1">1 Conectar</button><button data-s="2">2 Estandarizar</button><button data-s="3">3 Detectar</button><button data-s="4">4 Verificar</button><button data-s="5">5 Bitácora</button><button data-s="6">6 Mejorar</button><button data-s="7">7 Predecir</button>
+  <button data-s="1">1 Conectar</button><button data-s="2">2 Estandarizar</button><button data-s="3">3 Generar OT</button><button data-s="4">4 Verificar</button><button data-s="5">5 Bitácora</button><button data-s="6">6 Mejorar</button><button data-s="7">7 Visión</button>
 </div>
 
 <section class="p" data-s="1">
   <h3>Conectar sin integrar</h3>
-  <p>Sensores inalámbricos pegados al equipo, la cámara del operario y el archivo exportado de OT. Nada toca el PLC ni la red de control.</p>
+  <p>Sensores inalámbricos pegados al equipo y la cámara del operario. Nada toca el PLC ni la red de control. El archivo exportado de OT históricas solo hace falta para la visión del paso 7.</p>
   <dl>
     <dt>Evidencia</dt><dd>Aqueveque et al. pusieron acelerómetros inalámbricos en bulldozers, palas y retroexcavadoras sin tocar su control, y clasificaron la salud del equipo con 85% a 95% de exactitud.</dd>
-    <dt>Construcción</dt><dd>Partir con una fuente de cada tipo: un sensor, un archivo de OT y la cámara del celular. Un adaptador por fuente se justifica cuando llegue la segunda faena.</dd>
+    <dt>Construcción</dt><dd>Partir con una fuente de cada tipo: un sensor y la cámara del celular. Un adaptador por fuente se justifica cuando llegue la segunda faena.</dd>
     <dt>Leer</dt><dd>Referencia 24. Además ISO 13374 y MIMOSA OSA-CBM, sin enlace verificado.</dd>
     <dt>Por decidir</dt><dd>Quién autoriza instalar un sensor y una cámara en la faena, y cuánto demora.</dd>
   </dl>
@@ -141,7 +142,7 @@ details ul{margin:8px 0 0;padding-left:18px}
 
 <section class="p" data-s="2" hidden>
   <h3>Identificar y estandarizar</h3>
-  <p>Un técnico experto hace la tarea con la cámara. El sistema redacta un borrador de la pauta, el experto lo corrige y el supervisor lo aprueba.</p>
+  <p>Si el cliente ya tiene el procedimiento, el sistema lo extrae y lo vuelve una pauta comprobable: cada paso declara qué evidencia lo cierra. Si no lo tiene, un técnico experto hace la tarea con la cámara, el sistema redacta un borrador, el experto lo corrige y el supervisor lo aprueba.</p>
   <dl>
     <dt>Evidencia</dt><dd>Un modelo de visión sin entrenar describió por su cuenta el 54,6% de las fases de un montaje, y el 68% cuando se le dio la pauta correcta. Alcanza para un borrador, no para una pauta. Sus descripciones libres sí recogen ajustes e inspecciones que el experto hace sin decirlos.</dd>
     <dt>Construcción</dt><dd>El modelo redacta y pregunta; el experto corrige. La cámara cenital rindió mejor que la frontal: 80% frente a 56% de cobertura.</dd>
@@ -151,41 +152,41 @@ details ul{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section class="p" data-s="3" hidden>
-  <h3>Detectar y abrir la OT</h3>
-  <p>El sensor sale de rango. El sistema detecta la anomalía y abre la OT con la pauta vigente; una persona la confirma.</p>
+  <h3>Generar la OT</h3>
+  <p>La OT es la instancia ejecutable de la pauta vigente. El sistema la genera cada vez que hay que ejecutar la tarea, y una persona la confirma. El disparo puede ser el calendario, un pedido o una falla, como la correa que se detiene sin aviso (ADR-0006, propuesto).</p>
   <dl>
-    <dt>Evidencia</dt><dd>O'Donncha et al. cruzan OT, sensores y FMEA, y ponen un verificador determinista entre el modelo y la respuesta. Aqueveque et al. alertaron entre 120 y 170 horas antes de la falla crítica.</dd>
-    <dt>Construcción</dt><dd>La OT es una fila con un estado. Un umbral sobre la vibración basta para el primer disparo.</dd>
-    <dt>Leer</dt><dd>Referencias 25, 26, 29 y 24.</dd>
-    <dt>Por decidir</dt><dd>Si conviene buscar OT parecidas por palabra clave o por similitud. Se prueba en una tarde con OT reales.</dd>
+    <dt>Evidencia</dt><dd>O'Donncha et al. cruzan OT, sensores y FMEA, y ponen un verificador determinista entre el modelo y la respuesta.</dd>
+    <dt>Construcción</dt><dd>La OT es una fila con un estado y la versión de la pauta que ejecuta. Para el disparo por falla del demo basta un umbral sobre la vibración.</dd>
+    <dt>Leer</dt><dd>Referencias 25, 26 y 29.</dd>
+    <dt>Por decidir</dt><dd>Si una OT disparada por falla necesita pasos de diagnóstico que la pauta no trae, y quién la confirma.</dd>
   </dl>
 </section>
 
 <section class="p" data-s="4" hidden>
   <h3>Ejecutar y verificar</h3>
-  <p>El operario bloquea y etiqueta, y ejecuta paso a paso. La cámara comprueba el paso actual y el operario confirma.</p>
+  <p>El operario bloquea y etiqueta, y ejecuta paso a paso. Sensores y cámara comprueban el paso actual, y el operario confirma. Si se salta un paso, el sistema le avisa en el momento por un auricular.</p>
   <dl>
     <dt>Evidencia</dt><dd>Sabetta et al. midieron un modelo general sobre videos completos. Detectó los 12 casos en que la pauta traía un paso que el video no mostraba, es decir el paso saltado. Pero detectó solo 3 de 12 cambios de orden, ninguna de las 12 acciones hechas fuera de la pauta, y rechazó 5 de 12 ejecuciones correctas. Es un solo modelo, cuatro montajes en mesa y cámaras fijas.</dd>
-    <dt>Construcción</dt><dd>El orden lo impone la aplicación, que pregunta por un paso a la vez; no se le pide al modelo juzgar el video entero. Cada paso se comprueba por su estado final visible, como el candado puesto. Con 5 falsas alarmas en 12, al principio el sistema avisa y no bloquea.</dd>
+    <dt>Construcción</dt><dd>El orden lo impone la aplicación, que pregunta por un paso a la vez; no se le pide al modelo juzgar el video entero. Cada paso se comprueba por su estado final visible, como el candado puesto. Con 5 falsas alarmas en 12, al principio el sistema avisa y no bloquea. El orden del bloqueo lo dan los sensores con su marca de tiempo, y el aviso que interrumpe sale solo de esa capa (ADR-0004, propuesto).</dd>
     <dt>Leer</dt><dd>Referencias 9, 10, 11, 12, 13, 14, 18, 20, 22 y 23.</dd>
-    <dt>Por decidir</dt><dd>Cómo comprobar el orden del bloqueo, que es justo donde el modelo falla, y qué pasa sin conectividad.</dd>
+    <dt>Por decidir</dt><dd>Qué pasos de una tarea real tienen una señal de sensor, la latencia del aviso, si el auricular funciona con la protección auditiva, y qué pasa sin conectividad.</dd>
   </dl>
 </section>
 
 <section class="p" data-s="5" hidden>
-  <h3>Bitácora</h3>
-  <p>La bitácora no se escribe: es la lista de pasos verificados con su evidencia. El operario solo confirma.</p>
+  <h3>Bitácora y relevo de turno</h3>
+  <p>La bitácora no se escribe: es la lista de pasos verificados con su evidencia. El operario solo confirma. Cuando el trabajo dura más de un turno, el siguiente lo retoma desde el último paso verificado.</p>
   <dl>
     <dt>Evidencia</dt><dd>Los errores al registrar OT son sistemáticos y cambian el resultado. Con sugerencias del sistema y confirmación humana, el etiquetado tomó 88% menos tiempo, aunque con menos exactitud que el de un experto.</dd>
-    <dt>Construcción</dt><dd>Una tabla de pasos verificados que solo admite agregar filas, con la evidencia y quién confirmó. La OT cerrada se arma desde esa tabla.</dd>
+    <dt>Construcción</dt><dd>Una tabla de pasos verificados que solo admite agregar filas, con la evidencia y quién confirmó. La OT cerrada se arma desde esa tabla, y el relevo es una lectura de la misma tabla.</dd>
     <dt>Leer</dt><dd>Referencias 3, 4, 2, 8, 7 y 6. Además ISO 14224, sin enlace verificado.</dd>
-    <dt>Por decidir</dt><dd>Qué evidencia exige una auditoría (foto, video o firma) y cuánto tiempo se guarda.</dd>
+    <dt>Por decidir</dt><dd>Qué evidencia exige una auditoría (foto, video o firma) y cuánto tiempo se guarda. El formato del relevo: resumen, consultas o briefing.</dd>
   </dl>
 </section>
 
 <section class="p" data-s="6" hidden>
   <h3>Mejorar la pauta</h3>
-  <p>Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta matriz. El supervisor aprueba o rechaza.</p>
+  <p>Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta matriz. El supervisor aprueba o rechaza, y ve en qué áreas y pautas se saltan más pasos.</p>
   <dl>
     <dt>Evidencia</dt><dd>Muchas desviaciones nacen de la presión de la jefatura y de pautas mal hechas, no del operario. Plant Memory reconoce que sus cambios se auditan, pero no se versionan ni se revierten.</dd>
     <dt>Construcción</dt><dd>Cada pauta lleva número de versión y cada OT guarda cuál ejecutó. El sistema propone y una persona aprueba.</dd>
@@ -195,8 +196,8 @@ details ul{margin:8px 0 0;padding-left:18px}
 </section>
 
 <section class="p" data-s="7" hidden>
-  <h3>Predecir</h3>
-  <p>El primer día detecta anomalías. La vida útil remanente llega cuando hay historia limpia por equipo.</p>
+  <h3>Predecir (visión)</h3>
+  <p>Fuera del alcance del demo y del pitch, salvo como una línea de hacia dónde va. Con historia limpia por equipo, el sistema podría anticipar la falla y disparar la OT antes de que ocurra. La vida útil remanente no se promete.</p>
   <dl>
     <dt>Evidencia</dt><dd>Aqueveque et al. alertaron entre 120 y 170 horas antes en maquinaria minera móvil. Los modelos fundacionales de series de tiempo prometen detectar anomalías sin entrenar por equipo, pero no vi ninguno probado en esta maquinaria.</dd>
     <dt>Construcción</dt><dd>Es lo último. Sale de los pasos verificados más la telemetría, así que depende de que los pasos 4 y 5 funcionen.</dd>
