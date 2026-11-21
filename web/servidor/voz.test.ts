@@ -90,3 +90,9 @@ it('the disk cache keeps each phrase as an MP3 between restarts', async () => {
   expect(await bytes(r)).toEqual(MP3)
   expect(el.pedidos).toHaveLength(1)
 })
+
+it('lets the CDN keep a served MP3, so a phrase is generated once across server instances; an error is never kept', async () => {
+  const voz = servicioVoz({ llave: 'k', cache: cacheEnMemoria(), fetch: elevenLabs().fetch })
+  expect((await voz(url('Hola'))).headers.get('cache-control')).toMatch(/\bs-maxage=31536000\b/)
+  expect((await voz(url(''))).headers.get('cache-control')).toBeNull()
+})

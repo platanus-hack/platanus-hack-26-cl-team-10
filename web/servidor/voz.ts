@@ -37,8 +37,9 @@ const json = (status: number, voz: string) =>
 const mp3 = (audio: Uint8Array) =>
   new Response(audio, {
     status: 200,
-    // La misma frase es siempre el mismo audio: el navegador (y la CDN) lo guardan.
-    headers: { 'content-type': 'audio/mpeg', 'cache-control': 'public, max-age=31536000, immutable' },
+    // La misma frase es siempre el mismo audio: el navegador lo guarda (max-age) y la CDN también
+    // (s-maxage), así una frase se genera una vez aunque la función arranque en otra instancia.
+    headers: { 'content-type': 'audio/mpeg', 'cache-control': 'public, max-age=31536000, s-maxage=31536000, immutable' },
   })
 
 /** La llave del audio guardado: la misma que usaba app/voz.py, así sirve lo que ya se generó. */

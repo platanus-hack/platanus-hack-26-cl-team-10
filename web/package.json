@@ -10,7 +10,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "dev:celular": "vite --host --mode celular"
+    "dev:celular": "vite --host --mode celular",
+    "build:funcion": "tsc -p tsconfig.funcion.json",
+    "desplegar": "npm run build:funcion && vercel build --prod && vercel deploy --prebuilt --prod"
   },
   "dependencies": {
     "@mantine/core": "^9.8.2",

@@ -271,6 +271,8 @@ Cuando la API avisa que un paso no se hizo, el aviso se convierte en voz con Ele
 
 **Cómo correrlo:** la llave va en `web/.env.local` (git la ignora) como `ELEVENLABS_API_KEY=…`, y `npm run dev:mock` (o `npm run dev`) ya sirve la voz. Sin llave, `/api/voz` responde 503 y el aviso lo dice el navegador.
 
+**Cómo desplegarlo:** el front está en Vercel, en <https://factum-tau.vercel.app> (proyecto `factum`), y habla con la API de la VM. Desde `web/`, con `vercel login` hecho: `npm run desplegar`. Compila en tu máquina y sube el resultado, por dos razones: el mock importa las pautas de `datos/`, que queda fuera de `web/` y Vercel no la vería; y el builder de Vercel no compila con TypeScript 7, así que `npm run build:funcion` deja `servidor/voz.ts` compilado en `web/api/_servicio/` y la función (`web/api/voz.js`) lo importa. La llave va como variable de entorno del proyecto en Vercel (`vercel env add ELEVENLABS_API_KEY production`); cambiarla pide desplegar de nuevo. En Vercel los audios guardados los sirve la CDN, y el tope de 200 frases es por instancia, no global.
+
 Por qué la voz sale del evento y no de `calificacion.avisos`: un aviso no trae `id` ni dice de qué paso es, así que no hay cómo saber si ya sonó. Y por qué el front pide la voz en vez de esperar que el back la adjunte: así la voz solo necesita un texto, y no depende de cómo el equipo de Francisco rehaga los eventos. Si después el back manda un `audio_url`, el front reproduce ese.
 
 **Reglas:**

@@ -14,6 +14,10 @@ dist-ssr
 *.local
 # Los audios de /api/voz ya generados.
 .cache
+# El enlace al proyecto de Vercel y lo que deja `vercel build`.
+.vercel
+# servidor/voz.ts compilado para la función de Vercel (`npm run build:funcion`).
+api/_servicio
 
 # Editor directories and files
 .vscode/*
