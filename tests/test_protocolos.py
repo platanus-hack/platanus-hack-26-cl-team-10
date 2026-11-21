@@ -423,19 +423,32 @@ class PorHTTP(unittest.TestCase):
         api.servicios = Servicios(api.cx)
         self.c = TestClient(api.app)
 
+    def supervisor(self, pautas=()):
+        """Una empresa con un supervisor que entró; devuelve la cabecera con su token."""
+        from app import acceso, api
+        acceso.crear_cliente(api.cx, "planta", "Planta Norte")
+        _, clave = acceso.crear_persona(api.cx, "planta", "supervisor:planta", "Sofía", "sofia@planta.example", "supervisor")
+        for pauta_id in pautas:
+            acceso.habilitar(api.cx, "planta", pauta_id)
+        token = self.c.post("/auth/entrar", json={"usuario": "sofia@planta.example", "clave": clave}).json()["token"]
+        return {"Authorization": f"Bearer {token}"}
+
     def test_de_cargar_el_protocolo_a_la_ot_del_cliente(self):
         c = self.c
         r = c.post("/interno/protocolos", json={**protocolo(), "actor": EQUIPO})
         self.assertEqual((r.status_code, r.json()["id"]), (201, "prot-a"))
         r = c.post("/interno/protocolos/prot-a/pautas", json={"pauta": pauta_demo(), "actor": EQUIPO})
         self.assertEqual((r.status_code, r.json()["aprobada"], r.json()["protocolos"][0]["id"]), (201, False, "prot-a"))
-        self.assertEqual(c.get("/cliente/pautas").json(), [])
-        self.assertEqual(c.post("/cliente/ots", json={"pauta_id": CORREA, "solicitante": "cliente:planta"}).status_code, 409)
+        yo = self.supervisor()
+        self.assertEqual(c.put(f"/interno/clientes/planta/pautas/{CORREA}").status_code, 200)
+        self.assertEqual(c.get("/cliente/pautas", headers=yo).json(), [])
+        self.assertEqual(c.post("/cliente/ots", json={"pauta_id": CORREA}, headers=yo).status_code, 403)
         self.assertEqual(c.post(f"/interno/pautas/{CORREA}/versiones/1/aprobar", json={"actor": "supervisor:X"}).status_code, 200)
-        self.assertEqual([p["id"] for p in c.get("/cliente/pautas").json()], [CORREA])
-        r = c.post("/cliente/ots", json={"pauta_id": CORREA, "solicitante": "cliente:planta"})
-        self.assertEqual((r.status_code, r.json()["ot"], r.json()["version"]), (201, "ot-0001", 1))
-        ots = c.get("/cliente/ots").json()
+        self.assertEqual([p["id"] for p in c.get("/cliente/pautas", headers=yo).json()], [CORREA])
+        r = c.post("/cliente/ots", json={"pauta_id": CORREA}, headers=yo)
+        self.assertEqual((r.status_code, r.json()["ot"], r.json()["version"], r.json()["cliente"]), (201, "ot-0001", 1, "planta"))
+        self.assertEqual(db.eventos(api_cx(), "ot-0001")[0].actor, "supervisor:planta")
+        ots = c.get("/cliente/ots", headers=yo).json()
         self.assertEqual([(o["ot"], o["pauta"], o["estado_general"]) for o in ots], [("ot-0001", CORREA, "sin_asignar")])
         self.assertEqual(c.get("/ot/ot-0001").json()["paso_actual"], "p1")
 
@@ -475,25 +488,35 @@ class PorHTTP(unittest.TestCase):
                 self.assertEqual(r.status_code, 401)
             self.assertEqual(self.c.get("/interno/protocolos", headers=clave).json(), [])
             self.assertEqual(self.c.post("/interno/protocolos/semilla", headers=clave).status_code, 200)
-            self.assertEqual(self.c.get("/cliente/pautas").status_code, 200)
-            self.assertEqual(self.c.post("/cliente/ots", json={"pauta_id": "pauta-brazo-01", "solicitante": "cliente:planta"}).status_code, 201)
+            yo = self.supervisor(["pauta-brazo-01"])
+            self.assertEqual(self.c.get("/cliente/pautas", headers=yo).status_code, 200)
+            self.assertEqual(self.c.post("/cliente/ots", json={"pauta_id": "pauta-brazo-01"}, headers=yo).status_code, 201)
 
     def test_la_semilla_de_ot_pide_la_clave_y_deja_las_ot_en_la_lista(self):
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             self.assertEqual(self.c.post("/interno/ots/semilla").status_code, 401)
             r = self.c.post("/interno/ots/semilla", headers={"X-Clave-Equipo": "secreta"})
-        self.assertEqual((r.status_code, len(r.json()["ots_creadas"])), (200, 15))
-        self.assertEqual(len(self.c.get("/cliente/ots").json()), 15)
+        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 15, 3))
+        carla = next(a for a in r.json()["accesos"] if a["rol"] == "supervisor")
+        token = self.c.post("/auth/entrar", json={"usuario": carla["usuario"], "clave": carla["clave"]}).json()["token"]
+        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 15)
 
     def test_la_semilla_deja_los_casos_listos_para_el_cliente(self):
         r = self.c.post("/interno/protocolos/semilla").json()
         self.assertIn("prot-camion-rigido-01", r["protocolos"])
-        self.assertEqual(sorted(p["id"] for p in self.c.get("/cliente/pautas").json()), sorted(r["pautas"]))
+        yo = self.supervisor(r["pautas"])
+        self.assertEqual(sorted(p["id"] for p in self.c.get("/cliente/pautas", headers=yo).json()), sorted(r["pautas"]))
 
     def test_la_guia_del_agente_explica_los_dos_servicios(self):
         guia = self.c.get("/agente").text
-        for ruta in ("/interno/protocolos", "/interno/pautas/{pauta_id}/protocolos/{protocolo_id}", "/cliente/pautas", "/cliente/ots"):
+        for ruta in ("/interno/protocolos", "/interno/pautas/{pauta_id}/protocolos/{protocolo_id}", "/cliente/pautas", "/cliente/ots", "/auth/entrar"):
             self.assertIn(ruta, guia)
+
+
+
+def api_cx():
+    from app import api
+    return api.cx
 
 
 if __name__ == "__main__":

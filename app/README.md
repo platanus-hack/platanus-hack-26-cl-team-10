@@ -21,6 +21,7 @@ python3 scripts/evaluar_capa3.py      # capa 3: falsa aceptación y falso rechaz
 | `api.py` + `estatico/` | Frente 2 | La UI de ensayo por la app del operario con voz |
 | `servicios.py` + `bus.py` | Servicios | Atribuye lo del edge a la OT de la sesión y lo reparte por `/ot/{id}/stream` ([ADR-0007](../knowledge/decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md)) |
 | `scoring.py` | Servicios | La calificación ok · warning · error con certeza y motivos, por capa |
+| `acceso.py` | Servicios | Clientes, sus personas y el login del servicio para clientes: token Bearer, roles supervisor y operador, y qué pautas tiene habilitadas cada empresa ([ADR-0012](../knowledge/decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md)) |
 | `semilla.py` | Servicios | Datos de ejemplo: los protocolos con sus pautas y 15 OT en distintos estados (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `uv run python -m app.semilla` o `POST /interno/ots/semilla` |
 | `catalogo.py` | Servicios | El CRUD de pautas, aprobaciones, OT y eventos, con las reglas de negocio como 409. También el de protocolos y su atribución a pautas (`/interno/...`, con la clave del equipo) y las OT que pide un cliente (`/cliente/...`): [ADR-0011](../knowledge/decisions/0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md) |
 | `video.py` | Servicios | El video del edge: entra por `WS /edge/{id}/video`, sale como MJPEG y le da al juez de cámara el último cuadro |

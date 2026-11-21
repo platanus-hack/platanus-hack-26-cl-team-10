@@ -213,12 +213,21 @@ def resumen_ot(cx: sqlite3.Connection, ot_id: str, en_sesion: Collection[str] = 
     return _resumen(cx, db.leer_ot(cx, ot_id), en_sesion)
 
 
+def _es_operador(cx: sqlite3.Connection, operador: str) -> bool:
+    """Los dos del demo, o una persona con rol operador de algún cliente (app/acceso.py)."""
+    if operador in OPERADORES:
+        return True
+    if not cx.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'personas'").fetchone():
+        return False
+    return cx.execute("SELECT 1 FROM personas WHERE id = ? AND rol = 'operador'", (operador,)).fetchone() is not None
+
+
 def asignacion(cx: sqlite3.Connection, ot_id: str, operador: str, actor: str) -> Evento:
     """El evento que asigna la OT, si las reglas lo dejan: solo a un operador conocido y solo
     una OT sin operador (nunca asignada, o entregada en un relevo que nadie recibió)."""
     actual = resumen_ot(cx, ot_id)
-    if operador not in OPERADORES:
-        raise ReglaDeNegocio(f"el operador {operador} no existe; hay {', '.join(OPERADORES)}")
+    if not _es_operador(cx, operador):
+        raise ReglaDeNegocio(f"el operador {operador} no existe; hay {', '.join(OPERADORES)} y los operadores de cada cliente")
     if actual["completa"]:
         raise ReglaDeNegocio(f"la OT {ot_id} ya está completa")
     if actual["operador"]:

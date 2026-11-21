@@ -8,7 +8,7 @@
       "id": "p1",
       "orden": 1,
       "titulo": "Cortar la corriente del motor",
-      "instruccion": "Apaga el motor de la correa desde su interruptor.",
+      "instruccion": "Aprieta el botón de parada. En el demo, el mismo botón corta el motor y lo deja trabado.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
@@ -21,7 +21,7 @@
       "id": "p2",
       "orden": 2,
       "titulo": "Poner tu candado",
-      "instruccion": "Pon tu candado en el interruptor y guarda la llave. Mientras esté puesto, nadie puede volver a encender el motor.",
+      "instruccion": "Deja trabado el motor: mientras esté trabado, nadie puede encenderlo. En la faena es tu candado; en el demo, el botón.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
@@ -45,20 +45,20 @@
     {
       "id": "p4",
       "orden": 4,
-      "titulo": "Sacar el polín caliente",
-      "instruccion": "Saca el rodillo que está caliente. Es el que tiene la marca.",
+      "titulo": "Sacar el polín malo",
+      "instruccion": "Saca el polín marcado en rojo, de lado, por el agujero de la pared.",
       "tipo_evidencia": "camara",
       "capa_minima": 3,
-      "pregunta_visual": "¿El rodillo que sacó la persona es el que tiene la marca?"
+      "pregunta_visual": "¿Ya no está el plumón rojo entre los rodillos?"
     },
     {
       "id": "p5",
       "orden": 5,
       "titulo": "Poner el polín nuevo",
-      "instruccion": "Pon el rodillo nuevo en el mismo lugar y gíralo con la mano: tiene que girar suelto.",
+      "instruccion": "Mete el polín verde por el mismo agujero y gíralo con la mano: tiene que girar suelto.",
       "tipo_evidencia": "camara",
       "capa_minima": 3,
-      "pregunta_visual": "¿Está el rodillo nuevo puesto en su lugar?"
+      "pregunta_visual": "¿Hay un plumón verde en el lugar donde estaba el rojo?"
     },
     {
       "id": "p6",
@@ -77,7 +77,7 @@
       "id": "p7",
       "orden": 7,
       "titulo": "Sacar tu candado",
-      "instruccion": "Con todos lejos de la correa, saca tu candado.",
+      "instruccion": "Con la mano fuera, suelta el motor. Si la mano sigue adentro, el motor no parte y Factum avisa.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
@@ -90,7 +90,7 @@
       "id": "p8",
       "orden": 8,
       "titulo": "Encender el motor",
-      "instruccion": "Enciende el motor y mira que la correa anda.",
+      "instruccion": "Aprieta el botón de partida y mira que la correa anda.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,

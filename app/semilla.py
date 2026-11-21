@@ -1,4 +1,5 @@
-"""Datos de ejemplo en la base: los protocolos con sus pautas y OT en distintos estados.
+"""Datos de ejemplo en la base: la minera ficticia Oculta, sus personas, los protocolos con sus
+pautas habilitadas para ella y sus OT en distintos estados.
 
 Correr:  uv run python -m app.semilla            # en datos/bitacora.sqlite3
          POST /interno/ots/semilla               # en el servidor, con la clave del equipo
@@ -9,7 +10,9 @@ vivo, así que sus alertas y su calificación son las que daría el sistema. Dos
 de verdad, y quedan dichas en la evidencia: la cámara responde con un valor fijo, sin mirar
 ningún cuadro, y las horas se reparten hacia atrás según `hace_dias`.
 
-Se puede repetir: una OT que ya existe no se toca. Los sensores y las sesiones vuelven a como
+Las claves de las personas se generan al crearlas y se devuelven una sola vez, en `accesos`.
+
+Se puede repetir: una OT o una persona que ya existe no se toca. Los sensores y las sesiones vuelven a como
 estaban, para que la semilla no deje lecturas que disparen una regla en una OT de verdad.
 """
 
@@ -24,7 +27,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from app import catalogo, db, protocolos
+from app import acceso, catalogo, db, protocolos
 from app.bus import Bus
 from app.contratos import TipoEvidencia
 from app.servicios import Servicios
@@ -93,15 +96,27 @@ def _ejecutar(s: Servicios, d: dict, pauta) -> None:
 
 def cargar(cx: sqlite3.Connection, ahora: datetime | None = None) -> dict:
     """Carga los protocolos con sus pautas y las OT de ejemplo. Devuelve qué OT creó y cuáles ya estaban."""
-    catalogo.preparar(cx)
+    acceso.preparar(cx)
     semilla = protocolos.cargar_semilla(cx)
-    spec = json.loads(OTS.read_text(encoding="utf-8"))["ots"]
+    todo = json.loads(OTS.read_text(encoding="utf-8"))
+    spec, cliente = todo["ots"], todo["cliente"]
+    if not cx.execute("SELECT 1 FROM clientes WHERE id = ?", (cliente["id"],)).fetchone():
+        acceso.crear_cliente(cx, cliente["id"], cliente["nombre"], cliente["industria"])
+    accesos = []
+    for d in todo["personas"]:
+        if not cx.execute("SELECT 1 FROM personas WHERE id = ?", (d["id"],)).fetchone():
+            _, clave = acceso.crear_persona(cx, cliente["id"], d["id"], d["nombre"], d["usuario"], d["rol"])
+            accesos.append({"usuario": d["usuario"], "rol": d["rol"], "clave": clave})
+    for pauta_id in semilla["pautas"]:
+        acceso.habilitar(cx, cliente["id"], pauta_id)
+    supervisor = next(d["id"] for d in todo["personas"] if d["rol"] == "supervisor")
     ahora = ahora or datetime.now(UTC).replace(microsecond=0)
     sensores = cx.execute("SELECT id, valor, ts FROM sensores").fetchall()
     creadas, estaban = [], []
     try:
         for i, d in enumerate(spec):
             if cx.execute("SELECT 1 FROM ots WHERE id = ?", (d["ot"],)).fetchone():
+                acceso.vincular_ot(cx, d["ot"], cliente["id"])
                 estaban.append(d["ot"])
                 continue
             cx.execute("DELETE FROM sensores")
@@ -109,9 +124,10 @@ def cargar(cx: sqlite3.Connection, ahora: datetime | None = None) -> dict:
             pauta = db.leer_pauta(cx, d["pauta"], catalogo.ultima_aprobada(cx, d["pauta"]))
             desde = (ahora - timedelta(days=d["hace_dias"])).replace(hour=8 + i % 9, minute=(i * 13) % 60, second=0)
             with _reloj(min(desde, ahora - timedelta(hours=2))):
-                catalogo.generar_ot(cx, d["pauta"], d["solicitante"], d["ot"])
+                catalogo.generar_ot(cx, d["pauta"], supervisor, d["ot"])
+                acceso.vincular_ot(cx, d["ot"], cliente["id"])
                 if d["operador"]:
-                    s.asignar(d["ot"], d["operador"], "supervisor:planta")
+                    s.asignar(d["ot"], d["operador"], supervisor)
                     if d["cerrar"]:
                         _ejecutar(s, d, pauta)
             creadas.append(d["ot"])
@@ -120,12 +136,15 @@ def cargar(cx: sqlite3.Connection, ahora: datetime | None = None) -> dict:
         cx.executemany("INSERT INTO sensores (id, valor, ts) VALUES (?, ?, ?)", [tuple(f) for f in sensores])
         cx.commit()
     resumen = {o["ot"]: o for o in catalogo.listar_ots(cx)}
-    return {**semilla, "ots_creadas": [resumen[o] for o in creadas], "ots_que_ya_estaban": estaban}
+    return {**semilla, "cliente": cliente["id"], "accesos": accesos,
+            "ots_creadas": [resumen[o] for o in creadas], "ots_que_ya_estaban": estaban}
 
 
 if __name__ == "__main__":
     cx = db.conectar()
     r = cargar(cx)
+    for a in r["accesos"]:
+        print(f"  acceso nuevo · {a['rol']:10} {a['usuario']:28} clave: {a['clave']}")
     print(f"{len(r['protocolos'])} protocolos, {len(r['pautas'])} pautas; "
           f"{len(r['ots_creadas'])} OT creadas, {len(r['ots_que_ya_estaban'])} ya estaban")
     for o in r["ots_creadas"]:

@@ -142,8 +142,12 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
   (`POST /interno/protocolos`), crea sus pautas (`POST /interno/protocolos/{{protocolo_id}}/pautas`) o atribuye
   las que ya existen (`PUT /interno/pautas/{{pauta_id}}/protocolos/{{protocolo_id}}`), y las aprueba. Un protocolo da
   una o más pautas, y una pauta puede salir de más de un protocolo. Con `CLAVE_EQUIPO` pide `X-Clave-Equipo`.
-- **Para clientes (`/cliente/...`)**: `GET /cliente/pautas` lista las pautas listas (aprobadas y atribuidas a un
-  protocolo) y `POST /cliente/ots` genera una OT de una de ellas, de su última versión aprobada.
+- **Para clientes (`/cliente/...`), con login**: se entra con `POST /auth/entrar` (`usuario` y `clave`) y el token
+  va en cada llamada como `Authorization: Bearer <token>`; dura 12 horas y `POST /auth/salir` lo cierra. `GET /yo`
+  dice quién es. Cada empresa ve solo lo suyo: `GET /cliente/pautas` lista las pautas que el equipo le habilitó, y
+  `GET /cliente/ots` sus OT (el operador, solo las que tiene asignadas). El supervisor pide OT con `POST /cliente/ots`
+  y las asigna a un operador de su empresa con `POST /cliente/ots/{{ot_id}}/asignar`. Las empresas, sus personas y
+  sus pautas las crea el equipo en `/interno/clientes`; la clave de cada persona se genera y se ve una sola vez.
 
 ## Clave del equipo
 
@@ -157,6 +161,8 @@ y el banco la guardan al abrirlos una vez con `?clave=`.
 | Código | Cuerpo | Qué significa |
 |---|---|---|
 | 401 | `{{"clave": "..."}}` | El edge ya ejecuta otra OT, o se lo quiere soltar, o la llamada es del servicio interno, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
+| 401 | `{{"login": "..."}}` | El servicio para clientes no recibió un token válido: falta, no existe o venció. Entrar con `POST /auth/entrar` |
+| 403 | `{{"permiso": "..."}}` | La persona entró, pero su rol o su empresa no la dejan: un operador que pide una OT, o una pauta que su empresa no tiene habilitada |
 | 404 | `{{"no_existe": "..."}}` | La OT, pauta, protocolo, paso, evento o sesión no existe |
 | 409 | `{{"regla": "..."}}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
 | 422 | `{{"detail": ...}}` o `{{"cuadro": "..."}}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |

@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from app import catalogo, cerebro, db, escenarios, protocolos, semilla, verificacion
+from app import acceso, catalogo, cerebro, db, escenarios, protocolos, semilla, verificacion
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -133,8 +133,29 @@ class PautaDeProtocolo(BaseModel):
 
 class PedidoOt(BaseModel):
     pauta_id: str
-    solicitante: str
     ot_id: str | None = None
+
+
+class Credenciales(BaseModel):
+    usuario: str
+    clave: str
+
+
+class ClienteNuevo(BaseModel):
+    id: str
+    nombre: str
+    industria: str = ""
+
+
+class PersonaNueva(BaseModel):
+    id: str
+    nombre: str
+    usuario: str
+    rol: str
+
+
+class AsignacionCliente(BaseModel):
+    operador: str
 
 
 class Sesion(BaseModel):
@@ -248,6 +269,25 @@ def clave_requerida(_: Request, e: ClaveRequerida) -> JSONResponse:
     return JSONResponse(status_code=401, content={"clave": str(e)})
 
 
+@app.exception_handler(acceso.NoAutenticado)
+def no_autenticado(_: Request, e: acceso.NoAutenticado) -> JSONResponse:
+    return JSONResponse(status_code=401, content={"login": str(e)}, headers={"WWW-Authenticate": "Bearer"})
+
+
+@app.exception_handler(acceso.SinPermiso)
+def sin_permiso(_: Request, e: acceso.SinPermiso) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"permiso": str(e)})
+
+
+def _token(authorization: str | None) -> str | None:
+    tipo, _, token = (authorization or "").partition(" ")
+    return token.strip() if tipo.lower() == "bearer" and token.strip() else None
+
+
+def _persona(authorization: str | None) -> dict:
+    return acceso.quien(cx, _token(authorization))
+
+
 def _clave_valida(clave: str | None) -> bool:
     esperada = os.environ.get("CLAVE_EQUIPO", "")
     return not esperada or hmac.compare_digest((clave or "").encode(), esperada.encode())
@@ -292,8 +332,9 @@ def sembrar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> dic
 
 @app.post("/interno/ots/semilla")
 def sembrar_ots(x_clave_equipo: str | None = Header(default=None)) -> dict:
-    """Los protocolos con sus pautas y 15 OT de ejemplo en distintos estados (`datos/ots-semilla.json`),
-    ejecutadas contra las reglas reales. Se puede repetir: una OT que ya existe no se toca."""
+    """La minera ficticia Oculta con sus personas, los protocolos con sus pautas habilitadas para ella y 15 OT
+    de ejemplo (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `accesos` trae las claves de las
+    personas creadas en esta llamada: es la única vez que se ven. Se puede repetir sin duplicar."""
     _solo_equipo(x_clave_equipo)
     return semilla.cargar(cx)
 
@@ -360,26 +401,123 @@ def aprobar_pauta_interno(pauta_id: str, version: int, a: Aprobacion, x_clave_eq
     return catalogo.aprobar_pauta(cx, pauta_id, version, a.actor)
 
 
-# ─── Servicio para clientes: pedir OT de las pautas que el equipo dejó listas ─
+# ─── Servicio para clientes: con login, cada empresa ve lo suyo (app/acceso.py) ─
+# Se entra con usuario y clave y se manda el token como `Authorization: Bearer <token>`.
+# El supervisor pide y asigna OT de su empresa; el operador ve las que tiene asignadas.
+
+
+@app.post("/auth/entrar")
+def entrar(c: Credenciales) -> dict:
+    """Devuelve el token, cuándo vence y quién es la persona, con su rol y su empresa. 401 si no calzan."""
+    return acceso.entrar(cx, c.usuario, c.clave)
+
+
+@app.post("/auth/salir", status_code=204)
+def salir(authorization: str | None = Header(default=None)) -> None:
+    _persona(authorization)
+    acceso.salir(cx, _token(authorization))
+
+
+@app.get("/yo")
+def yo(authorization: str | None = Header(default=None)) -> dict:
+    """Quién es el dueño del token: su id, nombre, rol y empresa."""
+    return _persona(authorization)
 
 
 @app.get("/cliente/pautas")
-def pautas_para_clientes() -> list[dict]:
-    """Las pautas que se pueden pedir: con una versión aprobada y al menos un protocolo."""
-    return catalogo.pautas_disponibles(cx)
+def pautas_para_clientes(authorization: str | None = Header(default=None)) -> list[dict]:
+    """Las pautas que la empresa puede pedir: habilitadas para ella, aprobadas y con protocolo."""
+    return acceso.pautas_habilitadas(cx, _persona(authorization)["cliente"]["id"])
 
 
 @app.post("/cliente/ots", status_code=201)
-def pedir_ot(p: PedidoOt) -> dict:
-    """Genera una OT de la última versión aprobada de la pauta. Sin `ot_id`, el servicio le pone uno.
-    409 si la pauta no está aprobada, no sale de ningún protocolo o el id ya existe."""
-    return catalogo.generar_ot(cx, p.pauta_id, p.solicitante, p.ot_id)
+def pedir_ot(p: PedidoOt, authorization: str | None = Header(default=None)) -> dict:
+    """Un supervisor pide una OT de la última versión aprobada de una pauta habilitada. Sin `ot_id`, el
+    servicio le pone uno. La OT queda de su empresa y a su nombre. 403 si no es supervisor o la pauta no
+    está habilitada; 409 si la pauta no está lista o el id ya existe."""
+    return acceso.pedir_ot(cx, _persona(authorization), p.pauta_id, p.ot_id)
 
 
 @app.get("/cliente/ots")
-def ots_para_clientes() -> list[dict]:
-    """Cada OT con su avance, su operador y su estado general, como en `/ots`."""
-    return servicios.ots()
+def ots_para_clientes(authorization: str | None = Header(default=None)) -> list[dict]:
+    """El supervisor ve todas las OT de su empresa; el operador, las que tiene asignadas."""
+    return acceso.ots_de(cx, _persona(authorization), servicios._ots_en_sesion())
+
+
+@app.get("/cliente/ots/{ot_id}")
+def ot_para_clientes(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Una OT con su avance y su calificación. 404 si no es de su empresa o, para un operador, si no es suya."""
+    o = acceso.ot_de(cx, _persona(authorization), ot_id, servicios._ots_en_sesion())
+    return {**o, "calificacion": servicios.calificacion(ot_id)}
+
+
+@app.get("/cliente/operadores")
+def operadores_del_cliente(authorization: str | None = Header(default=None)) -> list[dict]:
+    """Los operadores de la empresa, para asignarles OT. Solo supervisor."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "supervisor")
+    return acceso.personas_de(cx, p["cliente"]["id"], "operador")
+
+
+@app.post("/cliente/ots/{ot_id}/asignar")
+def asignar_ot_del_cliente(ot_id: str, a: AsignacionCliente, authorization: str | None = Header(default=None)) -> dict:
+    """El supervisor deja una OT de su empresa en manos de un operador de su empresa. 403 si el operador es de
+    otra; 409 si la OT está completa o ya tiene operador."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "supervisor")
+    acceso.ot_de(cx, p, ot_id)
+    acceso.operador_de_la_empresa(cx, p, a.operador)
+    return servicios.asignar(ot_id, a.operador, p["id"])
+
+
+# ─── Servicio interno: clientes, personas y qué pautas tiene cada uno ───────
+
+
+@app.post("/interno/clientes", status_code=201)
+def crear_cliente(c: ClienteNuevo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    _solo_equipo(x_clave_equipo)
+    return acceso.crear_cliente(cx, c.id, c.nombre, c.industria)
+
+
+@app.get("/interno/clientes")
+def listar_clientes(x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    _solo_equipo(x_clave_equipo)
+    return acceso.listar_clientes(cx)
+
+
+@app.get("/interno/clientes/{cliente_id}")
+def leer_cliente(cliente_id: str, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """El cliente con sus personas y las pautas que tiene habilitadas."""
+    _solo_equipo(x_clave_equipo)
+    return {**acceso._cliente(cx, cliente_id), "personas": acceso.personas_de(cx, cliente_id),
+            "pautas": acceso.pautas_habilitadas(cx, cliente_id)}
+
+
+@app.post("/interno/clientes/{cliente_id}/personas", status_code=201)
+def crear_persona(cliente_id: str, n: PersonaNueva, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Crea la persona con una clave al azar. La respuesta trae la clave: es la única vez que se ve."""
+    _solo_equipo(x_clave_equipo)
+    persona, clave = acceso.crear_persona(cx, cliente_id, n.id, n.nombre, n.usuario, n.rol)
+    return {"persona": persona, "clave": clave}
+
+
+@app.post("/interno/personas/{persona_id}/clave")
+def cambiar_clave(persona_id: str, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Una clave nueva al azar, que se ve una sola vez. Cierra las sesiones abiertas de esa persona."""
+    _solo_equipo(x_clave_equipo)
+    return {"persona": persona_id, "clave": acceso.nueva_clave(cx, persona_id)}
+
+
+@app.put("/interno/clientes/{cliente_id}/pautas/{pauta_id}")
+def habilitar_pauta(cliente_id: str, pauta_id: str, x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    _solo_equipo(x_clave_equipo)
+    return acceso.habilitar(cx, cliente_id, pauta_id)
+
+
+@app.delete("/interno/clientes/{cliente_id}/pautas/{pauta_id}", status_code=204)
+def deshabilitar_pauta(cliente_id: str, pauta_id: str, x_clave_equipo: str | None = Header(default=None)) -> None:
+    _solo_equipo(x_clave_equipo)
+    acceso.deshabilitar(cx, cliente_id, pauta_id)
 
 
 @app.get("/sesiones")
