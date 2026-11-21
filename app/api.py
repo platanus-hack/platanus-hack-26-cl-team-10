@@ -316,6 +316,13 @@ def listar_escenarios() -> list[dict]:
     return [e.como_dict() for e in escenarios.catalogo()]
 
 
+@app.get("/industrias")
+def listar_industrias() -> dict:
+    """Cada industria con su pauta, sensores, reglas, trasfondo y casos de uso; y las piezas de la arquitectura."""
+    return {"industrias": [escenarios.industria_dict(i) for i in escenarios.INDUSTRIAS],
+            "arquitectura": escenarios.arquitectura()}
+
+
 @app.post("/escenarios/correr")
 def correr_escenarios() -> list[dict]:
     """Corre todos en una caja aislada (base en memoria, juez y reloj propios). Sin trazas, para que pese poco."""

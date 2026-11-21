@@ -141,7 +141,7 @@ Promesas: la misma matriz para las tres industrias; lo esperado siempre con fuen
 
 ## 7. Alcance
 
-**Entra:** las tres pautas, los 23 patrones por industria, las reglas de §5.3 en `reglas.py`, la frescura, la declaración con su paso y el paso de cámara sin cuadro en `servicios.py`, el detector de capa 2 que no aprende de la falla, la caja aislada, `GET /escenarios` y `POST /escenarios[/{id}]/correr`, la matriz y el detalle en `/casos`, `tests/test_escenarios.py`, la simulación de capa 2 y el eval de capa 3 con su set de escenas.
+**Entra:** las tres pautas, los 23 patrones por industria, las reglas de §5.3 en `reglas.py`, la frescura, la declaración con su paso y el paso de cámara sin cuadro en `servicios.py`, el detector de capa 2 que no aprende de la falla, la caja aislada, `GET /escenarios` y `POST /escenarios[/{id}]/correr`, la matriz, el detalle y una sección por industria con su recorrido animado en `/casos` (`GET /industrias`), `tests/test_escenarios.py`, la simulación de capa 2 y el eval de capa 3 con su set de escenas.
 
 **No entra:** el detector de capa 2 para equipos con ciclo de carga (§9), conectar un VLM (frente 3), juntar las imágenes del eval y patrones de relevo de turno.
 
@@ -153,9 +153,10 @@ Promesas: la misma matriz para las tres industrias; lo esperado siempre con fuen
 - **CA4 —** **Dado** cualquier escenario, **cuando** se lee, **entonces** dice de dónde sale lo que espera.
 - **CA5 —** **Dado** `/casos`, **cuando** se corren los escenarios, **entonces** se ve la matriz con su sello por celda, y al elegir una celda, lo esperado contra lo obtenido, la bitácora y lo que habría llegado por el stream.
 - **CA6 —** **Dado** la simulación de capa 2, **cuando** se corre, **entonces** informa, por industria y detector, las falsas alarmas y si detecta y sostiene el pico, el escalón, la deriva y el sensor pegado.
+- **CA8 —** **Dado** `/casos`, **cuando** se abre la sección de una industria, **entonces** se ven su trasfondo (la norma, lo que pasa cuando falla, sus reglas y sensores), su pauta y su arquitectura (tests, controladores, servicios y tablas). Al elegir un test, el recorrido de su escenario se anima tramo por tramo: qué controlador recibe, qué servicios corren y cuáles deciden, qué tablas se escriben y cómo queda cada paso de la pauta.
 - **CA7 —** **Dado** un juez de cámara, **cuando** se corre el eval de capa 3, **entonces** informa la falsa aceptación, el falso rechazo y la confianza en aciertos y errores, y cuenta aparte los casos sin imagen.
 
-Los tests: los casos de uso de cada industria en `tests/test_mineria.py`, `tests/test_electrica.py` y `tests/test_construccion.py`, 25 por industria; la matriz como un todo en `tests/test_escenarios.py` (CA1 a CA4); `tests/test_casos.py` (CA5) y `tests/test_barreras.py` (CA6 y CA7).
+Los tests: los casos de uso de cada industria en `tests/test_mineria.py`, `tests/test_electrica.py` y `tests/test_construccion.py`, 25 por industria; la matriz como un todo en `tests/test_escenarios.py` (CA1 a CA4); `tests/test_casos.py` (CA5 y CA8) y `tests/test_barreras.py` (CA6 y CA7).
 
 ## 9. Riesgos y decisiones abiertas
 

@@ -65,6 +65,33 @@ class ElBancoSeSirve(unittest.TestCase):
         self.assertTrue(uno["bitacora"] and uno["stream"])
         self.assertEqual(self.c.post("/escenarios/NO-EXISTE/correr").status_code, 404)
 
+    def test_cada_industria_tiene_su_seccion_con_trasfondo_arquitectura_y_tests(self):
+        texto = self.c.get("/casos").text
+        for ancla in ("mineria", "electrica", "construccion"):
+            self.assertIn(f'href="#{ancla}"', texto)
+        r = self.c.get("/industrias").json()
+        self.assertEqual([i["codigo"] for i in r["industrias"]], ["MIN", "ELE", "CON"])
+        for i in r["industrias"]:
+            with self.subTest(i["codigo"]):
+                self.assertGreaterEqual(len(i["trasfondo"]), 3)
+                self.assertTrue(all("REFERENCIAS" in t["texto"] for t in i["trasfondo"][:2]))
+                self.assertGreaterEqual(len(i["reglas"]), 3)
+                self.assertEqual(len(i["tests"]), 25)
+                corren = [t for t in i["tests"] if t["escenario"]]
+                self.assertGreaterEqual(len(corren), 23)
+        piezas = r["arquitectura"]
+        self.assertIn("POST /edge/{id}/lecturas", piezas["controladores"])
+        self.assertEqual({t["id"] for t in piezas["tablas"]} >= {"sensores", "eventos", "sesiones"}, True)
+
+    def test_un_test_de_industria_trae_su_recorrido_por_controladores_servicios_y_tablas(self):
+        r = self.c.post("/escenarios/MIN-B2/correr").json()
+        tramos = r["recorrido"]
+        self.assertEqual([t["accion"] for t in tramos], ["preparar", "lee", "lee"])
+        self.assertEqual(tramos[1]["controladores"], ["POST /edge/{id}/lecturas"])
+        self.assertIn("orden", tramos[1]["disparan"])
+        self.assertIn("eventos", tramos[1]["tablas"])
+        self.assertEqual((tramos[1]["nivel"], tramos[2]["nivel"]), ("error", "ok"))
+
     def test_la_guia_la_nombra_y_no_la_lista_como_endpoint(self):
         guia = self.c.get("/agente").text
         self.assertIn("http://testserver/casos", guia)
