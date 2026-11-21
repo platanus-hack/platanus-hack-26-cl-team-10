@@ -460,7 +460,7 @@ class LasOtDeEjemplo(Base):
         self.assertEqual(db.estado_sensores(self.cx), {"operario": "presente"})
         self.assertEqual(self.s.sesiones(), [])
         otra = self.semilla.cargar(self.cx)
-        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 16))
+        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 19))
 
     def test_la_camara_de_la_semilla_queda_dicha_en_la_evidencia(self):
         ev = next(e for e in db.eventos(self.cx, "ot-1006") if e.tipo.value == "veredicto" and e.capa == 3)
@@ -553,10 +553,10 @@ class PorHTTP(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             self.assertEqual(self.c.post("/interno/ots/semilla").status_code, 401)
             r = self.c.post("/interno/ots/semilla", headers={"X-Clave-Equipo": "secreta"})
-        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 16, 3))
+        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 19, 5))
         carla = next(a for a in r.json()["accesos"] if a["rol"] == "supervisor")
         token = self.c.post("/auth/entrar", json={"usuario": carla["usuario"], "clave": carla["clave"]}).json()["token"]
-        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 16)
+        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 19)
 
     def test_la_semilla_deja_los_casos_listos_para_el_cliente(self):
         r = self.c.post("/interno/protocolos/semilla").json()

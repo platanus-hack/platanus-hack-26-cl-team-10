@@ -66,6 +66,7 @@ curl -X POST {base}/ot/ot-1/sesion -H 'content-type: application/json' \\
      -d '{{"edge_id":"edge-1","operario":"operario:A"}}'   # une la OT con su edge
 curl -X POST {base}/edge/edge-1/lecturas -H 'content-type: application/json' \\
      -d '[{{"sensor_id":"reed_bloqueo","valor":"cerrado","seq":1}}]'   # el edge manda una lectura
+curl {base}/ot/ot-1/ficha                           # la pauta completa, su protocolo y su operador
 curl {base}/ot/ot-1                                 # estado por paso
 curl {base}/ot/ot-1/calificacion                    # ok · warning · error, con avisos activos
 curl {base}/ot/ot-1/eventos                         # la bitácora
