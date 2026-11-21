@@ -19,7 +19,7 @@ Una unidad de la pauta que se puede cerrar con evidencia. Sale de convertir el p
 | `tipo_evidencia` | `sensor` · `camara` · `confirmacion` | **Qué cierra el paso.** Es el campo que decide todo lo demás |
 | `pregunta_visual` | texto o nulo | La pregunta concreta para la cámara, si el tipo es `camara` |
 | `sensor` | objeto o nulo | Qué sensor y qué valor se espera, si el tipo es `sensor` |
-| `deteccion` | objeto o nulo | Solo en pasos `camara`: `{clase, presente}`. Qué clase del modelo del edge lo responde en capa 2 (presente o ya retirada). Si el modelo no está seguro, decide el VLM (capa 3) |
+| `deteccion` | objeto o nulo | Solo en pasos `camara`: `{clase, presente}`. Qué clase del modelo del edge lo responde en capa 2 (presente o ya retirada). Si el modelo no está seguro, o no busca esa clase, decide el VLM (capa 3). El detector del edge suma a sus clases las que pide la pauta de la OT en sesión |
 | `control_critico` | sí · no | Si su falla permite un evento de alta consecuencia |
 | `capa_minima` | 1 · 2 · 3 | La capa más baja que puede cerrarlo |
 
@@ -131,12 +131,12 @@ Límite conocido y aceptado: esto funciona mientras el registro de una OT quepa 
 
 ## Cuándo el sistema propone cambiar la pauta
 
-Una desviación suelta no es una propuesta. La propuesta nace cuando la **misma** desviación se repite en el mismo paso, en ejecuciones distintas.
+Una desviación suelta no es una propuesta. La propuesta nace cuando el **mismo** paso de la misma versión tiene señales en ejecuciones distintas: alertas de orden o de control, conflictos, pasos confirmados por una persona porque la evidencia no los vio, y lo que observaron los operarios. El supervisor la valida, el equipo escribe la versión nueva y la misma propuesta dice después si el paso dejó de desviarse ([ADR-0014](../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)).
 
 La vista del supervisor **agrupa por pauta y por área antes que por persona**: un paso que se saltan muchos operarios que normalmente cumplen apunta a la pauta, no a ellos (REFERENCIAS 33). Y dos cuidados que son regla, no consejo:
 
 - **Un paso de seguridad que se salta seguido no se vuelve prescindible.** Que se repita la desviación es señal de que la pauta está mal escrita o es impracticable, no de que el paso sobre.
-- **Si el dato se usa para vigilar personas**, puede aumentar la presión de la jefatura, que es una de las causas de las desviaciones (REFERENCIAS 33). `Candidata a validar`.
+- **Si el dato se usa para vigilar personas**, puede aumentar la presión de la jefatura, que es una de las causas de las desviaciones (REFERENCIAS 33). `Candidata a validar`. Por eso el pitch no presenta a Factum como un supervisor que mira todo el tiempo ([ADR-0013](../decisions/0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md)).
 
 ## Lo que esta lógica todavía no resuelve
 

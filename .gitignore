@@ -7,3 +7,6 @@ datos/evals/capa3/imagenes/
 data/
 *.pt
 *.onnx
+.env
+.env.local
+.env.*.local

@@ -50,6 +50,9 @@ class _Servicios(Servicios):
     def _con_cuadro(self, evidencia, ot_id, paso_id, edge_id):
         return {**evidencia, "cuadro": None, "semilla": "respuesta de cámara fija, sin cuadro"} if evidencia else None
 
+    def _cuadro_de_paso(self, ot_id, paso_id):
+        return b""
+
 
 @contextmanager
 def _reloj(desde: datetime) -> Iterator[None]:
@@ -69,7 +72,7 @@ def _reloj(desde: datetime) -> Iterator[None]:
 
 def _ejecutar(s: Servicios, d: dict, pauta) -> None:
     confianza = {"valor": CAMARA_POR_DEFECTO}
-    s.juez = lambda pregunta, cuadro: (True, confianza["valor"])
+    s.juez = lambda pregunta, cuadro, antes=None: (True, confianza["valor"])
     operador = d["operador"]
     s.iniciar_sesion(d["ot"], EDGE, operador)
     seq = [0]
@@ -81,6 +84,11 @@ def _ejecutar(s: Servicios, d: dict, pauta) -> None:
                     seq[0] += 1
                     s.recibir_lectura(EDGE, sensor, valor, seq[0])
 
+    def observaciones(despues_del_paso: int) -> None:
+        for o in d.get("observaciones", []):
+            if o["despues_del_paso"] == despues_del_paso:
+                s.observar(d["ot"], operador, o["texto"], o["categoria"], o.get("paso"))
+
     hasta = len(pauta.pasos) if d["cerrar"] == "todos" else d["cerrar"]
     for paso in pauta.en_orden[:hasta]:
         lecturas(paso.orden)
@@ -90,6 +98,7 @@ def _ejecutar(s: Servicios, d: dict, pauta) -> None:
         else:
             confianza["valor"] = d.get("camara", {}).get(paso.id, CAMARA_POR_DEFECTO)
             s.declarar(d["ot"], operador, f"listo: {paso.titulo.lower()}")
+        observaciones(paso.orden)
     lecturas(hasta + 1)
     s.terminar_sesion(EDGE)
 
@@ -124,10 +133,11 @@ def cargar(cx: sqlite3.Connection, ahora: datetime | None = None) -> dict:
             pauta = db.leer_pauta(cx, d["pauta"], catalogo.ultima_aprobada(cx, d["pauta"]))
             desde = (ahora - timedelta(days=d["hace_dias"])).replace(hour=8 + i % 9, minute=(i * 13) % 60, second=0)
             with _reloj(min(desde, ahora - timedelta(hours=2))):
-                catalogo.generar_ot(cx, d["pauta"], supervisor, d["ot"])
+                pide = d.get("supervisor", supervisor)  # quién la pide y la asigna: por defecto, la primera supervisora
+                catalogo.generar_ot(cx, d["pauta"], pide, d["ot"])
                 acceso.vincular_ot(cx, d["ot"], cliente["id"])
                 if d["operador"]:
-                    s.asignar(d["ot"], d["operador"], supervisor)
+                    s.asignar(d["ot"], d["operador"], pide)
                     if d["cerrar"]:
                         _ejecutar(s, d, pauta)
             creadas.append(d["ot"])

@@ -46,7 +46,7 @@ Y lo que todavía no funciona: un VLM general detecta 3 de 12 cambios de orden y
 
 ## Evidencia frente al planteamiento del equipo
 
-El [planteamiento del 2026-11-21](../../domain/fuentes/2026-11-21-planteamiento-del-equipo.md) agregó ideas que la primera búsqueda no cubría. Esto dice lo que ya tenemos sobre cada una:
+El [planteamiento del 2026-11-21](../../domain/fuentes/2026-11-21-planteamiento-del-equipo.md) y el [pitch del copiloto](../../domain/fuentes/2026-11-21-pitch-del-copiloto.md), del mismo día, agregaron ideas que la primera búsqueda no cubría. Esto dice lo que ya tenemos sobre cada una:
 
 | Lo que plantea el equipo | Lo que dice la evidencia | Estado |
 |---|---|---|
@@ -59,6 +59,10 @@ El [planteamiento del 2026-11-21](../../domain/fuentes/2026-11-21-planteamiento-
 | USD 300.000 por hora de correa detenida | Es el tope del rango que da un proveedor, USD 100.000 a 300.000 (38). El sector habla de USD 40.000 a más de 200.000 (39) | `Candidata a validar` |
 | Relevo de turno con resumen | No se buscó literatura | `Brecha` |
 | Aviso por audio en el oído | No se buscó literatura sobre el canal ni sobre fatiga de alarmas | `Brecha` |
+| Reportes que no omiten información (pitch) | El texto libre de las OT tiene errores sistemáticos (3), y el tiempo medio entre fallas va de 97 a 226 días según cómo se agrupen las OT (4). Una bitácora de pasos verificados no depende de lo que alguien escribe después, pero solo cubre lo que la pauta verifica | `Candidata a validar` |
+| El operario genera conocimiento mientras ejecuta (pitch) | Hay trabajos que capturan cómo ejecuta un experto (21) y que ordenan el conocimiento de fallas de las OT para que un agente lo consulte (7). De los dos se leyó solo el resumen | `Candidata a validar` |
+| «Es lo mismo que tener un supervisor viendo todo el tiempo» (pitch) | Choca con la presión de la jefatura como causa de desviaciones (33). ICMM pide verificar el control crítico (40), no vigilar a la persona. El pitch quedó como «sin un supervisor encima de cada trabajo» ([ADR-0013](../../decisions/0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md)) | `Candidata a validar` |
+| Métricas y datos por API (pitch) | No se buscó qué métricas pide una operación ni qué sistemas las reciben | `Brecha` |
 
 ## Fatalidades y controles críticos
 

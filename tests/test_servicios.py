@@ -150,6 +150,13 @@ class AnomaliaDeSenal(Base):
         self.s.recibir_lectura("edge-1", "vibracion", "2.0")
         self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
 
+    def test_la_temperatura_de_la_sala_puede_repetirse_sin_que_el_sensor_este_pegado(self):
+        for _ in range(15):
+            self.s.recibir_lectura("edge-1", "temp_c", "25.8")
+            self.s.recibir_lectura("edge-1", "vibracion", "2.0")
+        # la regla sigue para los demás sensores
+        self.assertEqual([a.evidencia["sensor"] for a in self.alertas("ot-1", "pegado")], ["vibracion"])
+
     def test_un_valor_no_numerico_no_pasa_por_la_capa2(self):
         self.s.recibir_lectura("edge-1", "guarda", "abierta")
         self.assertEqual(

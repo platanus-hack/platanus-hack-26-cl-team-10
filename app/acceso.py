@@ -23,8 +23,9 @@ import sqlite3
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
 
-from app import catalogo, db
+from app import catalogo, db, mejora
 from app.catalogo import ReglaDeNegocio
+from app.contratos import TipoEvento
 
 ROLES = ("supervisor", "operador")
 DURACION_SESION = timedelta(hours=12)
@@ -61,6 +62,7 @@ class SinPermiso(Exception):
 
 def preparar(cx: sqlite3.Connection) -> None:
     catalogo.preparar(cx)
+    mejora.preparar(cx)
     cx.executescript(_ESQUEMA)
 
 
@@ -157,6 +159,11 @@ def personas_de(cx: sqlite3.Connection, cliente_id: str, rol: str | None = None)
     return [_persona_dict(cx, f) for f in filas]
 
 
+def nombres_de(cx: sqlite3.Connection, cliente_id: str) -> list[dict]:
+    """Lo que una persona puede saber de las demás de su empresa. El usuario no va: es la mitad del login."""
+    return [{"id": p["id"], "nombre": p["nombre"], "rol": p["rol"]} for p in personas_de(cx, cliente_id)]
+
+
 # ─── Entrar, saber quién es y salir ─────────────────────────────────────────
 
 
@@ -245,6 +252,44 @@ def ot_de(cx: sqlite3.Connection, p: dict, ot_id: str, en_sesion: Collection[str
     if o is None:
         raise db.NoExiste(f"OT {ot_id}")
     return o
+
+
+def ficha(cx: sqlite3.Connection, ot_id: str, en_sesion: Collection[str] = (), con_empresa: bool = True) -> dict:
+    """Lo que hace falta para ejecutar una OT que ya existe: su resumen, de qué empresa es, quién la pidió y quién
+    la tiene, de qué protocolos sale su pauta y sus pasos completos, en la versión que la OT ejecuta. Sin
+    `con_empresa` no salen la empresa ni los nombres de sus personas: es lo que ve quien no entró."""
+    o = catalogo.resumen_ot(cx, ot_id, en_sesion)
+    f = cx.execute("SELECT cliente_id FROM ot_cliente WHERE ot_id = ?", (ot_id,)).fetchone() if con_empresa else None
+    nombres = {p["id"]: p["nombre"] for p in personas_de(cx, f["cliente_id"])} if f else {}
+    pedida_por = next((e.actor for e in db.eventos(cx, ot_id) if e.tipo is TipoEvento.OT_ABIERTA), None)
+    pauta = catalogo.leer_pauta(cx, o["pauta"], o["version"])
+    return {**o, "nombre": pauta["nombre"], "cliente": _cliente(cx, f["cliente_id"]) if f else None,
+            "operador_nombre": nombres.get(o["operador"]), "pedida_por": pedida_por,
+            "pedida_por_nombre": nombres.get(pedida_por), "protocolos": catalogo.protocolos_de(cx, o["pauta"]),
+            "pasos": sorted(pauta["pasos"], key=lambda p: p["orden"])}
+
+
+def exige_estacion(cx: sqlite3.Connection, p: dict, ot_id: str, edge_id: str, sesion: dict | None, tomar: bool) -> None:
+    """Si esta persona puede dejar la estación `edge_id` ejecutando su OT; `sesion` es lo que la estación ejecuta
+    ahora. La autoriza quién es, no una clave compartida: el operador que tiene la OT asignada. Una estación
+    libre, o con una OT ya completa, se une sin más. Quitársela a una OT abierta hay que pedirlo con `tomar`,
+    porque esa OT deja de recibir sus sensores, y nunca se le quita a la OT de otra empresa."""
+    exige_rol(p, "operador")
+    if ot_de(cx, p, ot_id)["completa"]:
+        raise catalogo.ReglaDeNegocio(f"la OT {ot_id} ya está completa")
+    if sesion is None or sesion["ot_id"] == ot_id:
+        return
+    dueno = cx.execute("SELECT cliente_id FROM ot_cliente WHERE ot_id = ?", (sesion["ot_id"],)).fetchone()
+    if dueno is not None and dueno["cliente_id"] != p["cliente"]["id"]:
+        raise SinPermiso(f"la estación {edge_id} ejecuta la OT de otra empresa")
+    try:
+        if catalogo.resumen_ot(cx, sesion["ot_id"])["completa"]:
+            return
+    except db.NoExiste:
+        return
+    if not tomar:
+        raise catalogo.ReglaDeNegocio(f"la estación {edge_id} ejecuta la OT {sesion['ot_id']} desde {sesion['desde']}, con "
+                                      f"{sesion['operario']}; para quitársela, repetir con `tomar` en true")
 
 
 def operador_de_la_empresa(cx: sqlite3.Connection, p: dict, operador: str) -> None:
