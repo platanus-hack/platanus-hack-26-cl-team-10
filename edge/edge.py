@@ -18,6 +18,7 @@ import serial
 import websocket
 
 MODELO = "yolov8s-worldv2.pt"
+SIN_DATOS_S = 10  # el ESP32 manda 1 línea/s: tanto silencio es un puerto muerto
 
 
 class Canal:
@@ -103,12 +104,19 @@ def _leer_y_enviar(servidor, edge_id, puerto, stats, dist_max, temp_max):
     seq = int(time.time() * 1000)  # crece entre reinicios: el servidor descarta seq repetidos
     esp = serial.Serial(puerto, 115200, timeout=2)
     print(f"[sensores] leyendo {puerto}")
-    dist_previa = None
+    dist_previa, ultimo_dato = None, time.time()
     while True:
+        linea = esp.readline()
+        if linea:
+            ultimo_dato = time.time()
+        elif time.time() - ultimo_dato > SIN_DATOS_S:
+            # tras desconectar el USB el puerto viejo devuelve vacío para siempre, sin error
+            esp.close()
+            raise serial.SerialException(f"{SIN_DATOS_S:g} s sin datos del ESP32")
         try:
-            d = json.loads(esp.readline().decode(errors="ignore"))
+            d = json.loads(linea.decode(errors="ignore"))
         except ValueError:
-            continue  # boot log o línea cortada
+            continue  # boot log, línea cortada o vacía
         lote = []
         crudos = {k: d[k] for k in ("temp_c", "hum_pct", "dist_cm") if d.get(k) is not None}  # null = sin lectura
         for k, v in {**crudos, **estados(d, dist_previa, dist_max, temp_max)}.items():
