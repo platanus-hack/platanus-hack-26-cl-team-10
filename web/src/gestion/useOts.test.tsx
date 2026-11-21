@@ -80,6 +80,26 @@ describe('grading for the supervisor', () => {
     expect(leer.mock.calls.map(([id]) => id).sort()).toEqual(['ot-asig', 'ot-run'])
   })
 
+  it('takes the grading from the list when the API sends it, with no request per OT', async () => {
+    const enLista = { ...calificacion, nivel: 'error' as const }
+    const leer = preparar(() => [{ ...con('ot-run', 'en_ejecucion'), calificacion: enLista }, { ...con('ot-libre', 'sin_asignar'), calificacion: enLista }])
+    const { result } = renderHook(() => useOts(60_000, 60_000, null, true))
+    await waitFor(() => expect(result.current.ots).not.toBeNull())
+    await act(async () => {
+      await result.current.recargar()
+    })
+    expect(leer).not.toHaveBeenCalled()
+    expect(result.current.ots?.find((o) => o.ot === 'ot-run')?.calificacion?.nivel).toBe('error')
+    expect(result.current.ots?.find((o) => o.ot === 'ot-libre')?.calificacion).toBeNull()
+  })
+
+  it('the operator view shows no grading even when the list carries it', async () => {
+    preparar(() => [{ ...con('ot-1', 'en_ejecucion'), calificacion }])
+    const { result } = renderHook(() => useOts(60_000, 60_000, null, false))
+    await waitFor(() => expect(result.current.ots).not.toBeNull())
+    expect(result.current.ots?.[0].calificacion).toBeNull()
+  })
+
   it('keeps the last grading when asking again fails', async () => {
     const leer = preparar(() => [con('ot-run', 'en_ejecucion')])
     const { result } = renderHook(() => useOts(60_000, 60_000, null, true))

@@ -4,8 +4,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { EstadoOt } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
+import { useNombres } from '../sesion/useNombres'
 import type { Usuario } from '../sesion/usuarios'
-import { FranjaSinConexion, MensajeError } from './Avisos'
+import { EstacionOcupada, FranjaSinConexion, MensajeError } from './Avisos'
 import { BarraOt } from './BarraOt'
 import { Briefing } from './Briefing'
 import { avance, relevoPendiente } from './estado'
@@ -77,6 +78,7 @@ function EntregarTurno({ onConfirmar, habilitado }: { onConfirmar(): void; habil
 
 function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
   const e = useEjecucion(otId, usuario)
+  useNombres()
   const navigate = useNavigate()
   const { s } = e
   const relevo = relevoPendiente(s.bitacora)
@@ -114,6 +116,11 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
     <Box>
       <BarraOt usuario={usuario} />
       {s.conexion === 'reconectando' && <FranjaSinConexion />}
+      {e.estacionOcupada && (
+        <Container size={560} px="md" pt="md">
+          <EstacionOcupada sesion={e.estacionOcupada} onTomar={e.tomarEstacion} />
+        </Container>
+      )}
       {s.mensaje && (
         <Container size={560} px="md" pt="md">
           <MensajeError mensaje={s.mensaje} onVisto={e.verMensaje} />

@@ -278,17 +278,74 @@ describe('handover and navigation', () => {
     expect(screen.getByText('Relevo de turno')).toBeInTheDocument()
   })
 
-  it('a station busy with another OT says so in plain words, keeps the operator signed in and retries', async () => {
+  it('a station busy with another OT says who has it, and retrying never takes it', async () => {
+    tiempos.reintentoSesionMs = 30
+    abrir('feliz')
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    const pedidos: unknown[] = []
+    server.events.on('request:start', async ({ request }) => {
+      if (request.url.endsWith('/cliente/ots/ot-12/sesion')) pedidos.push(await request.clone().json())
+    })
+    await entrar()
+    const aviso = (await screen.findByText('La estación está ocupada')).closest('.mantine-Alert-root') as HTMLElement
+    expect(within(aviso).getByText(/Ejecuta la OT OT-13 con Bruno Díaz, desde las \d\d:\d\d/)).toBeInTheDocument()
+    expect(screen.queryByText(/tomar. en true/)).toBeNull()
+    expect(tokenDeSesion()).not.toBeNull()
+    await waitFor(() => expect(pedidos.length).toBeGreaterThan(2))
+    expect(pedidos).toEqual(pedidos.map(() => ({ edge_id: config.EDGE_ID, tomar: false })))
+    expect(m.sesionDeEdge(config.EDGE_ID)?.ot_id).toBe('ot-13')
+    server.events.removeAllListeners()
+  })
+
+  it('«Tomar la estación» takes it from the other OT with one tap', async () => {
+    tiempos.reintentoSesionMs = 60_000
+    abrir('feliz')
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    await entrar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Tomar la estación' }))
+    await waitFor(() => expect(m.sesionDe('ot-12')).toMatchObject({ operario: 'operario:1', edge_id: config.EDGE_ID }))
+    expect(m.sesionDe('ot-13')).toBeNull()
+    await waitFor(() => expect(screen.queryByText('La estación está ocupada')).toBeNull())
+  })
+
+  it('a busy station that becomes free starts this OT on its own', async () => {
+    tiempos.reintentoSesionMs = 30
+    abrir('feliz')
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    await entrar()
+    expect(await screen.findByText('La estación está ocupada')).toBeInTheDocument()
+    m.abrirSesion('ot-13', 'edge-2', 'operario:2')
+    await waitFor(() => expect(m.sesionDe('ot-12')).not.toBeNull())
+    await waitFor(() => expect(screen.queryByText('La estación está ocupada')).toBeNull())
+  })
+
+  it("a station running another company's OT cannot be taken: it says so and waits", async () => {
+    tiempos.reintentoSesionMs = 60_000
+    abrir('feliz')
+    server.use(
+      http.post(`${config.API_URL}/cliente/ots/:id/sesion`, () =>
+        HttpResponse.json({ permiso: 'la estación edge-1 ejecuta la OT de otra empresa' }, { status: 403 }),
+      ),
+    )
+    await entrar()
+    expect(await screen.findByText(/La estación está ocupada con otra OT. Pide que la liberen/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tomar la estación' })).toBeNull()
+    expect(tokenDeSesion()).not.toBeNull()
+  })
+
+  it('a server without the login session route still works through the old one, team key and all', async () => {
     tiempos.reintentoSesionMs = 50
     let ocupada = true
     abrir('feliz')
     server.use(
+      http.post(`${config.API_URL}/cliente/ots/:id/sesion`, () => HttpResponse.json({ detail: 'Not Found' }, { status: 404 })),
       http.post(`${config.API_URL}/ot/:id/sesion`, () =>
         ocupada ? HttpResponse.json({ clave: 'el edge edge-1 ejecuta la OT ot-prueba: quitárselo pide la clave del equipo' }, { status: 401 }) : undefined,
       ),
     )
     await entrar()
     expect(await screen.findByText(/La estación está ocupada con otra OT/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tomar la estación' })).toBeNull()
     expect(tokenDeSesion()).not.toBeNull()
     ocupada = false
     await waitFor(() => expect(m.sesionDe('ot-12')).not.toBeNull())
@@ -297,7 +354,7 @@ describe('handover and navigation', () => {
   it('a failed session opening is retried until it works', async () => {
     tiempos.reintentoSesionMs = 100
     abrir('feliz')
-    server.use(http.post(`${config.API_URL}/ot/:id/sesion`, () => HttpResponse.error(), { once: true }))
+    server.use(http.post(`${config.API_URL}/cliente/ots/:id/sesion`, () => HttpResponse.error(), { once: true }))
     await entrar()
     expect(await screen.findByText('Sin conexión, reintentando')).toBeInTheDocument()
     await waitFor(() => expect(m.snapshot('ot-12', 0).sesion).not.toBeNull())

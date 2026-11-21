@@ -11,6 +11,7 @@ import type {
   Pauta,
   PautaResumen,
   Persona,
+  PersonaNombre,
   RespuestaConfirmar,
   RespuestaDeclarar,
   Sesion,
@@ -19,9 +20,20 @@ import type {
 /**
  * `sesion`: la API no reconoce el token (venció o se cerró). `credenciales`: el login no calzó.
  * `permiso`: la persona entró, pero su rol o su empresa no la dejan. `clave`: la estación ejecuta
- * otra OT y quitársela pide la clave del equipo (`X-Clave-Equipo`).
+ * otra OT y quitársela pide la clave del equipo (`X-Clave-Equipo`); solo llega de un servidor
+ * anterior a `POST /cliente/ots/{id}/sesion`. `sin_ruta`: un 404 que no es de la API, la ruta no existe.
  */
-export type TipoError = 'regla' | 'no_existe' | 'timeout' | 'red' | 'http' | 'sesion' | 'credenciales' | 'permiso' | 'clave'
+export type TipoError =
+  | 'regla'
+  | 'no_existe'
+  | 'sin_ruta'
+  | 'timeout'
+  | 'red'
+  | 'http'
+  | 'sesion'
+  | 'credenciales'
+  | 'permiso'
+  | 'clave'
 
 /** `regla` trae, en un 409, la regla de negocio que se violó: se muestra tal cual y no se reintenta. */
 export class ApiError extends Error {
@@ -56,9 +68,18 @@ export type Cliente = {
   listarPautas(): Promise<PautaResumen[]>
   /** Los operadores de la empresa, para asignarles OT. Solo supervisor. */
   listarOperadores(): Promise<Persona[]>
+  /** Los nombres de todas las personas de la empresa. Lo lee cualquiera de ellas, también un operador. */
+  listarPersonas(): Promise<PersonaNombre[]>
   /** Un supervisor pide una OT nueva de una pauta habilitada; queda sin asignar. */
   pedirOt(pautaId: string): Promise<OtPedida>
-  abrirSesion(otId: string, edgeId: string, operario: string): Promise<Sesion>
+  /**
+   * El operador une su OT a la estación con su token. Si la estación ejecuta otra OT abierta, la API
+   * responde 409 (`regla`) y hay que repetir con `tomar`: esa OT deja de recibir sus sensores, así que
+   * solo se manda cuando la persona lo pide. 403 (`permiso`) si esa OT es de otra empresa.
+   */
+  abrirSesion(otId: string, edgeId: string, operario: string, tomar?: boolean): Promise<Sesion>
+  /** Qué OT ejecuta la estación ahora, con quién y desde cuándo; null si está libre. */
+  sesionDeEstacion(edgeId: string): Promise<Sesion | null>
   /** `pasoId` es el paso que la pantalla mostraba: si su evidencia ya lo cerró, no se evalúa el siguiente. */
   declarar(otId: string, actor: string, texto: string, pasoId?: string): Promise<RespuestaDeclarar>
   /** Una persona cierra el paso en curso contra la evidencia, con un motivo (obligatorio). */
@@ -118,7 +139,10 @@ export function crearCliente(
     }
     if (r.status === 403) throw new ApiError(403, 'permiso', datos?.permiso ?? 'No tienes permiso para eso')
     if (r.status === 409 && datos?.regla) throw new ApiError(409, 'regla', datos.regla, datos.regla)
-    if (r.status === 404) throw new ApiError(404, 'no_existe', datos?.no_existe ?? 'No existe')
+    if (r.status === 404) {
+      if (typeof datos?.no_existe === 'string') throw new ApiError(404, 'no_existe', datos.no_existe)
+      throw new ApiError(404, 'sin_ruta', 'No existe')
+    }
     throw new ApiError(r.status, 'http', `La API respondió ${r.status}`)
   }
 
@@ -131,8 +155,28 @@ export function crearCliente(
     leerPauta: (id, version) => pedir('GET', `/pautas/${encodeURIComponent(id)}?version=${version}`),
     listarPautas: () => pedir('GET', '/cliente/pautas'),
     listarOperadores: () => pedir('GET', '/cliente/operadores'),
+    listarPersonas: () => pedir('GET', '/cliente/personas'),
     pedirOt: (pautaId) => pedir('POST', '/cliente/ots', { pauta_id: pautaId }),
-    abrirSesion: (id, edgeId, operario) => pedir('POST', `${ot(id)}/sesion`, { edge_id: edgeId, operario }),
+    abrirSesion: async (id, edgeId, operario, tomar = false) => {
+      try {
+        return await pedir<Sesion>('POST', `${otCliente(id)}/sesion`, { edge_id: edgeId, tomar })
+      } catch (e) {
+        // Un servidor que todavía no tiene esa ruta: se abre por la anterior, que pide la clave del
+        // equipo si la estación está ocupada. Se quita cuando el servidor compartido la tenga.
+        if (e instanceof ApiError && e.tipo === 'sin_ruta') {
+          return pedir<Sesion>('POST', `${ot(id)}/sesion`, { edge_id: edgeId, operario })
+        }
+        throw e
+      }
+    },
+    sesionDeEstacion: async (edgeId) => {
+      try {
+        return await pedir<Sesion>('GET', `/edge/${encodeURIComponent(edgeId)}/sesion`)
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return null
+        throw e
+      }
+    },
     declarar: (id, actor, texto, pasoId) =>
       pedir('POST', `${ot(id)}/declarar`, pasoId ? { actor, texto, paso_id: pasoId } : { actor, texto }, TIMEOUT_DECLARAR_MS),
     confirmarPaso: (id, pasoId, actor, motivo) =>

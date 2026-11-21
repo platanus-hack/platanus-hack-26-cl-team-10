@@ -76,6 +76,51 @@ describe('login and the client service', () => {
     expect(ajena.status).toBe(404)
   })
 
+  it('the list carries the grading of each OT, the same one its detail gives', async () => {
+    for (const o of await api().listarOts()) {
+      expect(o.calificacion).toEqual((await api().leerOtCliente(o.ot)).calificacion)
+    }
+  })
+
+  it('anyone in the company reads its people\'s names, without the login user', async () => {
+    const personas = await api(ANA).listarPersonas()
+    expect(personas).toEqual([
+      { id: 'supervisor:oculta', nombre: 'Carla Muñoz', rol: 'supervisor' },
+      { id: 'operario:1', nombre: 'Ana Rojas', rol: 'operador' },
+      { id: 'operario:2', nombre: 'Bruno Díaz', rol: 'operador' },
+    ])
+    await expect(api(null).listarPersonas()).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('an operator joins their OT to a free station with their token; the session is theirs', async () => {
+    expect(await api(ANA).sesionDeEstacion('edge-1')).toBeNull()
+    expect(await api(ANA).abrirSesion('ot-12', 'edge-1', 'no importa')).toMatchObject({ ot_id: 'ot-12', edge_id: 'edge-1', operario: 'operario:1' })
+    expect(await api(BRUNO).sesionDeEstacion('edge-1')).toMatchObject({ ot_id: 'ot-12', operario: 'operario:1' })
+  })
+
+  it('a station running another open OT is taken only when asked', async () => {
+    await api(BRUNO).abrirSesion('ot-13', 'edge-1', 'operario:2')
+    await expect(api(ANA).abrirSesion('ot-12', 'edge-1', 'operario:1')).rejects.toMatchObject({ status: 409, tipo: 'regla' })
+    expect(m.sesionDeEdge('edge-1')?.ot_id).toBe('ot-13')
+    expect(await api(ANA).abrirSesion('ot-12', 'edge-1', 'operario:1', true)).toMatchObject({ ot_id: 'ot-12' })
+    expect(m.sesionDe('ot-13')).toBeNull()
+  })
+
+  it('a station whose OT is already complete is joined without asking', async () => {
+    await api(BRUNO).abrirSesion('ot-13', 'edge-1', 'operario:2')
+    for (const p of pauta.pasos) m.agregar('ot-13', { tipo: 'veredicto', actor: 'sistema', paso_id: p.id, estado: 'verificado', capa: 1, detalle: 'ok' })
+    expect(await api(ANA).abrirSesion('ot-12', 'edge-1', 'operario:1')).toMatchObject({ ot_id: 'ot-12' })
+  })
+
+  it('only the operator of an open OT starts its session', async () => {
+    await expect(api().abrirSesion('ot-12', 'edge-1', 'x', true)).rejects.toMatchObject({ status: 403, tipo: 'permiso' })
+    await expect(api(ANA).abrirSesion('ot-13', 'edge-1', 'x', true)).rejects.toMatchObject({ status: 404, tipo: 'no_existe' })
+    await expect(api(null).abrirSesion('ot-12', 'edge-1', 'x', true)).rejects.toMatchObject({ status: 401 })
+    for (const p of pauta.pasos) m.agregar('ot-12', { tipo: 'veredicto', actor: 'sistema', paso_id: p.id, estado: 'verificado', capa: 1, detalle: 'ok' })
+    await expect(api(ANA).abrirSesion('ot-12', 'edge-1', 'x', true)).rejects.toMatchObject({ status: 409, regla: 'la OT ot-12 ya está completa' })
+    expect(m.sesionDeEdge('edge-1')).toBeNull()
+  })
+
   it('the supervisor orders an OT, which starts unassigned', async () => {
     const r = await api().pedirOt(pauta.id)
     expect(r).toMatchObject({ ot: 'ot-0004', pauta: pauta.id, nombre: pauta.nombre, cliente: 'oculta' })
@@ -141,7 +186,7 @@ it('handover clears the operator and receiving assigns the new one', async () =>
 it('opening a session starts the timers of the current step', async () => {
   vi.useFakeTimers()
   try {
-    await api().abrirSesion('ot-12', 'edge-1', 'operario:1')
+    await api(ANA).abrirSesion('ot-12', 'edge-1', 'operario:1')
     await vi.advanceTimersByTimeAsync(4000)
     expect(m.estado('ot-12').pasos[0].estado).toBe('verificado')
   } finally {
@@ -152,7 +197,7 @@ it('opening a session starts the timers of the current step', async () => {
 it('each step that becomes current starts its own timers, once a session is open', async () => {
   vi.useFakeTimers()
   try {
-    await api().abrirSesion('ot-12', 'edge-1', 'operario:1')
+    await api(ANA).abrirSesion('ot-12', 'edge-1', 'operario:1')
     await vi.advanceTimersByTimeAsync(4000)
     await vi.advanceTimersByTimeAsync(4000)
     expect(m.estado('ot-12').pasos.slice(0, 2).map((p) => p.estado)).toEqual(['verificado', 'verificado'])

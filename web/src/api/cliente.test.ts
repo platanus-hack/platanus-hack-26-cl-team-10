@@ -195,3 +195,59 @@ it('declarar sends the step the screen was showing', async () => {
   await c.declarar('ot-1', 'operario:1', 'hecho', 'p6')
   expect(cuerpo).toEqual({ actor: 'operario:1', texto: 'hecho', paso_id: 'p6' })
 })
+
+describe('the station session by login', () => {
+  const sesion = { edge_id: 'edge-1', ot_id: 'ot-1007', operario: 'operario:1', desde: '2026-11-21T20:00:00+00:00' }
+  type Pedido = { metodo: string; url: string; cuerpo: unknown }
+  const anotar = (pedidos: Pedido[], responder: (p: Pedido) => Response) => async (url: RequestInfo | URL, init?: RequestInit) => {
+    const p = { metodo: String(init?.method), url: String(url), cuerpo: init?.body ? JSON.parse(String(init.body)) : null }
+    pedidos.push(p)
+    return responder(p)
+  }
+
+  it('opens the session on the client route, without the operario and without taking by default', async () => {
+    const pedidos: Pedido[] = []
+    const c = crearCliente('https://x', anotar(pedidos, () => json(sesion)))
+    expect(await c.abrirSesion('ot-1007', 'edge-1', 'operario:1')).toEqual(sesion)
+    await c.abrirSesion('ot-1007', 'edge-1', 'operario:1', true)
+    expect(pedidos).toEqual([
+      { metodo: 'POST', url: 'https://x/cliente/ots/ot-1007/sesion', cuerpo: { edge_id: 'edge-1', tomar: false } },
+      { metodo: 'POST', url: 'https://x/cliente/ots/ot-1007/sesion', cuerpo: { edge_id: 'edge-1', tomar: true } },
+    ])
+  })
+
+  it('falls back to the old route only when the server does not have the new one', async () => {
+    const pedidos: Pedido[] = []
+    const c = crearCliente('https://x', anotar(pedidos, (p) => (p.url.includes('/cliente/') ? json({ detail: 'Not Found' }, 404) : json(sesion))))
+    expect(await c.abrirSesion('ot-1007', 'edge-1', 'operario:1')).toEqual(sesion)
+    expect(pedidos[1]).toEqual({ metodo: 'POST', url: 'https://x/ot/ot-1007/sesion', cuerpo: { edge_id: 'edge-1', operario: 'operario:1' } })
+
+    const ajena: Pedido[] = []
+    const d = crearCliente('https://x', anotar(ajena, () => json({ no_existe: 'OT ot-1002' }, 404)))
+    await expect(d.abrirSesion('ot-1002', 'edge-1', 'operario:1')).rejects.toMatchObject({ status: 404, tipo: 'no_existe' })
+    expect(ajena).toHaveLength(1)
+  })
+
+  it('a busy station is a rule, and one of another company a permission', async () => {
+    const ocupada = crearCliente('https://x', async () => json({ regla: 'la estación edge-1 ejecuta la OT ot-1002' }, 409))
+    await expect(ocupada.abrirSesion('ot-1007', 'edge-1', 'operario:1')).rejects.toMatchObject({ status: 409, tipo: 'regla' })
+    const ajena = crearCliente('https://x', async () => json({ permiso: 'la estación edge-1 ejecuta la OT de otra empresa' }, 403))
+    await expect(ajena.abrirSesion('ot-1007', 'edge-1', 'operario:1', true)).rejects.toMatchObject({ status: 403, tipo: 'permiso' })
+  })
+
+  it('tells what the station runs, or null when it is free', async () => {
+    const pedidos: Pedido[] = []
+    const c = crearCliente('https://x', anotar(pedidos, () => json(sesion)))
+    expect(await c.sesionDeEstacion('edge-1')).toEqual(sesion)
+    expect(pedidos[0]).toMatchObject({ metodo: 'GET', url: 'https://x/edge/edge-1/sesion' })
+    const libre = crearCliente('https://x', async () => json({ no_existe: 'sesión del edge edge-1' }, 404))
+    expect(await libre.sesionDeEstacion('edge-1')).toBeNull()
+  })
+
+  it('reads the names of the company', async () => {
+    const pedidos: Pedido[] = []
+    const c = crearCliente('https://x', anotar(pedidos, () => json([{ id: 'operario:1', nombre: 'Ana Rojas', rol: 'operador' }])))
+    expect(await c.listarPersonas()).toEqual([{ id: 'operario:1', nombre: 'Ana Rojas', rol: 'operador' }])
+    expect(pedidos[0]).toMatchObject({ metodo: 'GET', url: 'https://x/cliente/personas' })
+  })
+})

@@ -214,7 +214,15 @@ export class Mundo {
     this.ot(otId).operador = operador
   }
 
+  /** Lo que la estación ejecuta ahora, o null si está libre. */
+  sesionDeEdge(edgeId: string): Sesion | null {
+    for (const ot of this.ots.values()) if (ot.sesion?.edge_id === edgeId) return ot.sesion
+    return null
+  }
+
+  /** Una estación ejecuta una sola OT: la que la tenía la pierde (app/servicios.py, iniciar_sesion). */
   abrirSesion(otId: string, edgeId: string, operario: string): Sesion {
+    for (const ot of this.ots.values()) if (ot.id !== otId && ot.sesion?.edge_id === edgeId) ot.sesion = null
     const sesion: Sesion = { edge_id: edgeId, ot_id: otId, operario, desde: new Date().toISOString() }
     this.ot(otId).sesion = sesion
     this.publicar(otId, { tipo: 'sesion', sesion, video: null })

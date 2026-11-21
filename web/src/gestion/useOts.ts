@@ -3,8 +3,8 @@ import { ApiError, api } from '../api/cliente'
 import type { CalificacionOt, EstadoGeneral, OtResumen } from '../api/tipos'
 import { avanceDe, avanceDelResumen, estadoDe, type Avance } from './estados'
 
-/** `calificacion`: todo bien, atención o detente (`GET /cliente/ots/{id}`); null si no se pidió o aún no llega. */
-export type OtVista = OtResumen & { estado: EstadoGeneral; avance: Avance | null; calificacion: CalificacionOt | null }
+/** `calificacion`: todo bien, atención o detente; null si no se pidió o aún no llega. */
+export type OtVista = Omit<OtResumen, 'calificacion'> & { estado: EstadoGeneral; avance: Avance | null; calificacion: CalificacionOt | null }
 
 export const RECARGA_MS = 5000
 /** Menor que RECARGA_MS: una recarga colgada falla antes de que empiece la siguiente. */
@@ -39,9 +39,12 @@ function conLimite<T>(promesa: Promise<T>, ms: number): Promise<T> {
  * vez. Solo las OT abiertas de `detalleDe` (el operador que mira) se leen una por una, para mostrar
  * en qué paso siguen.
  *
- * Con `calificar` (el supervisor), cada OT trae su calificación. Para no pedir todas en cada vuelta:
- * las que están en ejecución se piden siempre, porque ahí aparecen los incidentes; las demás, solo
- * cuando su resumen cambia. Las sin asignar no se califican.
+ * Con `calificar` (el supervisor), cada OT trae su calificación, que viene en la misma lista. Las
+ * sin asignar no se califican.
+ *
+ * Un servidor anterior no la manda en la lista: ahí se pide OT por OT (`GET /cliente/ots/{id}`). Para
+ * no pedir todas en cada vuelta, las que están en ejecución se piden siempre, porque ahí aparecen
+ * los incidentes; las demás, solo cuando su resumen cambia.
  */
 export function useOts(
   cadaMs: number = RECARGA_MS,
@@ -75,7 +78,7 @@ export function useOts(
       )
       const calificadas = Promise.all(
         lista.map(async (o) => {
-          if (!calificar || o.estado_general === 'sin_asignar') return
+          if (!calificar || o.estado_general === 'sin_asignar' || o.calificacion) return
           const clave = [o.estado_general, o.cerrados, o.paso_actual, o.operador].join('|')
           const antes = calificaciones.current.get(o.ot)
           if (antes && antes.clave === clave && o.estado_general !== 'en_ejecucion') return
@@ -94,7 +97,10 @@ export function useOts(
           ...o,
           estado: estadoDe(o),
           avance: avances[i] ?? avanceDelResumen(o, nombres.current),
-          calificacion: o.estado_general === 'sin_asignar' ? null : (calificaciones.current.get(o.ot)?.c ?? null),
+          calificacion:
+            !calificar || o.estado_general === 'sin_asignar'
+              ? null
+              : (o.calificacion ?? calificaciones.current.get(o.ot)?.c ?? null),
         })),
       )
       setError(null)

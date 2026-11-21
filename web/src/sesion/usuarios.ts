@@ -10,8 +10,8 @@ export function usuarioDe(p: Persona): Usuario {
   return { id: p.id, nombre: p.nombre, rol: p.rol, cliente: { id: p.cliente.id, nombre: p.cliente.nombre } }
 }
 
-// Los nombres que el front conoce: el de quien entró y, para el supervisor, los operadores de su
-// empresa (`GET /cliente/operadores`). Un operador no puede listar a los demás.
+// Los nombres que el front conoce: el de quien entró y los de su empresa (`GET /cliente/personas`,
+// que lee cualquiera de sus personas; ver useNombres).
 const nombres = new Map<string, string>()
 
 export function recordarNombres(personas: { id: string; nombre: string }[]): void {
