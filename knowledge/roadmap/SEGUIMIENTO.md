@@ -20,6 +20,11 @@
 | Buscar literatura del aviso por audio y de fatiga de alarmas | — | pendiente | Sin búsqueda todavía. Incluye si un auricular convive con la protección auditiva de una planta |
 | Encontrar las seis referencias faltantes | — | pendiente | [Lista](../projects/research/REFERENCIAS.md#no-encontradas). La de Bate, Orchard y Tagle es la más valiosa |
 | Aislar los accidentes en tareas de mantenimiento | — | pendiente | Fuente primaria de Sernageomin, no prensa |
+| Transcribir y analizar las presentaciones del último año | Francisco | hecho | 2026-11-21. Cinco videos y 332 preguntas del jurado en [tour-platanus](../projects/research/tour-platanus.md) |
+| Cerrar las brechas del banco de preguntas del jurado | — | pendiente | Modelo de visión, dónde corre, latencia, privacidad del operario, costo del kit y condiciones de faena. Ver [preguntas](../projects/research/tour-platanus.md#las-preguntas-que-nos-van-a-hacer) |
+| Medir falsos positivos, falsos negativos y latencia del aviso | — | pendiente | Con el número de corridas. Es la pregunta que más le pesó a Veridian en Caracas |
+| Ensayar pitch de 3 min y preguntas de 2 min | Equipo | pendiente | Con alguien que haga de jurado y las preguntas de [tour-platanus](../projects/research/tour-platanus.md#las-preguntas-que-nos-van-a-hacer) |
+| Preguntar qué espera el jurado del track Physical AI | — | pendiente | Ninguna edición anterior tuvo ese track |
 
 ## Decisiones abiertas
 

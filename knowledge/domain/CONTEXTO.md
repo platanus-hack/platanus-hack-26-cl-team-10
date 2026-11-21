@@ -54,7 +54,7 @@ Lo que une a los posibles clientes no es el rubro sino el tipo de activo: equipo
 
 ## Cómo nos evalúan
 
-Track Physical World. Criterios y pesos de la hackathon: `Confirmada`.
+Track Physical AI. Criterios y pesos de la hackathon: `Confirmada`.
 
 | Criterio | Peso | Qué lo sostiene hoy | Qué falta |
 |---|---|---|---|

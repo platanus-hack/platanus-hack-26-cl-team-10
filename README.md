@@ -4,7 +4,7 @@
 
 <img src="./project-logo.png" alt="Project Logo" width="200" />
 
-Track: 🌎 Physical World
+Track: 🌎 Physical AI
 
 team-10
 
