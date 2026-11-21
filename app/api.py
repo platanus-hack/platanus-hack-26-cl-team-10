@@ -9,10 +9,12 @@ La app impone el orden (ADR-0002): /ot/{id}/declarar solo evalúa el paso actual
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
+import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
@@ -172,6 +174,31 @@ def leer_evento(evento_id: int) -> dict:
     return evento_dict(catalogo.leer_evento(cx, evento_id))
 
 
+# ─── Clave del equipo: quién puede mover un edge de una OT a otra ───────────
+# La API es pública. Con CLAVE_EQUIPO definida, tomar un edge que ya ejecuta otra OT o
+# soltarlo pide la cabecera X-Clave-Equipo; sin la variable todo queda abierto, como en local.
+
+
+class ClaveRequerida(Exception):
+    pass
+
+
+@app.exception_handler(ClaveRequerida)
+def clave_requerida(_: Request, e: ClaveRequerida) -> JSONResponse:
+    return JSONResponse(status_code=401, content={"clave": str(e)})
+
+
+def _clave_valida(clave: str | None) -> bool:
+    esperada = os.environ.get("CLAVE_EQUIPO", "")
+    return not esperada or hmac.compare_digest((clave or "").encode(), esperada.encode())
+
+
+@app.get("/clave")
+def estado_de_la_clave(x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Si este servidor pide clave para mover un edge, y si la que llega en `X-Clave-Equipo` sirve."""
+    return {"requerida": bool(os.environ.get("CLAVE_EQUIPO")), "valida": _clave_valida(x_clave_equipo)}
+
+
 @app.get("/sesiones")
 def listar_sesiones() -> list[dict]:
     return servicios.sesiones()
@@ -186,7 +213,10 @@ def sesion_de_edge(edge_id: str) -> dict:
 
 
 @app.delete("/edge/{edge_id}/sesion", status_code=204)
-def terminar_sesion(edge_id: str) -> None:
+def terminar_sesion(edge_id: str, x_clave_equipo: str | None = Header(default=None)) -> None:
+    """Soltar un edge que está en sesión pide la clave del equipo, si el servidor tiene una."""
+    if servicios.sesion(edge_id) and not _clave_valida(x_clave_equipo):
+        raise ClaveRequerida(f"soltar el edge {edge_id} pide la clave del equipo (cabecera X-Clave-Equipo)")
     servicios.terminar_sesion(edge_id)
 
 
@@ -226,8 +256,13 @@ def lecturas_edge(edge_id: str, lecturas: list[LecturaEdge]) -> list[dict]:
 
 
 @app.post("/ot/{ot_id}/sesion")
-def iniciar_sesion(ot_id: str, s: Sesion) -> dict:
-    """El operario elige la OT en la interfaz: desde ahora lo de ese edge es de esta OT."""
+def iniciar_sesion(ot_id: str, s: Sesion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """El operario elige la OT en la interfaz: desde ahora lo de ese edge es de esta OT.
+    Un edge libre, o repetir la sesión que ya tiene, no pide clave; quitárselo a otra OT, sí."""
+    actual = servicios.sesion(s.edge_id)
+    if actual and actual["ot_id"] != ot_id and not _clave_valida(x_clave_equipo):
+        raise ClaveRequerida(f"el edge {s.edge_id} ejecuta la OT {actual['ot_id']}: "
+                             "tomarlo pide la clave del equipo (cabecera X-Clave-Equipo)")
     try:
         return servicios.iniciar_sesion(ot_id, s.edge_id, s.operario)
     except KeyError as e:

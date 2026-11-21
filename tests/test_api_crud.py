@@ -71,6 +71,37 @@ class CrudPorHTTP(unittest.TestCase):
         self.assertEqual(self.c.delete("/edge/edge-1/sesion").status_code, 204)
         self.assertEqual(self.c.get("/edge/edge-1/sesion").status_code, 404)
 
+    def test_con_clave_de_equipo_un_edge_en_sesion_no_se_toma_ni_se_suelta_sin_ella(self):
+        import os
+        from unittest import mock
+
+        self.c.post("/pauta/demo")
+        self.c.post("/ot/ot-1/abrir")
+        self.c.post("/ot/ot-2/abrir")
+        sesion = {"edge_id": "edge-1", "operario": "operario:A"}
+        clave = {"X-Clave-Equipo": "secreta"}
+        self.assertEqual(self.c.get("/clave").json(), {"requerida": False, "valida": True})
+        with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
+            self.assertEqual(self.c.get("/clave").json(), {"requerida": True, "valida": False})
+            self.assertEqual(self.c.get("/clave", headers=clave).json(), {"requerida": True, "valida": True})
+            # un edge libre, y repetir la sesión que ya tiene, no piden clave
+            self.assertEqual(self.c.post("/ot/ot-1/sesion", json=sesion).status_code, 200)
+            self.assertEqual(self.c.post("/ot/ot-1/sesion", json=sesion).status_code, 200)
+            # quitárselo a la OT que ejecuta, o soltarlo, sí
+            r = self.c.post("/ot/ot-2/sesion", json=sesion)
+            self.assertEqual(r.status_code, 401)
+            self.assertIn("ot-1", r.json()["clave"])
+            self.assertEqual(self.c.post("/ot/ot-2/sesion", json=sesion, headers={"X-Clave-Equipo": "otra"}).status_code, 401)
+            self.assertEqual(self.c.delete("/edge/edge-1/sesion").status_code, 401)
+            self.assertEqual(self.c.get("/edge/edge-1/sesion").json()["ot_id"], "ot-1")
+            self.assertEqual(self.c.delete("/edge/edge-sin-sesion/sesion").status_code, 204)
+            self.assertEqual(self.c.post("/ot/ot-2/sesion", json=sesion, headers=clave).status_code, 200)
+            self.assertEqual(self.c.get("/edge/edge-1/sesion").json()["ot_id"], "ot-2")
+            self.assertEqual(self.c.delete("/edge/edge-1/sesion", headers=clave).status_code, 204)
+        # sin la variable, el servidor queda abierto como siempre
+        self.c.post("/ot/ot-1/sesion", json=sesion)
+        self.assertEqual(self.c.post("/ot/ot-2/sesion", json=sesion).status_code, 200)
+
     def test_la_guia_del_agente_lista_todas_las_rutas_con_la_url_del_servidor(self):
         from fastapi.routing import APIRoute
         from starlette.routing import WebSocketRoute

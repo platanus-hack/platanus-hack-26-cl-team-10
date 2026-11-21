@@ -191,11 +191,28 @@ function pintarSensor(id, valor, vivo) {
   if (vivo) { el.classList.add("nuevo"); setTimeout(() => el.classList.remove("nuevo"), 300); }
 }
 
+// La clave del equipo entra una vez por ?clave= y queda en este navegador; se saca de la URL
+// para que no se vea en una pantalla compartida. Sin ella, donde el servidor la pide, el home solo mira.
+const enUrl = new URLSearchParams(location.search);
+if (enUrl.has("clave")) {
+  localStorage.setItem("clave_equipo", enUrl.get("clave")); enUrl.delete("clave");
+  history.replaceState(null, "", location.pathname + (enUrl.size ? "?" + enUrl : ""));
+}
+const conClave = () => { const c = localStorage.getItem("clave_equipo"); return c ? {"x-clave-equipo": c} : {}; };
+async function soloLecturaSinClave() {
+  try {
+    const c = await (await fetch("/clave", {headers: conClave()})).json();
+    if (!c.requerida || c.valida) return;
+    $("nueva").hidden = $("declarar").hidden = true;
+    $("accion").textContent = "Vista de solo lectura: para operar la demo, abre esta página con ?clave= y la clave del equipo.";
+  } catch (e) { /* un servidor anterior a la clave: queda todo a la vista */ }
+}
+
 async function llamar(metodo, url, cuerpo) {
-  const r = await fetch(url, {method: metodo, headers: {"content-type": "application/json"},
+  const r = await fetch(url, {method: metodo, headers: {"content-type": "application/json", ...conClave()},
                               body: cuerpo ? JSON.stringify(cuerpo) : undefined});
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.detail || j.regla || r.status);
+  if (!r.ok) throw new Error(j.detail || j.regla || j.clave || r.status);
   return j;
 }
 
@@ -240,6 +257,7 @@ async function iniciar() {
   }
   conectar();
 }
+soloLecturaSinClave();
 iniciar();
 </script>
 </body>
