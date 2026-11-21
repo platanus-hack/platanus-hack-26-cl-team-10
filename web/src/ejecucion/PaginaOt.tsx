@@ -1,10 +1,11 @@
-import { Anchor, Button, Center, Group, Loader, Stack, Text } from '@mantine/core'
+import { Anchor, Box, Button, Center, Container, Group, Loader, Stack, Text } from '@mantine/core'
 import { IconVolume } from '@tabler/icons-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { EstadoOt } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import type { Usuario } from '../sesion/usuarios'
+import { FranjaSinConexion, MensajeError } from './Avisos'
 import { Briefing } from './Briefing'
 import { avance, relevoPendiente } from './estado'
 import { OtCompleta } from './OtCompleta'
@@ -100,6 +101,19 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
     void comenzar()
   }
 
+  /** La franja de conexión y el último error, también fuera de la pantalla de ejecución. */
+  const conAvisos = (pantalla: ReactNode) => (
+    <Box>
+      {s.conexion === 'reconectando' && <FranjaSinConexion />}
+      {s.mensaje && (
+        <Container size={560} px="md" pt="md">
+          <MensajeError mensaje={s.mensaje} onVisto={e.verMensaje} />
+        </Container>
+      )}
+      {pantalla}
+    </Box>
+  )
+
   switch (vista) {
     case 'no_existe':
       return (
@@ -123,7 +137,7 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
     case 'completa':
       return <OtCompleta ot={s.ot!} bitacora={s.bitacora} />
     case 'briefing':
-      return (
+      return conAvisos(
         <Briefing
           ot={s.ot!}
           bitacora={s.bitacora}
@@ -133,10 +147,10 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
             intentado.current = true
             void e.recibirTurno()
           }}
-        />
+        />,
       )
     case 'puerta':
-      return <Puerta otId={otId} ot={s.ot!} onEntrar={entrar} />
+      return conAvisos(<Puerta otId={otId} ot={s.ot!} onEntrar={entrar} />)
     case 'ejecucion':
       return (
         <PantallaEjecucion

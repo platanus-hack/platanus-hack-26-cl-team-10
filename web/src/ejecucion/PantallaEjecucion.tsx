@@ -1,8 +1,9 @@
-import { Alert, Badge, Box, Button, Container, Group, Paper, Stack, Text } from '@mantine/core'
-import { IconVolume, IconVolumeOff, IconWifiOff } from '@tabler/icons-react'
+import { Badge, Box, Button, Container, Group, Paper, Stack, Text } from '@mantine/core'
+import { IconVolume, IconVolumeOff } from '@tabler/icons-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Nivel } from '../api/tipos'
 import { nombreDe } from '../sesion/usuarios'
+import { FranjaSinConexion, MensajeError } from './Avisos'
 import { BannerAlertas } from './BannerAlertas'
 import { avance, cerradoPor, estadoUi } from './estado'
 import { Paso } from './Paso'
@@ -89,27 +90,11 @@ export function PantallaEjecucion({ otId, e, pie }: { otId: string; e: Ejecutor;
   return (
     <Box pb={170}>
       <Cabecera otId={otId} e={e} />
-      {s.conexion === 'reconectando' && (
-        <Box bg="precaucion.6" px="md" py={8}>
-          <Group gap="xs" justify="center">
-            <IconWifiOff size={18} />
-            <Text fw={700}>Sin conexión, reintentando</Text>
-          </Group>
-        </Box>
-      )}
+      {s.conexion === 'reconectando' && <FranjaSinConexion />}
       <Container size={560} px="md" pt="md">
         <Stack gap="sm">
           <BannerAlertas alertas={s.alertas} onYaLoHice={e.yaLoHiceAlerta} />
-          {s.mensaje && (
-            <Alert color="precaucion" variant="light" title="No se pudo">
-              <Stack gap="xs" align="flex-start">
-                <Text size="sm">{s.mensaje}</Text>
-                <Button size="xs" variant="default" onClick={e.verMensaje}>
-                  Entendido
-                </Button>
-              </Stack>
-            </Alert>
-          )}
+          {s.mensaje && <MensajeError mensaje={s.mensaje} onVisto={e.verMensaje} />}
           {ot.pasos.map((p) => (
             <Paso
               key={p.id}

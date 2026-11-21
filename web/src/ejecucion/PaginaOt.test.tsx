@@ -188,6 +188,26 @@ it('completa: shows the closing counts and the way back', async () => {
   expect(await screen.findByText('mis OT')).toBeInTheDocument()
 })
 
+it('Recibido shows why the handover could not be signed', async () => {
+  abrir('relevo', 'ot-12', USUARIOS[2])
+  server.use(
+    http.post(`${config.API_URL}/ot/:id/relevo/recibir`, () =>
+      HttpResponse.json({ regla: 'el turno ya fue recibido' }, { status: 409 }),
+    ),
+  )
+  await userEvent.click(await screen.findByRole('button', { name: 'Recibido' }))
+  expect(await screen.findByText('el turno ya fue recibido')).toBeInTheDocument()
+  expect(screen.getByText('Relevo de turno')).toBeInTheDocument()
+})
+
+it('a failed session opening is retried until it works', async () => {
+  abrir('feliz')
+  server.use(http.post(`${config.API_URL}/ot/:id/sesion`, () => HttpResponse.error(), { once: true }))
+  await entrar()
+  expect(await screen.findByText('Sin conexión, reintentando')).toBeInTheDocument()
+  await waitFor(() => expect(m.snapshot('ot-12', 0).sesion).not.toBeNull(), { timeout: 6000 })
+}, 10_000)
+
 it('an unknown OT says so instead of retrying forever', async () => {
   abrir('feliz', 'ot-99')
   expect(await screen.findByText('Esta OT no existe')).toBeInTheDocument()

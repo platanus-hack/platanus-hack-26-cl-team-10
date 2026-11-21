@@ -11,6 +11,8 @@ import { conectarStream } from './stream'
 import { useWakeLock } from './useWakeLock'
 import { voz } from './voz'
 
+const REINTENTO_SESION_MS = 3000
+
 function mensajeDe(e: unknown): string {
   if (e instanceof ApiError) return e.tipo === 'regla' && e.regla ? e.regla : e.message
   return 'Algo falló. Intenta de nuevo.'
@@ -89,14 +91,22 @@ export function useEjecucion(otId: string, usuario: Usuario) {
 
   useWakeLock(sesionDesde !== null && !s.ot?.completa)
 
+  // Sin sesión las lecturas del edge no llegan a la OT: si abrirla falla, se reintenta.
+  const [fallosSesion, setFallosSesion] = useState(0)
   const abrirSesion = useCallback(async () => {
     try {
       await api.abrirSesion(otId, config.EDGE_ID, usuario.id)
       setSesionDesde((d) => d ?? Date.now())
     } catch (e) {
       dispatch({ tipo: 'error', mensaje: mensajeDe(e) })
+      setFallosSesion((n) => n + 1)
     }
   }, [otId, usuario.id])
+  useEffect(() => {
+    if (fallosSesion === 0 || sesionDesde !== null) return
+    const reintento = setTimeout(() => void abrirSesion(), REINTENTO_SESION_MS)
+    return () => clearTimeout(reintento)
+  }, [fallosSesion, sesionDesde, abrirSesion])
 
   /** Dentro de un toque: desbloquea el audio (si hace falta) y une la OT con el edge. */
   const comenzar = useCallback(async () => {
