@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from app import catalogo, cerebro, db, protocolos, verificacion
+from app import catalogo, cerebro, db, protocolos, verificacion, voz
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -33,6 +33,8 @@ app = FastAPI(
 # El front y el agente del equipo viven en otros dominios: sin CORS el navegador los bloquea.
 # Sin credenciales ni cookies, así que abrirlo a cualquier origen no expone sesiones.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# El aviso en voz (ElevenLabs) para la app del operario: app/voz.py.
+app.include_router(voz.router)
 cx = db.conectar()
 servicios = Servicios(cx)
 
