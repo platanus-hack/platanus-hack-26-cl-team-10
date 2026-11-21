@@ -18,6 +18,12 @@ ln -sfn /srv/factum/datos/bitacora.sqlite3 /srv/factum/codigo/datos/bitacora.sql
 ln -sfn /srv/factum/datos/evidencias /srv/factum/codigo/datos/evidencias
 chown -R factum:factum /srv/factum
 sudo -u factum env HOME=/srv/factum UV_PYTHON_INSTALL_DIR=/srv/factum/.python bash -c 'cd /srv/factum/codigo && uv sync --frozen --no-dev -q'
+# La semilla va con cada despliegue: deja aprobada la última versión de las pautas de datos/ y las personas y OT del
+# demo, que «Nueva demo» necesita. Se puede repetir. Va con el servidor detenido porque guarda y repone la tabla de
+# sensores. Las claves de las personas nuevas salen acá, una sola vez. Si falla, el servidor parte igual.
+systemctl stop factum 2>/dev/null || true
+sudo -u factum env HOME=/srv/factum bash -c 'cd /srv/factum/codigo && .venv/bin/python -m app.semilla' \
+  || echo "AVISO: la semilla falló; el servidor parte sin ella"
 cat > /etc/systemd/system/factum.service <<UNIDAD
 [Unit]
 Description=Factum API
