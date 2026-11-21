@@ -123,13 +123,14 @@
   .sensor b{display:block;margin-top:6px;font:400 clamp(26px,2.4vw,38px)/1.05 var(--titular);text-transform:uppercase}
   .sensor span{display:block;margin-top:4px;font:400 13px/1.4 var(--mono);color:var(--tenue);min-height:1.4em}
   .sensor.otro b{font-size:22px;text-transform:none}
+  .sensor.viejo b,.sensor.viejo span{opacity:.45}
   /* Motor activo: la celda entera se enciende y la cinta corre */
-  #s-motor[data-motor="activo"]{background:var(--lima);color:var(--tinta)}
-  #s-motor[data-motor="activo"] h3,#s-motor[data-motor="activo"] span{color:#2c3a1a}
-  #s-motor[data-motor="activo"] h3::after{background:#2c3a1a}
+  #s-motor[data-motor="activo"]:not(.viejo){background:var(--lima);color:var(--tinta)}
+  #s-motor[data-motor="activo"]:not(.viejo) h3,#s-motor[data-motor="activo"]:not(.viejo) span{color:#2c3a1a}
+  #s-motor[data-motor="activo"]:not(.viejo) h3::after{background:#2c3a1a}
   .cinta{position:absolute;left:0;right:0;bottom:0;height:8px;opacity:.18;
          background:repeating-linear-gradient(115deg,currentColor 0 10px,transparent 10px 20px);background-size:44px 100%}
-  #s-motor[data-motor="activo"] .cinta{opacity:.8;animation:cinta .7s linear infinite}
+  #s-motor[data-motor="activo"]:not(.viejo) .cinta{opacity:.8;animation:cinta .7s linear infinite}
   @keyframes cinta{to{background-position:44px 0}}
   #s-operario[data-operario="presente"] b{color:var(--lima)}
   #s-temp[data-equipo="caliente"] b,#s-temp[data-equipo="caliente"] polyline{color:var(--ambar);stroke:var(--ambar)}
@@ -260,7 +261,8 @@ function pintarCalificacion(c) {
   $("certeza").textContent = `certeza ${pct(c.certeza)}`;
   const lista = $("avisos"), vivos = new Set(), avisos = c.avisos || [];
   avisos.forEach(a => {
-    const clave = a.nivel + "|" + a.motivos[0];
+    // Sin las cifras: «hace 30 s» y «hace 31 s» son el mismo aviso, que se actualiza en su lugar.
+    const clave = a.nivel + "|" + a.motivos[0].replace(/[\d.,]+/g, "#");
     vivos.add(clave);
     let li = [...lista.children].find(x => x.dataset.clave === clave);
     if (!li) { li = el("li"); li.dataset.clave = clave; lista.append(li); }
@@ -403,6 +405,8 @@ function pintarSensor(id, valor, vivo) {
   donde.textContent = (FORMATO[id] || String)(valor);
   const celda = donde.closest(".sensor");
   celda.setAttribute("data-" + id.replace(/[^a-z0-9]/gi, "-"), valor);
+  // Lo que viene del snapshot es lo último que el servidor guardó, quizá hace horas: queda apagado hasta que llega una lectura en vivo.
+  celda.classList.toggle("viejo", !vivo);
   if (id === "temp_c" && vivo && isFinite(valor)) tendencia(+valor);
   if (vivo) { celda.classList.add("nuevo"); setTimeout(() => celda.classList.remove("nuevo"), 300); }
 }
