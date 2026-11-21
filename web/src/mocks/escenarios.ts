@@ -13,6 +13,8 @@ export type Escenario = {
   alAbrirSesion?(m: Mundo, otId: string, t: Temporizador): void
   alAvanzar?(m: Mundo, otId: string, paso: PasoPauta, t: Temporizador): void
   alDeclarar(m: Mundo, otId: string, paso: PasoPauta, actor: string, t: Temporizador): RespuestaDeclarar
+  /** Al arrancar el mock, sin que nadie abra nada: lo que pasa en otras OT mientras el supervisor mira. */
+  alIniciar?(m: Mundo, t: Temporizador): void
 }
 
 export type NombreEscenario =
@@ -26,6 +28,7 @@ export type NombreEscenario =
   | 'relevo'
   | 'api-caida'
   | 'completa'
+  | 'incidente'
 
 export const SENSOR_TARDA_MS = 4000
 export const CAMARA_TARDA_MS = 5000
@@ -150,6 +153,27 @@ const yaHubo = (m: Mundo, otId: string, tipo: string) =>
 
 const ALERTA_GUARDA = 'GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.'
 
+/**
+ * La guarda se abre con la energía viva: alerta de seguridad (capa 1, «detente»). Se resuelve sola
+ * cuando el sensor se corrige, a los `resolverEnMs`: confirmar a mano no la apaga.
+ */
+function alertaDeGuarda(m: Mundo, otId: string, t: Temporizador, resolverEnMs: number): void {
+  m.leer('guarda', 'abierta')
+  m.leer('energia', 'viva')
+  const a = m.agregar(otId, {
+    tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1, detalle: ALERTA_GUARDA,
+    evidencia: { tipo: 'sensor', guarda: 'abierta', energia: 'viva', clave: `seguridad:${ALERTA_GUARDA}` },
+  })
+  t(resolverEnMs, () => {
+    if (!m.alertasActivas(otId).some((x) => x.id === a.id)) return
+    m.leer('energia', 'cortada')
+    m.agregar(otId, {
+      tipo: 'alerta_resuelta', actor: 'sistema', capa: 1, detalle: `Se normalizó con energia = cortada: ${ALERTA_GUARDA}`,
+      evidencia: { resuelve: a.id, tipo: 'sensor', sensores: { guarda: 'abierta', energia: 'cortada' } },
+    })
+  })
+}
+
 const feliz: Escenario = {
   preparar: (m) => otsBase(m),
   alAvanzar(m, otId, paso, t) {
@@ -187,23 +211,7 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
   'alerta-seguridad': como({
     alAbrirSesion(m, otId, t) {
       if (yaHubo(m, otId, 'sensor')) return
-      t(8000, () => {
-        m.leer('guarda', 'abierta')
-        m.leer('energia', 'viva')
-        const a = m.agregar(otId, {
-          tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1, detalle: ALERTA_GUARDA,
-          evidencia: { tipo: 'sensor', guarda: 'abierta', energia: 'viva', clave: `seguridad:${ALERTA_GUARDA}` },
-        })
-        // La seguridad se resuelve sola cuando el sensor se corrige: confirmar a mano no la apaga.
-        t(10_000, () => {
-          if (!m.alertasActivas(otId).some((x) => x.id === a.id)) return
-          m.leer('energia', 'cortada')
-          m.agregar(otId, {
-            tipo: 'alerta_resuelta', actor: 'sistema', capa: 1, detalle: `Se normalizó con energia = cortada: ${ALERTA_GUARDA}`,
-            evidencia: { resuelve: a.id, tipo: 'sensor', sensores: { guarda: 'abierta', energia: 'cortada' } },
-          })
-        })
-      })
+      t(8000, () => alertaDeGuarda(m, otId, t, 10_000))
     },
   }),
 
@@ -267,6 +275,21 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
     preparar(m) {
       otsBase(m)
       for (const p of m.pauta.pasos) cerrarYa(m, 'ot-12', p)
+    },
+  }),
+
+  // Para el supervisor: la OT de Bruno va por el paso 3 en la estación y, a los 8 s, se abre la
+  // guarda con la energía viva. Se normaliza sola a los 40 s. /supervisor?escenario=incidente
+  incidente: como({
+    preparar(m) {
+      otsBase(m)
+      m.abrirSesion('ot-13', 'edge-1', 'operario:2')
+      const [a, b] = m.pauta.pasos
+      cerrarYa(m, 'ot-13', a)
+      cerrarYa(m, 'ot-13', b)
+    },
+    alIniciar(m, t) {
+      t(8000, () => alertaDeGuarda(m, 'ot-13', t, 40_000))
     },
   }),
 }

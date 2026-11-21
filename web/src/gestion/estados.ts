@@ -1,4 +1,4 @@
-import type { EstadoGeneral, EstadoOt, OtResumen } from '../api/tipos'
+import type { CalificacionOt, EstadoGeneral, EstadoOt, Nivel, OtResumen } from '../api/tipos'
 import type { Rol } from '../sesion/usuarios'
 
 /**
@@ -51,6 +51,25 @@ export function porPrioridad<T extends { estado: EstadoGeneral; ot: string }>(ot
 
 export function puedeAsignarse(estado: EstadoGeneral): boolean {
   return estado === 'sin_asignar' || estado === 'entregada'
+}
+
+/** La calificación de una OT en palabras del supervisor: cómo va lo que verifica Factum. */
+export const VERIFICACION: Record<Nivel, { etiqueta: string; color: string }> = {
+  ok: { etiqueta: 'Todo bien', color: 'verificado' },
+  warning: { etiqueta: 'Atención', color: 'precaucion' },
+  error: { etiqueta: 'Detente', color: 'peligro' },
+}
+
+/** Un incidente: una OT abierta cuya calificación es «detente». `que` es el motivo más grave. */
+export type Incidente = { ot: string; operador: string | null; que: string }
+
+export function incidentesDe(ots: { ot: string; operador?: string | null; estado: EstadoGeneral; calificacion: CalificacionOt | null }[]): Incidente[] {
+  return ots.flatMap((o) => {
+    const c = o.calificacion
+    if (o.estado === 'completa' || c?.nivel !== 'error') return []
+    const grave = c.avisos.find((a) => a.nivel === 'error') ?? c
+    return [{ ot: o.ot, operador: o.operador ?? null, que: grave.motivos[0] ?? 'Hay un control que no se cumple' }]
+  })
 }
 
 export function inicioDe(rol: Rol): string {

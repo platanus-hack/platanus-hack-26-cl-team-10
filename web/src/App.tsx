@@ -6,6 +6,7 @@ import { PaginaOt } from './ejecucion/PaginaOt'
 import { Inicio } from './gestion/Inicio'
 import { PaginaLogin } from './gestion/PaginaLogin'
 import { PaginaOperador } from './gestion/PaginaOperador'
+import { PaginaOtSupervisor } from './gestion/PaginaOtSupervisor'
 import { PaginaSupervisor } from './gestion/PaginaSupervisor'
 import { RequiereRol } from './sesion/RequiereRol'
 import { FONDO, tema } from './tema'
@@ -23,6 +24,14 @@ export default function App() {
               element={
                 <RequiereRol rol="supervisor">
                   <PaginaSupervisor />
+                </RequiereRol>
+              }
+            />
+            <Route
+              path="/supervisor/ot/:id"
+              element={
+                <RequiereRol rol="supervisor">
+                  <PaginaOtSupervisor />
                 </RequiereRol>
               }
             />

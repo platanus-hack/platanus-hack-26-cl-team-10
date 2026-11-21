@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, api } from '../api/cliente'
-import type { EstadoGeneral, OtResumen } from '../api/tipos'
+import type { CalificacionOt, EstadoGeneral, OtResumen } from '../api/tipos'
 import { avanceDe, avanceDelResumen, estadoDe, type Avance } from './estados'
 
-export type OtVista = OtResumen & { estado: EstadoGeneral; avance: Avance | null }
+/** `calificacion`: todo bien, atención o detente (`GET /cliente/ots/{id}`); null si no se pidió o aún no llega. */
+export type OtVista = OtResumen & { estado: EstadoGeneral; avance: Avance | null; calificacion: CalificacionOt | null }
 
 export const RECARGA_MS = 5000
 /** Menor que RECARGA_MS: una recarga colgada falla antes de que empiece la siguiente. */
@@ -34,15 +35,25 @@ function conLimite<T>(promesa: Promise<T>, ms: number): Promise<T> {
  * Las OT con su avance, recargadas cada `cadaMs`: el operador las cambia desde otro dispositivo.
  * Si falla una recarga, se mantiene la última lista y se informa el error.
  *
- * El avance sale de la misma lista (`cerrados`/`total`) y los nombres de `GET /pautas`, una vez.
- * Solo las OT abiertas de `detalleDe` (el operador que mira) se leen una por una, para mostrar
+ * El avance sale de la misma lista (`cerrados`/`total`) y los nombres de `GET /cliente/pautas`, una
+ * vez. Solo las OT abiertas de `detalleDe` (el operador que mira) se leen una por una, para mostrar
  * en qué paso siguen.
+ *
+ * Con `calificar` (el supervisor), cada OT trae su calificación. Para no pedir todas en cada vuelta:
+ * las que están en ejecución se piden siempre, porque ahí aparecen los incidentes; las demás, solo
+ * cuando su resumen cambia. Las sin asignar no se califican.
  */
-export function useOts(cadaMs: number = RECARGA_MS, limiteMs: number = LIMITE_MS, detalleDe: string | null = null) {
+export function useOts(
+  cadaMs: number = RECARGA_MS,
+  limiteMs: number = LIMITE_MS,
+  detalleDe: string | null = null,
+  calificar = false,
+) {
   const [ots, setOts] = useState<OtVista[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const ultimaPedida = useRef(0)
   const nombres = useRef(new Map<string, string>())
+  const calificaciones = useRef(new Map<string, { clave: string; c: CalificacionOt }>())
 
   const recargar = useCallback(async () => {
     const pedida = ++ultimaPedida.current
@@ -62,16 +73,35 @@ export function useOts(cadaMs: number = RECARGA_MS, limiteMs: number = LIMITE_MS
             : null,
         ),
       )
-      const [, avances] = await Promise.all([nombresListos, detalles])
+      const calificadas = Promise.all(
+        lista.map(async (o) => {
+          if (!calificar || o.estado_general === 'sin_asignar') return
+          const clave = [o.estado_general, o.cerrados, o.paso_actual, o.operador].join('|')
+          const antes = calificaciones.current.get(o.ot)
+          if (antes && antes.clave === clave && o.estado_general !== 'en_ejecucion') return
+          try {
+            const d = await conLimite(api.leerOtCliente(o.ot), limiteMs)
+            calificaciones.current.set(o.ot, { clave, c: d.calificacion })
+          } catch {
+            // Se queda con la última: una calificación vieja es mejor que ninguna.
+          }
+        }),
+      )
+      const [, avances] = await Promise.all([nombresListos, detalles, calificadas])
       if (pedida !== ultimaPedida.current) return
       setOts(
-        lista.map((o, i) => ({ ...o, estado: estadoDe(o), avance: avances[i] ?? avanceDelResumen(o, nombres.current) })),
+        lista.map((o, i) => ({
+          ...o,
+          estado: estadoDe(o),
+          avance: avances[i] ?? avanceDelResumen(o, nombres.current),
+          calificacion: o.estado_general === 'sin_asignar' ? null : (calificaciones.current.get(o.ot)?.c ?? null),
+        })),
       )
       setError(null)
     } catch (e) {
       if (pedida === ultimaPedida.current) setError(mensajeDe(e))
     }
-  }, [limiteMs, detalleDe])
+  }, [limiteMs, detalleDe, calificar])
 
   useEffect(() => {
     void Promise.resolve().then(recargar)

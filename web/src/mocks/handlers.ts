@@ -16,6 +16,15 @@ const sinPermiso = (texto: string) => HttpResponse.json({ permiso: texto }, { st
 const sinLogin = (texto: string) =>
   HttpResponse.json({ login: texto }, { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } })
 
+const cuadroDeMentira = (edge: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">` +
+  `<rect width="640" height="480" fill="#1f2a33"/>` +
+  `<rect x="120" y="230" width="400" height="40" rx="20" fill="#3b4a56"/>` +
+  `<circle cx="160" cy="250" r="34" fill="#55687a"/><circle cx="480" cy="250" r="34" fill="#55687a"/>` +
+  `<text x="320" y="120" fill="#c9d3dc" font-family="sans-serif" font-size="26" text-anchor="middle">Cámara de ${edge}</text>` +
+  `<text x="320" y="380" fill="#8c9aa6" font-family="sans-serif" font-size="18" text-anchor="middle">Mock: en el servidor aquí va el video en vivo</text>` +
+  `</svg>`
+
 /** Los protocolos de los que sale la pauta del mock, como los trae `GET /cliente/pautas`. */
 const PROTOCOLOS = [{ id: 'prot-aislamiento-01', nombre: 'Aislamiento y bloqueo de energías' }]
 
@@ -58,6 +67,7 @@ export function crearHandlers(
   m.alCambiarPaso = (otId, paso) => {
     if (m.sesionDe(otId)) e.alAvanzar?.(m, otId, paso, t)
   }
+  e.alIniciar?.(m, t)
 
   const clientes = new Set<{ close(code?: number, reason?: string): void }>()
   m.alCaer.add(() => {
@@ -117,6 +127,11 @@ export function crearHandlers(
       m.asignar(id, operador as string)
       return HttpResponse.json(m.resumenes().find((o) => o.ot === id))
     })))),
+
+    // La cámara de la estación: en el mock, un cuadro fijo que dice que es de mentira.
+    http.get(`${raiz}/edge/:edge/video.mjpg`, vivo(({ params }) =>
+      new HttpResponse(cuadroDeMentira(String(params.edge)), { headers: { 'content-type': 'image/svg+xml' } }),
+    )),
 
     http.get(`${raiz}/ot/:id`, vivo(({ params }) => {
       const id = otDe(params)

@@ -1,13 +1,15 @@
-import { Alert, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
+import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
-import { IconPlus, IconRefresh } from '@tabler/icons-react'
-import { useCallback, useEffect, useState } from 'react'
+import { IconAlertTriangle, IconEye, IconPlus, IconRefresh } from '@tabler/icons-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { api } from '../api/cliente'
 import type { EstadoGeneral, OtPedida, PautaResumen, Persona } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { nombreDe, recordarNombres } from '../sesion/usuarios'
-import { ESTADOS, porPrioridad, puedeAsignarse } from './estados'
-import { EstadoBadge, Encabezado, EstadoLista, FranjaDesactualizada, Pagina } from './ui'
+import { campana } from './campana'
+import { ESTADOS, incidentesDe, porPrioridad, puedeAsignarse, type Incidente } from './estados'
+import { EstadoBadge, Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
 import { mensajeDe, useOts, type OtVista } from './useOts'
 
 /** Los operadores de la empresa (`GET /cliente/operadores`), con sus nombres para toda la pantalla. */
@@ -151,6 +153,80 @@ function Asignar({ ot, operadores, onListo }: { ot: OtVista; operadores: Operado
   )
 }
 
+const rutaDe = (ot: string) => `/supervisor/ot/${encodeURIComponent(ot)}`
+
+/** El id de la OT lleva a su vista en vivo: cámara, sensores y bitácora. */
+function IdOt({ ot }: { ot: string }) {
+  return (
+    <Anchor component={Link} to={rutaDe(ot)} fw={800} c="dark" underline="hover">
+      {ot.toUpperCase()}
+    </Anchor>
+  )
+}
+
+function Verificacion({ ot }: { ot: OtVista }) {
+  return ot.calificacion ? <VerificacionBadge nivel={ot.calificacion.nivel} /> : <Text c="roca.6">—</Text>
+}
+
+function Ver({ ot, ancho = false }: { ot: OtVista; ancho?: boolean }) {
+  const enVivo = ot.estado === 'en_ejecucion'
+  return (
+    <Button component={Link} to={rutaDe(ot.ot)} variant="default" size="xs" fullWidth={ancho} leftSection={<IconEye size={16} />} aria-label={`Ver ${ot.ot}`}>
+      {enVivo ? 'Ver en vivo' : 'Ver bitácora'}
+    </Button>
+  )
+}
+
+/** Lo que pide mirar ya: OT abiertas en «detente». Cada una lleva a su vista en vivo. */
+function BarraIncidentes({ incidentes }: { incidentes: Incidente[] }) {
+  if (incidentes.length === 0) return null
+  return (
+    <Paper radius="md" p="md" bg="peligro.6" role="alert" aria-label="Incidentes en curso">
+      <Stack gap="sm">
+        <Group gap="xs" c="white">
+          <IconAlertTriangle size={24} />
+          <Text fw={900} size="lg" c="white">
+            {incidentes.length === 1 ? 'Un incidente en curso' : `${incidentes.length} incidentes en curso`}
+          </Text>
+        </Group>
+        {incidentes.map((i) => (
+          <Paper key={i.ot} radius="sm" p="sm">
+            <Group justify="space-between" wrap="nowrap" gap="md">
+              <Stack gap={2}>
+                <Text fw={800}>
+                  {i.ot.toUpperCase()}
+                  {i.operador ? `, ${nombreDe(i.operador)}` : ''}
+                </Text>
+                <Text size="sm">{i.que}</Text>
+              </Stack>
+              <Button component={Link} to={rutaDe(i.ot)} color="peligro" leftSection={<IconEye size={18} />} style={{ flexShrink: 0 }} aria-label={`Ver ${i.ot} en vivo`}>
+                Ver en vivo
+              </Button>
+            </Group>
+          </Paper>
+        ))}
+      </Stack>
+    </Paper>
+  )
+}
+
+/** Suena una vez por incidente nuevo; los que ya estaban al entrar no suenan. */
+function useCampanaDeIncidentes(incidentes: Incidente[] | null) {
+  const vistos = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    if (!incidentes) return
+    const claves = new Set(incidentes.map((i) => `${i.ot}:${i.que}`))
+    if (vistos.current && [...claves].some((k) => !vistos.current!.has(k))) campana.sonar()
+    vistos.current = claves
+  }, [incidentes])
+  // El primer toque en la página deja el audio listo, por si se entró recargando.
+  useEffect(() => {
+    const preparar = () => campana.preparar()
+    window.addEventListener('pointerdown', preparar, { once: true })
+    return () => window.removeEventListener('pointerdown', preparar)
+  }, [])
+}
+
 /** El id, el estado y el nombre se leen de un vistazo: no se parten en dos líneas. */
 const SIN_CORTE = { whiteSpace: 'nowrap' } as const
 
@@ -163,6 +239,7 @@ function Tabla({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Opera
             <Table.Th>OT</Table.Th>
             <Table.Th>Pauta y equipo</Table.Th>
             <Table.Th>Estado</Table.Th>
+            <Table.Th>Verificación</Table.Th>
             <Table.Th>Operador</Table.Th>
             <Table.Th>Avance</Table.Th>
             <Table.Th>Acción</Table.Th>
@@ -170,9 +247,9 @@ function Tabla({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Opera
         </Table.Thead>
         <Table.Tbody>
           {ots.map((o) => (
-            <Table.Tr key={o.ot}>
+            <Table.Tr key={o.ot} bg={o.calificacion?.nivel === 'error' && o.estado !== 'completa' ? 'peligro.0' : undefined}>
               <Table.Td style={SIN_CORTE}>
-                <Text fw={800}>{o.ot.toUpperCase()}</Text>
+                <IdOt ot={o.ot} />
               </Table.Td>
               <Table.Td>
                 <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
@@ -184,13 +261,16 @@ function Tabla({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Opera
                 <EstadoBadge estado={o.estado} />
               </Table.Td>
               <Table.Td style={SIN_CORTE}>
+                <Verificacion ot={o} />
+              </Table.Td>
+              <Table.Td style={SIN_CORTE}>
                 <Operador ot={o} />
               </Table.Td>
               <Table.Td>
                 <Avance ot={o} />
               </Table.Td>
               <Table.Td>
-                <Asignar ot={o} operadores={operadores} onListo={onListo} />
+                {puedeAsignarse(o.estado) ? <Asignar ot={o} operadores={operadores} onListo={onListo} /> : <Ver ot={o} />}
               </Table.Td>
             </Table.Tr>
           ))}
@@ -207,8 +287,11 @@ function Tarjetas({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Op
         <Card key={o.ot} withBorder radius="md" padding="md">
           <Stack gap="sm">
             <Group justify="space-between" wrap="nowrap">
-              <Text fw={800}>{o.ot.toUpperCase()}</Text>
-              <EstadoBadge estado={o.estado} />
+              <IdOt ot={o.ot} />
+              <Group gap={6} wrap="nowrap">
+                {o.calificacion && <VerificacionBadge nivel={o.calificacion.nivel} />}
+                <EstadoBadge estado={o.estado} />
+              </Group>
             </Group>
             <div>
               <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
@@ -220,7 +303,7 @@ function Tarjetas({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Op
               <Operador ot={o} />
               <Avance ot={o} />
             </Group>
-            {puedeAsignarse(o.estado) && <Asignar ot={o} operadores={operadores} onListo={onListo} />}
+            {puedeAsignarse(o.estado) ? <Asignar ot={o} operadores={operadores} onListo={onListo} /> : <Ver ot={o} ancho />}
           </Stack>
         </Card>
       ))}
@@ -298,8 +381,10 @@ function PedirOt({ onPedida }: { onPedida: (o: OtPedida) => Promise<void> }) {
 
 export function PaginaSupervisor() {
   const usuario = useSesion()
-  const { ots, error, recargar } = useOts()
+  const { ots, error, recargar } = useOts(undefined, undefined, null, true)
   const operadores = useOperadores()
+  const incidentes = useMemo(() => (ots ? incidentesDe(ots) : null), [ots])
+  useCampanaDeIncidentes(incidentes)
   const [pedida, setPedida] = useState<OtPedida | null>(null)
   const ancha = useMediaQuery('(min-width: 62em)', undefined, { getInitialValueInEffect: false })
   if (!usuario) return null
@@ -330,6 +415,7 @@ export function PaginaSupervisor() {
               <PedirOt onPedida={alPedir} />
             </Group>
           </Group>
+          <BarraIncidentes incidentes={incidentes ?? []} />
           {pedida && (
             <Alert color="verificado" variant="light" withCloseButton onClose={() => setPedida(null)} closeButtonLabel="Cerrar aviso">
               Pediste la {pedida.ot.toUpperCase()}, {pedida.nombre}. Queda por asignar.

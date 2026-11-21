@@ -2,10 +2,13 @@
 
 import { Alert, Badge, Box, Button, Center, Container, Group, Loader, Paper, Stack, Text } from '@mantine/core'
 import {
+  IconAlertTriangle,
   IconArrowsExchange,
   IconCheck,
+  IconHandStop,
   IconCircleDashed,
   IconLogout,
+  IconShieldCheck,
   IconTool,
   IconUserCheck,
   IconWifiOff,
@@ -13,10 +16,10 @@ import {
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../api/cliente'
-import type { EstadoGeneral } from '../api/tipos'
+import type { EstadoGeneral, Nivel } from '../api/tipos'
 import { cerrarSesion } from '../sesion/sesion'
 import type { Usuario } from '../sesion/usuarios'
-import { ESTADOS } from './estados'
+import { ESTADOS, VERIFICACION } from './estados'
 
 const ICONOS: Record<EstadoGeneral, typeof IconCheck> = {
   sin_asignar: IconCircleDashed,
@@ -33,6 +36,23 @@ export function EstadoBadge({ estado, size = 'md' }: { estado: EstadoGeneral; si
   return (
     // Nunca más angosto que su texto: con pautas de nombre largo, la tabla lo cortaba («EN EJECU…»).
     <Badge color={color} size={size} radius="sm" miw="max-content" leftSection={<Icono size={14} stroke={2.5} />}>
+      {etiqueta}
+    </Badge>
+  )
+}
+
+const ICONOS_VERIFICACION: Record<Nivel, typeof IconCheck> = {
+  ok: IconShieldCheck,
+  warning: IconAlertTriangle,
+  error: IconHandStop,
+}
+
+/** Cómo va lo que Factum verifica en la OT: todo bien, atención o detente. */
+export function VerificacionBadge({ nivel, size = 'md' }: { nivel: Nivel; size?: 'sm' | 'md' | 'lg' }) {
+  const { etiqueta, color } = VERIFICACION[nivel]
+  const Icono = ICONOS_VERIFICACION[nivel]
+  return (
+    <Badge color={color} variant={nivel === 'ok' ? 'light' : 'filled'} size={size} radius="sm" miw="max-content" leftSection={<Icono size={14} stroke={2.5} />}>
       {etiqueta}
     </Badge>
   )

@@ -1,5 +1,5 @@
 import type { EstadoOt, OtResumen, PasoEstado } from '../api/tipos'
-import { avanceDe, estadoDe, porPrioridad, puedeAsignarse } from './estados'
+import { avanceDe, estadoDe, incidentesDe, porPrioridad, puedeAsignarse } from './estados'
 
 const resumen = (extra: Partial<OtResumen>): OtResumen => ({
   ot: 'ot-1',
@@ -63,4 +63,20 @@ it('only unassigned and handed-over OTs can be assigned', () => {
   expect(puedeAsignarse('asignada')).toBe(false)
   expect(puedeAsignarse('en_ejecucion')).toBe(false)
   expect(puedeAsignarse('completa')).toBe(false)
+})
+
+describe('incidentesDe', () => {
+  const c = (nivel: 'ok' | 'warning' | 'error', motivos: string[], avisos: { nivel: 'ok' | 'warning' | 'error'; motivos: string[] }[] = []) => ({
+    nivel, certeza: 1, capa: 1, motivos, avisos: avisos.map((a) => ({ ...a, certeza: 1, capa: 1 })),
+  })
+
+  it('an open OT on «detente» is an incident, named by its gravest reason', () => {
+    const ots = [
+      { ot: 'ot-1', operador: 'operario:1', estado: 'en_ejecucion' as const, calificacion: c('error', ['peor'], [{ nivel: 'warning', motivos: ['temp'] }, { nivel: 'error', motivos: ['GUARDA ABIERTA'] }]) },
+      { ot: 'ot-2', operador: 'operario:2', estado: 'en_ejecucion' as const, calificacion: c('warning', ['temp']) },
+      { ot: 'ot-3', operador: null, estado: 'completa' as const, calificacion: c('error', ['ya cerrada']) },
+      { ot: 'ot-4', operador: null, estado: 'sin_asignar' as const, calificacion: null },
+    ]
+    expect(incidentesDe(ots)).toEqual([{ ot: 'ot-1', operador: 'operario:1', que: 'GUARDA ABIERTA' }])
+  })
 })

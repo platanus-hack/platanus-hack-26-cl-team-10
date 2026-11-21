@@ -197,7 +197,7 @@ export class Mundo {
       alertas_activas: this.alertasActivas(otId),
       sesion: ot.sesion,
       video: null,
-      sensores: {},
+      sensores: Object.fromEntries(this.lecturas),
       bitacora: ot.eventos.filter((e) => e.id > desde),
     }
   }
@@ -260,8 +260,13 @@ export class Mundo {
 
   // ─── Sensores, orden, controles y confirmación por persona (app/servicios.py) ───
 
+  /** Una lectura de la estación. Llega al stream de cada OT que una estación está ejecutando. */
   leer(sensorId: string, valor: string): void {
     this.lecturas.set(sensorId, valor)
+    for (const ot of this.ots.values()) {
+      if (!ot.sesion) continue
+      this.publicar(ot.id, { tipo: 'lectura', edge_id: ot.sesion.edge_id, sensor_id: sensorId, valor, ts: new Date().toISOString() })
+    }
   }
 
   lectura(sensorId: string): string | null {

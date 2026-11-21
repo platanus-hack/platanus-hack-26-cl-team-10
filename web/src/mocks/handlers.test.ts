@@ -238,3 +238,19 @@ it('asignar answers 403, not 500, to a body without operator, and names a comple
   for (const p of pauta.pasos) m.agregar('ot-14', { tipo: 'veredicto', actor: 'sistema', paso_id: p.id, estado: 'verificado', detalle: 'ok' })
   await expect(api().asignar('ot-14', 'operario:1')).rejects.toMatchObject({ status: 409, regla: 'la OT ot-14 ya está completa' })
 })
+
+it('serves a stand-in camera frame and streams station readings to the OTs a station runs', async () => {
+  const r = await fetch(`${BASE}/edge/edge-1/video.mjpg`)
+  expect(r.headers.get('content-type')).toBe('image/svg+xml')
+  expect(await r.text()).toContain('Cámara de edge-1')
+
+  m.abrirSesion('ot-12', 'edge-1', 'operario:1')
+  m.leer('guarda', 'abierta')
+  const { ws, mensajes } = abrir('ot-12')
+  await hasta(() => mensajes.length === 1)
+  expect(mensajes[0]).toMatchObject({ tipo: 'snapshot', sensores: { guarda: 'abierta' } })
+  m.leer('energia', 'viva')
+  await hasta(() => mensajes.length === 2)
+  expect(mensajes[1]).toMatchObject({ tipo: 'lectura', edge_id: 'edge-1', sensor_id: 'energia', valor: 'viva' })
+  ws.close()
+})

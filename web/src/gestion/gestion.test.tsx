@@ -20,6 +20,7 @@ import { tema } from '../tema'
 import { Inicio } from './Inicio'
 import { PaginaLogin } from './PaginaLogin'
 import { PaginaOperador } from './PaginaOperador'
+import { campana } from './campana'
 import { PaginaSupervisor } from './PaginaSupervisor'
 
 const sinEspera: Temporizador = () => {}
@@ -27,6 +28,8 @@ const sinEspera: Temporizador = () => {}
 const server = setupServer()
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterAll(() => server.close())
+// Un test cambia matchMedia para ver la tabla: no se le debe pegar al siguiente.
+afterEach(() => vi.restoreAllMocks())
 
 let m: Mundo
 beforeEach(() => {
@@ -39,6 +42,10 @@ function Ejecucion() {
   return <p>ejecución de {useParams().id}</p>
 }
 
+function VistaEnVivo() {
+  return <p>vista en vivo de {useParams().id}</p>
+}
+
 function abrir(ruta: string) {
   render(
     <MantineProvider theme={tema}>
@@ -46,6 +53,7 @@ function abrir(ruta: string) {
         <Routes>
           <Route path="/login" element={<PaginaLogin />} />
           <Route path="/supervisor" element={<RequiereRol rol="supervisor"><PaginaSupervisor /></RequiereRol>} />
+          <Route path="/supervisor/ot/:id" element={<RequiereRol rol="supervisor"><VistaEnVivo /></RequiereRol>} />
           <Route path="/operador" element={<RequiereRol rol="operador"><PaginaOperador /></RequiereRol>} />
           <Route path="/ot/:id" element={<RequiereRol rol="operador"><Ejecucion /></RequiereRol>} />
           <Route path="*" element={<Inicio />} />
@@ -332,6 +340,59 @@ describe('supervisor dashboard', () => {
     abrir('/supervisor')
     expect(await screen.findByText('No se pudo cargar a los operadores')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Asignar ot-14/ })).not.toBeInTheDocument()
+  })
+
+  it('shows how each OT is going, except the unassigned ones', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    expect(within(await tarjeta('ot-12')).getByText('Todo bien')).toBeInTheDocument()
+    expect(within(await tarjeta('ot-14')).queryByText('Todo bien')).toBeNull()
+  })
+
+  it('every OT opens its live view, from its id or from Ver', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    expect(within(await tarjeta('ot-12')).getByRole('link', { name: 'OT-12' })).toHaveAttribute('href', '/supervisor/ot/ot-12')
+    await userEvent.click(within(await tarjeta('ot-12')).getByRole('link', { name: 'Ver ot-12' }))
+    expect(await screen.findByText('vista en vivo de ot-12')).toBeInTheDocument()
+  })
+
+  it('a new incident raises the red bar and chimes once; Ver en vivo opens it', async () => {
+    const sonar = vi.spyOn(campana, 'sonar').mockImplementation(() => {})
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    await tarjeta('ot-13')
+    expect(screen.queryByRole('alert', { name: 'Incidentes en curso' })).toBeNull()
+
+    m.agregar('ot-13', {
+      tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1, detalle: 'GUARDA ABIERTA CON ENERGÍA VIVA.',
+      evidencia: { tipo: 'sensor', guarda: 'abierta', energia: 'viva', clave: 'seguridad:guarda' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
+    const barra = await screen.findByRole('alert', { name: 'Incidentes en curso' })
+    expect(within(barra).getByText('OT-13, Bruno Díaz')).toBeInTheDocument()
+    expect(within(barra).getByText('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBeInTheDocument()
+    expect(within(await tarjeta('ot-13')).getByText('Detente')).toBeInTheDocument()
+    expect(sonar).toHaveBeenCalledOnce()
+
+    // El mismo incidente no vuelve a sonar.
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
+    await waitFor(() => expect(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByText('OT-13, Bruno Díaz')).toBeInTheDocument())
+    expect(sonar).toHaveBeenCalledOnce()
+
+    await userEvent.click(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByRole('link', { name: 'Ver ot-13 en vivo' }))
+    expect(await screen.findByText('vista en vivo de ot-13')).toBeInTheDocument()
+  })
+
+  it('an incident already open on arrival shows, but does not chime', async () => {
+    const sonar = vi.spyOn(campana, 'sonar').mockImplementation(() => {})
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    m.agregar('ot-13', { tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1, detalle: 'GUARDA ABIERTA.', evidencia: { tipo: 'sensor', clave: 'seguridad:g' } })
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    expect(await screen.findByRole('alert', { name: 'Incidentes en curso' })).toBeInTheDocument()
+    expect(sonar).not.toHaveBeenCalled()
   })
 
   it('says so when there are no OTs', async () => {

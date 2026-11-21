@@ -61,6 +61,7 @@ web/
 | `/login` | todos | Diego |
 | `/supervisor` | supervisor | Diego |
 | `/operador` | operador | Diego |
+| `/supervisor/ot/:id` | supervisor | Dani |
 | `/ot/:id` | el operador asignado | Dani |
 
 - `api/` y `sesion/` son compartidos: se avisa antes de cambiarlos. Fuera de eso, cada uno trabaja en su carpeta y no hay choques en la rama.
@@ -127,6 +128,12 @@ export const tema = createTheme({
 **Login.** Correo y clave; al entrar va a su dashboard según el rol, y el encabezado dice su nombre y su empresa. Si la clave no calza lo dice ahí mismo; si el servidor no responde, también. Con mock, abajo hay un toque por persona de prueba.
 
 **Pedir OT.** El supervisor elige una de las pautas de su empresa y la OT aparece por asignar, con un aviso de cuál pidió.
+
+**Verificación.** Cada OT de la lista dice cómo va lo que Factum verifica: «Todo bien», «Atención» o «Detente», con ícono y texto. Sale de `GET /cliente/ots/{id}`: las OT en ejecución se piden en cada recarga, las demás solo cuando cambia su resumen, y las sin asignar no se califican.
+
+**Incidentes.** Una OT abierta en «Detente» es un incidente. Arriba de la lista aparece una barra roja con cada uno (OT, operador y el motivo más grave) y «Ver en vivo». Cuando aparece uno nuevo suena una campana corta (Web Audio, sin archivos); los que ya estaban al entrar no suenan. El supervisor solo mira: no confirma ni detiene nada.
+
+**Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde el id de la OT o desde «Ver». Arriba, las alertas abiertas en rojo, con «Ver en la bitácora». A un lado, la cámara de la estación (`GET /edge/{edge}/video.mjpg`, el video que el edge manda al servidor) y los sensores, con el que espera el paso en curso marcado; si la OT no corre en una estación, lo dice. Al otro, los pasos y la bitácora completa, lo último arriba. Todo llega por el mismo WebSocket de la OT que usa la ejecución, pero esta vista no abre sesión ni declara: mirar no cambia la bitácora.
 
 **Supervisor.** Ve todas las OT con su estado general, su operador y su avance. Asigna las que no tienen operador y reasigna las entregadas. Reasignar es P0: sin eso no hay relevo.
 
@@ -303,7 +310,9 @@ Un aviso de `calificacion.avisos` es `{nivel, certeza, capa, motivos}`: sin `id`
 
 Respaldo si el ESP32 falla en el escenario: la lectura se puede escribir a mano en `POST /edge/edge-1/lecturas` o en `POST /sensores`.
 
-`GET /cliente/ots/{id}` trae la OT con su `calificacion` (todo bien, atención o detente); el front todavía no la usa.
+`GET /cliente/ots/{id}` trae la OT con su `calificacion` (todo bien, atención o detente). El front la usa para la verificación de la lista, para los incidentes y para saber si una persona puede abrir una OT: responde 404 si no es de su empresa o, para un operador, si no está asignada a él. Con 404 la ejecución dice «Esta OT no está en tu lista» y no abre sesión.
+
+`GET /edge/{edge_id}/video.mjpg` es el video en vivo de la estación, para un `<img>`. `POST /ot/{id}/sesion` responde 401 `{clave}` si la estación ejecuta otra OT: quitársela pide `X-Clave-Equipo`. El front no manda esa clave (iría en el navegador, a la vista); dice que la estación está ocupada y reintenta.
 
 ## 9. Escenarios del mock
 
@@ -318,7 +327,8 @@ Ejecución (Dani). Todos sirven para las dos pautas del repo: la correa (por def
 | Control perdido | `control-perdido` | El primer control crítico ya verificado se deshace y vuelve 8 s después |
 | La cámara dice que no | `camara-no` | El primer «Hecho» en un paso de cámara da un conflicto que se muestra pero no suena |
 | Sin evidencia | `sin-senal` | Nada se cierra solo: a los 20 s el paso ofrece «Ya lo hice» |
-| Relevo | `relevo` | OT en 3/6 con un paso confirmado por OP1; OP2 entra y la termina |
+| Relevo | `relevo` | OT en 3/6 con un paso confirmado por Ana; Bruno entra y la termina |
+| Incidente | `incidente` | Para el supervisor: la OT de Bruno va en la estación y a los 8 s se abre la guarda con la energía viva. Barra roja, campana y vista en vivo. `/supervisor?escenario=incidente&como=supervisor:oculta` |
 | API caída | `api-caida` | Errores y timeouts con el operario a mitad de un paso |
 | Ya completa | `completa` | La OT está terminada cuando el operario la abre |
 
@@ -329,7 +339,7 @@ Gestión (Diego):
 | Lista vacía | `vacia` | No hay OT |
 | Lista mixta | `mixta` | OT en todos los estados generales |
 | OT ya tomada | `ya-asignada` | Al asignar, responde que otro supervisor ya la asignó (409) |
-| OT ajena | `ot-ajena` | Un operador abre por URL una OT que no es suya (403) |
+| OT ajena | `?como=operario:1` en `/ot/ot-13` | Un operador abre por URL una OT que no es suya: «Esta OT no está en tu lista» (404) |
 
 ## 10. Prioridades
 
