@@ -58,6 +58,18 @@ class Sensor:
 
 
 @dataclass(frozen=True, slots=True)
+class Deteccion:
+    """Qué clase del modelo del edge responde un paso de cámara en capa 2.
+
+    presente=True: el paso se cumple cuando el objeto se ve con certeza alta.
+    presente=False: se cumple cuando el objeto ya no se ve (p. ej. herramienta retirada).
+    """
+
+    clase: str
+    presente: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class Paso:
     id: str
     orden: int
@@ -68,16 +80,19 @@ class Paso:
     control_critico: bool = False
     pregunta_visual: str | None = None
     sensor: Sensor | None = None
+    deteccion: Deteccion | None = None
 
     def __post_init__(self) -> None:
         if self.tipo_evidencia is TipoEvidencia.SENSOR and self.sensor is None:
             raise ValueError(f"paso {self.id}: tipo sensor exige el campo sensor")
         if self.tipo_evidencia is TipoEvidencia.CAMARA and not self.pregunta_visual:
             raise ValueError(f"paso {self.id}: tipo camara exige pregunta_visual")
+        if self.deteccion is not None and self.tipo_evidencia is not TipoEvidencia.CAMARA:
+            raise ValueError(f"paso {self.id}: deteccion solo aplica a pasos de camara")
 
     @classmethod
     def desde_dict(cls, d: dict) -> Paso:
-        s = d.get("sensor")
+        s, det = d.get("sensor"), d.get("deteccion")
         return cls(
             id=d["id"],
             orden=d["orden"],
@@ -88,6 +103,7 @@ class Paso:
             control_critico=d.get("control_critico", False),
             pregunta_visual=d.get("pregunta_visual"),
             sensor=Sensor(s["id"], s["espera"]) if s else None,
+            deteccion=Deteccion(det["clase"], bool(det.get("presente", True))) if det else None,
         )
 
 

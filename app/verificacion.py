@@ -1,21 +1,49 @@
 """FRENTE 3 — verificación.
 
 La capa 1 ya es real: lee los sensores desde la base y app/reglas.py decide.
-La capa 3 es un stub conmutable, para poder ensayar el demo sin cámara.
 
-Lo que hay que construir acá: reemplazar juez_camara por una llamada a un VLM
-que reciba el cuadro de la cámara y la pregunta visual del paso. El resto del
-sistema no cambia: la firma devuelve (respuesta, confianza).
+Capa 2 de cámara: el modelo del edge (YOLO) decide cuando está seguro
+(reglas.por_deteccion). Cuando no le alcanza la certeza, el paso sube acá.
 
-La capa 2, aprendizaje sobre señales, todavía no cierra pasos. Detecta anomalías
-y abre la OT. Qué algoritmo usa es una Brecha abierta.
+Capa 3 de cámara: un VLM (Claude Haiku 5.5, multimodal y barato) mira el último
+cuadro del edge y responde la pregunta visual del paso con (respuesta, confianza).
+Se activa con ANTHROPIC_API_KEY; el modelo se cambia con VLM_MODELO. Sin key, o sin
+cuadro, queda el stub de ensayo de siempre, para poder ensayar el demo sin red.
+
+La capa 2 de señales todavía no cierra pasos. Detecta anomalías y abre la OT.
 """
 
 from __future__ import annotations
 
+import base64
+import json
+import logging
+import os
+
+log = logging.getLogger(__name__)
+
+MODELO_POR_DEFECTO = "claude-haiku-5-5"  # multimodal, $0,10 / $0,50 por millón de tokens
+TIMEOUT_S = 15.0
+
+INSTRUCCION = (
+    "Eres el verificador visual de un procedimiento de mantenimiento industrial. "
+    "Recibes una foto de la cámara de la estación y una pregunta de sí o no sobre ella. "
+    "Responde solo lo que la foto muestra: si no se ve con claridad, la respuesta es no. "
+    "La confianza va de 0 a 1 y dice cuán seguro estás de tu respuesta."
+)
+ESQUEMA = {
+    "type": "object",
+    "properties": {
+        "respuesta": {"type": "boolean"},
+        "confianza": {"type": "number"},
+    },
+    "required": ["respuesta", "confianza"],
+    "additionalProperties": False,
+}
+
 # Permite forzar la respuesta de la cámara durante un ensayo del demo.
-# El frente 3 lo borra cuando conecte el modelo.
 _FORZAR: dict[str, bool] = {}
+_cliente = None
 
 
 def forzar_camara(pregunta: str, respuesta: bool) -> None:
@@ -26,15 +54,51 @@ def limpiar_forzados() -> None:
     _FORZAR.clear()
 
 
+def vlm_configurado() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 def juez_camara(pregunta: str, cuadro: bytes | None = None) -> tuple[bool, float]:
-    """TODO frente 3: llamar al VLM con `cuadro` (JPEG del edge, o None si no hay video) y esta pregunta.
+    """Capa 3: (respuesta, confianza) para la pregunta visual del paso sobre `cuadro`.
 
     El cuadro lo entrega app/servicios.py: es el último que mandó la cámara del edge
     que ejecuta la OT (app/video.py). La firma de reglas.JuezCamara no cambia.
 
-    Mientras no exista, responde lo que se haya forzado, y si no se forzó nada
-    responde que sí con confianza baja, para que el flujo avance en los ensayos.
+    Si el VLM falla (red, cuota, negativa, respuesta rara) responde (False, 0.0): no
+    verifica el paso y queda a la vista como warning de capa 3, nunca lo cierra por error.
     """
     if pregunta in _FORZAR:
         return _FORZAR[pregunta], 0.91
-    return True, 0.55
+    if cuadro is None or not vlm_configurado():
+        return True, 0.55  # stub de ensayo: sin VLM conectado
+    try:
+        return preguntar_claude(pregunta, cuadro)
+    except Exception:  # noqa: BLE001 - cualquier falla del VLM se trata igual: no verifica
+        log.exception("el VLM no pudo juzgar «%s»", pregunta)
+        return False, 0.0
+
+
+def preguntar_claude(pregunta: str, cuadro: bytes, cliente=None) -> tuple[bool, float]:
+    global _cliente
+    if cliente is None:
+        if _cliente is None:
+            import anthropic
+            _cliente = anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=1)  # lee ANTHROPIC_API_KEY
+        cliente = _cliente
+    r = cliente.messages.create(
+        model=os.environ.get("VLM_MODELO", MODELO_POR_DEFECTO),
+        max_tokens=4000,
+        system=INSTRUCCION,
+        # esfuerzo bajo: es un sí/no sobre una foto, importa la latencia
+        output_config={"effort": "low", "format": {"type": "json_schema", "schema": ESQUEMA}},
+        messages=[{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                         "data": base64.standard_b64encode(cuadro).decode()}},
+            {"type": "text", "text": pregunta},
+        ]}],
+    )
+    if r.stop_reason != "end_turn":  # refusal o max_tokens: no hay respuesta en la que confiar
+        log.warning("el VLM terminó con %s para «%s»", r.stop_reason, pregunta)
+        return False, 0.0
+    d = json.loads(next(b.text for b in r.content if b.type == "text"))
+    return bool(d["respuesta"]), min(1.0, max(0.0, float(d["confianza"])))

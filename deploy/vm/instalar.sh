@@ -25,6 +25,8 @@ After=network-online.target
 [Service]
 User=factum
 WorkingDirectory=/srv/factum/codigo
+# Secretos fuera del repo: ANTHROPIC_API_KEY=... (capa 3 de cámara). El "-" lo hace opcional.
+EnvironmentFile=-/srv/factum/entorno
 ExecStart=/srv/factum/codigo/.venv/bin/uvicorn app.api:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1
 Restart=always
 RestartSec=2

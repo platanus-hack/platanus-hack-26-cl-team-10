@@ -4,3 +4,5 @@ datos/bitacora.sqlite3
 .DS_Store
 datos/evidencias/
 datos/voz/
+data/
+*.pt
