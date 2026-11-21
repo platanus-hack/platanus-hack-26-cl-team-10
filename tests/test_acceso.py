@@ -168,6 +168,17 @@ class PorHTTP(unittest.TestCase):
         self.assertEqual(self.c.post("/cliente/ots", json={"pauta_id": "pauta-polin-demo"}, headers=ana).status_code, 403)
         self.assertEqual(self.c.get("/cliente/operadores", headers=ana).status_code, 403)
 
+    def test_la_pagina_de_analisis_lee_rutas_que_existen(self):
+        import re
+
+        pagina = self.c.get("/analisis")
+        self.assertEqual(pagina.status_code, 200)
+        carla = self.cabecera("carla.munoz@oculta.example")
+        rutas = set(re.findall(r'"(/(?:yo|cliente)[^"?]*)', pagina.text))
+        self.assertEqual(rutas, {"/yo", "/cliente/metricas", "/cliente/metricas/pautas", "/cliente/mejoras"})
+        for ruta in rutas:
+            self.assertEqual(self.c.get(ruta, headers=carla).status_code, 200, ruta)
+
     def test_la_lista_trae_la_calificacion_de_cada_ot(self):
         carla = self.cabecera("carla.munoz@oculta.example")
         lista = self.c.get("/cliente/ots", headers=carla).json()

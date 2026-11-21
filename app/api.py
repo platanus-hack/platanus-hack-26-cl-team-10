@@ -1087,6 +1087,12 @@ def pagina_monitor() -> FileResponse:
     return FileResponse(ESTATICO / "monitor.html")
 
 
+@app.get("/analisis")
+def pagina_analisis() -> FileResponse:
+    """El reporte del supervisor: las métricas y las propuestas de mejora de su empresa (`/cliente/metricas`, `/cliente/mejoras`)."""
+    return FileResponse(ESTATICO / "analisis.html")
+
+
 @app.get("/simulador")
 def pagina_simulador() -> FileResponse:
     """El simulador: la ejecución de una OT en 3D con las pautas y los operarios de esta base. Las OT son simuladas."""
