@@ -121,6 +121,9 @@ export type OtResumen = {
   total?: number
 }
 
+/** `GET /cliente/ots/{id}`: el resumen con su calificación (todo bien, atención o detente). */
+export type OtDetalle = OtResumen & { calificacion: CalificacionOt }
+
 export type Sesion = { edge_id: string; ot_id: string; operario: string; desde: string }
 
 export type Snapshot = {

@@ -83,9 +83,9 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
   const intentado = useRef(false)
 
   const vista =
-    s.conexion === 'no_existe'
+    s.conexion === 'no_existe' || e.acceso === 'denegado'
       ? 'no_existe'
-      : !s.ot
+      : !s.ot || e.acceso === 'verificando'
         ? 'cargando'
         : s.ot.completa
           ? 'completa'
@@ -128,9 +128,9 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
       return conBarra(
         <Center py={64} px="md">
           <Stack align="center" gap="sm">
-            <Title order={2}>Esta OT no existe</Title>
+            <Title order={2}>Esta OT no está en tu lista</Title>
             <Text c="roca.6" ta="center">
-              Revisa el enlace o vuelve a tu lista.
+              No existe o no está asignada a ti. Revisa el enlace o vuelve a tu lista.
             </Text>
             <Button component={Link} to="/operador" variant="default">
               Volver a mis OT

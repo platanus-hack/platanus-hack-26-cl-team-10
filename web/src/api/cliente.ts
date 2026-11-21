@@ -5,6 +5,7 @@ import { cerrarSesion, tokenDeSesion } from '../sesion/sesion'
 import type {
   Entrada,
   EstadoOt,
+  OtDetalle,
   OtPedida,
   OtResumen,
   Pauta,
@@ -17,9 +18,10 @@ import type {
 
 /**
  * `sesion`: la API no reconoce el token (venció o se cerró). `credenciales`: el login no calzó.
- * `permiso`: la persona entró, pero su rol o su empresa no la dejan.
+ * `permiso`: la persona entró, pero su rol o su empresa no la dejan. `clave`: la estación ejecuta
+ * otra OT y quitársela pide la clave del equipo (`X-Clave-Equipo`).
  */
-export type TipoError = 'regla' | 'no_existe' | 'timeout' | 'red' | 'http' | 'sesion' | 'credenciales' | 'permiso'
+export type TipoError = 'regla' | 'no_existe' | 'timeout' | 'red' | 'http' | 'sesion' | 'credenciales' | 'permiso' | 'clave'
 
 /** `regla` trae, en un 409, la regla de negocio que se violó: se muestra tal cual y no se reintenta. */
 export class ApiError extends Error {
@@ -44,6 +46,11 @@ export type Cliente = {
   /** Las OT de la empresa (supervisor) o las asignadas a quien pregunta (operador). */
   listarOts(): Promise<OtResumen[]>
   leerOt(otId: string): Promise<EstadoOt>
+  /**
+   * La OT por el servicio para clientes, con su calificación. 404 si no es de la empresa o, para
+   * un operador, si no está asignada a él: sirve también para saber si la puede abrir.
+   */
+  leerOtCliente(otId: string): Promise<OtDetalle>
   leerPauta(pautaId: string, version: number): Promise<Pauta>
   /** Las pautas que la empresa puede pedir, con su nombre legible: la lista de OT solo trae el id. */
   listarPautas(): Promise<PautaResumen[]>
@@ -103,6 +110,8 @@ export function crearCliente(
     if (r.ok) return datos as T
     if (r.status === 401) {
       if (ruta === '/auth/entrar') throw new ApiError(401, 'credenciales', 'Correo o clave incorrectos.')
+      // La estación está ejecutando otra OT y quitársela pide la clave del equipo: el login está bien.
+      if (typeof datos?.clave === 'string') throw new ApiError(401, 'clave', datos.clave)
       // Al salir, un token que ya no sirve no es una sesión vencida: la persona ya se fue.
       if (ruta !== '/auth/salir') acceso.alVencer()
       throw new ApiError(401, 'sesion', 'Tu sesión venció. Vuelve a entrar.')
@@ -118,6 +127,7 @@ export function crearCliente(
     salir: () => pedir('POST', '/auth/salir'),
     listarOts: () => pedir('GET', '/cliente/ots'),
     leerOt: (id) => pedir('GET', ot(id)),
+    leerOtCliente: (id) => pedir('GET', otCliente(id)),
     leerPauta: (id, version) => pedir('GET', `/pautas/${encodeURIComponent(id)}?version=${version}`),
     listarPautas: () => pedir('GET', '/cliente/pautas'),
     listarOperadores: () => pedir('GET', '/cliente/operadores'),

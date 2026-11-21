@@ -145,6 +145,21 @@ describe('login and token', () => {
     expect(alVencer).toHaveBeenCalledOnce()
   })
 
+  it('a busy station asking for the team key is not an expired session', async () => {
+    const alVencer = vi.fn()
+    const c = crearCliente(
+      'https://x',
+      async () => json({ clave: 'el edge edge-1 ejecuta la OT ot-prueba: quitárselo pide la clave del equipo' }, 401),
+      { token: () => 't-ana', alVencer },
+    )
+    await expect(c.abrirSesion('ot-1007', 'edge-1', 'operario:1')).rejects.toMatchObject({
+      status: 401,
+      tipo: 'clave',
+      message: 'el edge edge-1 ejecuta la OT ot-prueba: quitárselo pide la clave del equipo',
+    })
+    expect(alVencer).not.toHaveBeenCalled()
+  })
+
   it('signing out with a dead token is not an expired session', async () => {
     const alVencer = vi.fn()
     const c = crearCliente('https://x', async () => json({ login: 'venció' }, 401), { token: () => 'viejo', alVencer })

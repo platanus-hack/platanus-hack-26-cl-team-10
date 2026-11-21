@@ -15,6 +15,7 @@ import { Mundo } from '../mocks/mundo'
 import { PAUTA_DEMO, PAUTA_LOTO } from '../mocks/pauta'
 import type { Persona } from '../api/tipos'
 import { ANA, BRUNO, entrarComo } from '../mocks/personas'
+import { tokenDeSesion } from '../sesion/sesion'
 import { tema } from '../tema'
 import { PaginaOt } from './PaginaOt'
 import { tiempos } from './useEjecucion'
@@ -227,10 +228,17 @@ describe('handover and navigation', () => {
     expect(m.resumenes()[0].operador).toBe('operario:2')
   })
 
-  it('the operator who handed over does not get the briefing', async () => {
+  it('the operator who handed over can no longer open the OT, and gets no briefing', async () => {
     abrir('relevo', { usuario: ANA })
-    await screen.findByRole('button', { name: /^(Comenzar|Continuar|Entregar turno)$/ })
+    expect(await screen.findByText('Esta OT no está en tu lista')).toBeInTheDocument()
     expect(screen.queryByText('Relevo de turno')).toBeNull()
+  })
+
+  it("another operator's OT does not open by URL, and no session starts on it", async () => {
+    abrir('feliz', { ot: 'ot-13', usuario: ANA })
+    expect(await screen.findByText('Esta OT no está en tu lista')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volver a mis OT' })).toBeInTheDocument()
+    expect(m.sesionDe('ot-13')).toBeNull()
   })
 
   it('Entregar turno asks first, hands over and goes back to the list', async () => {
@@ -270,6 +278,22 @@ describe('handover and navigation', () => {
     expect(screen.getByText('Relevo de turno')).toBeInTheDocument()
   })
 
+  it('a station busy with another OT says so in plain words, keeps the operator signed in and retries', async () => {
+    tiempos.reintentoSesionMs = 50
+    let ocupada = true
+    abrir('feliz')
+    server.use(
+      http.post(`${config.API_URL}/ot/:id/sesion`, () =>
+        ocupada ? HttpResponse.json({ clave: 'el edge edge-1 ejecuta la OT ot-prueba: quitárselo pide la clave del equipo' }, { status: 401 }) : undefined,
+      ),
+    )
+    await entrar()
+    expect(await screen.findByText(/La estación está ocupada con otra OT/)).toBeInTheDocument()
+    expect(tokenDeSesion()).not.toBeNull()
+    ocupada = false
+    await waitFor(() => expect(m.sesionDe('ot-12')).not.toBeNull())
+  })
+
   it('a failed session opening is retried until it works', async () => {
     tiempos.reintentoSesionMs = 100
     abrir('feliz')
@@ -281,7 +305,7 @@ describe('handover and navigation', () => {
 
   it('an unknown OT says so and offers the way back', async () => {
     abrir('feliz', { ot: 'ot-99' })
-    expect(await screen.findByText('Esta OT no existe')).toBeInTheDocument()
+    expect(await screen.findByText('Esta OT no está en tu lista')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Volver a mis OT' })).toBeInTheDocument()
   })
 })

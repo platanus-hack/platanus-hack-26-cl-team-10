@@ -21,6 +21,9 @@ export const tiempos = {
 }
 
 function mensajeDe(e: unknown): string {
+  if (e instanceof ApiError && e.tipo === 'clave') {
+    return 'La estación está ocupada con otra OT. Pide que la liberen; esta OT parte sola apenas quede libre.'
+  }
   if (e instanceof ApiError) return e.tipo === 'regla' && e.regla ? e.regla : e.message
   return 'Algo falló. Intenta de nuevo.'
 }
@@ -49,13 +52,26 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     )
   }, [otId])
 
-  // La pauta trae la instrucción y cómo se cierra cada paso.
+  // Primero, si la OT es de esta persona: `GET /cliente/ots/{id}` responde 404 si no es de su
+  // empresa o no está asignada a ella. Hasta saberlo no se abre la sesión. Si la API no responde,
+  // la pantalla sigue: las rutas de la OT están abiertas y el control de verdad es del servidor.
+  const [acceso, setAcceso] = useState<'verificando' | 'ok' | 'denegado'>('verificando')
+  // Después, la pauta: trae la instrucción y cómo se cierra cada paso.
   useEffect(() => {
     let vivo = true
     ;(async () => {
+      let resumen
       try {
-        const resumen = (await api.listarOts()).find((o) => o.ot === otId)
-        if (!resumen) return
+        resumen = await api.leerOtCliente(otId)
+      } catch (e) {
+        if (!vivo) return
+        const ajena = e instanceof ApiError && (e.tipo === 'no_existe' || e.tipo === 'permiso')
+        setAcceso(ajena ? 'denegado' : 'ok')
+        return
+      }
+      if (!vivo) return
+      setAcceso('ok')
+      try {
         const p = await api.leerPauta(resumen.pauta, resumen.version)
         if (vivo) setPauta(p)
       } catch {
@@ -206,6 +222,8 @@ export function useEjecucion(otId: string, usuario: Usuario) {
 
   return {
     s,
+    /** Si esta persona puede abrir la OT: `denegado` si no es suya. */
+    acceso,
     pauta,
     audio,
     vistas,
