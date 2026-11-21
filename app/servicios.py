@@ -18,7 +18,8 @@ Por cada lectura atribuida:
    capa 1, que se resuelve cuando se hace el paso saltado o se deshace lo adelantado.
 6. Capa 2: si el valor es numérico, se califica contra su historia normal. La
    anomalía abre una alerta y la vuelta a lo normal la resuelve; diez lecturas
-   idénticas seguidas abren el aviso de sensor pegado.
+   idénticas seguidas abren el aviso de sensor pegado (salvo en los sensores lentos
+   del edge, SIN_PEGADO, donde repetir el valor es lo normal).
 7. Todo lo nuevo, la calificación vigente y los avisos activos salen por el bus.
 
 Qué alertas siguen activas se lee de la bitácora, no de la memoria: una alerta
@@ -60,6 +61,9 @@ log = logging.getLogger(__name__)
 HISTORIA_MAX = 300
 SEQ_RECORDADOS = 500
 IGUALES_PEGADO = 10
+# El DHT22 del edge redondea a 0,1 y una sala cambia lento: repetir el valor es lo normal, no un sensor pegado.
+# shortcut: lista fija de los sensores lentos del edge; pasar a un umbral por sensor cuando haya otra estación.
+SIN_PEGADO = frozenset({"temp_c", "hum_pct"})
 # Capa 2 de cámara: se juzga con las detecciones del último segundo, y solo si hay
 # suficientes (a ~18/s, 5 son ~0,3 s) para que un cuadro suelto no cierre un paso.
 # con el detector en el servidor (~2,5 detecciones/s en la VM) 1 s no junta 5: se alarga por entorno
@@ -561,7 +565,7 @@ class Servicios:
         self._iguales[sensor_id] = (x, n)
         clave = f"pegado:{sensor_id}"
         abierta = self.alertas_activas(ot_id).get(clave)
-        if n >= IGUALES_PEGADO and abierta is None:
+        if n >= IGUALES_PEGADO and abierta is None and sensor_id not in SIN_PEGADO:
             return [self.agregar(Evento(
                 ot_id=ot_id, tipo=TipoEvento.ALERTA, ts=db.ahora(), actor="sistema", capa=Capa.APRENDIZAJE,
                 detalle=f"{sensor_id} lleva {n} lecturas idénticas ({x:g}): el sensor puede estar pegado",
