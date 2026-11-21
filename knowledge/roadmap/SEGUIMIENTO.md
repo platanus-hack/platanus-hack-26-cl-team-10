@@ -66,7 +66,7 @@ El recorrido animado de una lectura está en [servicios.html](../architecture/se
 
 | Verificación | Comando | Resultado |
 |---|---|---|
-| Tests unitarios y de casos de uso | `uv run --with httpx python -m unittest discover tests` | 236 pasan, 0 fallan |
+| Tests unitarios y de casos de uso | `uv run --with httpx python -m unittest discover tests` | 239 pasan, 0 fallan. También corre con `pytest` |
 | De esos, por industria | `python3 -m unittest tests.test_mineria tests.test_electrica tests.test_construccion` | 27, 26 y 26 pasan |
 | Recorrido del demo | `python3 scripts/recorrido_demo.py` | Pauta completa, 11 eventos, ninguno editado |
 | Banco contra local | `uv run python scripts/correr_casos.py http://localhost:8000` | 15 de 15 tarjetas pasan (CA1 a CA16) |
@@ -88,6 +88,7 @@ El recorrido animado de una lectura está en [servicios.html](../architecture/se
 - Quién fotografía las escenas del eval de capa 3.
 - La ventana de gracia de A3.
 - El costo de la VM: la estimación da 18 a 24 USD al mes, y el tope fijado es unos 20.
+- La API es pública y sin autenticación. Quien abre la URL del demo puede apretar «Nueva demo LOTO» y quedarse con la sesión del edge en medio del pitch, o correr el banco `/casos` y pisar los sensores. Lo acotado hoy es el gasto: memoria de video por edge y llamadas al juez de cámara (`VLM_MAX_LLAMADAS`, 3.000 por proceso). Falta decidir, antes del pitch, si las escrituras piden un token o si la sesión de un edge ocupado no se puede tomar.
 
 ## Decisiones abiertas
 

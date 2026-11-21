@@ -577,7 +577,7 @@ def buscar(escenario_id: str) -> Escenario:
     for e in catalogo():
         if e.id == escenario_id:
             return e
-    raise KeyError(f"escenario {escenario_id}")
+    raise db.NoExiste(f"escenario {escenario_id}")
 
 
 # ─── La caja aislada ────────────────────────────────────────────────────────

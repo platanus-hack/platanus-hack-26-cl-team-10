@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.video import (FPS_MAX, SEGUNDOS_GUARDADOS, TAMANO_MAX, CuadroInvalido,
+from app.video import (EDGES_MAX, FPS_MAX, SEGUNDOS_GUARDADOS, TAMANO_MAX, CuadroInvalido,
                        DeteccionInvalida, Video, validar_detecciones)
 
 JPEG = b"\xff\xd8" + b"cuadro" + b"\xff\xd9"
@@ -47,6 +47,16 @@ class EntraVideo(unittest.TestCase):
         for i in range(500):
             self.v.recibir("edge-1", JPEG)
         self.assertEqual(len(self.v._cuadros["edge-1"]), SEGUNDOS_GUARDADOS * FPS_MAX)
+
+    def test_con_demasiados_edges_sale_el_que_lleva_mas_tiempo_callado(self):
+        for i in range(EDGES_MAX):
+            self.v.recibir(f"edge-{i}", JPEG)
+        self.v.recibir("edge-0", JPEG)  # el primero sigue transmitiendo
+        self.v.recibir_detecciones("edge-nuevo", {"objetos": []})
+        self.assertIsNone(self.v.ultimo("edge-1"))
+        self.assertIsNotNone(self.v.ultimo("edge-0"))
+        self.assertIsNotNone(self.v.ultimas_detecciones("edge-nuevo"))
+        self.assertEqual(len(self.v._visto), EDGES_MAX)
 
     def test_la_evidencia_queda_en_disco(self):
         c = self.v.recibir("edge-1", JPEG)

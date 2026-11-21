@@ -24,7 +24,7 @@ from app.bus import canal_ot
 from app.contratos import Evento, TipoEvento
 from app.reglas import evaluar, paso_actual, estados_desde_eventos, propuesta_de_mejora
 from app.servicios import Servicios, evento_dict
-from app.video import FPS_MAX, CuadroInvalido, DeteccionInvalida
+from app.video import FPS_MAX, TAMANO_MAX, CuadroInvalido, DeteccionInvalida
 
 app = FastAPI(
     title="Factum · mantenimiento verificado",
@@ -52,8 +52,8 @@ def cuadro_invalido(_: Request, e: CuadroInvalido) -> JSONResponse:
     return JSONResponse(status_code=422, content={"cuadro": str(e)})
 
 
-@app.exception_handler(KeyError)
-def no_existe(_: Request, e: KeyError) -> JSONResponse:
+@app.exception_handler(db.NoExiste)
+def no_existe(_: Request, e: db.NoExiste) -> JSONResponse:
     return JSONResponse(status_code=404, content={"no_existe": str(e.args[0]) if e.args else ""})
 
 ESTATICO = Path(__file__).resolve().parent / "estatico"
@@ -153,7 +153,7 @@ def leer_pauta(pauta_id: str, version: int | None = None) -> dict:
 def versiones_de_pauta(pauta_id: str) -> list[dict]:
     v = catalogo.versiones(cx, pauta_id)
     if not v:
-        raise KeyError(f"pauta {pauta_id}")
+        raise db.NoExiste(f"pauta {pauta_id}")
     return v
 
 
@@ -181,7 +181,7 @@ def listar_sesiones() -> list[dict]:
 def sesion_de_edge(edge_id: str) -> dict:
     s = servicios.sesion(edge_id)
     if s is None:
-        raise KeyError(f"sesión del edge {edge_id}")
+        raise db.NoExiste(f"sesión del edge {edge_id}")
     return s
 
 
@@ -276,7 +276,14 @@ async def video_entrada(ws: WebSocket, edge_id: str) -> None:
 @app.post("/edge/{edge_id}/cuadro")
 async def cuadro_entrada(edge_id: str, request: Request) -> dict:
     """Lo mismo por HTTP, para una ESP32-CAM: el cuerpo es el JPEG."""
-    c = servicios.video.recibir(edge_id, await request.body())
+    # Se corta al pasar el máximo: sin esto un cuerpo enorme entra entero a memoria antes de validarse.
+    partes, total = [], 0
+    async for parte in request.stream():
+        total += len(parte)
+        if total > TAMANO_MAX:
+            raise CuadroInvalido(f"el cuadro pasa de {TAMANO_MAX} bytes")
+        partes.append(parte)
+    c = servicios.video.recibir(edge_id, b"".join(partes))
     return {"edge_id": edge_id, "cuadro": c.n}
 
 
@@ -290,7 +297,7 @@ def detecciones_actuales(edge_id: str) -> dict:
     """Lo último que vio el modelo del edge: clase, confianza y caja normalizada."""
     d = servicios.video.ultimas_detecciones(edge_id)
     if d is None:
-        raise KeyError(f"detecciones del edge {edge_id}")
+        raise db.NoExiste(f"detecciones del edge {edge_id}")
     return d
 
 
@@ -298,7 +305,7 @@ def detecciones_actuales(edge_id: str) -> dict:
 def cuadro_actual(edge_id: str) -> Response:
     c = servicios.video.ultimo(edge_id)
     if c is None:
-        raise KeyError(f"video del edge {edge_id}")
+        raise db.NoExiste(f"video del edge {edge_id}")
     return Response(c.jpeg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
