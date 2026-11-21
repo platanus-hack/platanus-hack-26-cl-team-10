@@ -145,7 +145,7 @@ describe('other alerts', () => {
     abrir('camara-no')
     await entrar()
     await userEvent.click(await screen.findByRole('button', { name: 'Hecho' }, { timeout: 2000 }))
-    await waitFor(() => expect(enFila('Cambiar el rodillo', 'el operario declaró «hecho» y la cámara responde que no (62%)')).not.toBeNull())
+    await waitFor(() => expect(enFila('Cambiar el rodillo', 'La cámara no lo ve (62 % de certeza). Revisa y toca «Hecho» de nuevo, o confírmalo si ya lo hiciste.')).not.toBeNull())
     expect(within(fila('Cambiar el rodillo')).getByRole('button', { name: 'Hecho' })).toBeInTheDocument()
     expect(within(fila('Cambiar el rodillo')).getByRole('button', { name: 'Ya lo hice' })).toBeInTheDocument()
     expect(dicho).toEqual([])

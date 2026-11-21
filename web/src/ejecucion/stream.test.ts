@@ -124,3 +124,54 @@ it('cerrar() during a backoff wait cancels the retry', () => {
   vi.advanceTimersByTime(60_000)
   expect(FakeWebSocket.instancias).toHaveLength(1)
 })
+
+describe('phone network and screen changes', () => {
+  function conectarCon(entorno: EventTarget, visible: () => boolean) {
+    const conexiones: Conexion[] = []
+    const cerrar = conectarStream((d) => `wss://x/ot/ot-12/stream?desde=${d}`, () => 0, {
+      mensaje: () => {},
+      conexion: (c) => conexiones.push(c),
+    }, { WebSocketImpl: FakeWebSocket as unknown as typeof WebSocket, entorno, visible, ocultoMaxMs: 10_000 })
+    return { conexiones, cerrar }
+  }
+
+  it('the network coming back skips the backoff wait', () => {
+    const entorno = new EventTarget()
+    conectarCon(entorno, () => true)
+    ultima().cerrar(1006)
+    ultima().cerrar(1006)
+    vi.advanceTimersByTime(1000)
+    ultima().cerrar(1006)
+    expect(FakeWebSocket.instancias).toHaveLength(2)
+    entorno.dispatchEvent(new Event('online'))
+    expect(FakeWebSocket.instancias).toHaveLength(3)
+  })
+
+  it('coming back after a long time hidden reconnects, a short glance does not', () => {
+    const entorno = new EventTarget()
+    let visible = true
+    conectarCon(entorno, () => visible)
+    ultima().open()
+    visible = false
+    entorno.dispatchEvent(new Event('visibilitychange'))
+    vi.advanceTimersByTime(3000)
+    visible = true
+    entorno.dispatchEvent(new Event('visibilitychange'))
+    expect(FakeWebSocket.instancias).toHaveLength(1)
+    visible = false
+    entorno.dispatchEvent(new Event('visibilitychange'))
+    vi.advanceTimersByTime(30_000)
+    visible = true
+    entorno.dispatchEvent(new Event('visibilitychange'))
+    expect(FakeWebSocket.instancias).toHaveLength(2)
+    expect(FakeWebSocket.instancias[0].cerradoPorCliente).toBe(true)
+  })
+
+  it('cerrar() stops listening to the network and the screen', () => {
+    const entorno = new EventTarget()
+    const { cerrar } = conectarCon(entorno, () => true)
+    cerrar()
+    entorno.dispatchEvent(new Event('online'))
+    expect(FakeWebSocket.instancias).toHaveLength(1)
+  })
+})

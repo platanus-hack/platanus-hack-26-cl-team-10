@@ -180,7 +180,19 @@ export function avisoDelPaso(paso: PasoEstado, s: Ejecucion): string | null {
     const adelantado = s.ot?.pasos.find((p) => p.id === salto.evidencia?.adelantado)
     return adelantado ? `Te saltaste este paso: hiciste «${adelantado.titulo}» antes.` : salto.detalle
   }
-  return paso.estado === 'en_conflicto' ? paso.detalle : null
+  return paso.estado === 'en_conflicto' ? conflictoEnPalabras(paso) : null
+}
+
+/** El conflicto de un veredicto en palabras del operario; si la evidencia no alcanza, el detalle tal cual. */
+function conflictoEnPalabras(paso: PasoEstado): string | null {
+  const ev = paso.evidencia ?? {}
+  if (ev.tipo === 'camara') {
+    const certeza = typeof ev.confianza === 'number' ? ` (${Math.round(ev.confianza * 100)} % de certeza)` : ''
+    return `La cámara no lo ve${certeza}. Revisa y toca «Hecho» de nuevo, o confírmalo si ya lo hiciste.`
+  }
+  if (ev.tipo === 'sensor' && ev.id && ev.valor != null)
+    return `El sensor ${String(ev.id)} marca «${String(ev.valor)}»; el paso espera «${String(ev.espera)}».`
+  return paso.detalle
 }
 
 /** Lo que dice la voz: una frase corta y en orden de lectura, no el detalle técnico tal cual. */

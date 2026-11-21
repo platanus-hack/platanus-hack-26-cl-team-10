@@ -12,6 +12,8 @@ const roca: MantineColorsTuple = ['#f2f3f4', '#e1e3e5', '#cbced1', '#b0b5ba', '#
 export const tema = createTheme({
   primaryColor: 'accion',
   primaryShade: 6,
+  // Un solo radio para tarjetas, botones y campos: las pantallas de Diego y las de Dani se ven iguales.
+  defaultRadius: 'md',
   colors: { accion, verificado, precaucion, peligro, roca },
   black: '#1F262E',
   white: '#FFFFFF',

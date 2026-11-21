@@ -135,7 +135,7 @@ export function Paso({ paso, pauta, ui, aviso, cerradoPor, habilitado, vistas = 
           {(ui === 'warn' || ui === 'sin_senal') && (
             <Group gap="sm" align="flex-start">
               {conHecho && hecho}
-              {confirmable && <ConfirmarPaso color={color === 'peligro' ? 'peligro' : 'dark'} habilitado={habilitado} onConfirmar={onConfirmar} />}
+              {confirmable && <ConfirmarPaso habilitado={habilitado} onConfirmar={onConfirmar} />}
             </Group>
           )}
 

@@ -45,12 +45,14 @@ export function Briefing({ ot, bitacora, alertas, relevo, onRecibido }: Props) {
                 <ThemeIcon color="verificado" radius="xl" size="md" style={porPersona ? { outline: '3px solid var(--mantine-color-precaucion-6)' } : undefined}>
                   {porPersona ? <IconUserCheck size={16} /> : <IconCheck size={16} />}
                 </ThemeIcon>
-                <Text size="sm">
-                  {p.orden}. {p.titulo}{' '}
-                  <Text span size="sm" fw={600} c={porPersona ? 'precaucion.9' : 'roca.7'}>
+                <Stack gap={0}>
+                  <Text size="sm" fw={600}>
+                    {p.orden}. {p.titulo}
+                  </Text>
+                  <Text size="xs" fw={porPersona ? 600 : 400} c={porPersona ? 'precaucion.9' : 'roca.6'}>
                     {porPersona ? `confirmado por ${actor ? nombreDe(actor) : 'una persona'}` : COMO[String(p.capa)] ?? 'por una persona'}
                   </Text>
-                </Text>
+                </Stack>
               </Group>
             )
           })}

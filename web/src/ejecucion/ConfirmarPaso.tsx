@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text, Textarea, type MantineColor } from '@mantine/core'
+import { Button, Group, Stack, Text, Textarea } from '@mantine/core'
 import { useState } from 'react'
 
 /** Motivos de un toque: con guantes, escribir cuesta. */
@@ -8,15 +8,7 @@ const MOTIVOS_RAPIDOS = ['El sensor no lo marca', 'La cámara no lo ve', 'Lo rev
  * «Ya lo hice»: la persona confirma el paso aunque la evidencia no lo muestre
  * (POST /ot/{id}/pasos/{paso}/confirmar). La API exige un motivo y lo deja a su nombre.
  */
-export function ConfirmarPaso({
-  onConfirmar,
-  color = 'roca',
-  habilitado = true,
-}: {
-  onConfirmar(motivo: string): void
-  color?: MantineColor
-  habilitado?: boolean
-}) {
+export function ConfirmarPaso({ onConfirmar, habilitado = true }: { onConfirmar(motivo: string): void; habilitado?: boolean }) {
   const [abierto, setAbierto] = useState(false)
   const [motivo, setMotivo] = useState('')
   const cerrar = () => {
@@ -26,7 +18,7 @@ export function ConfirmarPaso({
 
   if (!abierto)
     return (
-      <Button variant="outline" color={color} size="md" disabled={!habilitado} onClick={() => setAbierto(true)}>
+      <Button variant="outline" color="dark" size="md" disabled={!habilitado} onClick={() => setAbierto(true)}>
         Ya lo hice
       </Button>
     )
@@ -47,7 +39,7 @@ export function ConfirmarPaso({
       <Group grow>
         <Button
           size="md"
-          color={color}
+          color="accion"
           disabled={!motivo.trim() || !habilitado}
           onClick={() => {
             onConfirmar(motivo.trim())

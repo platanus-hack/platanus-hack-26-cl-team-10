@@ -120,6 +120,19 @@ describe('steps', () => {
     expect(avisoDelPaso(s.ot!.pasos[0], s)).toBe('la cámara responde que no (62%)')
   })
 
+  it('a conflict with evidence is said in plain words', () => {
+    const conPaso = (extra: Partial<PasoEstado>) => {
+      const s = reducir(enP1, { tipo: 'estado', estado: ot('p1', [paso('p1', 'en_conflicto', extra)]) })
+      return avisoDelPaso(s.ot!.pasos[0], s)
+    }
+    expect(conPaso({ capa: 3, detalle: 'el operario declaró «hecho» y la cámara responde que no (62%)', evidencia: { tipo: 'camara', respuesta: false, confianza: 0.62 } })).toBe(
+      'La cámara no lo ve (62 % de certeza). Revisa y toca «Hecho» de nuevo, o confírmalo si ya lo hiciste.',
+    )
+    expect(conPaso({ capa: 1, detalle: 'x', evidencia: { tipo: 'sensor', id: 'reed_bloqueo', valor: 'abierto', espera: 'cerrado' } })).toBe(
+      'El sensor reed_bloqueo marca «abierto»; el paso espera «cerrado».',
+    )
+  })
+
   it('the evidence wait running out puts only the current open step in sin_senal', () => {
     const s = correr(enP1, { tipo: 'espera_vencida', pasoId: 'p1' }, { tipo: 'espera_vencida', pasoId: 'p2' })
     expect(estadoUi(s.ot!.pasos[0], s)).toBe('sin_senal')
