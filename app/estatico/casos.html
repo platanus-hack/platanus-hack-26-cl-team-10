@@ -62,6 +62,7 @@ section.servicio>h2 code{font-size:16px;font-weight:400;margin-left:8px}
 section.servicio>p{margin:0 0 16px;color:var(--muted);max-width:900px}
 
 .caso{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:14px 0}
+.caso.brecha{border-left:5px solid var(--warn)}
 .caso.pasa{border-left:5px solid var(--ok)} .caso.falla{border-left:5px solid var(--err)} .caso.corriendo{border-left:5px solid var(--brand)}
 .cabeza{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .cabeza .id{font-family:var(--mono);font-weight:700;font-size:16px;background:var(--deep);color:#fff;border-radius:8px;padding:2px 9px}
@@ -70,6 +71,7 @@ section.servicio>p{margin:0 0 16px;color:var(--muted);max-width:900px}
 .sello{font-size:15px;font-weight:800;letter-spacing:.04em;padding:3px 12px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
 .sello.pasa{background:var(--ok-bg);color:var(--ok)} .sello.falla{background:var(--err-bg);color:var(--err)}
 .sello.corriendo{background:var(--brand-soft);color:var(--brand)}
+.sello.brecha{background:var(--warn-bg);color:var(--warn)}
 .dce{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 10px}
 @media (max-width:900px){.dce{grid-template-columns:1fr}}
 .dce div{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:15px}
@@ -120,6 +122,42 @@ table.checks small{display:block;color:var(--muted)}
 .evidencia{margin-top:12px;font-size:15px;color:var(--muted)}
 .evidencia img{display:block;max-width:320px;width:100%;border-radius:10px;border:1px solid var(--line);margin-top:6px;background:#000}
 footer{color:var(--muted);font-size:15px;margin:40px 0 60px}
+
+/* escenarios por industria */
+#escenarios{margin:56px 0 0;padding-top:8px;border-top:2px solid var(--line)}
+#escenarios>h2{font-size:26px;margin:18px 0 6px}
+#escenarios>p{color:var(--muted);max-width:940px;margin:0 0 12px}
+.esc-control{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin:16px 0}
+.esc-control label{font-size:15px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.esc-control select{padding:6px 9px;border-radius:9px;border:1px solid var(--line);background:var(--paper)}
+#esc-resumen{font-weight:700}
+#esc-resumen small{font-weight:400;color:var(--muted)}
+table.matriz{width:100%;border-collapse:separate;border-spacing:0;background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:15px}
+table.matriz th,table.matriz td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+table.matriz thead th{background:var(--soft);color:var(--muted);font-weight:600}
+table.matriz tr.grupo td{background:var(--deep);color:#eef2f7;font-weight:700;letter-spacing:.02em}
+table.matriz tr.grupo td small{font-weight:400;color:#b8c2cf;margin-left:8px}
+table.matriz td.patron b{font-family:var(--mono);margin-right:8px}
+table.matriz td.patron small{display:block;color:var(--muted)}
+.capa-chip{font-size:15px;font-weight:700;border-radius:7px;padding:1px 8px;white-space:nowrap}
+.capa-chip.c1{background:var(--brand-soft);color:var(--brand)} .capa-chip.c2{background:var(--warn-bg);color:var(--warn)} .capa-chip.c3{background:var(--violet-bg);color:var(--violet)}
+.celda{font:inherit;font-size:15px;font-weight:700;border-radius:9px;padding:5px 10px;border:1px solid var(--line);background:var(--soft);color:var(--muted);min-width:104px;text-align:left}
+.celda.pasa{background:var(--ok-bg);color:var(--ok);border-color:#b8dcc9}
+.celda.brecha{background:var(--warn-bg);color:var(--warn);border-color:#ecd699}
+.celda.falla{background:var(--err-bg);color:var(--err);border-color:#f2c1bc}
+.celda.brecha_cerrada{background:var(--brand-soft);color:var(--brand);border-color:#bfd0e8}
+.celda[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:1px}
+.leyenda{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:15px;color:var(--muted);margin:10px 0 0}
+.leyenda span{display:flex;gap:6px;align-items:center}
+.leyenda i{display:inline-block;width:14px;height:14px;border-radius:4px}
+#esc-detalle{margin-top:18px}
+.brecha-caja{background:var(--warn-bg);border:1px solid #ecd699;color:#5f3f00;border-radius:12px;padding:12px 14px;font-size:15px;margin:12px 0 0}
+.nota-caja{background:var(--brand-soft);border:1px solid #bfd0e8;color:#1f416d;border-radius:12px;padding:12px 14px;font-size:15px;margin:12px 0 0}
+.lista .linea{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0}
+.mas{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0 0}
+@media (max-width:900px){.mas{grid-template-columns:1fr}}
+.mas div{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:15px}
+.mas b{display:block;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -145,6 +183,28 @@ footer{color:var(--muted);font-size:15px;margin:40px 0 60px}
 <div class="wrap">
   <div class="aviso" id="aviso-ajenas" role="alert"></div>
   <main id="casos"></main>
+  <section id="escenarios">
+    <h2>Escenarios por industria</h2>
+    <p>Cada patrón de ejecución (se salta un paso, lo dice antes de hacerlo, deshace un control ya verificado…) en las tres industrias, contra la barrera que lo decide. Corren en una caja aislada del servidor elegido: base en memoria, bus propio y juez de cámara inyectado. No tocan su bitácora ni sus sensores. <b>Brecha</b> es lo que el producto debería hacer y hoy no hace, con la razón y lo que la cierra.</p>
+    <div class="esc-control">
+      <button id="esc-correr" class="primario">Correr escenarios</button>
+      <label>Barrera <select id="esc-barrera"><option value="">las tres</option><option value="1">1 · determinista</option><option value="2">2 · señales</option><option value="3">3 · visión y lenguaje</option></select></label>
+      <span id="esc-resumen"><small>Sin correr.</small></span>
+    </div>
+    <table class="matriz"><thead><tr><th>Patrón de ejecución</th><th>Barrera</th><th>Minería</th><th>Eléctrica</th><th>Construcción</th></tr></thead><tbody id="esc-matriz"></tbody></table>
+    <div class="leyenda">
+      <span><i style="background:var(--ok-bg);border:1px solid #b8dcc9"></i>pasa</span>
+      <span><i style="background:var(--warn-bg);border:1px solid #ecd699"></i>brecha conocida</span>
+      <span><i style="background:var(--err-bg);border:1px solid #f2c1bc"></i>falla: algo que funcionaba se rompió</span>
+      <span><i style="background:var(--brand-soft);border:1px solid #bfd0e8"></i>brecha cerrada: quitar la marca</span>
+    </div>
+    <div id="esc-detalle"></div>
+    <div class="mas">
+      <div><b>Barrera 1 · reglas por industria</b>Las normas que sostienen cada escenario están en <a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/projects/research/REFERENCIAS.md" target="_blank" rel="noopener">REFERENCIAS 44 a 55</a>; las reglas propuestas, en el <a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/projects/escenarios-por-industria/PRD.md" target="_blank" rel="noopener">PRD</a>.</div>
+      <div><b>Barrera 2 · qué detector</b>La matriz prueba la política. Qué detector aguanta escalones, derivas y ciclos de trabajo se compara en la <a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/projects/escenarios-por-industria/capa2-simulacion.md" target="_blank" rel="noopener">simulación de capa 2</a>.</div>
+      <div><b>Barrera 3 · qué tan bien mira</b>La matriz inyecta la respuesta del juez. Cómo responde el juez real a escenas de cada industria se mide con <code>scripts/evaluar_capa3.py</code>.</div>
+    </div>
+  </section>
   <footer>
     Las corridas dejan en el servidor sus OT (<code>casos-…</code>), porque la bitácora solo agrega. Los sensores vuelven a como estaban y la sesión del edge de la corrida se termina. «Correr todos» va en serie: los sensores son una tabla global y dos casos a la vez se pisarían.
   </footer>
@@ -1023,8 +1083,122 @@ function elegirServidor(url) {
   pintarResumen(false);
   $("resumen").innerHTML = "<small>Sin correr.</small>";
   document.body.dataset.estado = "listo";
-  return comprobarServidor();
+  return Promise.all([comprobarServidor(), cargarEscenarios()]);
 }
+
+// ─── Escenarios por industria ───────────────────────────────────────────────
+const INDUSTRIAS = [["MIN", "Minería"], ["ELE", "Eléctrica"], ["CON", "Construcción"]];
+const SELLO = {pasa: "PASA", brecha: "BRECHA", falla: "FALLA", brecha_cerrada: "BRECHA CERRADA"};
+let escenarios = [], resultadosEsc = new Map(), elegido = null;
+
+async function cargarEscenarios() {
+  resultadosEsc = new Map(); elegido = null;
+  $("esc-detalle").innerHTML = "";
+  try {
+    escenarios = await (await fetch(base + "/escenarios")).json();
+    if (!Array.isArray(escenarios)) throw new Error("respuesta inesperada");
+  } catch (e) {
+    escenarios = [];
+    $("esc-matriz").innerHTML = `<tr><td colspan="5">Este servidor no tiene <code>/escenarios</code>: es una versión anterior a la matriz.</td></tr>`;
+    $("esc-correr").disabled = true;
+    return;
+  }
+  $("esc-correr").disabled = false;
+  pintarMatriz();
+}
+
+function pintarMatriz() {
+  const barrera = $("esc-barrera").value;
+  const visibles = escenarios.filter(e => !barrera || String(e.barrera.capa) === barrera);
+  const patrones = [...new Map(visibles.map(e => [e.patron.codigo, e])).values()];
+  let grupo = null, filas = "";
+  for (const e of patrones) {
+    if (e.patron.grupo !== grupo) {
+      grupo = e.patron.grupo;
+      filas += `<tr class="grupo"><td colspan="5">${esc(grupo)} · ${esc(e.patron.grupo_nombre)}</td></tr>`;
+    }
+    const celdas = INDUSTRIAS.map(([cod]) => {
+      const id = `${cod}-${e.patron.codigo}`, r = resultadosEsc.get(id), x = escenarios.find(y => y.id === id);
+      const texto = r ? SELLO[r.sello] : (x?.brecha ? "brecha prevista" : "sin correr");
+      return `<td><button class="celda ${r ? r.sello : ""}" data-esc="${id}" aria-pressed="${elegido === id}" title="${esc(x?.dado || "")}">${id.slice(4)} · ${texto}</button></td>`;
+    }).join("");
+    filas += `<tr><td class="patron"><b>${e.patron.codigo}</b>${esc(e.patron.nombre)}<small>${esc(e.patron.pregunta)}</small></td>`
+      + `<td><span class="capa-chip c${e.barrera.capa}">capa ${e.barrera.capa}</span></td>${celdas}</tr>`;
+  }
+  $("esc-matriz").innerHTML = filas;
+  document.querySelectorAll("button[data-esc]").forEach(b => { b.onclick = () => verEscenario(b.dataset.esc); });
+  pintarResumenEsc();
+}
+
+function pintarResumenEsc() {
+  const r = [...resultadosEsc.values()];
+  const n = k => r.filter(x => x.sello === k).length;
+  $("esc-resumen").innerHTML = r.length
+    ? `${n("pasa")} pasan · ${n("brecha")} brechas · ${n("falla")} fallan${n("brecha_cerrada") ? ` · ${n("brecha_cerrada")} brechas cerradas` : ""} <small>de ${r.length}</small>`
+    : `<small>${escenarios.length} escenarios, ${escenarios.filter(e => e.brecha).length} con brecha prevista. Sin correr.</small>`;
+  document.body.dataset.escenarios = r.length ? `${n("pasa")}/${n("brecha")}/${n("falla")}/${n("brecha_cerrada")}` : "";
+}
+
+async function correrEscenarios() {
+  $("esc-correr").disabled = true;
+  $("esc-resumen").innerHTML = "<small>Corriendo…</small>";
+  try {
+    const r = await (await fetch(base + "/escenarios/correr", {method: "POST"})).json();
+    resultadosEsc = new Map(r.map(x => [x.id, x]));
+  } catch (e) {
+    $("esc-resumen").innerHTML = `<span style="color:var(--err)">No se pudo correr: ${esc(e.message)}</span>`;
+  }
+  $("esc-correr").disabled = false;
+  pintarMatriz();
+  if (elegido) verEscenario(elegido);
+}
+
+async function verEscenario(id) {
+  elegido = id;
+  document.querySelectorAll("button[data-esc]").forEach(b => b.setAttribute("aria-pressed", b.dataset.esc === id));
+  const caja = $("esc-detalle");
+  caja.innerHTML = `<div class="caso corriendo"><p class="muted">Corriendo ${esc(id)}…</p></div>`;
+  let r;
+  try {
+    const resp = await fetch(`${base}/escenarios/${id}/correr`, {method: "POST"});
+    r = await resp.json();
+    if (!resp.ok) throw new Error(JSON.stringify(r));
+  } catch (e) {
+    caja.innerHTML = `<div class="caso falla"><p class="fallo-general">No se pudo correr ${esc(id)}: ${esc(e.message)}</p></div>`;
+    return;
+  }
+  resultadosEsc.set(id, r);
+  pintarMatriz();
+  const filas = Object.entries(r.comparacion).map(([k, c]) =>
+    `<tr class="${c.cumple ? "si" : "no"}"><td>${esc(k.replaceAll("_", " "))}</td><td class="v">${esc(json(c.esperado))}</td><td class="v">${esc(json(c.obtenido))}</td><td class="s">${c.cumple ? "✓" : "✗"}</td></tr>`).join("");
+  const bitacora = r.bitacora.map(ev => `<div class="linea"><span class="tipo evento">${esc(ev.tipo)}</span> ${esc(ev.paso_id || "")} ${ev.calificacion ? `[${ev.calificacion.nivel}]` : ""} ${esc(ev.detalle)}</div>`).join("");
+  const stream = r.stream.filter(m => m.tipo !== "lectura" || r.stream.length < 40).map(m =>
+    `<div class="linea"><span class="tipo ${m.tipo}">${esc(m.tipo)}</span> ${esc(resumenDeMensaje(m))}</div>`).join("");
+  const lecturas = r.stream.filter(m => m.tipo === "lectura").length;
+  const pasos = r.pasos.map(p => p.lee ? `lee ${p.lee.length > 4 ? `${p.lee.length} lecturas de ${p.lee[0][0]}` : p.lee.map(([a, b]) => `${a}=${b}`).join(", ")}`
+    : p.dice ? `dice «${p.dice}»` : p.cuadro ? "llega un cuadro de video" : p.pasa ? `pasan ${p.pasa} s sin lecturas` : JSON.stringify(p));
+  caja.innerHTML = `
+    <article class="caso ${r.sello === "brecha_cerrada" ? "corriendo" : r.sello}">
+      <div class="cabeza"><span class="id">${esc(r.id)}</span><span class="capa-chip c${r.barrera.capa}">capa ${r.barrera.capa} · ${esc(r.barrera.nombre)}</span>
+        <h3>${esc(r.industria.nombre)} · ${esc(r.patron.nombre)}</h3><span class="sello ${r.sello === "brecha_cerrada" ? "corriendo" : r.sello}">${SELLO[r.sello]}</span></div>
+      <div class="dce"><div><b>Dado</b>${esc(r.dado)}</div><div><b>Cuando</b>${esc(r.cuando)}</div><div><b>Entonces</b>${esc(r.entonces)}</div></div>
+      <p class="porque"><b>De dónde sale.</b> ${esc(r.fuente)}. <b>Tarea:</b> ${esc(r.industria.tarea)}.</p>
+      ${r.brecha ? `<div class="brecha-caja"><b>Brecha.</b> ${esc(r.brecha)}</div>` : ""}
+      ${r.nota ? `<div class="nota-caja"><b>Nota.</b> ${esc(r.nota)}</div>` : ""}
+      ${r.error ? `<p class="fallo-general">${esc(r.error)}</p>` : ""}
+      <div class="corrida">
+        <p class="ids">Secuencia: ${pasos.map(esc).join(" → ")}</p>
+        <table class="checks"><thead><tr><th>Qué se comprueba</th><th>Esperado</th><th>Obtenido</th><th></th></tr></thead><tbody>${filas}</tbody></table>
+        <div class="traza">
+          <div><h4>Bitácora que quedó</h4><div class="lista">${bitacora}</div></div>
+          <div><h4>Lo que habría llegado por el stream${lecturas >= 40 ? ` (sin las ${lecturas} lecturas)` : ""}</h4><div class="lista">${stream || '<div class="vacio">Nada.</div>'}</div></div>
+        </div>
+      </div>
+    </article>`;
+}
+
+$("esc-correr").onclick = correrEscenarios;
+$("esc-barrera").onchange = pintarMatriz;
 
 $("servidor").innerHTML = SERVIDORES.map(s => `<option value="${esc(s.url)}">${esc(s.nombre)} · ${esc(s.url)}</option>`).join("");
 $("servidor").value = base;
@@ -1035,6 +1209,7 @@ elegirServidor(base).then(() => {
   const pedir = parametros.get("correr");
   if (!pedir) return;
   if (pedir === "todos") return correrTodos();
+  if (pedir === "escenarios") return correrEscenarios();
   if (CASOS.some(k => k.id === pedir.toUpperCase())) return correrUno(pedir.toUpperCase());
 });
 </script>

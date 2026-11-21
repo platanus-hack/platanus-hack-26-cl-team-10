@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from app import catalogo, cerebro, db, protocolos, verificacion
+from app import catalogo, cerebro, db, escenarios, protocolos, verificacion
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -304,6 +304,27 @@ def pagina_monitor() -> FileResponse:
 def pagina_casos() -> FileResponse:
     """El banco de pruebas: cada criterio del PRD, corrido contra este servidor u otro."""
     return FileResponse(ESTATICO / "casos.html")
+
+
+# ─── Escenarios por industria (app/escenarios.py) ───────────────────────────
+
+
+@app.get("/escenarios")
+def listar_escenarios() -> list[dict]:
+    """Cada patrón de ejecución en cada industria, con la barrera que lo decide y lo que se espera."""
+    return [e.como_dict() for e in escenarios.catalogo()]
+
+
+@app.post("/escenarios/correr")
+def correr_escenarios() -> list[dict]:
+    """Corre todos en una caja aislada (base en memoria, juez y reloj propios). Sin trazas, para que pese poco."""
+    return [{k: v for k, v in r.items() if k not in ("bitacora", "stream")} for r in escenarios.correr_todos()]
+
+
+@app.post("/escenarios/{escenario_id}/correr")
+def correr_escenario(escenario_id: str) -> dict:
+    """Uno, con su bitácora y lo que habría llegado por el stream. No toca la base del servidor."""
+    return escenarios.correr(escenarios.buscar(escenario_id))
 
 
 @app.websocket("/ot/{ot_id}/stream")

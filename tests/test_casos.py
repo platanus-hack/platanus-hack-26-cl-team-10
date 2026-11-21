@@ -54,6 +54,17 @@ class ElBancoSeSirve(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn("Correr todos", r.text)
 
+    def test_la_pagina_trae_la_matriz_de_escenarios_y_el_servidor_la_corre(self):
+        self.assertIn("Escenarios por industria", self.c.get("/casos").text)
+        catalogo = self.c.get("/escenarios").json()
+        self.assertEqual(len(catalogo), 66)
+        r = self.c.post("/escenarios/correr").json()
+        self.assertEqual({x["sello"] for x in r}, {"pasa", "brecha"})
+        uno = self.c.post("/escenarios/MIN-B2/correr").json()
+        self.assertEqual(uno["sello"], "brecha")
+        self.assertTrue(uno["bitacora"] and uno["stream"])
+        self.assertEqual(self.c.post("/escenarios/NO-EXISTE/correr").status_code, 404)
+
     def test_la_guia_la_nombra_y_no_la_lista_como_endpoint(self):
         guia = self.c.get("/agente").text
         self.assertIn("http://testserver/casos", guia)
