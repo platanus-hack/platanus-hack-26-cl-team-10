@@ -15,5 +15,13 @@ COPYFILE_DISABLE=1 tar czf "$paquete" pyproject.toml uv.lock app datos/pauta-*.j
 # /tmp es compartido: lo que dejó el deploy de otro usuario no se puede sobrescribir
 gcloud compute ssh "$VM" $G --command="sudo rm -f /tmp/factum.tgz /tmp/instalar.sh"
 gcloud compute scp "$paquete" deploy/vm/instalar.sh "$VM":/tmp/ $G
+# Modelos ONNX del detector (no van al repo): se suben solo si faltan en la VM.
+for m in datos/modelos/*.onnx; do
+  [ -f "$m" ] || continue
+  if ! gcloud compute ssh "$VM" $G --command="test -f /srv/factum/datos/modelos/$(basename "$m")"; then
+    gcloud compute scp "$m" "$VM":/tmp/ $G
+    gcloud compute ssh "$VM" $G --command="sudo mkdir -p /srv/factum/datos/modelos && sudo mv /tmp/$(basename "$m") /srv/factum/datos/modelos/"
+  fi
+done
 gcloud compute ssh "$VM" $G --command="sudo DOMINIO=$DOMINIO bash /tmp/instalar.sh"
 echo "Listo: https://$DOMINIO/agente"

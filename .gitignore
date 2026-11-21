@@ -6,3 +6,4 @@ datos/evidencias/
 datos/evals/capa3/imagenes/
 data/
 *.pt
+*.onnx

@@ -29,6 +29,7 @@ del servidor no las pierde.
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
 import time
 from collections import defaultdict, deque
@@ -60,7 +61,8 @@ SEQ_RECORDADOS = 500
 IGUALES_PEGADO = 10
 # Capa 2 de cámara: se juzga con las detecciones del último segundo, y solo si hay
 # suficientes (a ~18/s, 5 son ~0,3 s) para que un cuadro suelto no cierre un paso.
-VENTANA_DETECCION_S = 1.0
+# con el detector en el servidor (~2,5 detecciones/s en la VM) 1 s no junta 5: se alarga por entorno
+VENTANA_DETECCION_S = float(os.environ.get("VENTANA_DETECCION_S", "1.0"))
 DETECCIONES_MIN = 5
 JUICIO_CADA_S = 0.5  # cada cuánto se revisa el paso con lo que llega del edge
 

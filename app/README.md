@@ -29,6 +29,20 @@ python3 scripts/evaluar_capa3.py      # capa 3: falsa aceptación y falso rechaz
 | `../deploy/vm/` | Servicios | El servidor del demo: `deploy/vm/desplegar.sh` sube la rama actual a la VM sin borrar la bitácora |
 | `verificacion.py` | Frente 3 | Capa 3 de cámara con Claude Haiku 5.5 (`ANTHROPIC_API_KEY`; en la VM va en `/srv/factum/entorno`; modelo en `VLM_MODELO`; sin key queda el stub). La capa 2 de cámara (YOLO del edge) está en `reglas.por_deteccion` |
 | `cerebro.py` | Frente 4 | `redactar_resumen` y `responder` por el modelo, con el registro completo |
+| `detector.py` | Servicios | YOLO en el servidor (ONNX + onnxruntime), el modo de detección por defecto |
+
+## Dónde corre YOLO: dos modos
+
+Las detecciones (clase, confianza y caja) entran siempre por `servicios.recibir_detecciones`, así que la capa 2, el monitor y la bitácora no cambian según el modo.
+
+| Modo | Cómo se activa | Detecciones/s | Cuándo conviene |
+|---|---|---|---|
+| **Servidor** (por defecto) | `DETECTOR_ONNX` apunta a un `.onnx` (la VM lo trae en `deploy/vm/instalar.sh`) y el edge corre con `--deteccion servidor` (`edge/correr_edge_vm.command`) | ~5 en la VM `e2-standard-2` con el modelo de 416 px | El edge no puede correr modelos, o se quiere un solo modelo para todos los edges |
+| **Edge** | `DETECTOR_ONNX=` vacío en `/srv/factum/entorno` y el edge con `--deteccion edge` (`edge/correr_edge_vm_yolo_local.command`) | ~18 en el Mac | El edge tiene CPU/GPU: más rápido, más preciso y no carga la VM |
+
+- Con el detector del servidor activo, las detecciones que mande un edge se ignoran, para no mezclar dos modelos.
+- Los modelos se exportan con `edge/exportar_onnx.py --clases mouse pencil --lado 416` a `datos/modelos/` (no van al repo) y `desplegar.sh` los sube si faltan en la VM. A 416 px el lápiz baja de 0,87 a ~0,67 de confianza frente a 640 px: un paso de cámara que no llega al 80 % se cierra declarando (capa 3).
+- Con ~5 detecciones/s, la ventana de la capa 2 va en `VENTANA_DETECCION_S=1.5` para juntar las 5 que pide.
 
 ## El banco de pruebas
 

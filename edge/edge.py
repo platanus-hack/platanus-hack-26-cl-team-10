@@ -1,7 +1,13 @@
-"""Edge en vivo: cámara + modelo + ESP32 → servidor (app/), en tres hilos.
+"""Edge en vivo: cámara + ESP32 (+ modelo, según el modo) → servidor (app/), en hilos.
+
+Dos modos de detección (--deteccion):
+  servidor  (por defecto) el edge manda solo video y sensores; YOLO corre en la API
+            (app/detector.py, ONNX). El edge no necesita GPU ni modelo.
+  edge      YOLO-World corre acá, en el Mac, y manda las detecciones. Más rápido
+            (~18/s contra ~5/s en la VM) y no carga el servidor.
 
   video        JPEG a --fps por WS /edge/{id}/video (mensajes binarios)
-  detecciones  YOLO-World sobre el último cuadro, por el mismo WS (mensajes de texto):
+  detecciones  (modo edge) YOLO-World sobre el último cuadro, por el mismo WS (texto):
                {"tipo": "detecciones", "modelo", "ts", "objetos": [{"clase", "conf", "caja"}]}
                caja = x1, y1, x2, y2 normalizada 0-1. Se manda todo lo que pase --conf:
                qué es "alta certeza" lo decide el servidor.
@@ -145,6 +151,8 @@ def main():
     ap.add_argument("--calidad", type=int, default=65, help="calidad JPEG 1-100")
     ap.add_argument("--clases", nargs="+", default=["mouse", "pencil"])
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
+    ap.add_argument("--deteccion", choices=["servidor", "edge"], default="servidor",
+                    help="dónde corre YOLO: servidor (por defecto, el edge solo manda video y sensores) o edge (acá)")
     ap.add_argument("--puerto", default="/dev/cu.usbserial-0001", help="'' para no leer sensores")
     ap.add_argument("--dist-max", type=float, default=60, help="cm: más cerca = operario presente")
     ap.add_argument("--temp-max", type=float, default=30, help="°C: bajo esto = equipo frío")
@@ -160,14 +168,15 @@ def main():
     if not cam.isOpened():
         raise SystemExit(f"No pude abrir la cámara {a.camara}: corre esto en Terminal.app (permiso de cámara)")
 
-    threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats), daemon=True).start()
+    if a.deteccion == "edge":
+        threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats), daemon=True).start()
     if a.puerto:
         threading.Thread(target=hilo_sensores, args=(servidor, a.edge, a.puerto, stats, a.dist_max, a.temp_max),
                          daemon=True).start()
 
     alto = a.ancho * 9 // 16
     periodo, t_stats = 1 / a.fps, time.time()
-    print(f"Edge {a.edge} → {servidor}  ({a.fps:g} fps, {a.ancho}x{alto}, clases {a.clases}). Ctrl+C para parar")
+    print(f"Edge {a.edge} → {servidor}  ({a.fps:g} fps, {a.ancho}x{alto}, detección en {a.deteccion}). Ctrl+C para parar")
     try:
         while True:
             t0 = time.time()

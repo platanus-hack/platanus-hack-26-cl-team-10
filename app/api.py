@@ -38,6 +38,23 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 cx = db.conectar()
 servicios = Servicios(cx)
+detector = None  # experimento: YOLO en el servidor (app/detector.py), solo con DETECTOR_ONNX
+
+
+@app.on_event("startup")
+def iniciar_detector() -> None:
+    global detector
+    from app import detector as modulo_detector
+    detector = modulo_detector.desde_entorno(servicios)
+
+
+@app.get("/detector")
+def estado_detector() -> dict:
+    """Si el detector corre en el servidor, con qué modelo y cuánto tardó el último cuadro."""
+    if detector is None:
+        return {"en_servidor": False}
+    return {"en_servidor": True, "modelo": detector.modelo, "clases": detector.clases,
+            "ms_ultimo_cuadro": round(detector.ms_ultimo)}
 
 EDGE_POR_DEFECTO = "edge-1"
 PAUTA_DEMO = "pauta-correa-ct-01"
@@ -303,7 +320,8 @@ async def video_entrada(ws: WebSocket, edge_id: str) -> None:
                 d = json.loads(m["text"])
                 if not isinstance(d, dict) or d.get("tipo") != "detecciones":
                     raise DeteccionInvalida('se espera un objeto con "tipo": "detecciones"')
-                servicios.recibir_detecciones(edge_id, d)
+                if detector is None:  # con detección en el servidor, las del edge se ignoran
+                    servicios.recibir_detecciones(edge_id, d)
         except (CuadroInvalido, DeteccionInvalida, json.JSONDecodeError) as e:
             await ws.send_json({"error": str(e)})
 
