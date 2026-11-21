@@ -59,7 +59,7 @@ Debajo de los CA está la matriz de **escenarios por industria** ([PRD](../knowl
 
 ## La clave del equipo
 
-La API es pública. Con `CLAVE_EQUIPO` en el entorno del servidor, quitarle un edge a la OT que ejecuta (`POST /ot/{id}/sesion`) o soltarlo (`DELETE /edge/{id}/sesion`) pide la cabecera `X-Clave-Equipo`, y sin ella el home queda de solo lectura. Se entra una vez con `/?clave=...` y queda en el navegador; el banco la toma de `?clave=` y `scripts/correr_casos.py`, de `--clave`. Sin la variable todo queda abierto, como en local. `GET /clave` dice si el servidor la pide: conviene mirarlo después de cada despliegue.
+La API es pública. Con `CLAVE_EQUIPO` en el entorno del servidor, quitarle un edge a la OT que ejecuta (`POST /ot/{id}/sesion`) o soltarlo (`DELETE /edge/{id}/sesion`) pide la cabecera `X-Clave-Equipo`, y sin ella el home queda de solo lectura. Se entra una vez con `/?clave=...` y queda en el navegador; el banco la toma de `?clave=` y `scripts/correr_casos.py`, de `--clave`. Un operador de un cliente no la necesita: une su OT a una estación con su token en `POST /cliente/ots/{id}/sesion`, y para quitársela a otra OT abierta lo pide con `tomar` ([ADR-0012](../knowledge/decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md)). La interfaz (`web/`) usa esa ruta y nunca lleva la clave. Sin la variable todo queda abierto, como en local. `GET /clave` dice si el servidor la pide: conviene mirarlo después de cada despliegue.
 
 **No se tocan sin avisar:** `contratos.py` y `reglas.py` — son el contrato entre
 los cuatro, y `tests/test_reglas.py` los vigila.
