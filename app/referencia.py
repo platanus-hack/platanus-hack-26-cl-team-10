@@ -32,7 +32,7 @@ TITULO = "Factum · flujos operacionales verificables"
 VERSION = "0.1.0"
 # Se fija la versión: en esta página se pega un token, y un script sin versión cambia solo.
 SCALAR_JS = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.82.1"
-PAGINAS = {"/", "/ensayo", "/camara", "/monitor", "/casos", "/agente"}
+PAGINAS = {"/", "/ensayo", "/camara", "/monitor", "/casos", "/agente", "/simulador"}
 # Junto al código y no en datos/: desplegar.sh sube app/ entero, y de datos/ solo una lista de archivos.
 EJEMPLOS = json.loads(Path(__file__).with_name("referencia_ejemplos.json").read_text())
 

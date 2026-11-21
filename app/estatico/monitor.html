@@ -182,6 +182,8 @@
   }
   @media (max-width:520px){header,main{padding-left:16px;padding-right:16px} input{width:14ch}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  .enlace-sim{display:inline-flex;align-items:center;font:500 13px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;height:36px;padding:0 12px;border:1px solid var(--linea-2);border-radius:3px;color:var(--texto);background:var(--panel);text-decoration:none}
+  .enlace-sim:hover{border-color:var(--lima)}
 </style>
 </head>
 <body data-nivel="ok">
@@ -194,6 +196,7 @@
     <span id="conexion" class="rot" role="status">desconectado</span>
   </div>
   <div class="grupo derecha">
+    <a href="/simulador" class="enlace-sim" title="La ejecución de una OT en 3D, con las pautas y los operarios de esta base">Simulador</a>
     <select id="pauta" title="Qué pauta ejecuta la OT nueva" aria-label="Pauta de la demo">
       <option value="polin">Cambio de polín</option>
       <option value="loto">LOTO</option>
