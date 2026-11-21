@@ -2,6 +2,7 @@ import '@mantine/core/styles.css'
 import './index.css'
 import { MantineProvider } from '@mantine/core'
 import { BrowserRouter, Route, Routes } from 'react-router'
+import { PaginaOt } from './ejecucion/PaginaOt'
 import { RequiereRol } from './sesion/RequiereRol'
 import { FONDO, tema } from './tema'
 
@@ -16,7 +17,7 @@ export default function App() {
               path="/ot/:id"
               element={
                 <RequiereRol rol="operador">
-                  <p>Ejecución de la OT: llega en la tarea 9.</p>
+                  <PaginaOt />
                 </RequiereRol>
               }
             />

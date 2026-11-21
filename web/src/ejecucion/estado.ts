@@ -49,7 +49,9 @@ export const inicial: Ejecucion = {
   porSonar: [],
 }
 
-const suena = (e: Evento) => e.calificacion?.nivel === 'error'
+/** Suena lo de nivel error, y solo la capa 1 llega a error. */
+export const debeSonar = (e: Evento): boolean => e.calificacion?.nivel === 'error'
+const suena = debeSonar
 const sinRepetir = (lista: string[], id: string) => (lista.includes(id) ? lista : [...lista, id])
 
 function aplicarEvento(s: Ejecucion, ev: Evento): Ejecucion {

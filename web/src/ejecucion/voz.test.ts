@@ -107,3 +107,12 @@ it('debeSonar only for error', () => {
   expect(debeSonar(ev('ok'))).toBe(false)
   expect(debeSonar(ev(null))).toBe(false)
 })
+
+it('falls back when play throws synchronously', () => {
+  const { voz, audio, dichos } = armar()
+  audio.play = () => {
+    throw new Error('NotSupportedError')
+  }
+  voz.decir('a')
+  expect(dichos).toEqual(['a'])
+})

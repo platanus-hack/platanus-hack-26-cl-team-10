@@ -2,7 +2,6 @@
 // si el navegador no deja reproducir o si /voz falla, el mismo texto lo dice el navegador.
 // Un aviso nunca queda mudo y dos avisos nunca se pisan.
 
-import type { Evento } from '../api/tipos'
 import { config } from '../config'
 
 /** Lo que se usa de un HTMLAudioElement (los tipos calzan con los del DOM). */
@@ -87,7 +86,14 @@ export function crearVoz(deps: DepsVoz) {
     audio.onended = fin
     audio.onerror = respaldo
     audio.src = deps.urlVoz(texto)
-    audio.play().then(() => cambiar('activo'), respaldo)
+    // play() puede tirar al tiro o devolver undefined (Safari viejo): se trata igual que un rechazo o un éxito.
+    let reproduccion: Promise<void> | undefined
+    try {
+      reproduccion = audio.play()
+    } catch {
+      return respaldo()
+    }
+    Promise.resolve(reproduccion).then(() => cambiar('activo'), respaldo)
   }
 
   return {
@@ -141,4 +147,4 @@ export const voz: Voz = crearVoz({
 /** Para el botón «Comenzar»/«Continuar» de Diego: desbloquea el audio dentro del toque. */
 export const desbloquearAudio = (): Promise<void> => voz.desbloquear()
 
-export const debeSonar = (ev: Evento): boolean => ev.calificacion?.nivel === 'error'
+export { debeSonar } from './estado'
