@@ -6,7 +6,7 @@ No todo admite las cuatro letras, y eso es deliberado:
 |-----------|-------|------|----------------------------|--------|
 | Pauta     | sí    | sí   | una versión nueva, nunca encima de otra (ADR-0003) | no: hay OT que la ejecutaron |
 | Aprobación| sí    | sí   | no                         | no     |
-| OT        | sí, solo desde una pauta aprobada (ADR-0003, 0006) | sí | su estado se calcula de los eventos | no |
+| OT        | sí, solo desde una pauta aprobada (ADR-0003, 0006) | sí | su estado y su operador se calculan de los eventos | no |
 | Evento    | solo por las acciones del flujo | sí | no: la bitácora solo agrega | no |
 | Sesión    | sí    | sí   | se reemplaza al abrir otra en el mismo edge | sí, al terminar |
 | Sensor    | sí (lectura) | sí | cada lectura pisa la anterior | no |
@@ -16,10 +16,13 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Collection, Sequence
 
 from app import db
-from app.contratos import Pauta, Paso
+from app.contratos import Estado, Evento, Pauta, Paso, TipoEvento
 from app.reglas import estados_desde_eventos, paso_actual
+
+OPERADORES = ("operario:1", "operario:2")  # los del demo: no hay tabla de personas
 
 _ESQUEMA = """
 CREATE TABLE IF NOT EXISTS aprobaciones (
@@ -144,21 +147,74 @@ def abrir_ot(
     return {"ot": ot_id, "pauta": pauta.id, "version": pauta.version, "nombre": pauta.nombre}
 
 
-def listar_ots(cx: sqlite3.Connection) -> list[dict]:
-    salida = []
-    for f in cx.execute("SELECT * FROM ots ORDER BY abierta_en, id").fetchall():
-        pauta = db.leer_pauta(cx, f["pauta_id"], f["pauta_version"])
-        actual = paso_actual(pauta, estados_desde_eventos(db.eventos(cx, f["id"])))
-        salida.append({
-            "ot": f["id"],
-            "pauta": f["pauta_id"],
-            "version": f["pauta_version"],
-            "equipo": f["equipo"],
-            "abierta_en": f["abierta_en"],
-            "paso_actual": actual.id if actual else None,
-            "completa": actual is None,
-        })
-    return salida
+def operador_de(eventos: Sequence[Evento]) -> str | None:
+    """Quién tiene la OT. Lo dice el último evento que la mueve de manos: la asignación la
+    deja en su operador, recibir el turno en quien firma, y entregarlo en nadie."""
+    for ev in reversed(eventos):
+        if ev.tipo is TipoEvento.OT_ASIGNADA:
+            return (ev.evidencia or {}).get("operador")
+        if ev.tipo is TipoEvento.RELEVO_RECIBIDO:
+            return ev.actor
+        if ev.tipo is TipoEvento.RELEVO_ENTREGADO:
+            return None
+    return None
+
+
+def _resumen(cx: sqlite3.Connection, f: sqlite3.Row, en_sesion: Collection[str]) -> dict:
+    pauta = db.leer_pauta(cx, f["pauta_id"], f["pauta_version"])
+    evs = db.eventos(cx, f["id"])
+    estados = estados_desde_eventos(evs)
+    actual = paso_actual(pauta, estados)
+    operador = operador_de(evs)
+    entrega = next((e for e in reversed(evs) if e.tipo in (TipoEvento.RELEVO_ENTREGADO, TipoEvento.RELEVO_RECIBIDO)), None)
+    entregada = operador is None and entrega is not None and entrega.tipo is TipoEvento.RELEVO_ENTREGADO
+    if actual is None:
+        estado_general = "completa"
+    elif entregada:
+        estado_general = "entregada"
+    elif operador is None:
+        estado_general = "sin_asignar"
+    elif f["id"] in en_sesion or any(e.tipo is TipoEvento.VEREDICTO for e in evs):
+        estado_general = "en_ejecucion"
+    else:
+        estado_general = "asignada"
+    return {
+        "ot": f["id"],
+        "pauta": f["pauta_id"],
+        "version": f["pauta_version"],
+        "equipo": f["equipo"],
+        "abierta_en": f["abierta_en"],
+        "paso_actual": actual.id if actual else None,
+        "completa": actual is None,
+        "operador": operador,
+        "estado_general": estado_general,
+        "entregada_por": entrega.actor if entregada else None,
+        "cerrados": sum(1 for p in pauta.pasos if estados.get(p.id) is Estado.VERIFICADO),
+        "total": len(pauta.pasos),
+    }
+
+
+def listar_ots(cx: sqlite3.Connection, en_sesion: Collection[str] = ()) -> list[dict]:
+    """`en_sesion`: las OT que algún edge está ejecutando ahora (las sesiones viven en servicios)."""
+    return [_resumen(cx, f, en_sesion) for f in cx.execute("SELECT * FROM ots ORDER BY abierta_en, id").fetchall()]
+
+
+def resumen_ot(cx: sqlite3.Connection, ot_id: str, en_sesion: Collection[str] = ()) -> dict:
+    return _resumen(cx, db.leer_ot(cx, ot_id), en_sesion)
+
+
+def asignacion(cx: sqlite3.Connection, ot_id: str, operador: str, actor: str) -> Evento:
+    """El evento que asigna la OT, si las reglas lo dejan: solo a un operador conocido y solo
+    una OT sin operador (nunca asignada, o entregada en un relevo que nadie recibió)."""
+    actual = resumen_ot(cx, ot_id)
+    if operador not in OPERADORES:
+        raise ReglaDeNegocio(f"el operador {operador} no existe; hay {', '.join(OPERADORES)}")
+    if actual["completa"]:
+        raise ReglaDeNegocio(f"la OT {ot_id} ya está completa")
+    if actual["operador"]:
+        raise ReglaDeNegocio(f"la OT {ot_id} ya tiene operador: {actual['operador']}")
+    return Evento(ot_id=ot_id, tipo=TipoEvento.OT_ASIGNADA, ts=db.ahora(), actor=actor,
+                  evidencia={"operador": operador}, detalle=f"OT asignada a {operador}")
 
 
 # ─── Eventos: solo lectura desde acá ────────────────────────────────────────

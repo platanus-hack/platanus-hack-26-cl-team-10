@@ -31,6 +31,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+import threading
 import time
 from collections import defaultdict, deque
 from collections.abc import Callable
@@ -123,6 +124,7 @@ class Servicios:
         self._seq: dict[str, deque[int]] = defaultdict(lambda: deque(maxlen=SEQ_RECORDADOS))
         self._iguales: dict[str, tuple[float, int]] = {}
         self._ultimo_juicio: dict[str, float] = defaultdict(float)
+        self._candado_asignar = threading.Lock()
 
     # ─── Sesión: qué OT ejecuta cada edge ──────────────────────────────────
 
@@ -151,6 +153,20 @@ class Servicios:
     def sesion_de_ot(self, ot_id: str) -> dict | None:
         f = self.cx.execute("SELECT * FROM sesiones WHERE ot_id = ?", (ot_id,)).fetchone()
         return dict(f) if f else None
+
+    # ─── Gestión: la lista de OT y a quién le toca cada una ───────────────
+
+    def _ots_en_sesion(self) -> set[str]:
+        return {s["ot_id"] for s in self.sesiones()}
+
+    def ots(self) -> list[dict]:
+        return catalogo.listar_ots(self.cx, self._ots_en_sesion())
+
+    def asignar(self, ot_id: str, operador: str, actor: str) -> dict:
+        """Deja la OT en manos de `operador` y devuelve su resumen, como un ítem de la lista."""
+        with self._candado_asignar:  # dos supervisores a la vez: gana uno, el otro recibe la regla
+            self.agregar(catalogo.asignacion(self.cx, ot_id, operador, actor))
+        return catalogo.resumen_ot(self.cx, ot_id, self._ots_en_sesion())
 
     def _video_de(self, edge_id: str) -> dict:
         return {**self.video.estado(edge_id), "url": f"/edge/{edge_id}/video.mjpg"}

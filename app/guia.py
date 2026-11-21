@@ -105,7 +105,7 @@ cada cambio. Para reconectar sin perder bitácora, vuelve con `desde` = el últi
 | `calificacion_ot` | Después de cada lectura o declaración | `calificacion` con `nivel`, `certeza`, `capa`, `motivos`, `avisos` |
 | `sesion` | Al abrir una sesión | `sesion`, `video` |
 
-`evento.tipo`: `ot_abierta` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` ·
+`evento.tipo`: `ot_abierta` · `ot_asignada` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` ·
 `relevo_recibido`. `evento.estado`: `verificado` · `no_verificado` · `en_conflicto`.
 
 **Los avisos.** `calificacion.avisos` es la lista de lo que está mal AHORA, lo más grave primero. Un aviso

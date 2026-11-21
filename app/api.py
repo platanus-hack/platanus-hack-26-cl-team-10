@@ -103,6 +103,11 @@ class Aprobacion(BaseModel):
     actor: str
 
 
+class Asignacion(BaseModel):
+    operador: str
+    actor: str = "supervisor"
+
+
 class Sesion(BaseModel):
     edge_id: str = EDGE_POR_DEFECTO
     operario: str
@@ -183,7 +188,16 @@ def aprobar_pauta(pauta_id: str, version: int, a: Aprobacion) -> dict:
 
 @app.get("/ots")
 def listar_ots() -> list[dict]:
-    return catalogo.listar_ots(cx)
+    """Cada OT con su avance (`cerrados` de `total`), su `operador` y su `estado_general`: `sin_asignar`,
+    `asignada`, `en_ejecucion`, `entregada` (relevo que nadie recibió; `entregada_por` dice quién) o `completa`."""
+    return servicios.ots()
+
+
+@app.post("/ot/{ot_id}/asignar")
+def asignar_ot(ot_id: str, a: Asignacion) -> dict:
+    """El supervisor asigna una OT sin operador, o reasigna una entregada. Devuelve su resumen, como en `/ots`.
+    409 si está completa, si ya tiene operador o si el operador no existe."""
+    return servicios.asignar(ot_id, a.operador, a.actor)
 
 
 @app.get("/eventos/{evento_id}")
