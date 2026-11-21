@@ -1,0 +1,45 @@
+{
+  "nota": "OT de ejemplo para tener datos con que trabajar. Se ejecutan contra los servicios reales; lo único fijo es la respuesta de la cámara, que en la semilla no mira ningún cuadro.",
+  "cliente": {"id": "oculta", "nombre": "Oculta", "industria": "minería",
+              "nota": "Minera ficticia para probar el servicio. Los usuarios usan el dominio reservado .example, que no existe."},
+  "personas": [
+    {"id": "supervisor:oculta", "nombre": "Carla Muñoz", "usuario": "carla.munoz@oculta.example", "rol": "supervisor"},
+    {"id": "operario:1", "nombre": "Ana Rojas", "usuario": "ana.rojas@oculta.example", "rol": "operador"},
+    {"id": "operario:2", "nombre": "Bruno Díaz", "usuario": "bruno.diaz@oculta.example", "rol": "operador"}
+  ],
+  "ots": [
+    {"ot": "ot-1001", "pauta": "pauta-polin-demo", "hace_dias": 6, "operador": "operario:1", "cerrar": "todos",
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["operario", "ausente"],
+         ["temp_c", "24.0"], ["temp_c", "24.2"], ["temp_c", "23.9"], ["temp_c", "24.1"], ["temp_c", "24.3"], ["temp_c", "23.8"], ["temp_c", "24.1"], ["temp_c", "24.0"], ["temp_c", "24.2"], ["temp_c", "23.9"], ["temp_c", "38.6"],
+         ["operario", "presente"], ["operario", "ausente"]]},
+       {"antes_del_paso": 6, "lecturas": [["temp_c", "24.6"]]}]},
+    {"ot": "ot-1002", "pauta": "pauta-polin-demo", "hace_dias": 0, "operador": "operario:2", "cerrar": 3,
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["operario", "ausente"],
+         ["temp_c", "24.1"], ["temp_c", "24.0"], ["temp_c", "24.3"], ["temp_c", "23.9"], ["temp_c", "24.2"], ["temp_c", "24.0"], ["temp_c", "24.1"], ["temp_c", "23.8"], ["temp_c", "24.2"], ["temp_c", "24.0"], ["temp_c", "39.4"]]}]},
+    {"ot": "ot-1003", "pauta": "pauta-polin-ct-01", "hace_dias": 5, "operador": "operario:1", "cerrar": "todos",
+     "intercalar": [
+       {"antes_del_paso": 2, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["guarda", "cerrada"], ["guarda", "abierta"], ["guarda", "cerrada"]]}]},
+    {"ot": "ot-1004", "pauta": "pauta-polin-ct-01", "hace_dias": 0, "operador": "operario:1", "cerrar": 4,
+     "intercalar": [
+       {"antes_del_paso": 5, "lecturas": [["bloqueo", "retirado"]]}]},
+    {"ot": "ot-1005", "pauta": "pauta-correa-ct-01", "hace_dias": 9, "operador": "operario:2", "cerrar": "todos"},
+    {"ot": "ot-1006", "pauta": "pauta-brazo-01", "hace_dias": 4, "operador": "operario:2", "cerrar": "todos",
+     "camara": {"p5": 0.62}},
+    {"ot": "ot-1007", "pauta": "pauta-brazo-01", "hace_dias": 0, "operador": "operario:1", "cerrar": 0},
+    {"ot": "ot-1008", "pauta": "pauta-celda-mt-01", "hace_dias": 3, "operador": "operario:1", "cerrar": "todos",
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["seccionador", "cerrado"], ["candado_mando", "abierto"], ["tension", "presente"], ["tierra", "retirada"]]},
+       {"antes_del_paso": 2, "lecturas": [["tierra", "puesta"], ["tierra", "retirada"]]}]},
+    {"ot": "ot-1009", "pauta": "pauta-celda-mt-01", "hace_dias": 0, "operador": null, "cerrar": 0},
+    {"ot": "ot-1010", "pauta": "pauta-excavadora-01", "hace_dias": 2, "operador": "operario:2", "cerrar": "todos",
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["implementos", "levantados"], ["motor", "encendido"], ["zona", "libre"], ["zona", "ocupada"], ["zona", "libre"]]}]},
+    {"ot": "ot-1011", "pauta": "pauta-excavadora-01", "hace_dias": 1, "operador": "operario:2", "cerrar": 2},
+    {"ot": "ot-1012", "pauta": "pauta-camion-detencion-01", "hace_dias": 1, "operador": "operario:1", "cerrar": "todos"},
+    {"ot": "ot-1013", "pauta": "pauta-camion-detencion-01", "hace_dias": 0, "operador": null, "cerrar": 0},
+    {"ot": "ot-1014", "pauta": "pauta-loto-escritorio", "hace_dias": 7, "operador": "operario:1", "cerrar": "todos"},
+    {"ot": "ot-1015", "pauta": "pauta-loto-escritorio", "hace_dias": 0, "operador": "operario:2", "cerrar": 0}
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "id": "pauta-brazo-01",
+  "nombre": "Ajuste de pinza en brazo robótico",
+  "version": 1,
+  "equipo": "brazo BR-01, celda del demo",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Cortar la corriente del brazo",
+      "instruccion": "Baja el interruptor que da corriente a los motores del brazo, en el tablero de la celda.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "cortada"
+      }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Poner tu candado",
+      "instruccion": "Pon tu candado en el tablero y guarda la llave. Mientras esté puesto, nadie puede volver a dar corriente.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "puesto"
+      }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Probar que no arranca",
+      "instruccion": "Da la orden de partida y mira que el brazo no se mueve.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1,
+      "control_critico": true
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Entrar a la celda",
+      "instruccion": "Recién ahora acércate al brazo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "zona",
+        "espera": "ocupada"
+      }
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Ajustar la pinza",
+      "instruccion": "Aprieta el tornillo de la pinza hasta que cierre sobre la pieza.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿La pinza está cerrada y sostiene la pieza?"
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Salir de la celda",
+      "instruccion": "Saca la herramienta y sal de la zona del brazo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "zona",
+        "espera": "libre"
+      }
+    },
+    {
+      "id": "p7",
+      "orden": 7,
+      "titulo": "Sacar tu candado",
+      "instruccion": "Con la celda vacía, saca tu candado del tablero.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "retirado"
+      }
+    },
+    {
+      "id": "p8",
+      "orden": 8,
+      "titulo": "Devolver la corriente",
+      "instruccion": "Sube el interruptor de los motores del brazo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "viva"
+      }
+    },
+    {
+      "id": "p9",
+      "orden": 9,
+      "titulo": "Probar un ciclo",
+      "instruccion": "Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1
+    }
+  ]
+}

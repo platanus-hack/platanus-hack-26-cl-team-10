@@ -32,7 +32,7 @@
 ## Research
 
 - [research](./projects/research/research.md): hallazgos, vacíos y lectura prioritaria.
-- [REFERENCIAS](./projects/research/REFERENCIAS.md): las 55 referencias verificadas, numeradas y con enlace.
+- [REFERENCIAS](./projects/research/REFERENCIAS.md): las 66 referencias verificadas, numeradas y con enlace.
 - [notas/](./projects/research/notas/): una nota por paper leído completo.
 - [Presentaciones del último año](./projects/research/tour-platanus.md): tracks, preguntas del jurado y ganadores de Santiago 2025 y las cuatro paradas del Latam Tour 26, y las preguntas que nos van a hacer. Una nota por edición en [tour/](./projects/research/tour/) y las transcripciones en [fuentes/videos-platanus/](./projects/research/fuentes/videos-platanus/).
 - [fuentes/](./projects/research/fuentes/): la revisión IEEE original en CSV.

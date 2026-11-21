@@ -1,0 +1,123 @@
+{
+  "id": "pauta-polin-ct-01",
+  "nombre": "Cambio de polín en correa transportadora",
+  "version": 1,
+  "equipo": "correa CT-01, estación de polines 14",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Parar la correa",
+      "instruccion": "Pide a la sala de control que pare la correa y espera a que quede quieta y vacía.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "correa",
+        "espera": "detenida"
+      }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Cortar la corriente",
+      "instruccion": "El eléctrico baja la palanca de corriente del motor de la correa, en su tablero.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "cortada"
+      }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Poner tu candado",
+      "instruccion": "Pon tu candado y tu tarjeta con tu nombre en la caja de bloqueo y guarda la llave. Mientras tu candado esté puesto, nadie puede volver a dar corriente.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "puesto"
+      }
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Probar que no arranca",
+      "instruccion": "Aprieta el botón de partida en la botonera junto a la correa y mira que no se mueve.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1,
+      "control_critico": true
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Sacar la tapa protectora",
+      "instruccion": "Saca la reja que tapa los rodillos en la estación 14. Está ahí para que nadie meta la mano mientras la correa anda.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "guarda",
+        "espera": "abierta"
+      }
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Cambiar el polín",
+      "instruccion": "Levanta la correa, saca el rodillo trabado, pon el nuevo y aprieta sus pernos. Gíralo con la mano: tiene que girar suelto.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿Está el rodillo nuevo puesto en su lugar, con sus pernos y sin herramientas encima de la correa?"
+    },
+    {
+      "id": "p7",
+      "orden": 7,
+      "titulo": "Volver a poner la tapa",
+      "instruccion": "Pon la reja de vuelta y apriétala. Va antes de sacar tu candado: nunca queda la correa con corriente y sin tapa.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "guarda",
+        "espera": "cerrada"
+      }
+    },
+    {
+      "id": "p8",
+      "orden": 8,
+      "titulo": "Sacar tu candado",
+      "instruccion": "Con todos fuera de la correa, saca tu candado y tu tarjeta de la caja de bloqueo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "bloqueo",
+        "espera": "retirado"
+      }
+    },
+    {
+      "id": "p9",
+      "orden": 9,
+      "titulo": "Devolver la corriente",
+      "instruccion": "El eléctrico sube la palanca de corriente y avisa a la sala de control.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "viva"
+      }
+    },
+    {
+      "id": "p10",
+      "orden": 10,
+      "titulo": "Probar sin carga",
+      "instruccion": "Pide que partan la correa vacía y mira que el rodillo nuevo gira y que la correa va derecha.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1
+    }
+  ]
+}

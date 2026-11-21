@@ -37,7 +37,7 @@ from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import asdict
 
-from app import catalogo, db, verificacion
+from app import acceso, catalogo, db, verificacion
 from app.bus import Bus, canal_edge, canal_ot
 from app.catalogo import ReglaDeNegocio
 from app.cerebro import estado_de_ot
@@ -119,7 +119,7 @@ class Servicios:
         self.video = video or Video()
         self.juez = juez or verificacion.juez_camara
         cx.executescript(_ESQUEMA)
-        catalogo.preparar(cx)
+        acceso.preparar(cx)
         self._historia: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=HISTORIA_MAX))
         self._seq: dict[str, deque[int]] = defaultdict(lambda: deque(maxlen=SEQ_RECORDADOS))
         self._iguales: dict[str, tuple[float, int]] = {}
