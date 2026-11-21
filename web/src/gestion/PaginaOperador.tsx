@@ -6,7 +6,7 @@ import { desbloquearAudio } from '../ejecucion/voz'
 import { useSesion } from '../sesion/sesion'
 import { ESTADOS } from './estados'
 import { EstadoBadge, Encabezado, EstadoLista, FranjaDesactualizada, Pagina } from './ui'
-import { useOts, type OtVista } from './useOts'
+import { LIMITE_MS, RECARGA_MS, useOts, type OtVista } from './useOts'
 
 const ORDEN_OPERADOR = ['en_ejecucion', 'asignada', 'completa'] as const
 /** Si el navegador nunca resuelve play(), se entra igual: la ejecución pide el toque que falte. */
@@ -74,7 +74,8 @@ function TarjetaOt({
 export function PaginaOperador() {
   const usuario = useSesion()
   const navigate = useNavigate()
-  const { ots, error, recargar } = useOts()
+  // Sus OT abiertas se leen una por una para mostrar en qué paso siguen.
+  const { ots, error, recargar } = useOts(RECARGA_MS, LIMITE_MS, usuario?.id ?? null)
   const [abriendo, setAbriendo] = useState<string | null>(null)
   if (!usuario) return null
 

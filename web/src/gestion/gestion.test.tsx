@@ -58,6 +58,22 @@ function abrir(ruta: string) {
 /** La tarjeta de una OT, por su id en mayúsculas. */
 const tarjeta = async (ot: string) => (await screen.findByText(ot.toUpperCase())).closest<HTMLElement>('.mantine-Card-root')!
 
+/** Las lecturas de una OT por separado (`GET /ot/{id}`) mientras corre `fn`. */
+async function lecturasDeOt(fn: () => Promise<void>): Promise<string[]> {
+  const pedidas: string[] = []
+  const oir = ({ request }: { request: Request }) => {
+    const ruta = new URL(request.url).pathname
+    if (request.method === 'GET' && ruta.startsWith('/ot/')) pedidas.push(ruta)
+  }
+  server.events.on('request:start', oir)
+  try {
+    await fn()
+  } finally {
+    server.events.removeListener('request:start', oir)
+  }
+  return pedidas
+}
+
 describe('login and routes', () => {
   it('sends a visitor without session from / to the login', async () => {
     abrir('/')
@@ -101,6 +117,15 @@ describe('operator dashboard', () => {
     expect(within(ot12).getByText(/^Sigue en: 1\. /)).toBeInTheDocument()
     expect(screen.queryByText('OT-13')).not.toBeInTheDocument()
     expect(screen.queryByText('OT-14')).not.toBeInTheDocument()
+  })
+
+  it('asks for the detail only of their own open OTs', async () => {
+    guardarSesion(OP1)
+    const pedidas = await lecturasDeOt(async () => {
+      abrir('/operador')
+      expect(within(await tarjeta('ot-12')).getByText(/^Sigue en: 1\. /)).toBeInTheDocument()
+    })
+    expect(new Set(pedidas)).toEqual(new Set(['/ot/ot-12']))
   })
 
   it('unlocks the audio on Comenzar and opens the execution', async () => {
@@ -158,6 +183,29 @@ describe('supervisor dashboard', () => {
     await waitFor(() => expect(within(screen.getByText('OT-14').closest<HTMLElement>('.mantine-Card-root')!).getByText('OP2')).toBeInTheDocument())
     expect(m.operador('ot-14')).toBe('operario:2')
     expect(screen.getByLabelText('Por asignar: 0')).toBeInTheDocument()
+    // La bitácora dice qué supervisor la asignó, como en la API real.
+    expect(m.eventos('ot-14').at(-1)).toMatchObject({ tipo: 'ot_asignada', actor: 'supervisor:1', evidencia: { operador: 'operario:2' } })
+  })
+
+  it('reads names and progress from the list, without asking for each OT', async () => {
+    m.agregar('ot-12', { tipo: 'veredicto', actor: 'sistema', paso_id: 'p1', estado: 'verificado', detalle: 'ok' })
+    guardarSesion(SUPERVISOR)
+    const pedidas = await lecturasDeOt(async () => {
+      abrir('/supervisor')
+      const ot12 = await tarjeta('ot-12')
+      expect(within(ot12).getByText(`${PAUTA_DEMO.nombre} v${PAUTA_DEMO.version}`)).toBeInTheDocument()
+      expect(within(ot12).getByText('1/6 pasos')).toBeInTheDocument()
+    })
+    expect(pedidas).toEqual([])
+  })
+
+  it('shows the pauta id when the names do not load', async () => {
+    server.use(http.get(`${config.API_URL}/pautas`, () => new HttpResponse(null, { status: 500 })))
+    guardarSesion(SUPERVISOR)
+    abrir('/supervisor')
+    const ot14 = await tarjeta('ot-14')
+    expect(within(ot14).getByText(PAUTA_DEMO.id)).toBeInTheDocument()
+    expect(within(ot14).getByText('0/6 pasos')).toBeInTheDocument()
   })
 
   it('reassigns a handed-over OT', async () => {
@@ -167,7 +215,7 @@ describe('supervisor dashboard', () => {
     abrir('/supervisor')
     const ot12 = await tarjeta('ot-12')
     expect(within(ot12).getByText('Entregada')).toBeInTheDocument()
-    expect(within(ot12).getByText('Turno entregado')).toBeInTheDocument()
+    expect(within(ot12).getByText('Turno entregado por OP1')).toBeInTheDocument()
     await userEvent.click(within(ot12).getByRole('button', { name: 'Reasignar ot-12 a OP2' }))
     await waitFor(() => expect(m.operador('ot-12')).toBe('operario:2'))
     expect(await screen.findByLabelText('Entregadas: 0')).toBeInTheDocument()

@@ -27,6 +27,7 @@ it('keeps the newest answer when an older one arrives late', async () => {
     .mockReturnValueOnce(new Promise((r) => (soltarVieja = r)))
     .mockResolvedValueOnce([ot('nueva')])
   vi.spyOn(api, 'leerOt').mockRejectedValue(new Error('sin avance'))
+  vi.spyOn(api, 'listarPautas').mockRejectedValue(new Error('sin nombres'))
   const { result } = renderHook(() => useOts(60_000, 60_000))
   await act(async () => {
     await Promise.resolve()

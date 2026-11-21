@@ -65,15 +65,17 @@ function Avance({ ot }: { ot: OtVista }) {
 
 function Operador({ ot }: { ot: OtVista }) {
   if (ot.operador) return <Text fw={600}>{nombreDe(ot.operador)}</Text>
+  const entregado = ot.entregada_por ? `Turno entregado por ${nombreDe(ot.entregada_por)}` : 'Turno entregado'
   return (
     <Text c="roca.6" fs="italic">
-      {ot.estado === 'entregada' ? 'Turno entregado' : 'Nadie'}
+      {ot.estado === 'entregada' ? entregado : 'Nadie'}
     </Text>
   )
 }
 
 /** Un botón por operador: con dos en el demo, asignar es un solo clic. */
 function Asignar({ ot, onListo }: { ot: OtVista; onListo: () => Promise<void> }) {
+  const supervisor = useSesion()
   const [enviando, setEnviando] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   if (!puedeAsignarse(ot.estado)) return <Text c="roca.6">—</Text>
@@ -82,7 +84,8 @@ function Asignar({ ot, onListo }: { ot: OtVista; onListo: () => Promise<void> })
     setEnviando(operador)
     setError(null)
     try {
-      await api.asignar(ot.ot, operador)
+      // Quién asigna queda en la bitácora de la OT.
+      await api.asignar(ot.ot, operador, supervisor?.id ?? 'supervisor')
       await onListo()
     } catch (e) {
       setError(mensajeDe(e))

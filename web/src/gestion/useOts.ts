@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, api } from '../api/cliente'
 import type { EstadoGeneral, OtResumen } from '../api/tipos'
-import { avanceDe, estadoDe, type Avance } from './estados'
+import { avanceDe, avanceDelResumen, estadoDe, type Avance } from './estados'
 
 export type OtVista = OtResumen & { estado: EstadoGeneral; avance: Avance | null }
 
@@ -33,27 +33,45 @@ function conLimite<T>(promesa: Promise<T>, ms: number): Promise<T> {
 /**
  * Las OT con su avance, recargadas cada `cadaMs`: el operador las cambia desde otro dispositivo.
  * Si falla una recarga, se mantiene la última lista y se informa el error.
+ *
+ * El avance sale de la misma lista (`cerrados`/`total`) y los nombres de `GET /pautas`, una vez.
+ * Solo las OT abiertas de `detalleDe` (el operador que mira) se leen una por una, para mostrar
+ * en qué paso siguen.
  */
-export function useOts(cadaMs: number = RECARGA_MS, limiteMs: number = LIMITE_MS) {
+export function useOts(cadaMs: number = RECARGA_MS, limiteMs: number = LIMITE_MS, detalleDe: string | null = null) {
   const [ots, setOts] = useState<OtVista[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const ultimaPedida = useRef(0)
+  const nombres = useRef(new Map<string, string>())
 
   const recargar = useCallback(async () => {
     const pedida = ++ultimaPedida.current
     try {
       const lista = await conLimite(api.listarOts(), limiteMs)
-      // El avance es un adorno: si falla para una OT, esa OT se muestra sin avance.
-      const avances = await Promise.all(
-        lista.map((o) => conLimite(api.leerOt(o.ot), limiteMs).then(avanceDe, () => null)),
+      // Los nombres y el paso en curso son un adorno: si fallan, la OT se muestra igual.
+      const nombresListos = lista.every((o) => nombres.current.has(o.pauta))
+        ? Promise.resolve()
+        : conLimite(api.listarPautas(), limiteMs).then(
+            (ps) => ps.forEach((p) => nombres.current.set(p.id, p.nombre)),
+            () => {},
+          )
+      const detalles = Promise.all(
+        lista.map((o) =>
+          detalleDe && o.operador === detalleDe && !o.completa
+            ? conLimite(api.leerOt(o.ot), limiteMs).then(avanceDe, () => null)
+            : null,
+        ),
       )
+      const [, avances] = await Promise.all([nombresListos, detalles])
       if (pedida !== ultimaPedida.current) return
-      setOts(lista.map((o, i) => ({ ...o, estado: estadoDe(o), avance: avances[i] })))
+      setOts(
+        lista.map((o, i) => ({ ...o, estado: estadoDe(o), avance: avances[i] ?? avanceDelResumen(o, nombres.current) })),
+      )
       setError(null)
     } catch (e) {
       if (pedida === ultimaPedida.current) setError(mensajeDe(e))
     }
-  }, [limiteMs])
+  }, [limiteMs, detalleDe])
 
   useEffect(() => {
     void Promise.resolve().then(recargar)

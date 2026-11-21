@@ -13,6 +13,16 @@ export function estadoDe(ot: OtResumen): EstadoGeneral {
 
 export type Avance = { cerrados: number; total: number; nombre: string; pasoActual: string | null }
 
+/**
+ * El avance que ya trae `GET /ots`. El nombre legible sale de `GET /pautas` (`nombres`, por id);
+ * sin él queda el id. Sin `cerrados`/`total` no hay avance.
+ */
+export function avanceDelResumen(ot: OtResumen, nombres: ReadonlyMap<string, string>): Avance | null {
+  if (ot.cerrados == null || ot.total == null) return null
+  const nombre = nombres.get(ot.pauta)
+  return { cerrados: ot.cerrados, total: ot.total, nombre: nombre ? `${nombre} v${ot.version}` : ot.pauta, pasoActual: null }
+}
+
 /** Un paso cuenta como cerrado si está verificado: por su evidencia o porque una persona lo confirmó. */
 export function avanceDe(estado: EstadoOt): Avance {
   const actual = estado.pasos.find((p) => p.id === estado.paso_actual)

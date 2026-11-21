@@ -67,7 +67,7 @@ web/
 - El id de la OT viaja en la URL y la sesión (`id`, `nombre`, `rol`) en `localStorage`. Con eso el módulo de ejecución sabe quién es el actor.
 - Los actores usan el formato de la bitácora: `operario:1`, `supervisor:1`.
 - Usuarios del demo: un supervisor y dos operadores, OP1 y OP2, como en la pizarra.
-- El mock corre en el navegador con MSW, que también imita el WebSocket, y se activa con `VITE_MOCK=1`. Sin mock, el cliente apunta a `VITE_API_URL`, que en el demo es `https://34-176-44-192.sslip.io`.
+- El mock corre en el navegador con MSW, que también imita el WebSocket: `npm run dev:mock` (o `VITE_MOCK=1`). Sin mock (`npm run dev`), el cliente apunta a `VITE_API_URL`, que por defecto es el servidor del equipo, `https://34-176-44-192.sslip.io`, y lo que se toque ahí lo ven todos.
 - Dentro de un navegador, el mock es un solo mundo: lo que el supervisor asigna en `/supervisor` aparece en `/operador` y en `/ot/:id`. El escenario solo fija cómo parte ese mundo, y se elige en la URL: `/ot/ot-12?escenario=warn-sobrescrito`. No cruza dispositivos, y no hace falta: el demo corre sobre el back real.
 - Los datos del mock usan la pauta real, [`datos/pauta-correa.json`](../../datos/pauta-correa.json): 6 pasos sobre la correa CT-01.
 
@@ -276,24 +276,21 @@ La API está desplegada en `https://34-176-44-192.sslip.io`. La guía completa e
 
 | Qué | Para | Nota |
 |---|---|---|
-| `GET /ots` → `[{ot, pauta, version, equipo, abierta_en, paso_actual, completa}]` | Diego | El id viene en `ot`, no en `id`. No trae operador ni avance |
-| `GET /ot/{id}` → `{pauta, equipo, paso_actual, completa, pasos, verificados, en_conflicto, pendientes}` | los dos | Cada paso: `id, orden, titulo, estado, control_critico, capa, evidencia, detalle`. El avance es `verificados.length` sobre `pasos.length` |
+| `GET /ots` → `[{ot, pauta, version, equipo, abierta_en, paso_actual, completa, operador, estado_general, entregada_por, cerrados, total}]` | Diego | El id viene en `ot`, no en `id`. El avance es `cerrados` sobre `total`, sin pedir cada OT |
+| `GET /ot/{id}` → `{pauta, equipo, paso_actual, completa, pasos, verificados, en_conflicto, pendientes}` | los dos | Cada paso: `id, orden, titulo, estado, control_critico, capa, evidencia, detalle`. El dashboard del operador lo pide solo para sus OT abiertas, para mostrar en qué paso siguen |
+| `GET /pautas` → `[{id, nombre, version, equipo, pasos, aprobada}]` | Diego | El nombre legible de cada pauta, para la lista de OT. Se pide una vez |
 | `GET /pautas/{pauta_id}?version=` | Dani | La pauta completa, con `instruccion`, `tipo_evidencia` y `deteccion` de cada paso: con eso se sabe si un paso se cierra solo. Se pide una vez |
+| `POST /ot/{id}/asignar` `{operador, actor}` | Diego | Asigna una OT sin operador o reasigna una entregada. `actor` es el supervisor: queda en la bitácora como `ot_asignada`. 409 si está completa, si ya tiene operador o si el operador no existe |
 | `POST /ot/{id}/sesion` `{edge_id, operario}` | Dani | Une la OT con el edge. Sin sesión, las lecturas no llegan a ninguna OT. El demo tiene un solo edge, `edge-1`, que va en `VITE_EDGE_ID` |
 | `WS /ot/{id}/stream?desde=` | Dani | Primero un `snapshot` (estado, calificación, alertas activas, sesión, sensores y bitácora) y después `lectura`, `evento`, `calificacion_ot`, `sesion` y `detecciones` (lo que ve la cámara del edge) |
 | `POST /ot/{id}/declarar` `{actor, texto, paso_id}` | Dani | «Hecho». `paso_id` es el paso que la pantalla mostraba: si su evidencia ya lo cerró, no se evalúa el siguiente. Un paso de cámara se juzga con el último cuadro del edge |
-| `POST /ot/{id}/pasos/{paso_id}/confirmar` `{actor, motivo}` | Dani | «Ya lo hice». Solo el paso en curso, nunca uno de confirmación, nunca sin motivo (409). Deja un `veredicto` `verificado`, capa nula, con `evidencia: {tipo: persona, motivo, contra}`. En la rama `dreamxist/services` de Francisco |
+| `POST /ot/{id}/pasos/{paso_id}/confirmar` `{actor, motivo}` | Dani | «Ya lo hice». Solo el paso en curso, nunca uno de confirmación, nunca sin motivo (409). Deja un `veredicto` `verificado`, capa nula, con `evidencia: {tipo: persona, motivo, contra}` |
 | `POST /ot/{id}/relevo/entregar?actor=` y `/relevo/recibir?actor=` | Dani | El relevo pendiente se lee de la bitácora (sección 6) |
 | `GET /edge/{edge_id}/video.mjpg` | Diego, P1 | Video en vivo en un `<img>`, por si el supervisor quiere ver la estación. Ya existe una página `/monitor` con video, avisos y bitácora |
 
 Un aviso de `calificacion.avisos` es `{nivel, certeza, capa, motivos}`: sin `id` y sin `paso_id`. Un `evento` del stream trae `id, tipo, paso_id, estado, capa, detalle, evidencia, calificacion`.
 
-**Lo que falta**, y el mock lo imita desde el día uno:
-
-| Qué | Para | Quién |
-|---|---|---|
-| Asignar operador: `POST /ot/{id}/asignar` `{operador}`, que también reasigna, y `operador` más `estado_general` en `GET /ots` | Diego | Diego y Dani, como capa de servicios |
-| Voz: `GET /voz?texto=` | Dani | Dani |
+**Lo que falta en el servidor desplegado:** la voz, `GET /voz?texto=`. Es nuestra (`app/voz.py`) y llega con esta rama; el servidor necesita `ELEVENLABS_API_KEY` en su entorno.
 
 Respaldo si el ESP32 falla en el escenario: la lectura se puede escribir a mano en `POST /edge/edge-1/lecturas` o en `POST /sensores`.
 

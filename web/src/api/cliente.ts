@@ -5,6 +5,7 @@ import type {
   EstadoOt,
   OtResumen,
   Pauta,
+  PautaResumen,
   RespuestaConfirmar,
   RespuestaDeclarar,
   Sesion,
@@ -31,6 +32,8 @@ export type Cliente = {
   listarOts(): Promise<OtResumen[]>
   leerOt(otId: string): Promise<EstadoOt>
   leerPauta(pautaId: string, version: number): Promise<Pauta>
+  /** Las pautas con su nombre legible: la lista de OT solo trae el id. */
+  listarPautas(): Promise<PautaResumen[]>
   abrirSesion(otId: string, edgeId: string, operario: string): Promise<Sesion>
   /** `pasoId` es el paso que la pantalla mostraba: si su evidencia ya lo cerró, no se evalúa el siguiente. */
   declarar(otId: string, actor: string, texto: string, pasoId?: string): Promise<RespuestaDeclarar>
@@ -38,8 +41,8 @@ export type Cliente = {
   confirmarPaso(otId: string, pasoId: string, actor: string, motivo: string): Promise<RespuestaConfirmar>
   entregarTurno(otId: string, actor: string): Promise<{ resumen: string }>
   recibirTurno(otId: string, actor: string): Promise<{ firmado_por: string }>
-  /** Propuesta: asigna o reasigna el operador de la OT. */
-  asignar(otId: string, operador: string): Promise<OtResumen>
+  /** Asigna o reasigna el operador de la OT. `actor` es quién asigna: queda en la bitácora. */
+  asignar(otId: string, operador: string, actor: string): Promise<OtResumen>
 }
 
 const TIMEOUT_DECLARAR_MS = 10_000
@@ -76,6 +79,7 @@ export function crearCliente(base: string, fetchImpl: typeof fetch = (...a) => f
     listarOts: () => pedir('GET', '/ots'),
     leerOt: (id) => pedir('GET', ot(id)),
     leerPauta: (id, version) => pedir('GET', `/pautas/${encodeURIComponent(id)}?version=${version}`),
+    listarPautas: () => pedir('GET', '/pautas'),
     abrirSesion: (id, edgeId, operario) => pedir('POST', `${ot(id)}/sesion`, { edge_id: edgeId, operario }),
     declarar: (id, actor, texto, pasoId) =>
       pedir('POST', `${ot(id)}/declarar`, pasoId ? { actor, texto, paso_id: pasoId } : { actor, texto }, TIMEOUT_DECLARAR_MS),
@@ -83,7 +87,7 @@ export function crearCliente(base: string, fetchImpl: typeof fetch = (...a) => f
       pedir('POST', `${ot(id)}/pasos/${encodeURIComponent(pasoId)}/confirmar`, { actor, motivo }),
     entregarTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/entregar?actor=${encodeURIComponent(actor)}`),
     recibirTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/recibir?actor=${encodeURIComponent(actor)}`),
-    asignar: (id, operador) => pedir('POST', `${ot(id)}/asignar`, { operador }),
+    asignar: (id, operador, actor) => pedir('POST', `${ot(id)}/asignar`, { operador, actor }),
   }
 }
 

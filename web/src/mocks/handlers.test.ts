@@ -32,6 +32,17 @@ it('serves the OT list, the state and the pauta', async () => {
   expect((await api().leerPauta('pauta-correa-ct-01', 1)).pasos).toHaveLength(6)
 })
 
+it('serves the pautas with their names, like GET /pautas', async () => {
+  expect(await api().listarPautas()).toEqual([
+    { id: pauta.id, nombre: pauta.nombre, version: pauta.version, equipo: pauta.equipo, pasos: 6, aprobada: true },
+  ])
+})
+
+it('each OT in the list carries its progress, like GET /ots', async () => {
+  await api().declarar('ot-12', 'operario:1', 'hecho')
+  expect((await api().listarOts())[0]).toMatchObject({ cerrados: 1, total: 6, entregada_por: null })
+})
+
 it('answers 404 for an unknown OT', async () => {
   await expect(api().leerOt('ot-99')).rejects.toMatchObject({ status: 404, tipo: 'no_existe' })
 })
@@ -71,9 +82,9 @@ it('handover clears the operator and receiving assigns the new one', async () =>
   await api().declarar('ot-12', 'operario:1', 'hecho')
   const { resumen } = await api().entregarTurno('ot-12', 'operario:1')
   expect(resumen).toContain('Retomar desde p2')
-  expect((await api().listarOts())[0]).toMatchObject({ operador: null, estado_general: 'entregada' })
+  expect((await api().listarOts())[0]).toMatchObject({ operador: null, estado_general: 'entregada', entregada_por: 'operario:1' })
   await api().recibirTurno('ot-12', 'operario:2')
-  expect((await api().listarOts())[0].operador).toBe('operario:2')
+  expect((await api().listarOts())[0]).toMatchObject({ operador: 'operario:2', entregada_por: null })
 })
 
 it('opening a session starts the timers of the current step', async () => {
@@ -145,28 +156,36 @@ it('going down closes the open streams', async () => {
   expect(await cerrado).not.toBe(4404)
 })
 
-it('asignar gives an unassigned OT to an operator', async () => {
-  const r = await api().asignar('ot-14', 'operario:1')
+it('asignar gives an unassigned OT to an operator and logs who assigned it', async () => {
+  const r = await api().asignar('ot-14', 'operario:1', 'supervisor:1')
   expect(r).toMatchObject({ ot: 'ot-14', operador: 'operario:1', estado_general: 'asignada' })
   expect((await api().listarOts()).find((o) => o.ot === 'ot-14')?.operador).toBe('operario:1')
+  expect(m.eventos('ot-14').at(-1)).toMatchObject({
+    tipo: 'ot_asignada', actor: 'supervisor:1', evidencia: { operador: 'operario:1' }, detalle: 'OT asignada a operario:1',
+  })
+})
+
+it('asignar without an actor logs it as the supervisor, like the API', async () => {
+  await fetch(`${BASE}/ot/ot-14/asignar`, { method: 'POST', body: JSON.stringify({ operador: 'operario:1' }), headers: { 'content-type': 'application/json' } })
+  expect(m.eventos('ot-14').at(-1)).toMatchObject({ tipo: 'ot_asignada', actor: 'supervisor' })
 })
 
 it('asignar reassigns a handed-over OT', async () => {
   await api().entregarTurno('ot-12', 'operario:1')
-  const r = await api().asignar('ot-12', 'operario:2')
+  const r = await api().asignar('ot-12', 'operario:2', 'supervisor:1')
   expect(r).toMatchObject({ operador: 'operario:2' })
   expect(r.estado_general).not.toBe('entregada')
 })
 
 it('asignar refuses an OT that already has an operator, an unknown operator and an unknown OT', async () => {
-  await expect(api().asignar('ot-12', 'operario:2')).rejects.toMatchObject({ status: 409, regla: 'la OT ya tiene operador' })
-  await expect(api().asignar('ot-14', 'supervisor:1')).rejects.toMatchObject({ status: 409, regla: 'el operador no existe' })
-  await expect(api().asignar('ot-99', 'operario:1')).rejects.toMatchObject({ status: 404 })
+  await expect(api().asignar('ot-12', 'operario:2', 'supervisor:1')).rejects.toMatchObject({ status: 409, regla: 'la OT ya tiene operador' })
+  await expect(api().asignar('ot-14', 'supervisor:1', 'supervisor:1')).rejects.toMatchObject({ status: 409, regla: 'el operador no existe' })
+  await expect(api().asignar('ot-99', 'operario:1', 'supervisor:1')).rejects.toMatchObject({ status: 404 })
 })
 
 it('asignar answers 409, not 500, to a body without operator, and names a complete OT', async () => {
   const r = await fetch(`${BASE}/ot/ot-14/asignar`, { method: 'POST', body: 'null', headers: { 'content-type': 'application/json' } })
   expect(r.status).toBe(409)
   for (const p of pauta.pasos) m.agregar('ot-14', { tipo: 'veredicto', actor: 'sistema', paso_id: p.id, estado: 'verificado', detalle: 'ok' })
-  await expect(api().asignar('ot-14', 'operario:1')).rejects.toMatchObject({ status: 409, regla: 'la OT ya está completa' })
+  await expect(api().asignar('ot-14', 'operario:1', 'supervisor:1')).rejects.toMatchObject({ status: 409, regla: 'la OT ya está completa' })
 })

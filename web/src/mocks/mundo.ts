@@ -214,19 +214,26 @@ export class Mundo {
     return sesion
   }
 
+  /** El relevo entregado que nadie ha recibido todavía, si la OT quedó sin operador. */
+  private entrega(ot: OtMock): Evento | null {
+    const i = ot.eventos.findLastIndex((e) => e.tipo === 'relevo_entregado')
+    if (ot.operador || i < 0 || ot.eventos.some((e, j) => j > i && e.tipo === 'relevo_recibido')) return null
+    return ot.eventos[i]
+  }
+
   private estadoGeneral(ot: OtMock): EstadoGeneral {
     if (this.estado(ot.id).completa) return 'completa'
-    const ultimoEntregado = ot.eventos.findLastIndex((e) => e.tipo === 'relevo_entregado')
-    const recibidoDespues = ot.eventos.some((e, i) => i > ultimoEntregado && e.tipo === 'relevo_recibido')
-    if (!ot.operador && ultimoEntregado >= 0 && !recibidoDespues) return 'entregada'
+    if (this.entrega(ot)) return 'entregada'
     if (!ot.operador) return 'sin_asignar'
     if (ot.sesion || ot.eventos.some((e) => e.tipo === 'veredicto')) return 'en_ejecucion'
     return 'asignada'
   }
 
+  // Como un ítem de GET /ots (app/catalogo.py, _resumen).
   resumenes(): OtResumen[] {
     return [...this.ots.values()].map((ot) => {
       const e = this.estado(ot.id)
+      const estadoGeneral = this.estadoGeneral(ot)
       return {
         ot: ot.id,
         pauta: this.pauta.id,
@@ -236,7 +243,10 @@ export class Mundo {
         paso_actual: e.paso_actual,
         completa: e.completa,
         operador: ot.operador,
-        estado_general: this.estadoGeneral(ot),
+        estado_general: estadoGeneral,
+        entregada_por: estadoGeneral === 'entregada' ? (this.entrega(ot)?.actor ?? null) : null,
+        cerrados: e.pasos.filter((p) => p.estado === 'verificado').length,
+        total: e.pasos.length,
       }
     })
   }

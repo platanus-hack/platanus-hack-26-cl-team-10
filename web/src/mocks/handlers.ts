@@ -1,5 +1,4 @@
-// La API del mock: las rutas de la API desplegada, la de confirmar un paso por persona
-// (rama de servicios de Francisco) y la que falta (asignar).
+// La API del mock: las rutas de la API desplegada que usa el front, con sus mismas reglas.
 
 import { http, HttpResponse, ws, type RequestHandler, type WebSocketHandler } from 'msw'
 import { config } from '../config'
@@ -50,6 +49,11 @@ export function crearHandlers(
     http.get(`${raiz}/ot/:id`, vivo(({ params }) => {
       const id = otDe(params)
       return m.existe(id) ? HttpResponse.json(m.estado(id)) : noExiste(`OT ${id}`)
+    })),
+
+    http.get(`${raiz}/pautas`, vivo(() => {
+      const { id, nombre, version, equipo, pasos } = m.pauta
+      return HttpResponse.json([{ id, nombre, version, equipo, pasos: pasos.length, aprobada: true }])
     })),
 
     http.get(`${raiz}/pautas/:id`, vivo(({ params }) =>
@@ -120,18 +124,20 @@ export function crearHandlers(
       return HttpResponse.json({ firmado_por: actor })
     })),
 
-    // Propuesta (docs/gestion-ot/PRD.md §6): asigna una OT sin operador o reasigna una entregada.
+    // Asigna una OT sin operador o reasigna una entregada (app/catalogo.py, asignacion).
     http.post(`${raiz}/ot/:id/asignar`, vivo(async ({ params, request }) => {
       const id = otDe(params)
       if (!m.existe(id)) return noExiste(`OT ${id}`)
-      const cuerpo = (await request.json().catch(() => null)) as { operador?: unknown } | null
+      const cuerpo = (await request.json().catch(() => null)) as { operador?: unknown; actor?: unknown } | null
       const operador = cuerpo?.operador
+      const actor = typeof cuerpo?.actor === 'string' && cuerpo.actor ? cuerpo.actor : 'supervisor'
       if (!USUARIOS.some((u) => u.rol === 'operador' && u.id === operador)) return regla('el operador no existe')
       const actual = m.resumenes().find((o) => o.ot === id)!
       if (actual.estado_general === 'completa') return regla('la OT ya está completa')
       if (actual.estado_general !== 'sin_asignar' && actual.estado_general !== 'entregada') {
         return regla('la OT ya tiene operador')
       }
+      m.agregar(id, { tipo: 'ot_asignada', actor, evidencia: { operador }, detalle: `OT asignada a ${String(operador)}` })
       m.asignar(id, operador as string)
       return HttpResponse.json(m.resumenes().find((o) => o.ot === id))
     })),

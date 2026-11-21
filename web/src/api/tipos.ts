@@ -1,6 +1,6 @@
 // La forma de la API desplegada (https://34-176-44-192.sslip.io/agente).
 // Verificado contra app/servicios.py (snapshot, evento_dict) y app/cerebro.py (estado_de_ot).
-// Lo marcado «propuesta» todavía no existe en el back: lo imita el mock.
+// La gestión (operador, estado_general, asignar) ya está en el back desplegado.
 
 export type EstadoPasoApi = 'no_verificado' | 'verificado' | 'en_conflicto'
 export type Nivel = 'ok' | 'warning' | 'error'
@@ -10,6 +10,7 @@ export type CalificacionOt = Calificacion & { avisos: Calificacion[] }
 
 export type TipoEvento =
   | 'ot_abierta'
+  | 'ot_asignada'
   | 'paso_iniciado'
   | 'declaracion'
   | 'veredicto'
@@ -74,6 +75,9 @@ export type PasoPauta = {
 
 export type Pauta = { id: string; nombre: string; version: number; equipo: string; pasos: PasoPauta[] }
 
+/** Un ítem de `GET /pautas`: `pasos` es cuántos tiene. */
+export type PautaResumen = { id: string; nombre: string; version: number; equipo: string; pasos: number; aprobada: boolean }
+
 export type EstadoGeneral = 'sin_asignar' | 'asignada' | 'en_ejecucion' | 'entregada' | 'completa'
 
 export type OtResumen = {
@@ -84,8 +88,13 @@ export type OtResumen = {
   abierta_en: string
   paso_actual: string | null
   completa: boolean
-  operador?: string | null // propuesta
-  estado_general?: EstadoGeneral // propuesta
+  operador?: string | null
+  estado_general?: EstadoGeneral
+  /** Quién entregó el turno, mientras la OT sigue `entregada`. */
+  entregada_por?: string | null
+  /** Pasos verificados (por su evidencia o confirmados por una persona) de `total`. */
+  cerrados?: number
+  total?: number
 }
 
 export type Sesion = { edge_id: string; ot_id: string; operario: string; desde: string }

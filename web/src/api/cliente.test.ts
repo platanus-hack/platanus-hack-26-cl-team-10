@@ -69,14 +69,16 @@ it('builds the stream url', () => {
   expect(urlStream('http://localhost:8000', 'ot-1', 0)).toBe('ws://localhost:8000/ot/ot-1/stream?desde=0')
 })
 
-it('posts the operator to asignar', async () => {
+it('posts the operator and who assigns to asignar', async () => {
   const pedidos: { url: string; metodo?: string; cuerpo: unknown }[] = []
   const c = crearCliente('https://x', async (url, init) => {
     pedidos.push({ url: String(url), metodo: init?.method, cuerpo: JSON.parse(String(init?.body)) })
     return json({ ot: 'ot-1', operador: 'operario:2', estado_general: 'asignada' })
   })
-  const r = await c.asignar('ot-1', 'operario:2')
-  expect(pedidos).toEqual([{ url: 'https://x/ot/ot-1/asignar', metodo: 'POST', cuerpo: { operador: 'operario:2' } }])
+  const r = await c.asignar('ot-1', 'operario:2', 'supervisor:1')
+  expect(pedidos).toEqual([
+    { url: 'https://x/ot/ot-1/asignar', metodo: 'POST', cuerpo: { operador: 'operario:2', actor: 'supervisor:1' } },
+  ])
   expect(r.operador).toBe('operario:2')
 })
 
