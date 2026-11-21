@@ -300,6 +300,12 @@ def pagina_monitor() -> FileResponse:
     return FileResponse(ESTATICO / "monitor.html")
 
 
+@app.get("/casos")
+def pagina_casos() -> FileResponse:
+    """El banco de pruebas: cada criterio del PRD, corrido contra este servidor u otro."""
+    return FileResponse(ESTATICO / "casos.html")
+
+
 @app.websocket("/ot/{ot_id}/stream")
 async def stream(ws: WebSocket, ot_id: str, desde: int = 0) -> None:
     """Primero el snapshot con la bitácora desde `desde`; después, todo lo nuevo al instante.

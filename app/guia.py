@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.routing import WebSocketRoute
 
-OCULTAS = {"/", "/agente", "/llms.txt", "/camara", "/monitor"}
+OCULTAS = {"/", "/agente", "/llms.txt", "/camara", "/monitor", "/casos"}
 
 
 def catalogo_de_rutas(app: FastAPI) -> list[tuple[str, str, str]]:
@@ -108,7 +108,14 @@ reglas) llega a `error`. La capa 2 (anomalía de señal) y la capa 3 (cámara) l
   (el último cuadro) y `GET /edge/{{edge_id}}/video` (si hay video, su edad y sus cuadros por segundo).
 - Un paso de cámara se juzga con el último cuadro al llamar `POST /ot/{{ot_id}}/declarar`; el cuadro queda
   como evidencia del veredicto.
-- Páginas listas: `{base}/camara` (el celular como cámara del edge) y `{base}/monitor` (video, avisos y bitácora).
+- Páginas listas: `{base}/camara` (el celular como cámara del edge; `?edge=<id>` elige el edge) y `{base}/monitor`
+  (video, avisos y bitácora).
+
+## Probar cada caso de uso
+
+`{base}/casos` es el banco de pruebas: una tarjeta por criterio de aceptación, que corre la secuencia real
+de llamadas contra este servidor u otro, con una OT y un edge propios (`casos-…`), y muestra cada request,
+cada response y los mensajes del stream. Sirve de ejemplo ejecutable de cada recorrido.
 
 ## Errores
 

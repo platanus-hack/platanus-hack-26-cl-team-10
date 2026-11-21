@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casos · banco de pruebas de los servicios</title>
+<!-- El banco de pruebas del PRD de servicios en vivo (knowledge/projects/servicios-en-vivo/PRD.md).
+     Una tarjeta por criterio de aceptación. Cada «Correr» ejecuta contra el servidor elegido la
+     misma secuencia que su test de tests/, con una OT y un edge propios de la corrida.
+     tests/test_casos.py vigila que cada criterio del PRD tenga su tarjeta: si el PRD suma un
+     criterio, su tarjeta entra en el mismo commit. Sin dependencias: un archivo, sin build. -->
+<style>
+:root{
+  --ink:#16202b; --muted:#5b6673; --line:#d9dee5; --soft:#f1f3f6; --bg:#f7f8fa; --paper:#fff;
+  --brand:#2f5f9e; --brand-soft:#e7eef8;
+  --ok:#2f7d5b; --ok-bg:#e3f3ea; --warn:#9a6400; --warn-bg:#fdf3d6; --err:#b42318; --err-bg:#fdeceb;
+  --deep:#141c26; --violet:#6b4fa0; --violet-bg:#f1ecfa;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:92px}
+body{margin:0;font:16px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+a{color:var(--brand)}
+code{font-family:var(--mono);font-size:15px;background:var(--soft);padding:1px 5px;border-radius:5px}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.55}
+
+header.portada{background:var(--deep);color:#eef2f7;padding:36px 0 28px}
+header.portada .chip{display:inline-block;font-size:15px;padding:3px 10px;border-radius:999px;background:#25324a;color:#b9c9e6;margin-right:6px}
+header.portada h1{font-size:32px;line-height:1.18;margin:14px 0 10px;max-width:900px;letter-spacing:-.01em}
+header.portada p{color:#b8c2cf;font-size:17px;max-width:900px;margin:0}
+header.portada a{color:#b9c9e6}
+
+/* barra de control, pegada arriba */
+.control{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);box-shadow:0 2px 10px rgba(20,28,38,.05)}
+.control .wrap{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;padding-top:12px;padding-bottom:12px}
+.control label{font-size:15px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.control select{padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:var(--paper);color:var(--ink);max-width:420px}
+.luz{display:inline-block;width:10px;height:10px;border-radius:50%;background:#aab3bf;margin-right:6px;vertical-align:1px}
+.luz.ok{background:var(--ok)} .luz.err{background:var(--err)}
+#conexion{font-size:15px;color:var(--muted)}
+.primario{background:var(--deep);color:#fff;border:1px solid var(--deep);border-radius:9px;padding:7px 16px;font-weight:700}
+.secundario{background:var(--paper);color:var(--ink);border:1px solid #b9c2ce;border-radius:9px;padding:6px 14px;font-weight:600}
+.secundario:hover:not(:disabled){border-color:var(--ink)}
+#resumen{margin-left:auto;font-size:16px;font-weight:700}
+#resumen small{font-weight:400;color:var(--muted);font-size:15px}
+.marcas{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.marca{font-family:var(--mono);font-size:15px;text-decoration:none;color:var(--muted);background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:1px 8px}
+.marca.pasa{color:var(--ok);background:var(--ok-bg);border-color:#b8dcc9}
+.marca.falla{color:var(--err);background:var(--err-bg);border-color:#f2c1bc}
+.marca.corriendo{color:var(--brand);background:var(--brand-soft);border-color:#bfd0e8}
+
+.aviso{display:none;margin:18px 0 0;padding:14px 16px;border-radius:12px;background:var(--warn-bg);color:#5f3f00;border:1px solid #ecd699;font-size:15px}
+.aviso.visible{display:block}
+.aviso label{display:block;margin-top:8px;font-weight:700}
+
+section.servicio{margin:36px 0}
+section.servicio>h2{font-size:23px;margin:0 0 4px}
+section.servicio>h2 code{font-size:16px;font-weight:400;margin-left:8px}
+section.servicio>p{margin:0 0 16px;color:var(--muted);max-width:900px}
+
+.caso{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:14px 0}
+.caso.pasa{border-left:5px solid var(--ok)} .caso.falla{border-left:5px solid var(--err)} .caso.corriendo{border-left:5px solid var(--brand)}
+.cabeza{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.cabeza .id{font-family:var(--mono);font-weight:700;font-size:16px;background:var(--deep);color:#fff;border-radius:8px;padding:2px 9px}
+.cabeza .obj{font-size:15px;font-weight:600;color:var(--brand);background:var(--brand-soft);border-radius:8px;padding:2px 9px;white-space:nowrap}
+.cabeza h3{font-size:18px;margin:0;flex:1 1 320px}
+.sello{font-size:15px;font-weight:800;letter-spacing:.04em;padding:3px 12px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.sello.pasa{background:var(--ok-bg);color:var(--ok)} .sello.falla{background:var(--err-bg);color:var(--err)}
+.sello.corriendo{background:var(--brand-soft);color:var(--brand)}
+.dce{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 10px}
+@media (max-width:900px){.dce{grid-template-columns:1fr}}
+.dce div{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:15px}
+.dce b{display:block;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.porque{font-size:15px;color:var(--muted);margin:0;max-width:none}
+.porque b{color:var(--ink)}
+.opcion{font-size:15px;color:var(--muted);margin:8px 0 0}
+.opcion select{padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--paper)}
+
+.corrida{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px}
+.corrida .ids{font-size:15px;color:var(--muted);margin:0 0 10px}
+.corrida .ids code{background:var(--soft)}
+.fallo-general{background:var(--err-bg);color:var(--err);border-radius:10px;padding:10px 12px;font-size:15px;margin:0 0 10px;font-weight:600}
+table.checks{width:100%;border-collapse:collapse;font-size:15px;margin-bottom:14px}
+table.checks th,table.checks td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.checks th{background:var(--soft);font-weight:600;color:var(--muted)}
+table.checks td.v{font-family:var(--mono);font-size:15px;word-break:break-word;max-width:320px}
+table.checks td.s{font-weight:800;white-space:nowrap}
+table.checks tr.si td.s{color:var(--ok)} table.checks tr.no td.s{color:var(--err)}
+table.checks tr.no td{background:#fff8f7}
+table.checks tr.obs td{color:var(--muted)} table.checks tr.obs td.s{color:var(--violet)}
+table.checks small{display:block;color:var(--muted)}
+
+.traza{display:grid;grid-template-columns:1.25fr 1fr;gap:14px}
+@media (max-width:1000px){.traza{grid-template-columns:1fr}}
+.traza>div{min-width:0}
+.traza h4{font-size:15px;color:var(--muted);font-weight:600;margin:0 0 6px}
+.lista{background:var(--deep);color:#dfe7f1;border-radius:12px;padding:10px 12px;font-family:var(--mono);font-size:15px;line-height:1.45;max-height:520px;overflow:auto}
+.lista .vacio{color:#8d9aab}
+.lista .fase{color:#8d9aab;letter-spacing:.06em;text-transform:uppercase;margin:8px 0 2px;font-size:15px}
+.lista .fase:first-child{margin-top:0}
+.lista details{margin:2px 0}
+.lista summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden}
+.lista summary::-webkit-details-marker{display:none}
+.lista summary .t{color:#8d9aab;flex:none}
+.lista summary .ruta{overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:80px}
+.lista summary .res{overflow:hidden;text-overflow:ellipsis;color:#aab6c5;flex:1 1 0;min-width:0}
+.lista pre{margin:4px 0 8px 0;padding:8px 10px;background:#0d131b;border-radius:8px;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:15px;color:#c9d6e6}
+.lista pre b{color:#8d9aab;font-weight:400}
+.m{font-weight:700;padding:0 6px;border-radius:5px;flex:none}
+.m.get{background:#1d3a2e;color:#8fe0b4} .m.post{background:#1e3350;color:#9cc3f5}
+.m.delete,.m.put,.m.patch{background:#3b1717;color:#ffb4ad} .m.ws{background:#33284d;color:#cbb6f2}
+.st{font-weight:700;flex:none} .st.s2{color:#8fe0b4} .st.s4{color:#ffd97a} .st.s5,.st.s0{color:#ffb4ad}
+.tipo{font-weight:700;flex:none}
+.tipo.snapshot{color:#cbb6f2} .tipo.lectura{color:#9cc3f5} .tipo.evento{color:#8fe0b4} .tipo.calificacion_ot{color:#ffd97a} .tipo.sesion{color:#cbb6f2} .tipo.conexion{color:#8d9aab}
+.nota-traza{color:#ffd97a;white-space:normal;margin:4px 0}
+.nota-traza a{color:#9cc3f5}
+.evidencia{margin-top:12px;font-size:15px;color:var(--muted)}
+.evidencia img{display:block;max-width:320px;width:100%;border-radius:10px;border:1px solid var(--line);margin-top:6px;background:#000}
+footer{color:var(--muted);font-size:15px;margin:40px 0 60px}
+</style>
+</head>
+<body>
+
+<header class="portada">
+  <div class="wrap">
+    <span class="chip">Banco de pruebas</span><span class="chip">PRD servicios en vivo · CA1 a CA14</span>
+    <h1>Cada caso de uso de los servicios, corrido contra un servidor de verdad</h1>
+    <p>Una tarjeta por criterio de aceptación del PRD. «Correr» hace las mismas llamadas que su test, con una OT y un edge propios de la corrida, y compara lo esperado con lo que el servidor respondió. A la derecha de cada corrida, lo que una UI recibiría por <code style="background:#25324a;color:#dfe7f1">WS /ot/{id}/stream</code>.</p>
+  </div>
+</header>
+
+<div class="control">
+  <div class="wrap">
+    <label>Servidor <select id="servidor" aria-label="Servidor"></select></label>
+    <span id="conexion"><span class="luz"></span>sin comprobar</span>
+    <button id="todos" class="primario">Correr todos</button>
+    <span id="resumen"><small>Sin correr.</small></span>
+    <div class="marcas" id="marcas"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="aviso" id="aviso-ajenas" role="alert"></div>
+  <main id="casos"></main>
+  <footer>
+    Las corridas dejan en el servidor sus OT (<code>casos-…</code>), porque la bitácora solo agrega. Los sensores vuelven a como estaban y la sesión del edge de la corrida se termina. «Correr todos» va en serie: los sensores son una tabla global y dos casos a la vez se pisarían.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// ─── Lo que no cambia ───────────────────────────────────────────────────────
+const REPO = "https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/";
+const doc = (ruta, texto) => `<a href="${REPO}${ruta}" target="_blank" rel="noopener">${texto}</a>`;
+const LOGICA = doc("knowledge/architecture/LOGICA.md", "LOGICA");
+const ADR = n => doc(`knowledge/decisions/${{2: "0002-la-aplicacion-impone-el-orden-de-la-pauta", 3: "0003-patrones-de-arquitectura-para-el-mvp", 4: "0004-verificacion-por-capas", 6: "0006-la-ot-nace-del-protocolo", 7: "0007-servicios-en-vivo-sesion-stream-y-calificacion"}[n]}.md`, `ADR-000${n}`);
+const REF = n => doc("knowledge/projects/research/REFERENCIAS.md", `REFERENCIAS ${n}`);
+
+const PAUTA_DEMO = "pauta-correa-ct-01";
+const PAUTA_SIN_APROBAR = "casos-pauta-sin-aprobar";
+const SENSOR_DE_SENAL = "casos-vibracion";
+const SEGURO = [["guarda", "cerrada"], ["energia", "cortada"], ["reed_bloqueo", "abierto"]];
+const PAGINAS = ["/", "/agente", "/camara", "/monitor", "/casos"];
+const WEBSOCKETS = ["/ot/{ot_id}/stream", "/edge/{edge_id}/video"];
+const LINEA_BASE = [2.0, 2.1, 1.9, 2.0, 2.2, 1.8, 2.0, 2.1, 1.9, 2.0, 2.05, 1.95];
+
+const SERVICIOS = [
+  {id: "servicios", archivo: "app/servicios.py", titulo: "Sesión y atribución",
+   que: "El edge no sabe de OT. La sesión que abre el operario dice a cuál pertenece cada lectura, y el servicio la revisa: seguridad, paso por sensor y señal."},
+  {id: "bus", archivo: "app/bus.py", titulo: "Reparto en vivo",
+   que: "Lo que entra a una OT sale al instante por su WebSocket, y quien se reconecta recupera la bitácora que se perdió."},
+  {id: "catalogo", archivo: "app/catalogo.py", titulo: "CRUD con las reglas adentro",
+   que: "Pautas, aprobaciones, OT y eventos. Lo que choca con una regla de negocio se responde con 409, y la bitácora no se edita por ninguna vía."},
+  {id: "scoring", archivo: "app/scoring.py", titulo: "Calificación y avisos",
+   que: "ok, warning o error con sus motivos, calculado al leer. Un aviso vive mientras dure su condición: cuando el sensor se corrige, sale."},
+  {id: "video", archivo: "app/video.py", titulo: "Video del edge",
+   que: "El video entra por su propio canal, y el paso de cámara se juzga con el último cuadro, que queda como evidencia."},
+  {id: "guia", archivo: "app/guia.py", titulo: "Guía para agentes",
+   que: "Lo que un agente necesita para usar la API sin leer el código."},
+];
+
+// ─── Utilidades ─────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const pausa = ms => new Promise(r => setTimeout(r, ms));
+const tipos = evs => (evs || []).map(e => e.tipo);
+const deTipo = (evs, t) => (evs || []).filter(e => e.tipo === t);
+const json = v => v === undefined ? "—" : JSON.stringify(v);
+const recorte = (t, n = 150) => t.length > n ? t.slice(0, n) + "…" : t;
+
+function igual(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  return ka.length === kb.length && ka.every(k => igual(a[k], b[k]));
+}
+
+// ─── Servidor ───────────────────────────────────────────────────────────────
+const parametros = new URLSearchParams(location.search);
+const SERVIDORES = [
+  {nombre: "Local", url: "http://localhost:8000"},
+  {nombre: "VM del demo", url: "https://34-176-44-192.sslip.io"},
+];
+if (location.protocol.startsWith("http") && !SERVIDORES.some(s => s.url === location.origin)) {
+  SERVIDORES.unshift({nombre: "Este servidor", url: location.origin});
+}
+const pedido = (parametros.get("servidor") || "").replace(/\/+$/, "");
+if (pedido && !SERVIDORES.some(s => s.url === pedido)) SERVIDORES.unshift({nombre: "Pedido por URL", url: pedido});
+let base = pedido || (SERVIDORES.some(s => s.url === location.origin) ? location.origin : SERVIDORES[0].url);
+const baseWS = () => base.replace(/^http/, "ws");
+
+let ajenas = [], ajenasAceptadas = parametros.get("ajenas") === "ok", ocupado = false;
+
+async function comprobarServidor() {
+  $("conexion").innerHTML = `<span class="luz"></span>comprobando…`;
+  ajenas = [];
+  try {
+    const api = await (await fetch(base + "/openapi.json")).json();
+    const sesiones = await (await fetch(base + "/sesiones")).json();
+    ajenas = sesiones.filter(s => !s.edge_id.startsWith("casos-"));
+    const tieneBanco = "/casos" in api.paths;
+    $("conexion").innerHTML = `<span class="luz ok"></span>${esc(api.info.title)} · ${Object.keys(api.paths).length} rutas`
+      + (tieneBanco ? "" : " · <b>sin /casos: versión anterior al banco</b>");
+  } catch (e) {
+    $("conexion").innerHTML = `<span class="luz err"></span>sin respuesta de ${esc(base)}`;
+  }
+  pintarAjenas();
+}
+
+function pintarAjenas() {
+  const caja = $("aviso-ajenas");
+  caja.classList.toggle("visible", ajenas.length > 0);
+  if (!ajenas.length) { caja.innerHTML = ""; actualizarBotones(); return; }
+  const lista = ajenas.map(s => `<code>${esc(s.edge_id)}</code> → <code>${esc(s.ot_id)}</code> (${esc(s.operario)})`).join(", ");
+  caja.innerHTML = `<b>Este servidor tiene ${ajenas.length === 1 ? "una sesión que no es" : ajenas.length + " sesiones que no son"} del banco:</b> ${lista}. `
+    + `Los sensores son una tabla global (PRD §9, «Sensores globales»): mientras corre un caso que abre la guarda con energía viva, esa OT puede mostrar un aviso que no es suyo, y si su edge manda una lectura en ese instante, la alerta le queda escrita en la bitácora. El banco devuelve los sensores a como estaban al terminar cada caso.`
+    + `<label><input type="checkbox" id="acepto" ${ajenasAceptadas ? "checked" : ""}> Lo sé, correr igual contra este servidor</label>`;
+  $("acepto").onchange = e => { ajenasAceptadas = e.target.checked; actualizarBotones(); };
+  actualizarBotones();
+}
+
+function actualizarBotones() {
+  const bloqueado = ocupado || (ajenas.length > 0 && !ajenasAceptadas);
+  document.querySelectorAll("button[data-correr], #todos").forEach(b => { b.disabled = bloqueado; });
+  $("servidor").disabled = ocupado;
+}
+
+// ─── Una corrida: sus ids, su traza y sus comprobaciones ────────────────────
+class Corrida {
+  constructor(caso, caja) {
+    const sufijo = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 4);
+    this.caso = caso;
+    this.id = sufijo;
+    this.ot = `casos-${caso.id.toLowerCase()}-${sufijo}`;
+    this.ot2 = `${this.ot}-b`;
+    this.edge = `casos-edge-${caso.id.toLowerCase()}-${sufijo}`;
+    this.inicio = performance.now();
+    this.seq = 0;
+    this.checks = [];
+    this.streams = [];
+    this.enSesion = false;
+    this.sensoresAntes = null;
+    this._fase = null;
+    this._faseStream = null;
+    caja.innerHTML = `
+      <p class="ids">Corrida <code>${sufijo}</code> contra <code>${esc(base)}</code> · OT <code>${this.ot}</code> · edge <code>${this.edge}</code></p>
+      <div data-fallo></div>
+      <table class="checks"><thead><tr><th>Qué se comprueba</th><th>Esperado</th><th>Obtenido</th><th></th></tr></thead><tbody data-checks></tbody></table>
+      <div class="traza">
+        <div><h4>Llamadas a la API, en orden</h4><div class="lista" data-http></div></div>
+        <div><h4>Lo que llega por el stream de la OT, en vivo</h4><div class="lista" data-ws><div class="vacio">Todavía no se abre ningún stream.</div></div></div>
+      </div>
+      <div class="evidencia" data-evidencia></div>`;
+    this.caja = caja;
+    this.elChecks = caja.querySelector("[data-checks]");
+    this.elHttp = caja.querySelector("[data-http]");
+    this.elWs = caja.querySelector("[data-ws]");
+  }
+
+  t() { return "+" + ((performance.now() - this.inicio) / 1000).toFixed(2) + "s"; }
+
+  fase(nombre) { this._fase = nombre; }
+
+  _titulo(el, clave) {
+    if (this[clave] === this._fase) return;
+    this[clave] = this._fase;
+    const d = document.createElement("div");
+    d.className = "fase";
+    d.textContent = this._fase;
+    el.append(d);
+  }
+
+  _linea(el, resumenHtml, cuerpoHtml) {
+    const d = document.createElement("details");
+    d.innerHTML = `<summary>${resumenHtml}</summary>${cuerpoHtml}`;
+    el.append(d);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  nota(html) {
+    this._titulo(this.elHttp, "_faseHttp");
+    const d = document.createElement("div");
+    d.className = "nota-traza";
+    d.innerHTML = html;
+    this.elHttp.append(d);
+  }
+
+  async http(metodo, ruta, cuerpo, opciones = {}) {
+    const cabeceras = {}, peticion = {method: metodo, headers: cabeceras};
+    let enviado = "";
+    if (cuerpo instanceof Blob) {
+      cabeceras["content-type"] = cuerpo.type;
+      peticion.body = cuerpo;
+      enviado = opciones.etiqueta || `binario, ${cuerpo.size} bytes`;
+    } else if (cuerpo !== undefined) {
+      cabeceras["content-type"] = "application/json";
+      peticion.body = JSON.stringify(cuerpo);
+      enviado = JSON.stringify(cuerpo, null, 1);
+    }
+    let r;
+    try {
+      r = await fetch(base + ruta, peticion);
+    } catch (e) {
+      this._titulo(this.elHttp, "_faseHttp");
+      this._linea(this.elHttp, `<span class="t">${this.t()}</span><span class="m ${metodo.toLowerCase()}">${metodo}</span><span class="st s0">sin respuesta</span><span class="ruta">${esc(ruta)}</span>`, `<pre>${esc(e.message)}</pre>`);
+      throw new Error(`${metodo} ${ruta} no tuvo respuesta de ${base}: ${e.message}`);
+    }
+    const tipo = r.headers.get("content-type") || "";
+    let recibido, texto;
+    if (opciones.binario) {
+      recibido = new Uint8Array(await r.arrayBuffer());
+      texto = `binario, ${recibido.length} bytes (${tipo})`;
+    } else {
+      texto = await r.text();
+      try { recibido = texto ? JSON.parse(texto) : null; } catch { recibido = texto; }
+      if (typeof recibido !== "string") texto = JSON.stringify(recibido, null, 1);
+    }
+    this._titulo(this.elHttp, "_faseHttp");
+    this._linea(this.elHttp,
+      `<span class="t">${this.t()}</span><span class="m ${metodo.toLowerCase()}">${metodo}</span><span class="st s${String(r.status)[0]}">${r.status}</span><span class="ruta">${esc(ruta)}</span><span class="res">${esc(recorte(opciones.binario ? texto : typeof recibido === "string" ? recibido.split("\n")[0] : JSON.stringify(recibido) ?? ""))}</span>`,
+      `<pre>${enviado ? `<b>request</b>\n${esc(enviado)}\n\n` : ""}<b>response ${r.status}</b>\n${esc(recorte(texto, 6000))}</pre>`);
+    return {status: r.status, cuerpo: recibido, tipo};
+  }
+
+  exigir(r, que, ...estados) {
+    if (!estados.includes(r.status)) throw new Error(`No se pudo preparar el caso: ${que} devolvió ${r.status} (${recorte(json(r.cuerpo), 200)}); se esperaba ${estados.join(" o ")}.`);
+    return r;
+  }
+
+  lecturas(pares) {
+    return this.http("POST", `/edge/${this.edge}/lecturas`,
+      pares.map(([sensor_id, valor]) => ({sensor_id, valor: String(valor), seq: ++this.seq})));
+  }
+
+  stream(ot, {desde, nombre} = {}) {
+    const ruta = `/ot/${ot}/stream` + (desde != null ? `?desde=${desde}` : "");
+    const s = {ot, nombre: nombre || "", mensajes: [], cerrado: null, _esperas: [], _porElBanco: false};
+    if (!this.streams.length) this.elWs.innerHTML = "";
+    this.streams.push(s);
+    const anotar = (clase, resumen, cuerpo) => {
+      if (this._faseStream !== this._fase) {
+        this._faseStream = this._fase;
+        const d = document.createElement("div");
+        d.className = "fase"; d.textContent = this._fase;
+        this.elWs.append(d);
+      }
+      this._linea(this.elWs,
+        `<span class="t">${this.t()}</span>${s.nombre ? `<span class="m ws">${esc(s.nombre)}</span>` : ""}<span class="tipo ${clase}">${esc(clase === "conexion" ? "ws" : clase)}</span><span class="res">${esc(resumen)}</span>`,
+        cuerpo ? `<pre>${esc(recorte(JSON.stringify(cuerpo, null, 1), 6000))}</pre>` : "");
+    };
+    const revisar = () => { s._esperas = s._esperas.filter(e => !e()); };
+    const ws = new WebSocket(baseWS() + ruta);
+    anotar("conexion", `conectando a ${ruta}`);
+    ws.onmessage = e => {
+      const m = JSON.parse(e.data);
+      s.mensajes.push(m);
+      anotar(m.tipo, resumenDeMensaje(m), m);
+      revisar();
+    };
+    ws.onclose = e => {
+      s.cerrado = {code: e.code, reason: e.reason};
+      anotar("conexion", s._porElBanco ? "cerrado por el banco" : `cerrado por el servidor (${e.code}${e.reason ? ": " + e.reason : ""})`);
+      revisar();
+    };
+    s.esperar = (condicion, ms = 4000) => new Promise(listo => {
+      const cumple = typeof condicion === "number" ? () => s.mensajes.length >= condicion : () => condicion(s.mensajes, s);
+      if (cumple()) return listo(true);
+      const reloj = setTimeout(() => { s._esperas = s._esperas.filter(e => e !== intento); listo(false); }, ms);
+      const intento = () => { if (!cumple()) return false; clearTimeout(reloj); listo(true); return true; };
+      s._esperas.push(intento);
+    });
+    s.cerrar = async () => {
+      if (s.cerrado) return;
+      s._porElBanco = true;
+      ws.close();
+      await s.esperar((_, x) => x.cerrado !== null, 1500);
+    };
+    return s;
+  }
+
+  comprobar(que, esperado, obtenido, pasa = igual(esperado, obtenido)) {
+    this.checks.push(pasa);
+    const tr = document.createElement("tr");
+    tr.className = pasa ? "si" : "no";
+    tr.innerHTML = `<td>${esc(que)}</td><td class="v">${esc(json(esperado))}</td><td class="v">${esc(json(obtenido))}</td><td class="s">${pasa ? "✓" : "✗"}</td>`;
+    this.elChecks.append(tr);
+    return pasa;
+  }
+
+  contiene(que, fragmento, texto) {
+    return this.comprobar(que, `contiene «${fragmento}»`, texto, typeof texto === "string" && texto.includes(fragmento));
+  }
+
+  observar(que, valor, porque) {
+    const tr = document.createElement("tr");
+    tr.className = "obs";
+    tr.innerHTML = `<td>${esc(que)}<small>${porque}</small></td><td class="v">no es parte del criterio</td><td class="v">${esc(json(valor))}</td><td class="s">i</td>`;
+    this.elChecks.append(tr);
+  }
+
+  fallo(texto) {
+    this.caja.querySelector("[data-fallo]").innerHTML = `<p class="fallo-general">${esc(texto)}</p>`;
+  }
+}
+
+function resumenDeMensaje(m) {
+  switch (m.tipo) {
+    case "snapshot": return `paso actual ${m.estado.paso_actual ?? "ninguno"} · ${m.calificacion.nivel} · bitácora de ${m.bitacora.length}`;
+    case "lectura": return `${m.sensor_id} = ${m.valor}`;
+    case "evento": return `${m.evento.tipo}${m.evento.paso_id ? " " + m.evento.paso_id : ""}${m.evento.calificacion ? " [" + m.evento.calificacion.nivel + "]" : ""} · ${m.evento.detalle}`;
+    case "calificacion_ot": return `${m.calificacion.nivel} · ${m.calificacion.avisos.length} aviso(s)`;
+    case "sesion": return `${m.sesion.edge_id} ← ${m.sesion.operario}`;
+    default: return JSON.stringify(m);
+  }
+}
+
+// ─── Preparación y limpieza comunes ─────────────────────────────────────────
+// Los sensores son una tabla global: antes de abrir la sesión se dejan en un estado seguro
+// con un edge sin sesión (eso no toca ninguna bitácora) y al final vuelven a como estaban.
+async function preparar(c, {sesion = true, sensores = true, ot2 = false} = {}) {
+  c.fase("dado");
+  const demo = c.exigir(await c.http("POST", "/pauta/demo"), "cargar la pauta del demo", 200);
+  c.version = demo.cuerpo.version;
+  if (sensores) {
+    c.sensoresAntes = c.exigir(await c.http("GET", "/sensores"), "leer los sensores", 200).cuerpo;
+    c.exigir(await c.lecturas(SEGURO), "dejar los sensores en estado seguro", 200);
+  }
+  const abrir = ot => `/ot/${ot}/abrir?actor=supervisor:casos&version=${c.version}`;
+  c.exigir(await c.http("POST", abrir(c.ot)), "abrir la OT", 200);
+  if (ot2) c.exigir(await c.http("POST", abrir(c.ot2)), "abrir la segunda OT", 200);
+  if (sesion) {
+    c.exigir(await c.http("POST", `/ot/${c.ot}/sesion`, {edge_id: c.edge, operario: "operario:casos"}), "abrir la sesión", 200);
+    c.enSesion = true;
+  }
+}
+
+async function limpiar(c) {
+  c.fase("limpieza");
+  try {
+    if (c.enSesion) {
+      await c.lecturas(SEGURO.slice(0, 2));
+      await c.http("DELETE", `/edge/${c.edge}/sesion`);
+    }
+    if (c.sensoresAntes) {
+      await c.lecturas(SEGURO.map(([id, valor]) => [id, c.sensoresAntes[id] ?? valor]));
+    }
+  } catch (e) {
+    c.nota(`La limpieza no terminó: ${esc(e.message)}`);
+  }
+  await pausa(150);
+  await Promise.all(c.streams.map(s => s.cerrar()));
+}
+
+function jpegDePrueba(c, n) {
+  const lienzo = document.createElement("canvas");
+  lienzo.width = 480; lienzo.height = 270;
+  const g = lienzo.getContext("2d");
+  g.fillStyle = "#141c26"; g.fillRect(0, 0, 480, 270);
+  g.fillStyle = "#2f5f9e"; g.fillRect(0, 0, 480, 54);
+  g.fillStyle = "#fff"; g.font = "700 24px system-ui"; g.fillText("Factum · cuadro de prueba", 18, 36);
+  g.font = "20px ui-monospace, Menlo, monospace"; g.fillStyle = "#dfe7f1";
+  g.fillText(`corrida ${c.id}`, 18, 110);
+  g.fillText(`edge ${c.edge}`, 18, 142);
+  g.fillText(new Date().toISOString(), 18, 174);
+  g.font = "700 64px system-ui"; g.fillStyle = "#8fe0b4"; g.fillText(`n.º ${n}`, 18, 248);
+  return new Promise(listo => lienzo.toBlob(listo, "image/jpeg", 0.85));
+}
+
+// ─── Los casos ──────────────────────────────────────────────────────────────
+const CASOS = [
+  {
+    id: "CA1", servicio: "servicios", objetivo: "O1",
+    titulo: "Sin sesión, una lectura no toca ninguna bitácora",
+    dado: "un edge sin sesión",
+    cuando: "manda guarda abierta con energía viva",
+    entonces: "ninguna OT recibe la alerta",
+    porque: `Antes la alerta se escribía en todas las OT de la base. Ahora, sin sesión, la lectura solo actualiza el sensor (${ADR(7)}, decisión 1).`,
+    test: "tests/test_servicios.py · SinSesion",
+    async correr(c) {
+      await preparar(c, {sesion: false});
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      const sesion = await c.http("GET", `/edge/${c.edge}/sesion`);
+      c.fase("cuando");
+      const r = await c.lecturas([["guarda", "abierta"], ["energia", "viva"]]);
+      c.fase("entonces");
+      const alertas = await c.http("GET", `/ot/${c.ot}/alertas`);
+      const evs = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const sens = await c.http("GET", "/sensores");
+      await pausa(300);
+      c.comprobar("Dado: el edge no tiene sesión", 404, sesion.status);
+      c.comprobar("Las lecturas no se atribuyen a ninguna OT", [null, null], r.cuerpo.map(x => x.ot));
+      c.comprobar("No nace ningún evento", 0, r.cuerpo.flatMap(x => x.eventos).length);
+      c.comprobar("La OT abierta no tiene alertas", [], alertas.cuerpo);
+      c.comprobar("Su bitácora sigue solo con la apertura", ["ot_abierta"], tipos(evs.cuerpo));
+      c.comprobar("Por su stream no llega nada después del snapshot", ["snapshot"], tipos(s.mensajes));
+      c.comprobar("El sensor sí se actualizó", {guarda: "abierta", energia: "viva"}, {guarda: sens.cuerpo.guarda, energia: sens.cuerpo.energia});
+    },
+  },
+  {
+    id: "CA2", servicio: "servicios", objetivo: "O1",
+    titulo: "La alerta entra a la OT de la sesión y a ninguna otra",
+    dado: "el edge en sesión con la OT 1 y otra OT abierta",
+    cuando: "se da la condición de seguridad",
+    entonces: "solo la OT 1 recibe la alerta",
+    porque: `Guarda abierta con energía viva es la única regla de seguridad de hoy, capa 1 (${LOGICA}). El aislamiento de energía está entre los peligros de alta consecuencia que nombra ICMM, y la ejecución inefectiva del control fue la falla más común en los incidentes fatales de 2025: 19 de 26 (${REF(40)}).`,
+    test: "tests/test_servicios.py · Atribucion",
+    async correr(c) {
+      await preparar(c, {ot2: true});
+      const s1 = c.stream(c.ot, {nombre: "OT 1"}), s2 = c.stream(c.ot2, {nombre: "OT 2"});
+      await Promise.all([s1.esperar(1), s2.esperar(1)]);
+      c.fase("cuando");
+      const r = await c.lecturas([["guarda", "abierta"], ["energia", "viva"]]);
+      await s1.esperar(ms => ms.some(m => m.tipo === "evento"));
+      c.fase("entonces");
+      const a1 = await c.http("GET", `/ot/${c.ot}/alertas`);
+      const a2 = await c.http("GET", `/ot/${c.ot2}/alertas`);
+      const e2 = await c.http("GET", `/ot/${c.ot2}/eventos`);
+      const cal2 = await c.http("GET", `/ot/${c.ot2}/calificacion`);
+      await pausa(300);
+      c.comprobar("La lectura se atribuye a la OT de la sesión", c.ot, r.cuerpo[1].ot);
+      c.comprobar("Nace una alerta de capa 1", [["alerta", 1]], r.cuerpo[1].eventos.map(e => [e.tipo, e.capa]));
+      c.comprobar("La OT 1 tiene esa alerta activa", 1, a1.cuerpo.length);
+      c.comprobar("La OT 2 no tiene alertas", [], a2.cuerpo);
+      c.comprobar("La bitácora de la OT 2 sigue solo con la apertura", ["ot_abierta"], tipos(e2.cuerpo));
+      c.comprobar("Por el stream de la OT 1 llega la alerta", ["alerta"], s1.mensajes.filter(m => m.tipo === "evento").map(m => m.evento.tipo));
+      c.comprobar("Por el stream de la OT 2 no llega nada", ["snapshot"], tipos(s2.mensajes));
+      c.observar("Calificación de la OT 2 mientras dura la condición", cal2.cuerpo.nivel,
+        "La alerta no entra a su bitácora, pero la calificación se calcula con los sensores de ahora, que son globales (PRD §9, «Sensores globales»).");
+    },
+  },
+  {
+    id: "CA3", servicio: "servicios", objetivo: "O1",
+    titulo: "El candado cerrado verifica el paso sin que el operario hable",
+    dado: "el paso de bloqueo en curso",
+    cuando: "llega el candado cerrado",
+    entonces: "el paso queda verificado sin que el operario hable",
+    porque: `Un paso de sensor lo cierra la capa 1 con la lectura, y nunca se cierra hablando (${LOGICA}, ${ADR(4)}). El antecedente de verificar el bloqueo con candados con sensor, sin cámara, es una tesis de Cal Poly (${REF(23)}; solo se leyó el resumen).`,
+    test: "tests/test_servicios.py · ElSensorCierraElPaso",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.fase("cuando");
+      const r = await c.lecturas([["reed_bloqueo", "cerrado"]]);
+      await s.esperar(4);
+      c.fase("entonces");
+      const estado = await c.http("GET", `/ot/${c.ot}`);
+      const evs = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const nacidos = r.cuerpo[0].eventos;
+      c.comprobar("Nace el veredicto del paso de bloqueo, decidido por la capa 1",
+        [{tipo: "veredicto", paso_id: "p1", estado: "verificado", capa: 1}],
+        nacidos.map(e => ({tipo: e.tipo, paso_id: e.paso_id, estado: e.estado, capa: e.capa})));
+      c.comprobar("La evidencia es la lectura del sensor",
+        {tipo: "sensor", id: "reed_bloqueo", valor: "cerrado", espera: "cerrado"}, nacidos[0]?.evidencia);
+      c.comprobar("La pauta avanza al paso siguiente", "p2", estado.cuerpo.paso_actual);
+      c.comprobar("El operario no declaró nada", 0, deTipo(evs.cuerpo, "declaracion").length);
+    },
+  },
+  {
+    id: "CA4", servicio: "servicios", objetivo: "O1",
+    titulo: "La lectura de otro paso no adelanta la pauta",
+    dado: "el paso de bloqueo en curso",
+    cuando: "llega una lectura de la guarda",
+    entonces: "la pauta no avanza",
+    porque: `El orden lo impone la aplicación, que evalúa solo el paso actual y solo con su propio sensor (${ADR(2)}). Es donde un VLM general falla: detectó 3 de 12 cambios de orden (${REF(9)}).`,
+    test: "tests/test_servicios.py · ElSensorCierraElPaso",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.fase("cuando");
+      const r = await c.lecturas([["guarda", "abierta"]]);
+      await s.esperar(3);
+      c.fase("entonces");
+      const estado = await c.http("GET", `/ot/${c.ot}`);
+      c.comprobar("No nace ningún veredicto", [], tipos(r.cuerpo[0].eventos));
+      c.comprobar("La pauta sigue en el paso de bloqueo", "p1", estado.cuerpo.paso_actual);
+      c.comprobar("Ningún paso quedó verificado", [], estado.cuerpo.verificados);
+    },
+  },
+  {
+    id: "CA5", servicio: "servicios", objetivo: "O1",
+    titulo: "Mientras dura la condición, la alerta entra una sola vez",
+    dado: "una condición de seguridad activa",
+    cuando: "siguen llegando lecturas",
+    entonces: "la alerta entra una sola vez, y otra vez solo si la condición vuelve",
+    porque: `La alerta entra cuando la condición empieza, no en cada lectura mientras dura (${ADR(7)}, decisión 2). Sustento en la literatura: <code>Brecha</code>, la búsqueda sobre fatiga de alarmas está pendiente en SEGUIMIENTO.`,
+    test: "tests/test_servicios.py · AlertaDeSeguridad",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.fase("cuando");
+      await c.lecturas([["energia", "viva"], ["guarda", "abierta"], ["guarda", "abierta"], ["guarda", "abierta"]]);
+      const evs1 = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const cal1 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      await c.lecturas([["guarda", "cerrada"]]);
+      const cal2 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      await c.lecturas([["guarda", "abierta"]]);
+      c.fase("entonces");
+      const evs2 = await c.http("GET", `/ot/${c.ot}/eventos`);
+      c.comprobar("Con tres lecturas en condición, la alerta entra una vez", 1, deTipo(evs1.cuerpo, "alerta").length);
+      c.comprobar("Mientras dura, la OT está en error", "error", cal1.cuerpo.nivel);
+      c.comprobar("Al cerrarse la guarda, la OT vuelve a ok", "ok", cal2.cuerpo.nivel);
+      c.comprobar("Cuando la condición vuelve, entra otra alerta", 2, deTipo(evs2.cuerpo, "alerta").length);
+    },
+  },
+  {
+    id: "CA6", servicio: "bus", objetivo: "O2",
+    titulo: "La UI recibe lectura, evento y calificación, en ese orden",
+    dado: "una UI conectada al stream",
+    cuando: "el edge manda una lectura que cierra un paso",
+    entonces: "recibe lectura, evento y calificación, en ese orden",
+    porque: `Un WebSocket por OT: primero el snapshot y después cada lectura, evento y calificación, sin que la UI pregunte (${ADR(7)}, decisión 3). El reparto es en proceso, sin broker, porque hay una aplicación y una base (${ADR(3)}).`,
+    test: "tests/test_stream.py · StreamDeLaOT",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.fase("cuando");
+      await c.lecturas([["reed_bloqueo", "cerrado"]]);
+      await s.esperar(4);
+      await pausa(250);
+      c.fase("entonces");
+      const [snap, , evento, calif] = s.mensajes;
+      c.comprobar("Al conectar llega el snapshot, con el paso en curso", {tipo: "snapshot", paso_actual: "p1"},
+        {tipo: snap?.tipo, paso_actual: snap?.estado?.paso_actual});
+      c.comprobar("Después: lectura, evento y calificación, en ese orden", ["lectura", "evento", "calificacion_ot"], tipos(s.mensajes.slice(1)));
+      c.comprobar("El evento es el veredicto del paso, con su calificación", {tipo: "veredicto", paso_id: "p1", nivel: "ok"},
+        {tipo: evento?.evento?.tipo, paso_id: evento?.evento?.paso_id, nivel: evento?.evento?.calificacion?.nivel});
+      c.comprobar("La calificación de la OT llega con sus avisos", {nivel: "ok", avisos: []},
+        {nivel: calif?.calificacion?.nivel, avisos: calif?.calificacion?.avisos});
+    },
+  },
+  {
+    id: "CA7", servicio: "bus", objetivo: "O2",
+    titulo: "Al reconectar llega solo la bitácora que faltó",
+    dado: "una UI que se desconectó",
+    cuando: "vuelve con el último id que vio",
+    entonces: "recibe solo la bitácora que le faltó",
+    porque: `Para reconectar sin perder bitácora, el cliente vuelve con <code>?desde=</code> el último id de evento (${ADR(7)}, decisión 3). Si un cliente no da abasto se pierden lecturas en vivo, nunca bitácora (<code>app/bus.py</code>).`,
+    test: "tests/test_servicios.py · LoQueVeLaUI",
+    async correr(c) {
+      await preparar(c);
+      const primera = c.stream(c.ot, {nombre: "1.ª"});
+      await primera.esperar(1);
+      const ultimo = Math.max(0, ...(primera.mensajes[0]?.bitacora || []).map(e => e.id));
+      await primera.cerrar();
+      await c.lecturas([["reed_bloqueo", "cerrado"]]);
+      c.fase("cuando");
+      c.nota(`La UI vuelve con <code>desde=${ultimo}</code>, el último id que vio.`);
+      const segunda = c.stream(c.ot, {desde: ultimo, nombre: "2.ª"});
+      await segunda.esperar(1);
+      c.fase("entonces");
+      const snap = segunda.mensajes[0];
+      c.comprobar("Mientras estuvo desconectada no recibió nada", ["snapshot"], tipos(primera.mensajes));
+      c.comprobar("La reconexión trae solo lo que faltó", [{tipo: "veredicto", paso_id: "p1"}],
+        (snap?.bitacora || []).map(e => ({tipo: e.tipo, paso_id: e.paso_id})));
+      c.comprobar("Todo lo que trae es posterior al último id visto", true, (snap?.bitacora || []).every(e => e.id > ultimo));
+      c.comprobar("El estado viene completo igual", "p2", snap?.estado?.paso_actual);
+    },
+  },
+  {
+    id: "CA8", servicio: "catalogo", objetivo: "O4",
+    titulo: "Con una pauta sin aprobar no se abre una OT",
+    dado: "una pauta sin aprobar",
+    cuando: "alguien abre una OT con ella",
+    entonces: "recibe 409",
+    porque: `Una persona aprueba la pauta antes de que se use, y la OT solo nace de una pauta aprobada (${ADR(3)}, ${ADR(6)}).`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      c.fase("dado");
+      const demo = c.exigir(await c.http("POST", "/pauta/demo"), "cargar la pauta del demo", 200);
+      let pauta = await c.http("GET", `/pautas/${PAUTA_SIN_APROBAR}`);
+      if (pauta.status === 404 || pauta.cuerpo.aprobada) {
+        const molde = c.exigir(await c.http("GET", `/pautas/${PAUTA_DEMO}?version=${demo.cuerpo.version}`), "leer la pauta del demo", 200).cuerpo;
+        const version = pauta.status === 404 ? 1 : pauta.cuerpo.version + 1;
+        c.exigir(await c.http("POST", "/pautas", {...molde, id: PAUTA_SIN_APROBAR, nombre: "Pauta del banco de pruebas, sin aprobar", version}), "crear la pauta sin aprobar", 201);
+        pauta = await c.http("GET", `/pautas/${PAUTA_SIN_APROBAR}`);
+      } else {
+        c.nota(`La pauta <code>${PAUTA_SIN_APROBAR}</code> ya existe en este servidor y sigue sin aprobar: se reutiliza.`);
+      }
+      c.fase("cuando");
+      const r = await c.http("POST", `/ot/${c.ot}/abrir?pauta_id=${PAUTA_SIN_APROBAR}&actor=supervisor:casos`);
+      c.fase("entonces");
+      const ot = await c.http("GET", `/ot/${c.ot}`);
+      const s = c.stream(c.ot);
+      await s.esperar((_, x) => x.cerrado !== null, 3000);
+      c.comprobar("Dado: la última versión de la pauta está sin aprobar", false, pauta.cuerpo?.aprobada);
+      c.comprobar("Abrir la OT devuelve 409", 409, r.status);
+      c.contiene("El cuerpo dice qué regla chocó", "no está aprobada", r.cuerpo?.regla);
+      c.comprobar("La OT no nació", 404, ot.status);
+      c.comprobar("Su stream se cierra con 4404", 4404, s.cerrado?.code);
+    },
+  },
+  {
+    id: "CA9", servicio: "catalogo", objetivo: "O4",
+    titulo: "Una versión de pauta no se escribe encima de otra",
+    dado: "una versión de pauta que existe",
+    cuando: "alguien la vuelve a crear",
+    entonces: "recibe 409",
+    porque: `Cambiar una pauta es crear la versión siguiente, y cada OT guarda qué versión ejecutó: sin eso una propuesta de mejora no se puede evaluar contra lo que se corrió (${LOGICA}, ${ADR(3)}).`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      c.fase("dado");
+      const demo = c.exigir(await c.http("POST", "/pauta/demo"), "cargar la pauta del demo", 200);
+      const existente = c.exigir(await c.http("GET", `/pautas/${PAUTA_DEMO}?version=${demo.cuerpo.version}`), "leer la pauta", 200);
+      const antes = await c.http("GET", `/pautas/${PAUTA_DEMO}/versiones`);
+      c.fase("cuando");
+      const r = await c.http("POST", "/pautas", existente.cuerpo);
+      c.fase("entonces");
+      const despues = await c.http("GET", `/pautas/${PAUTA_DEMO}/versiones`);
+      c.comprobar("Volver a crearla devuelve 409", 409, r.status);
+      c.contiene("El cuerpo dice qué regla chocó", "versión", r.cuerpo?.regla);
+      c.comprobar("Las versiones y sus aprobaciones quedan como estaban", antes.cuerpo, despues.cuerpo);
+    },
+  },
+  {
+    id: "CA10", servicio: "catalogo", objetivo: "O4",
+    titulo: "La bitácora no se edita ni se borra",
+    dado: "cualquier evento",
+    cuando: "alguien intenta editarlo o borrarlo",
+    entonces: "recibe 405",
+    porque: `El evento es la bitácora: la tabla solo admite agregar filas y el estado de una OT se calcula leyendo sus eventos (${LOGICA}, ${ADR(3)}). El registro es lo que se audita; con qué evidencia y por cuánto tiempo sigue como <code>Brecha</code>.`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      await preparar(c, {sesion: false, sensores: false});
+      const s = c.stream(c.ot);
+      const antes = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const id = antes.cuerpo[0].id;
+      c.fase("cuando");
+      const intentos = [
+        await c.http("PUT", `/ot/${c.ot}/eventos`, {}),
+        await c.http("DELETE", `/ot/${c.ot}/eventos`),
+        await c.http("PUT", `/eventos/${id}`, {detalle: "editado"}),
+        await c.http("PATCH", `/eventos/${id}`, {detalle: "editado"}),
+        await c.http("DELETE", `/eventos/${id}`),
+      ];
+      c.fase("entonces");
+      const despues = await c.http("GET", `/ot/${c.ot}/eventos`);
+      await pausa(200);
+      c.comprobar("Editar o borrar devuelve 405 por las cinco vías", [405, 405, 405, 405, 405], intentos.map(r => r.status));
+      c.comprobar("La bitácora queda idéntica", antes.cuerpo, despues.cuerpo);
+      c.comprobar("Por el stream no sale ningún cambio", ["snapshot"], tipos(s.mensajes));
+    },
+  },
+  {
+    id: "CA11", servicio: "scoring", objetivo: "O5",
+    titulo: "El aviso sale cuando el sensor se corrige",
+    dado: "una alerta de guarda abierta con energía viva",
+    cuando: "la guarda se cierra o la energía se corta",
+    entonces: "entra alerta_resuelta y la UI deja de mostrar el aviso",
+    porque: `Una alerta no se borra: cuando su condición desaparece entra <code>alerta_resuelta</code> apuntándola, y el aviso deja de venir en <code>calificacion.avisos</code> (${LOGICA}, ${ADR(7)}, decisión 5). Solo la capa 1 llega a error.`,
+    test: "tests/test_servicios.py · ElWarningSeVaCuandoElSensorSeCorrige",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      const r0 = await c.lecturas([["energia", "viva"], ["guarda", "abierta"]]);
+      const alerta = r0.cuerpo[1].eventos.find(e => e.tipo === "alerta");
+      const cal0 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      c.fase("cuando");
+      const r1 = await c.lecturas([["guarda", "cerrada"]]);
+      const cal1 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      const activas = await c.http("GET", `/ot/${c.ot}/alertas`);
+      const r2 = await c.lecturas([["guarda", "abierta"]]);
+      const alerta2 = r2.cuerpo[0].eventos.find(e => e.tipo === "alerta");
+      const r3 = await c.lecturas([["energia", "cortada"]]);
+      await s.esperar(ms => ms.filter(m => m.tipo === "calificacion_ot").length >= 5);
+      c.fase("entonces");
+      const trasResolver = s.mensajes
+        .map((m, i) => m.tipo === "evento" && m.evento.tipo === "alerta_resuelta" ? s.mensajes.slice(i + 1).find(x => x.tipo === "calificacion_ot") : null)
+        .filter(Boolean).map(m => m.calificacion.avisos.length);
+      c.comprobar("Dado: la OT está en error con un aviso", {nivel: "error", avisos: 1}, {nivel: cal0.cuerpo.nivel, avisos: cal0.cuerpo.avisos.length});
+      c.comprobar("Al cerrar la guarda entra alerta_resuelta", ["alerta_resuelta"], tipos(r1.cuerpo[0].eventos));
+      c.comprobar("Apunta a la alerta que cierra", alerta?.id, r1.cuerpo[0].eventos[0]?.evidencia?.resuelve);
+      c.comprobar("La OT vuelve a ok y sin avisos", {nivel: "ok", avisos: []}, {nivel: cal1.cuerpo.nivel, avisos: cal1.cuerpo.avisos});
+      c.comprobar("No quedan alertas activas", [], activas.cuerpo);
+      c.comprobar("Cortar la energía también resuelve la alerta siguiente", alerta2?.id, r3.cuerpo[0].eventos[0]?.evidencia?.resuelve);
+      c.comprobar("Por el stream, la calificación que sigue a cada resolución llega sin avisos", [0, 0], trasResolver);
+    },
+  },
+  {
+    id: "CA12", servicio: "scoring", objetivo: "O5",
+    titulo: "La alerta de señal se resuelve cuando vuelve a lo normal",
+    dado: "un pico de vibración con alerta abierta",
+    cuando: "la señal vuelve a lo normal",
+    entonces: "la alerta de capa 2 se resuelve",
+    porque: `La capa 2 detecta anomalías en la señal, se muestra y no interrumpe: llega a lo más a warning (${ADR(4)}, ${ADR(7)}). El umbral de 3,5 desvíos es <code>Candidata a validar</code> y el algoritmo de la capa 2 sigue como <code>Brecha</code>.`,
+    test: "tests/test_servicios.py · AnomaliaDeSenal",
+    async correr(c) {
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.nota(`Usa el sensor <code>${SENSOR_DE_SENAL}</code>, propio del banco, para no mezclar su historia con la de un sensor real.`);
+      c.exigir(await c.lecturas(LINEA_BASE.map(v => [SENSOR_DE_SENAL, v])), "mandar la línea base", 200);
+      const pico = await c.lecturas([[SENSOR_DE_SENAL, 6.5]]);
+      const alerta = pico.cuerpo[0].eventos.find(e => e.tipo === "alerta");
+      const cal0 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      c.fase("cuando");
+      const vuelta = await c.lecturas([[SENSOR_DE_SENAL, 2.0]]);
+      await s.esperar(ms => ms.some(m => m.tipo === "evento" && m.evento.tipo === "alerta_resuelta"));
+      c.fase("entonces");
+      const cal1 = await c.http("GET", `/ot/${c.ot}/calificacion`);
+      await pausa(200);
+      c.comprobar("Dado: el pico abre una alerta de capa 2", [["alerta", 2]], pico.cuerpo[0].eventos.map(e => [e.tipo, e.capa]));
+      c.comprobar("Dado: la OT queda en warning, no en error", "warning", cal0.cuerpo.nivel);
+      c.comprobar("Al volver la señal entra alerta_resuelta de capa 2", [["alerta_resuelta", 2]], vuelta.cuerpo[0].eventos.map(e => [e.tipo, e.capa]));
+      c.comprobar("Apunta a la alerta del pico", alerta?.id, vuelta.cuerpo[0].eventos[0]?.evidencia?.resuelve);
+      c.comprobar("La OT vuelve a ok y sin avisos", {nivel: "ok", avisos: []}, {nivel: cal1.cuerpo.nivel, avisos: cal1.cuerpo.avisos});
+    },
+  },
+  {
+    id: "CA13", servicio: "video", objetivo: "O6",
+    titulo: "El paso de cámara se juzga con el último cuadro, y queda como evidencia",
+    dado: "la cámara del edge transmitiendo",
+    cuando: "el operario declara un paso de cámara",
+    entonces: "el juez recibe el último cuadro y ese cuadro queda como evidencia del veredicto",
+    porque: `Un paso de cámara lo cierra la capa 3 respondiendo la pregunta visual con el último cuadro del edge de la OT (${LOGICA}, ${ADR(7)}, decisión 6). Lo que decide la cámara se muestra y no interrumpe: un VLM general rechazó 5 de 12 ejecuciones correctas (${REF(9)}). El juez real es <code>Brecha</code>: hoy es un stub que recibe el cuadro y no lo mira.`,
+    test: "tests/test_servicios.py · ElJuezDeCamaraMiraElCuadroDelEdge",
+    opcion: {clave: "camara", etiqueta: "Cuadro", valores: [["jpeg", "JPEG de prueba"], ["camara", "Cámara real, por /camara"]]},
+    async correr(c, opciones) {
+      const conCamara = opciones.camara === "camara";
+      await preparar(c);
+      const s = c.stream(c.ot);
+      await s.esperar(1);
+      c.exigir(await c.lecturas([["reed_bloqueo", "cerrado"], ["guarda", "abierta"]]), "cerrar los dos pasos anteriores", 200);
+      const estado = await c.http("GET", `/ot/${c.ot}`);
+      let enviado = null, n = null;
+      if (conCamara) {
+        const enlace = `${base}/camara?edge=${encodeURIComponent(c.edge)}`;
+        c.nota(`Abre <a href="${enlace}" target="_blank" rel="noopener">${esc(enlace)}</a> en el celular o en otra pestaña y empieza a transmitir. Espero hasta 90 segundos.`);
+        for (let i = 0; i < 90 && n === null; i++) {
+          const v = await (await fetch(`${base}/edge/${c.edge}/video`)).json();
+          if (v.hay_video) n = v.cuadros; else await pausa(1000);
+        }
+        if (n === null) throw new Error("No se pudo preparar el caso: en 90 segundos no llegó ningún cuadro de la cámara.");
+        await c.http("GET", `/edge/${c.edge}/video`);
+      } else {
+        for (const i of [1, 2]) {
+          enviado = await jpegDePrueba(c, i);
+          const r = c.exigir(await c.http("POST", `/edge/${c.edge}/cuadro`, enviado, {etiqueta: `JPEG de prueba n.º ${i}, ${enviado.size} bytes`}), "mandar el cuadro", 200);
+          n = r.cuerpo.cuadro;
+        }
+      }
+      const actual = await c.http("GET", `/edge/${c.edge}/cuadro.jpg`, undefined, {binario: true});
+      c.fase("cuando");
+      const d = await c.http("POST", `/ot/${c.ot}/declarar`, {actor: "operario:casos", texto: "rodillo cambiado"});
+      await s.esperar(ms => ms.some(m => m.tipo === "evento" && m.evento.tipo === "veredicto" && m.evento.paso_id === "p3"));
+      c.fase("entonces");
+      const evs = await c.http("GET", `/ot/${c.ot}/eventos`);
+      const veredicto = deTipo(evs.cuerpo, "veredicto").filter(e => e.paso_id === "p3").pop();
+      const ruta = d.cuerpo?.evidencia?.cuadro;
+      c.comprobar("Dado: la pauta está en el paso de cámara", "p3", estado.cuerpo.paso_actual);
+      if (conCamara) {
+        const visto = Number((String(ruta).match(/-p3-(\d+)\.jpg$/) || [])[1]);
+        c.comprobar("El cuadro de la evidencia es de este edge y no anterior a la declaración", `${c.ot}-p3-N.jpg, con N ≥ ${n}`, ruta, visto >= n && String(ruta).includes(`${c.ot}-p3-`));
+      } else {
+        const bytes = new Uint8Array(await enviado.arrayBuffer());
+        c.comprobar("Dado: el último cuadro del edge es el último que se mandó", true, igual([...bytes], [...actual.cuerpo]));
+        c.comprobar("El cuadro de la evidencia es el último de este edge, el n.º 2", `termina en ${c.ot}-p3-${n}.jpg`, ruta, String(ruta).endsWith(`${c.ot}-p3-${n}.jpg`));
+      }
+      c.comprobar("El veredicto es del paso de cámara y lo decide la capa 3", {paso: "p3", capa: 3, tipo: "camara"},
+        {paso: d.cuerpo?.paso, capa: d.cuerpo?.capa, tipo: d.cuerpo?.evidencia?.tipo});
+      c.comprobar("La bitácora guarda esa misma evidencia", ruta, veredicto?.evidencia?.cuadro);
+      c.observar("Lo que decidió el juez con ese cuadro", `${d.cuerpo?.estado} · calificación ${d.cuerpo?.calificacion?.nivel} · confianza ${d.cuerpo?.evidencia?.confianza}`,
+        "Depende del juez de cámara del frente 3. El stub responde que sí con confianza baja, por eso la calificación es warning.");
+      const url = URL.createObjectURL(new Blob([actual.cuerpo], {type: "image/jpeg"}));
+      c.caja.querySelector("[data-evidencia]").innerHTML = `El último cuadro del edge al declarar (<code>GET /edge/${esc(c.edge)}/cuadro.jpg</code>):<img src="${url}" alt="Cuadro que el juez recibió">`;
+    },
+  },
+  {
+    id: "CA14", servicio: "guia", objetivo: "O7",
+    titulo: "La guía lista todas las rutas con la URL del servidor",
+    dado: "un agente nuevo",
+    cuando: "lee /agente",
+    entonces: "encuentra todas las rutas de la API con la URL del servidor",
+    porque: `El catálogo de endpoints se arma desde las rutas reales de la aplicación, así no se desfasa del código (${ADR(7)}, decisión 7). Los WebSocket no aparecen en <code>/openapi.json</code>, por eso se comprueban aparte.`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      c.fase("dado");
+      const api = c.exigir(await c.http("GET", "/openapi.json"), "leer el esquema", 200);
+      c.fase("cuando");
+      const guia = await c.http("GET", "/agente");
+      const llms = await c.http("GET", "/llms.txt");
+      c.fase("entonces");
+      const texto = typeof guia.cuerpo === "string" ? guia.cuerpo : "";
+      const rutas = [...Object.keys(api.cuerpo.paths).filter(p => !PAGINAS.includes(p) && p !== "/llms.txt"), ...WEBSOCKETS];
+      c.comprobar("Se sirve como Markdown", true, guia.tipo.includes("text/markdown"));
+      c.comprobar(`De las ${rutas.length} rutas de la API, ninguna falta en la guía`, [], rutas.filter(p => !texto.includes("`" + p + "`")));
+      c.contiene("Los ejemplos usan la URL de este servidor", `${base}/pauta/demo`, texto);
+      c.contiene("Los WebSocket también, con ws o wss según el servidor", `${baseWS()}/ot/`, texto);
+      c.comprobar("/llms.txt entrega la misma guía", true, llms.cuerpo === guia.cuerpo);
+    },
+  },
+];
+
+// ─── Pantalla ───────────────────────────────────────────────────────────────
+const resultados = new Map();
+
+function pintarCasos() {
+  $("casos").innerHTML = SERVICIOS.map(sv => `
+    <section class="servicio" id="servicio-${sv.id}">
+      <h2>${sv.titulo}<code>${sv.archivo}</code></h2>
+      <p>${sv.que}</p>
+      ${CASOS.filter(k => k.servicio === sv.id).map(k => `
+        <article class="caso" id="${k.id}">
+          <div class="cabeza">
+            <span class="id">${k.id}</span><span class="obj" title="Objetivo del PRD que este criterio prueba">objetivo ${k.objetivo.slice(1)}</span>
+            <h3>${k.titulo}</h3>
+            <span class="sello" data-sello>SIN CORRER</span>
+            <button class="secundario" data-correr="${k.id}">Correr</button>
+          </div>
+          <div class="dce">
+            <div><b>Dado</b>${k.dado}</div><div><b>Cuando</b>${k.cuando}</div><div><b>Entonces</b>${k.entonces}</div>
+          </div>
+          <p class="porque"><b>Por qué.</b> ${k.porque} <b>Test:</b> <code>${k.test}</code></p>
+          ${k.opcion ? `<p class="opcion"><label>${k.opcion.etiqueta}: <select data-opcion="${k.opcion.clave}">${k.opcion.valores.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select></label> «Correr todos» usa siempre el JPEG de prueba.</p>` : ""}
+          <div class="corrida" data-corrida hidden></div>
+        </article>`).join("")}
+    </section>`).join("");
+  $("marcas").innerHTML = CASOS.map(k => `<a class="marca" href="#${k.id}" data-marca="${k.id}">${k.id}</a>`).join("");
+  document.querySelectorAll("button[data-correr]").forEach(b => { b.onclick = () => correrUno(b.dataset.correr); });
+}
+
+function marcar(k, estado, texto) {
+  const tarjeta = $(k.id);
+  tarjeta.className = "caso " + estado;
+  const sello = tarjeta.querySelector("[data-sello]");
+  sello.className = "sello " + estado;
+  sello.textContent = texto;
+  document.querySelector(`[data-marca="${k.id}"]`).className = "marca " + estado;
+}
+
+async function correrCaso(k, opciones = {}) {
+  const tarjeta = $(k.id), caja = tarjeta.querySelector("[data-corrida]");
+  caja.hidden = false;
+  marcar(k, "corriendo", "CORRIENDO…");
+  const c = new Corrida(k, caja);
+  let error = null;
+  try {
+    await k.correr(c, opciones);
+  } catch (e) {
+    error = e;
+  }
+  await limpiar(c);
+  const pasa = !error && c.checks.length > 0 && c.checks.every(Boolean);
+  if (error) c.fallo(error.message);
+  const segundos = ((performance.now() - c.inicio) / 1000).toFixed(1).replace(".", ",");
+  marcar(k, pasa ? "pasa" : "falla", `${pasa ? "PASA" : "FALLA"} · ${c.checks.filter(Boolean).length}/${c.checks.length} · ${segundos} s`);
+  resultados.set(k.id, pasa);
+  return pasa;
+}
+
+function opcionesDe(k) {
+  const o = {};
+  $(k.id).querySelectorAll("select[data-opcion]").forEach(s => { o[s.dataset.opcion] = s.value; });
+  return o;
+}
+
+function pintarResumen(enCurso) {
+  const corridos = [...resultados.values()], pasan = corridos.filter(Boolean).length;
+  $("resumen").innerHTML = corridos.length
+    ? `${pasan} de ${corridos.length} pasan <small>${enCurso ? "· corriendo…" : corridos.length < CASOS.length ? `· ${CASOS.length - corridos.length} sin correr` : ""}</small>`
+    : `<small>${enCurso ? "Corriendo…" : "Sin correr."}</small>`;
+  document.body.dataset.estado = enCurso ? "corriendo" : "terminado";
+  document.body.dataset.pasan = pasan;
+  document.body.dataset.corridos = corridos.length;
+  document.body.dataset.fallan = [...resultados].filter(([, ok]) => !ok).map(([id]) => id).join(" ");
+  document.title = corridos.length ? `${pasan}/${corridos.length} pasan · Casos` : "Casos · banco de pruebas de los servicios";
+}
+
+async function conCandado(tarea) {
+  if (ocupado) return;
+  ocupado = true; actualizarBotones();
+  try { await tarea(); } finally { ocupado = false; actualizarBotones(); pintarResumen(false); }
+}
+
+const correrUno = id => conCandado(async () => {
+  const k = CASOS.find(x => x.id === id);
+  pintarResumen(true);
+  await correrCaso(k, opcionesDe(k));
+});
+
+const correrTodos = () => conCandado(async () => {
+  resultados.clear();
+  CASOS.forEach(k => marcar(k, "", "EN COLA"));
+  for (const k of CASOS) {
+    pintarResumen(true);
+    await correrCaso(k, {});
+  }
+});
+
+function elegirServidor(url) {
+  base = url;
+  resultados.clear();
+  pintarCasos();
+  pintarResumen(false);
+  $("resumen").innerHTML = "<small>Sin correr.</small>";
+  document.body.dataset.estado = "listo";
+  return comprobarServidor();
+}
+
+$("servidor").innerHTML = SERVIDORES.map(s => `<option value="${esc(s.url)}">${esc(s.nombre)} · ${esc(s.url)}</option>`).join("");
+$("servidor").value = base;
+$("servidor").onchange = e => elegirServidor(e.target.value);
+$("todos").onclick = correrTodos;
+
+elegirServidor(base).then(() => {
+  const pedir = parametros.get("correr");
+  if (!pedir) return;
+  if (pedir === "todos") return correrTodos();
+  if (CASOS.some(k => k.id === pedir.toUpperCase())) return correrUno(pedir.toUpperCase());
+});
+</script>
+</body>
+</html>

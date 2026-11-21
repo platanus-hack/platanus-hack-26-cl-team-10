@@ -40,6 +40,7 @@
 | Frente 3 · Verificación: capa 1 con sensores, capa 3 con cámara | — | pendiente | Solo la capa 1 interrumpe ([ADR-0004](../decisions/0004-verificacion-por-capas.md)). Stub en `app/verificacion.py`, rama `feat/verificacion` |
 | Frente 4 · Registro de eventos, relevo de turno y vista del supervisor | — | pendiente | El relevo es una lectura de los eventos, no un documento aparte. Stub en `app/cerebro.py`, rama `feat/cerebro-relevo` |
 | Servicios en vivo: sesión por edge, stream por OT, calificación por capa y CRUD con reglas de negocio | Francisco | en curso | [PRD](../projects/servicios-en-vivo/PRD.md) y [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md). Recorrido animado en [servicios.html](../architecture/servicios.html). Desplegado en `https://34-176-44-192.sslip.io`, guía para agentes en `/agente` |
+| Banco de pruebas `/casos`: cada criterio del PRD corrido contra un servidor vivo | Francisco | en curso | 2026-11-21. CA1 a CA14 pasan contra local (`scripts/correr_casos.py`); falta desplegarlo y correrlo contra la VM. Hallazgo: la calificación de toda OT usa los sensores globales ([PRD §9](../projects/servicios-en-vivo/PRD.md#9-riesgos-y-decisiones-abiertas)) |
 | Regla de seguridad del demo: guarda abierta con energía viva | — | pendiente | Es el momento del demo. Capa 1, independiente del paso en curso ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario)) |
 
 ## Decisiones abiertas
