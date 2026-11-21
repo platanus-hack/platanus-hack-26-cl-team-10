@@ -1,7 +1,7 @@
 {
   "id": "pauta-polin-estacion",
   "nombre": "Cambio de polín en la cinta · estación del demo",
-  "version": 2,
+  "version": 3,
   "equipo": "cinta a escala (ESP32: motor con botón, distancia y temperatura; cámara)",
   "pasos": [
     {
@@ -35,21 +35,20 @@
       "id": "e4",
       "orden": 4,
       "titulo": "Ubicar el polín rojo",
-      "instruccion": "Deja a la vista de la cámara el polín rojo, que es el que falló. En el demo los polines son latas: la cámara tiene que verlo antes de que lo saques.",
+      "instruccion": "Deja a la vista de la cámara el polín rojo, que es el que falló, y declara el paso. En el demo los polines son latas: la cámara tiene que verlo puesto antes de que lo saques.",
       "tipo_evidencia": "camara",
-      "capa_minima": 2,
-      "pregunta_visual": "¿Hay una lata roja en la cinta?",
-      "deteccion": { "clase": "red soda can", "presente": true }
+      "capa_minima": 3,
+      "pregunta_visual": "¿Hay una lata de bebida de cuerpo rojo puesta en la cinta, sin que nadie la sostenga en la mano? Una lata plateada con letras rojas no cuenta como roja."
     },
     {
       "id": "e5",
       "orden": 5,
-      "titulo": "Cambiar el polín rojo",
-      "instruccion": "Saca el polín rojo y pon el nuevo en su lugar. La cámara cierra el paso cuando deja de ver el rojo que antes vio.",
+      "titulo": "Reemplazar el polín rojo",
+      "instruccion": "Saca el polín rojo, pon un polín normal en el mismo lugar y declara el paso. La cámara compara con la foto de antes: tiene que haber un polín que no sea rojo donde estaba el rojo.",
       "tipo_evidencia": "camara",
-      "capa_minima": 2,
-      "pregunta_visual": "¿Ya no hay ninguna lata roja en la cinta?",
-      "deteccion": { "clase": "red soda can", "presente": false }
+      "capa_minima": 3,
+      "pregunta_visual": "En la foto de antes hay una lata roja puesta en la cinta. En la foto de ahora, ¿esa lata roja ya no está y en el mismo lugar hay puesta una lata que no es roja (por ejemplo plateada), sin que nadie la sostenga en la mano?",
+      "comparar_con": "e4"
     },
     {
       "id": "e6",
