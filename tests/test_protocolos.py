@@ -355,6 +355,62 @@ class LaSemillaDeLosCasos(Base):
         self.assertIn("no se copia su texto", p["texto"])
 
 
+
+class LasOtDeEjemplo(Base):
+    """datos/ots-semilla.json, ejecutadas contra los servicios: cada estado y cada aviso es el que da el sistema."""
+
+    def setUp(self):
+        super().setUp()
+        from datetime import UTC, datetime
+
+        from app import semilla
+        self.semilla = semilla
+        db.escribir_sensor(self.cx, "operario", "presente")
+        self.r = semilla.cargar(self.cx, datetime(2026, 11, 21, 18, 0, tzinfo=UTC))
+        self.ots = {o["ot"]: o for o in self.r["ots_creadas"]}
+        self.s = Servicios(self.cx)
+
+    def test_cada_protocolo_tiene_pautas_y_cada_pauta_tiene_ot(self):
+        for p in catalogo.listar_protocolos(self.cx):
+            self.assertTrue(p["pautas"], p["id"])
+        self.assertEqual({o["pauta"] for o in self.ots.values()}, set(self.r["pautas"]))
+
+    def test_hay_ot_en_cada_estado(self):
+        estados = {o["estado_general"] for o in self.ots.values()}
+        self.assertEqual(estados, {"completa", "en_ejecucion", "asignada", "sin_asignar"})
+        self.assertEqual(self.ots["ot-1007"]["operador"], "operario:1")
+        self.assertIsNone(self.ots["ot-1009"]["operador"])
+
+    def test_la_calificacion_de_cada_una_es_la_que_da_el_sistema(self):
+        nivel = {o: self.s.calificacion(o)["nivel"] for o in self.ots}
+        self.assertEqual(nivel["ot-1004"], "error")    # sacó el candado antes de tiempo
+        self.assertEqual(nivel["ot-1002"], "warning")  # el polín sigue caliente
+        self.assertEqual(nivel["ot-1006"], "warning")  # la cámara respondió con 62 %
+        self.assertEqual(nivel["ot-1001"], "ok")       # tuvo avisos, y se resolvieron
+
+    def test_las_completas_guardan_sus_avisos_resueltos(self):
+        alertas = [e.detalle for e in db.eventos(self.cx, "ot-1001") if e.tipo.value == "alerta"]
+        self.assertTrue(any(a.startswith("PERSONA JUNTO A LA MÁQUINA") for a in alertas), alertas)
+        self.assertEqual(self.ots["ot-1001"]["estado_general"], "completa")
+
+    def test_las_horas_van_hacia_atras_y_los_eventos_en_orden(self):
+        self.assertTrue(self.ots["ot-1005"]["abierta_en"].startswith("2026-11-12"))
+        ts = [e.ts for e in db.eventos(self.cx, "ot-1003")]
+        self.assertEqual(ts, sorted(ts))
+        self.assertNotEqual(db.ahora()[:10], "2026-11-12")
+
+    def test_no_deja_sensores_ni_sesiones_y_se_puede_repetir(self):
+        self.assertEqual(db.estado_sensores(self.cx), {"operario": "presente"})
+        self.assertEqual(self.s.sesiones(), [])
+        otra = self.semilla.cargar(self.cx)
+        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 15))
+
+    def test_la_camara_de_la_semilla_queda_dicha_en_la_evidencia(self):
+        ev = next(e for e in db.eventos(self.cx, "ot-1006") if e.tipo.value == "veredicto" and e.capa == 3)
+        self.assertIn("semilla", ev.evidencia)
+        self.assertIsNone(ev.evidencia["cuadro"])
+
+
 @unittest.skipUnless(TIENE_HTTPX, "necesita fastapi y httpx")
 class PorHTTP(unittest.TestCase):
     def setUp(self):
@@ -421,6 +477,13 @@ class PorHTTP(unittest.TestCase):
             self.assertEqual(self.c.post("/interno/protocolos/semilla", headers=clave).status_code, 200)
             self.assertEqual(self.c.get("/cliente/pautas").status_code, 200)
             self.assertEqual(self.c.post("/cliente/ots", json={"pauta_id": "pauta-brazo-01", "solicitante": "cliente:planta"}).status_code, 201)
+
+    def test_la_semilla_de_ot_pide_la_clave_y_deja_las_ot_en_la_lista(self):
+        with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
+            self.assertEqual(self.c.post("/interno/ots/semilla").status_code, 401)
+            r = self.c.post("/interno/ots/semilla", headers={"X-Clave-Equipo": "secreta"})
+        self.assertEqual((r.status_code, len(r.json()["ots_creadas"])), (200, 15))
+        self.assertEqual(len(self.c.get("/cliente/ots").json()), 15)
 
     def test_la_semilla_deja_los_casos_listos_para_el_cliente(self):
         r = self.c.post("/interno/protocolos/semilla").json()

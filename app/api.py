@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from app import catalogo, cerebro, db, escenarios, protocolos, verificacion
+from app import catalogo, cerebro, db, escenarios, protocolos, semilla, verificacion
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -288,6 +288,14 @@ def sembrar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> dic
     """Deja cargadas y aprobadas las pautas de `datos/`, con sus protocolos atribuidos. Se puede repetir."""
     _solo_equipo(x_clave_equipo)
     return protocolos.cargar_semilla(cx)
+
+
+@app.post("/interno/ots/semilla")
+def sembrar_ots(x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Los protocolos con sus pautas y 15 OT de ejemplo en distintos estados (`datos/ots-semilla.json`),
+    ejecutadas contra las reglas reales. Se puede repetir: una OT que ya existe no se toca."""
+    _solo_equipo(x_clave_equipo)
+    return semilla.cargar(cx)
 
 
 @app.get("/interno/protocolos/{protocolo_id}")
