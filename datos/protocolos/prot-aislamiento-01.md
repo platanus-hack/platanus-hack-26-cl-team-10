@@ -12,9 +12,9 @@ Son tres acciones distintas, en este orden, y ninguna reemplaza a la otra (56):
 
 | Acción | Qué es | Quién la hace | Cómo se comprueba |
 |---|---|---|---|
-| **Aislar** | Separar el equipo de su fuente de energía: abrir el desconectador, cerrar la válvula, bajar lo que está levantado | La persona autorizada para esa energía | El estado del punto de aislación |
-| **Bloquear** | Impedir que alguien vuelva a conectar: candado y tarjeta personales en el punto de bloqueo | Cada persona que interviene, con el suyo | El candado puesto |
-| **Comprobar energía cero** | Demostrar que el equipo no responde: intentar la partida, medir, mirar el manómetro | Quien va a intervenir, cada vez | El equipo no se mueve, el instrumento marca cero |
+| **Aislar** (cortar la energía) | Separar el equipo de su fuente de energía: abrir el desconectador, cerrar la válvula, bajar lo que está levantado | La persona autorizada para esa energía | El estado del punto de aislación |
+| **Bloquear** (poner tu candado) | Impedir que alguien vuelva a conectar: candado y tarjeta personales en el punto de bloqueo | Cada persona que interviene, con el suyo | El candado puesto |
+| **Comprobar energía cero** (probar que no arranca) | Demostrar que el equipo no responde: intentar la partida, medir, mirar el manómetro | Quien va a intervenir, cada vez | El equipo no se mueve, el instrumento marca cero |
 
 El candado no va en el mando con que se opera el equipo, sino en el punto que lo aísla. La partida de prueba se hace después de bloquear y antes de tocar nada.
 

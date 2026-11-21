@@ -247,7 +247,7 @@ class AislarBloquearYComprobar(Base):
         self.leer(correa="detenida"), self.leer(energia="cortada"), self.leer(bloqueo="puesto")
         self.assertEqual(self.cerrados(), 3)
         alertas = self.leer(guarda="abierta")
-        self.assertTrue(any("Retirar la guarda" in a for a in alertas), alertas)
+        self.assertTrue(any("Sacar la tapa protectora" in a for a in alertas), alertas)
         self.declarar("di partida y la correa no se movió")
         self.assertEqual(self.leer(), [])
         self.assertEqual((self.cerrados(), self.s.calificacion("ot-1")["nivel"]), (5, "ok"))

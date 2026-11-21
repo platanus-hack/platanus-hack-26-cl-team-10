@@ -17,27 +17,29 @@ La celda tiene una última barrera que no depende del procedimiento: si alguien 
 
 ## 3. Antes de empezar
 
-1. Avisa que el brazo sale de servicio y espera a que termine su ciclo.
+1. Avisa que el brazo sale de servicio y espera a que termine lo que está haciendo.
 2. Ten a mano la herramienta de ajuste y tu candado.
 
-## 4. Detener y aislar
+## 4. Bloque A · Dejar el brazo sin poder moverse
 
-1. Corta la alimentación de los servos en el tablero de la celda.
-2. Pon tu candado en el punto de bloqueo del tablero y guarda la llave contigo.
-3. Da la orden de partida desde el mando y comprueba que el brazo no se mueve.
+Las mismas tres cosas que en cualquier equipo, en este orden (56).
 
-## 5. Ajustar la pinza
+1. **Cortar la corriente del brazo.** Baja el interruptor de los motores del brazo en el tablero de la celda.
+2. **Poner tu candado** en el tablero, y la llave contigo. Mientras esté puesto, nadie puede volver a dar corriente.
+3. **Probar que no arranca.** Da la orden de partida y mira que el brazo no se mueve.
 
-1. Entra a la celda.
-2. Aprieta el tornillo de la pinza hasta que cierre sobre la pieza.
-3. Retira la herramienta y sal de la zona del brazo.
+## 5. Bloque B · Ajustar la pinza
 
-## 6. Volver a servicio
+4. **Entrar a la celda.**
+5. **Ajustar la pinza.** Aprieta el tornillo hasta que cierre sobre la pieza.
+6. **Salir de la celda** con la herramienta.
 
-1. Con la celda despejada, retira tu candado.
-2. Conecta la alimentación de los servos.
-3. Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.
+## 6. Bloque C · Devolver el brazo a trabajar
+
+7. **Sacar tu candado**, con la celda vacía.
+8. **Devolver la corriente.**
+9. **Probar un ciclo.** Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.
 
 ## 7. Registros
 
-El ajuste hecho, quién aisló y bloqueó, el resultado de la comprobación de energía cero y el de la prueba.
+El ajuste hecho, quién cortó la corriente y puso candado, si la prueba de partida salió sin movimiento, y cómo salió el ciclo.

@@ -1,62 +1,71 @@
-# Mantención de polines y rodillos en correa transportadora
+# Mantención de polines en correa transportadora
 
 > Redactado por el equipo de Factum como ejemplo de lo que entrega un cliente; no es el procedimiento de una operación real. Sale del DS 132 art. 52 y 116 (REFERENCIAS 44), de 30 CFR 56.14105 y 56.14112 (45), de la alerta de MSHA sobre correas (46), de la estrategia de controles de Antofagasta Minerals (56) y de los manuales de polines de PPI (57) y Martin (58, 59).
 
 ## 1. Alcance
 
-Inspección y reemplazo de polines de carga, de retorno y de impacto en la correa CT-01. Aplica junto con el protocolo de aislamiento y bloqueo de energías.
+Revisar y cambiar los polines de la correa CT-01. Aplica junto con el protocolo de aislamiento y bloqueo de energías.
 
-## 2. Peligros y controles críticos
+## 2. Palabras de este protocolo
 
-| Lo que no puede pasar | El control | Cómo se comprueba |
+| Palabra | Qué es |
+|---|---|
+| **Polín** | El juego de rodillos sobre el que corre la correa. Hay uno cada pocos metros; cada uno es una *estación*. |
+| **Tapa protectora** | La reja que cubre los rodillos para que nadie meta la mano mientras la correa anda. En las normas se llama *guarda*. |
+| **Palanca de corriente** | El interruptor del tablero que da corriente al motor de la correa. La baja y la sube un eléctrico autorizado. En las normas, *desconectador*. |
+| **Candado personal** | Cada trabajador tiene el suyo, con una tarjeta con su nombre. Se pone en la caja de bloqueo y la llave la guarda él. Mientras esté puesto, nadie puede volver a dar corriente, y solo lo saca quien lo puso. |
+| **Caja de bloqueo** | La caja junto al tablero donde se ponen los candados. |
+| **Botonera** | Los botones de partir y parar que están junto a la correa. |
+
+## 3. Lo que no puede pasar
+
+| Lo que no puede pasar | Cómo se evita | Cómo se comprueba |
 |---|---|---|
-| Una persona en contacto con partes móviles | La correa se interviene detenida, aislada, bloqueada y con energía cero comprobada (44, art. 116; 56) | Correa detenida, desconectador abierto, candado puesto y partida de prueba sin respuesta |
-| Trabajar sin protecciones con la correa energizada | Las guardas solo se retiran con la energía aislada, bloqueada y comprobada, y se reponen antes de desbloquear (45, 56) | Posición de la guarda contra el estado de la energía |
-| Un polín trabado que calienta y daña la correa | Los polines se inspeccionan y su temperatura se vigila (56) | Ruido, giro libre y temperatura del polín |
+| Que la correa se mueva con alguien metiendo las manos | Correa parada, sin corriente, con candado puesto, y probado que no arranca (44, art. 116; 56) | Correa quieta, palanca abajo, candado puesto y la correa no responde al botón de partida |
+| Que alguien trabaje sin tapa con la correa con corriente | La tapa se saca solo sin corriente y con candado, y vuelve antes de sacar el candado (45, 56) | La tapa no aparece sacada mientras haya corriente |
+| Que un rodillo trabado se caliente y dañe la correa | Los polines se revisan y su temperatura se vigila (56) | Ruido, giro libre y temperatura del rodillo |
 
-MSHA cuenta ocho muertes con correas desde 2017, seis con la correa en movimiento (46).
+MSHA cuenta ocho muertes con correas desde 2017, seis con la correa andando (46).
 
-## 3. Cuándo se cambia un polín
+## 4. Cuándo se cambia un polín
 
-- Está trabado o agripado: un rodillo que no gira desgasta la correa y su propio cilindro (57).
-- Hace un ruido inusual, que suele delatar un rodamiento dañado (57).
-- Su temperatura sube sobre el rango que definió la operación (56).
-- Tiene material acumulado que no sale al limpiarlo (57).
+- Un rodillo no gira: se traba y desgasta la correa y el propio rodillo (57).
+- Hace un ruido raro, que suele ser el rodamiento (57).
+- Se calienta más de lo que la operación aceptó (56).
+- Tiene material pegado que no sale al limpiarlo (57).
 
-## 4. Antes de empezar
+## 5. Antes de empezar
 
-1. Identifica la correa por su número y la estación del polín que vas a cambiar (56).
-2. Coordina la detención con la sala de control.
-3. Ten a mano el polín nuevo, del tipo que indica el fabricante de la correa, y comprueba que sus rodillos giran con facilidad (57).
+1. Revisa el número de la correa y la estación del polín que vas a cambiar (56).
+2. Coordina la parada con la sala de control.
+3. Ten a mano el polín nuevo, del tipo que pide el fabricante, y revisa que sus rodillos giren sueltos (57).
 
-## 5. Detener y aislar
+## 6. Bloque A · Dejar la correa sin poder moverse
 
-1. Pide la detención y espera a que la correa quede quieta y sin carga. Trabajar con la correa vacía es lo recomendado (58).
-2. El eléctrico autorizado abre el desconectador del motor.
-3. Pon tu candado y tu tarjeta en la caja de bloqueo, y guarda la llave contigo.
-4. Da partida desde la botonera local y comprueba que la correa no se mueve.
+Es el control crítico 1 de la estrategia de Antofagasta Minerals (56): cortar la energía, bloquear y probar que no hay energía. Son tres cosas distintas y van en este orden.
 
-## 6. Cambiar el polín
+1. **Parar la correa.** Pide la parada y espera a que quede quieta y vacía. Trabajar con la correa vacía es lo recomendado (58).
+2. **Cortar la corriente.** El eléctrico baja la palanca de corriente del motor.
+3. **Poner tu candado.** Tu candado y tu tarjeta en la caja de bloqueo, y la llave contigo.
+4. **Probar que no arranca.** Aprieta partir en la botonera y mira que la correa no se mueve.
 
-1. Retira la guarda de la estación.
-2. Levanta la correa para descargar el polín.
-3. Suelta los pernos de montaje y saca el polín dañado.
-4. Monta el polín nuevo, alineado con el eje de la correa, y aprieta sus pernos. Normalmente son cuatro (57).
-5. Gira los rodillos con la mano: tienen que girar libres.
-6. Retira las herramientas y baja la correa.
+## 7. Bloque B · Cambiar el polín
 
-## 7. Volver a servicio
+5. **Sacar la tapa protectora** de la estación. Recién ahora, con los cuatro pasos anteriores hechos (56).
+6. **Cambiar el polín.** Levanta la correa, suelta los pernos, saca el polín trabado, pon el nuevo alineado con la correa y aprieta sus pernos; normalmente son cuatro (57). Gira los rodillos con la mano: tienen que girar sueltos.
+7. **Volver a poner la tapa** y apretarla. Va antes de sacar el candado (56).
 
-1. Repone la guarda y asegúrala, antes de desbloquear (56).
-2. Con la zona despejada, retira tu candado y tu tarjeta.
-3. El eléctrico cierra el desconectador y avisa a la sala de control.
-4. Pide la partida con la correa vacía y confirma que el polín gira y que la correa corre centrada. Después se carga de a poco (59).
+## 8. Bloque C · Devolver la correa a trabajar
 
-## 8. Registros
+8. **Sacar tu candado**, con todos fuera de la correa.
+9. **Devolver la corriente.** El eléctrico sube la palanca y avisa a la sala de control.
+10. **Probar sin carga.** La correa parte vacía; mira que el rodillo nuevo gira y que la correa va derecha. Después se carga de a poco (59).
 
-El polín cambiado y su estación, por qué se cambió, quién aisló y quién bloqueó, y el resultado de la prueba en vacío.
+## 9. Registros
 
-## 9. Pautas que salen de este protocolo
+El polín cambiado y su estación, por qué se cambió, quién cortó la corriente y quién puso candado, y cómo salió la prueba sin carga.
 
-- `pauta-polin-ct-01`: cambio de polín, con las secciones 5 a 7 completas.
-- `pauta-correa-ct-01`: cambio de rodillo, la versión corta que usa el demo anterior. Junta aislar y bloquear en un paso y no trae la comprobación de energía cero.
+## 10. Pautas que salen de este protocolo
+
+- `pauta-polin-ct-01`: el cambio de polín, con los tres bloques completos. Sus pasos se llaman igual que aquí.
+- `pauta-correa-ct-01`: el cambio de rodillo del demo anterior. Junta cortar la corriente y poner candado en un paso y no prueba que no arranca.
