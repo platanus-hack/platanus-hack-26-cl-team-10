@@ -32,6 +32,7 @@ LLAMADAS_MAX = int(os.environ.get("VLM_MAX_LLAMADAS", "3000"))
 INSTRUCCION = (
     "Eres el verificador visual de un procedimiento de mantenimiento industrial. "
     "Recibes una foto de la cámara de la estación y una pregunta de sí o no sobre ella. "
+    "Si recibes dos fotos, son de la misma cámara fija: la primera es de antes y la segunda de ahora. "
     "Responde solo lo que la foto muestra: si no se ve con claridad, la respuesta es no. "
     "La confianza va de 0 a 1 y dice cuán seguro estás de tu respuesta."
 )
@@ -64,11 +65,12 @@ def vlm_configurado() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
-def juez_camara(pregunta: str, cuadro: bytes | None = None) -> tuple[bool, float]:
+def juez_camara(pregunta: str, cuadro: bytes | None = None, antes: bytes | None = None) -> tuple[bool, float]:
     """Capa 3: (respuesta, confianza) para la pregunta visual del paso sobre `cuadro`.
 
     El cuadro lo entrega app/servicios.py: es el último que mandó la cámara del edge
-    que ejecuta la OT (app/video.py). La firma de reglas.JuezCamara no cambia.
+    que ejecuta la OT (app/video.py). La firma de reglas.JuezCamara no cambia. `antes` es
+    la foto con que se verificó otro paso, cuando el paso pide comparar (Paso.comparar_con).
 
     Si el VLM falla (red, cuota, negativa, respuesta rara) responde (False, 0.0): no
     verifica el paso y queda a la vista como warning de capa 3, nunca lo cierra por error.
@@ -80,7 +82,7 @@ def juez_camara(pregunta: str, cuadro: bytes | None = None) -> tuple[bool, float
     if not _queda_presupuesto():
         return False, 0.0
     try:
-        return preguntar_claude(pregunta, cuadro)
+        return preguntar_claude(pregunta, cuadro, antes=antes)
     except Exception:  # noqa: BLE001 - cualquier falla del VLM se trata igual: no verifica
         log.exception("el VLM no pudo juzgar «%s»", pregunta)
         return False, 0.0
@@ -96,24 +98,26 @@ def _queda_presupuesto() -> bool:
         return True
 
 
-def preguntar_claude(pregunta: str, cuadro: bytes, cliente=None) -> tuple[bool, float]:
+def preguntar_claude(pregunta: str, cuadro: bytes, cliente=None, antes: bytes | None = None) -> tuple[bool, float]:
     global _cliente
     if cliente is None:
         if _cliente is None:
             import anthropic
             _cliente = anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=1)  # lee ANTHROPIC_API_KEY
         cliente = _cliente
+    def foto(jpeg: bytes) -> dict:
+        return {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                            "data": base64.standard_b64encode(jpeg).decode()}}
+
+    comparacion = [{"type": "text", "text": "Foto 1, de antes:"}, foto(antes),
+                   {"type": "text", "text": "Foto 2, de ahora:"}] if antes else []
     r = cliente.messages.create(
         model=os.environ.get("VLM_MODELO", MODELO_POR_DEFECTO),
         max_tokens=4000,
         system=INSTRUCCION,
         # esfuerzo bajo: es un sí/no sobre una foto, importa la latencia
         output_config={"effort": "low", "format": {"type": "json_schema", "schema": ESQUEMA}},
-        messages=[{"role": "user", "content": [
-            {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
-                                         "data": base64.standard_b64encode(cuadro).decode()}},
-            {"type": "text", "text": pregunta},
-        ]}],
+        messages=[{"role": "user", "content": [*comparacion, foto(cuadro), {"type": "text", "text": pregunta}]}],
     )
     if r.stop_reason != "end_turn":  # refusal o max_tokens: no hay respuesta en la que confiar
         log.warning("el VLM terminó con %s para «%s»", r.stop_reason, pregunta)

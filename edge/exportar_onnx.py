@@ -1,7 +1,7 @@
 """Exporta YOLO-World con clases fijas a ONNX, para correrlo en el servidor sin PyTorch ni CLIP.
 
 Uso (desde edge/):  .venv/bin/python exportar_onnx.py [--pautas ../datos/borradores/x.json ...] [--lado 640]
-Las clases son las que piden las pautas (por defecto, las de ../datos/pauta-*.json); --clases las fija a mano.
+Exporta las clases de --clases más las que pidan las pautas de --pautas (por defecto, ../datos/pauta-*.json).
 Deja ../datos/modelos/yolo-<clases>-<lado>.onnx (no va al repo: *.onnx está ignorado).
 """
 import argparse
@@ -22,13 +22,13 @@ def clases_de(rutas):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--clases", nargs="+", help="por defecto, las que piden las pautas de --pautas")
-    ap.add_argument("--pautas", nargs="+", default=sorted(glob("../datos/pauta-*.json")))
+    # "soda can" va junto a "red soda can" para que una lata de otro color no caiga en la roja
+    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil", "soda can", "red soda can"],
+                    help="las que se exportan siempre; se suman las que pidan las pautas")
+    ap.add_argument("--pautas", nargs="*", default=sorted(glob("../datos/pauta-*.json")))
     ap.add_argument("--lado", type=int, default=640)
     a = ap.parse_args()
-    clases = a.clases or clases_de(a.pautas)
-    if not clases:
-        raise SystemExit("ninguna de esas pautas pide detector: no hay nada que exportar")
+    clases = a.clases + [c for c in clases_de(a.pautas) if c not in a.clases]
 
     from ultralytics import YOLOWorld
 

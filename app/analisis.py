@@ -3,7 +3,7 @@
 Las skills de `.claude/skills/` reconocen un proceso, proponen su pauta y buscan mejoras
 con un agente. Todo lo que ese agente afirma y se puede comprobar, se comprueba acá:
 si cada paso cita el protocolo, si la estación puede cerrarlo, y qué análisis vale la
-pena correr (ADR-0013). Como app/reglas.py, este módulo no sabe de HTTP ni de la base.
+pena correr (ADR-0015). Como app/reglas.py, este módulo no sabe de HTTP ni de la base.
 
 Un borrador es `{"pauta": <Pauta del contrato>, "documento": ruta, "analisis": {...}}`;
 su forma está en .claude/skills/reconocer-proceso/SKILL.md.

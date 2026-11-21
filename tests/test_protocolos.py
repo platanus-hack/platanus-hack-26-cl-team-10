@@ -204,11 +204,16 @@ class AislarBloquearYComprobar(Base):
     (REFERENCIAS 56). Se corren contra los servicios, con las reglas de capa 1 que ya hay."""
 
     def abrir(self, archivo, orden, reposo):
-        pauta = json.loads((DATOS / archivo).read_text(encoding="utf-8"))
+        # en la base de la prueba es la primera versión, vaya en la que vaya el archivo
+        pauta = {**json.loads((DATOS / archivo).read_text(encoding="utf-8")), "version": 1}
         catalogo.crear_pauta(self.cx, pauta)
         catalogo.aprobar_pauta(self.cx, pauta["id"], 1, "supervisor:X")
         catalogo.abrir_ot(self.cx, "ot-1", pauta["id"], "supervisor:X")
-        self.s = Servicios(self.cx, Bus(), Video(Path(tempfile.mkdtemp())), lambda paso, cuadro: (True, 0.91))
+        self.juez = []  # lo que se le preguntó a la cámara: (pregunta, foto de ahora, foto de antes)
+        self.camara = lambda pregunta, antes: True
+        self.s = Servicios(self.cx, Bus(), Video(Path(tempfile.mkdtemp())),
+                           lambda pregunta, cuadro, antes=None: (self.juez.append((pregunta, cuadro, antes))
+                                                                 or self.camara(pregunta, antes), 0.91))
         self.s.iniciar_sesion("ot-1", "edge-1", "operario:1")
         self.orden, self.estado, self.seq = orden, dict(reposo), 0
 
@@ -221,8 +226,8 @@ class AislarBloquearYComprobar(Base):
             self.s.recibir_lectura("edge-1", sensor, self.estado[sensor], self.seq)
         return [e.detalle for e in db.eventos(self.cx, "ot-1")[antes:] if e.tipo.value == "alerta"]
 
-    def declarar(self, texto):
-        self.s.video.recibir("edge-1", b"\xff\xd8cuadro\xff\xd9")
+    def declarar(self, texto, foto=b"cuadro"):
+        self.s.video.recibir("edge-1", b"\xff\xd8" + foto + b"\xff\xd9")
         self.s.declarar("ot-1", "operario:1", texto)
 
     def cerrados(self):
@@ -319,6 +324,58 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual(alertas, [])
         self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 8))
 
+    def estacion(self, equipo="caliente"):
+        """La estación física: lo que manda edge/edge.py (energia sale del motor del ESP32)."""
+        self.abrir("pauta-polin-estacion.json", ["energia", "operario", "equipo"],
+                   {"energia": "viva", "operario": "ausente", "equipo": equipo})
+        return self.leer()
+
+    def test_estacion_acercarse_sin_apagar_el_motor_avisa(self):
+        self.estacion()
+        alertas = self.leer(operario="presente")
+        self.assertTrue(any(a.startswith("PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO") for a in alertas), alertas)
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "error")
+        self.leer(operario="ausente")
+        self.assertEqual((self.s.calificacion("ot-1")["nivel"], self.cerrados()), ("ok", 0))
+
+    def test_estacion_en_su_orden_se_completa_sin_avisos(self):
+        alertas = self.estacion() + self.leer(energia="cortada") + self.leer(operario="presente")
+        self.assertEqual(self.cerrados(), 2)  # con el equipo caliente no pasa de «esperar»
+        alertas += self.leer(equipo="frio")
+        self.declarar("este es el polín rojo", foto=b"con el rojo")
+        self.assertEqual(self.cerrados(), 4)
+        self.declarar("lo reemplacé", foto=b"con el nuevo")
+        # para juzgar el reemplazo la cámara recibe la foto de ahora y la de cuando vio el rojo
+        _, ahora, antes = self.juez[-1]
+        self.assertEqual((ahora, antes), (b"\xff\xd8con el nuevo\xff\xd9", b"\xff\xd8con el rojo\xff\xd9"))
+        alertas += self.leer(operario="ausente") + self.leer(energia="viva")
+        self.assertEqual(alertas, [])
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 6))
+
+    def test_estacion_sacar_el_polin_rojo_sin_poner_otro_no_cierra_el_paso(self):
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.declarar("este es el polín rojo")
+        self.camara = lambda pregunta, antes: antes is None  # al comparar, la cámara responde que no
+        self.declarar("lo reemplacé")
+        self.assertEqual(self.cerrados(), 4)
+        self.assertEqual(self.s.snapshot("ot-1")["estado"]["en_conflicto"], ["e5"])
+        self.camara = lambda pregunta, antes: True  # ahora sí hay un polín normal en su lugar
+        self.declarar("lo reemplacé")
+        self.assertEqual(self.cerrados(), 5)
+
+    def test_estacion_sin_la_foto_del_polin_rojo_no_hay_con_que_comparar(self):
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.s.confirmar_por_persona("ot-1", "e4", "supervisor:X", "la cámara no lo enfoca")  # se cierra sin foto
+        self.declarar("lo reemplacé")
+        self.assertEqual(self.cerrados(), 4)
+        self.assertEqual([p for p, _, _ in self.juez], [])  # ni se le preguntó a la cámara
+
+    def test_estacion_con_el_equipo_ya_frio_no_avisa_al_empezar(self):
+        # shortcut: «Apagar el motor» no lleva control_critico porque, con el paso actual crítico,
+        # desviacion_de_orden toma «equipo = frio» por un paso adelantado y abre la demo con un error.
+        # Marcarlo crítico cuando esa regla distinga una condición de una acción del operario.
+        self.assertEqual(self.estacion(equipo="frio"), [])
+
 
 class LaSemillaDeLosCasos(Base):
     def test_cada_protocolo_de_datos_tiene_su_documento_y_pautas_que_existen(self):
@@ -341,7 +398,7 @@ class LaSemillaDeLosCasos(Base):
 
     def test_un_protocolo_da_dos_pautas_la_del_rodillo_y_la_del_polin(self):
         protocolos.cargar_semilla(self.cx)
-        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01", "pauta-polin-demo"])
+        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01", "pauta-polin-demo", "pauta-polin-estacion"])
 
     def test_se_puede_repetir_sin_duplicar(self):
         a = protocolos.cargar_semilla(self.cx)
@@ -403,7 +460,7 @@ class LasOtDeEjemplo(Base):
         self.assertEqual(db.estado_sensores(self.cx), {"operario": "presente"})
         self.assertEqual(self.s.sesiones(), [])
         otra = self.semilla.cargar(self.cx)
-        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 15))
+        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 16))
 
     def test_la_camara_de_la_semilla_queda_dicha_en_la_evidencia(self):
         ev = next(e for e in db.eventos(self.cx, "ot-1006") if e.tipo.value == "veredicto" and e.capa == 3)
@@ -496,10 +553,10 @@ class PorHTTP(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             self.assertEqual(self.c.post("/interno/ots/semilla").status_code, 401)
             r = self.c.post("/interno/ots/semilla", headers={"X-Clave-Equipo": "secreta"})
-        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 15, 3))
+        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 16, 3))
         carla = next(a for a in r.json()["accesos"] if a["rol"] == "supervisor")
         token = self.c.post("/auth/entrar", json={"usuario": carla["usuario"], "clave": carla["clave"]}).json()["token"]
-        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 15)
+        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 16)
 
     def test_la_semilla_deja_los_casos_listos_para_el_cliente(self):
         r = self.c.post("/interno/protocolos/semilla").json()

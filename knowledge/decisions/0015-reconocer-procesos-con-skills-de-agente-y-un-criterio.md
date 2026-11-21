@@ -1,4 +1,4 @@
-# ADR-0013 — Los procesos los reconoce un agente con skills; lo comprobable lo comprueba el código, y un criterio decide qué se analiza
+# ADR-0015 — Los procesos los reconoce un agente con skills; lo comprobable lo comprueba el código, y un criterio decide qué se analiza
 
 > Estado: `proposed` · Fecha: 2026-11-21
 
@@ -43,12 +43,27 @@ Los umbrales son constantes con nombre en `app/analisis.py`. Cambiarlos es cambi
 | Leer el proceso y proponer la pauta | Sí | La skill y el documento |
 | Saber si es factible y qué instalar | Sí | Describir la estación en un JSON |
 | Ejecutarla con cámara y confirmación | Sí | Cargar el borrador y que una persona lo apruebe |
-| Que el detector busque los objetos de la pauta | Sí, con el detector en el edge | El edge pregunta qué clases pide la OT en sesión y arma el modelo con ellas. Con el detector en el servidor hay que exportar el modelo de nuevo. Un detector que no busca una clase no puede decir que el objeto ya no está |
+| Que el detector busque los objetos de la pauta | Sí, con el detector en el edge | El edge pregunta qué clases pide la OT en sesión y las suma a las que busca siempre (`--clases`, que incluye las que solo están para no confundir, como `soda can` junto a `red soda can`). Con el detector en el servidor hay que exportar el modelo de nuevo. Un detector que no busca una clase no puede decir que el objeto ya no está |
 | Ejecutarla con un sensor nuevo | **No** | El paso de lectura cruda a estado está escrito a mano en `estados()` de `edge/edge.py`, y el firmware es del demo |
 | Que avise un peligro propio del proceso | **No** | Las reglas son una tupla global en `app/reglas.py`. Comparan nombres de sensor, así que dos procesos que usen `energia` o `zona` con sentidos distintos se pisan; el servidor no sabe a qué estación pertenece una lectura |
 | Procesos que no son una lista en orden | **No** | El contrato es lineal. No expresa ramas, elegir entre varios modos, algo que se repite cada cierto tiempo, ni un plazo que corre entre pasos |
 
 Las tres filas en «No» son del producto, no de las skills. Las dos primeras se resolverían con el mismo movimiento: que el archivo de la estación sea la única descripción de una instalación, con sus umbrales y sus peligros, y que el edge y las reglas lo lean. No está decidido ni construido. `Brecha`.
+
+## Relación con el PRD de skills y con el ADR-0014
+
+Este trabajo se hizo en una rama que partió antes de que llegaran a `main` el [PRD de skills](../projects/skills/PRD.md) de Francisco y el [ADR-0014](./0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md). Se cruzan, y no está acordado cuál forma queda. `Brecha` de coordinación.
+
+| En el PRD | Acá | Diferencia |
+|---|---|---|
+| `factum-extraer-protocolo` y `factum-generar-pauta` | `reconocer-proceso` | Una skill en vez de dos. No guarda el protocolo por la API: lee el documento y escribe un borrador en `datos/borradores/` |
+| `factum-mejorar-pauta` | `optimizar-proceso` | Lee la bitácora directo. El PRD la quiere sobre `GET /interno/mejoras` y las métricas por paso del ADR-0014, cuyo código todavía no está en `main`. `analisis.historia` y `criterio_de_historia` duplican parte de eso y tendrían que ceder cuando llegue |
+| El validador (`POST /interno/pautas/validar`, reglas V1 a V4) | `app/analisis.py` y `scripts/analizar.py` | Es un comando, no una ruta. Cubre V1 (control crítico sin sensor, como `instrumentar`) y V4 (`capa_minima`); de V2 cubre el paso que espera lo que un paso anterior ya dejó, no el valor de reposo al abrir la OT; V3 (reposición en orden inverso) no está |
+| El inventario de cada estación | `datos/estaciones/*.json` | Archivos, no una ruta, y el servidor no los lee |
+| `factum-pedir-ot`, `factum-ejecutar-ot`, `factum-reportar`, `factum-medir` | — | No están |
+| — | `regla-programatica`, `solucion-vision` y el criterio | No están en el PRD |
+
+Las skills viven en `.claude/skills/`, donde Claude Code las carga solas; el PRD las pone en `skills/` con el prefijo `factum-`. El paso que este ADR deja como siguiente (que el archivo de la estación traiga umbrales y peligros) es la misma pregunta que el PRD deja abierta como «Inventario por estación» y «Perfil por protocolo», y la decide Francisco.
 
 ## Alternativas consideradas
 
@@ -68,8 +83,9 @@ Las tres filas en «No» son del producto, no de las skills. Las dos primeras se
 - **Medido, y es poco.** `reconocer-proceso` se probó a ciegas con dos protocolos (`prot-correa-01` y `prot-celda-mt-01`): un agente sin acceso a la pauta escrita por una persona, y después `scripts/analizar.py comparar`. En la correa, 9 de 10 pasos salieron iguales en evidencia, sensor, valor y control crítico; el que difiere es «Probar sin carga», que el agente cerró con el sensor de la correa y la persona con confirmación. En la celda, los 8 pasos de la persona salieron con la misma evidencia y en el mismo orden, 7 con el mismo control crítico, más 3 pasos que la persona no escribió. Todas las citas fueron literales. `Candidata a validar`: son dos protocolos que redactó el mismo equipo que escribió las pautas, una corrida de cada uno, y las estaciones se armaron con los sensores que esas pautas usan. Falta un protocolo real de un cliente.
 - **Con un proceso de otro dominio, reconoce pero no representa.** Se probó a ciegas con un procedimiento público de inocuidad alimentaria (enfriado en dos etapas, del Institute of Child Nutrition, en inglés), sin sensores: solo `solo-camara.json`. No inventó nada (3 de 3 citas literales), propuso los dos sensores que harían falta (sonda y reloj por etapa) y dejó fuera de la pauta, con su cita, 7 cosas: 4 ramas, el monitoreo cada hora, el registro y la verificación del encargado. Pero la pauta que queda tiene 3 pasos y los tres los cierra la palabra del operario. El proceso es una espera vigilada con plazos, no una secuencia de acciones, y ahí una pauta lineal sirve de registro y no de verificación. El comprobador lo dice cuando lo que queda fuera iguala o supera a los pasos. Es un solo documento. `Candidata a validar`.
 - **De punta a punta, en memoria.** Dos pautas generadas por el agente (el enfriado, 3 pasos; la celda, 13) se cargaron desde un protocolo, se aprobaron y se ejecutaron hasta el final, con las lecturas puestas a mano y el VLM simulado. Prueba el recorrido, no que la cámara acierte.
-- **El edge sigue las clases de la OT**, probado con YOLO-World real en el Mac contra una API de prueba y cuadros de ruido: pasó de `mouse, pencil` a `bottle` al cambiar de OT y dejó de detectar al cerrar la sesión. Cada cambio de lista carga el modelo de nuevo (unos segundos). No se probó con la cámara ni con objetos reales, ni que un objeto fuera de `mouse` y `pencil` llegue al 80 % de confianza. `Candidata a validar`.
+- **El edge sigue las clases de la OT**, probado con YOLO-World real en el Mac contra una API de prueba y cuadros de ruido: sumó `bottle` a sus clases al tomar una OT que la pide y la soltó al cerrar la sesión. Cada cambio de lista carga el modelo de nuevo (unos segundos); una pauta que solo pide clases que el edge ya busca no lo recarga. No se probó con la cámara ni con objetos reales, ni que un objeto fuera de `mouse` y `pencil` llegue al 80 % de confianza. `Candidata a validar`.
 - Quién decide que un objeto de la pauta se puede detectar sigue siendo una persona con la skill `solucion-vision`: el reconocedor solo escribe `deteccion` para clases que la estación ya declara.
+- **El comprobador encontró algo en una pauta del demo.** `pauta-polin-estacion` (llegó de `main` al integrar) repone la corriente en `e6` sin un paso que aleje al operario, que `e2` dejó junto a la cinta. Seguida al pie de la letra dispara «persona junto a la máquina con el motor encendido». Puede ser lo que el demo quiere mostrar; si no, falta un paso «alejarse» antes de `e6`. No se tocó la pauta: es de quien arma el demo. `Candidata a validar`.
 - La primera ronda de esa prueba dejó pasar dos errores que el comprobador ahora ataja o la skill ya no pide: un paso de sensor que se cerraba solo, y un sensor inventado para un control crítico. Es de esperar que haya más de esa clase.
 - `comparar` alinea por la evidencia: dos pasos de cámara, o dos de confirmación, calzan aunque hablen de cosas distintas. Solo los de sensor prueban algo.
 - Reconocer desde una grabación no se probó: no hay un video de una ejecución en el repo. La skill lo trata como un borrador de menor certeza, por el 54,6 % de fases que describe un VLM sin la pauta (REFERENCIAS 9). `Brecha`.

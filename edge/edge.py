@@ -10,9 +10,8 @@ Dos modos de detección (--deteccion):
   detecciones  (modo edge) YOLO-World sobre el último cuadro, por el mismo WS (texto):
                {"tipo": "detecciones", "modelo", "ts", "objetos": [{"clase", "conf", "caja"}]}
                caja = x1, y1, x2, y2 normalizada 0-1. Se manda todo lo que pase --conf:
-               qué es "alta certeza" lo decide el servidor. Las clases que busca son las
-               que pide la pauta de la OT en sesión (GET /edge/{id}/clases, cada 2 s);
-               --clases las fija a mano.
+               qué es "alta certeza" lo decide el servidor. Busca siempre las de --clases,
+               más las que pida la pauta de la OT en sesión (GET /edge/{id}/clases, cada 2 s).
   sensores     líneas JSON del ESP32 por serial → POST /edge/{id}/lecturas, con seq
 
 Correr en Terminal.app (permiso de cámara): correr_edge.command, o
@@ -76,7 +75,7 @@ def clases_de_la_ot(servidor, edge_id):
         return None
 
 
-def hilo_detecciones(canal, ultimo, clases_fijas, conf, stats, servidor, edge_id):
+def hilo_detecciones(canal, ultimo, base, conf, stats, servidor, edge_id):
     import torch
     from ultralytics import YOLOWorld
     device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -84,13 +83,14 @@ def hilo_detecciones(canal, ultimo, clases_fijas, conf, stats, servidor, edge_id
     while True:
         if time.time() - t_clases >= CLASES_CADA_S:
             t_clases = time.time()
-            nuevas = clases_fijas or clases_de_la_ot(servidor, edge_id)
-            if nuevas is not None and nuevas != clases:  # sin respuesta se sigue con las que había
+            pedidas = clases_de_la_ot(servidor, edge_id)
+            # sin respuesta del servidor se sigue con las que había, o con las de siempre al partir
+            nuevas = clases if pedidas is None and clases else base + [c for c in pedidas or [] if c not in base]
+            if nuevas != clases:
                 clases = nuevas
-                modelo = YOLOWorld(MODELO) if clases else None  # uno nuevo por lista: set_classes después de predecir falla en MPS
-                if modelo:
-                    modelo.set_classes(clases)
-                print(f"[detector] clases: {', '.join(clases) or 'ninguna: la OT en sesión no pide detector'}")
+                modelo = YOLOWorld(MODELO)  # uno nuevo por lista: set_classes después de predecir falla en MPS
+                modelo.set_classes(clases)
+                print(f"[detector] clases: {', '.join(clases)}")
         cuadro = ultimo["img"]
         if modelo is None or cuadro is None or cuadro is visto:
             time.sleep(0.01); continue
@@ -178,7 +178,9 @@ def main():
     ap.add_argument("--fps", type=float, default=20)
     ap.add_argument("--ancho", type=int, default=960, help="ancho del JPEG enviado (alto en 16:9)")
     ap.add_argument("--calidad", type=int, default=65, help="calidad JPEG 1-100")
-    ap.add_argument("--clases", nargs="+", help="por defecto, las que pide la pauta de la OT en sesión")
+    # "soda can" va junto a "red soda can" para que una lata de otro color no caiga en la roja
+    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil", "soda can", "red soda can"],
+                    help="las que el detector busca siempre; se suman las que pida la pauta de la OT en sesión")
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
     ap.add_argument("--deteccion", choices=["servidor", "edge"], default="servidor",
                     help="dónde corre YOLO: servidor (por defecto, el edge solo manda video y sensores) o edge (acá)")

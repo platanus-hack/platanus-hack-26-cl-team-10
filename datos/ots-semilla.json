@@ -40,6 +40,10 @@
     {"ot": "ot-1012", "pauta": "pauta-camion-detencion-01", "hace_dias": 1, "operador": "operario:1", "cerrar": "todos"},
     {"ot": "ot-1013", "pauta": "pauta-camion-detencion-01", "hace_dias": 0, "operador": null, "cerrar": 0},
     {"ot": "ot-1014", "pauta": "pauta-loto-escritorio", "hace_dias": 7, "operador": "operario:1", "cerrar": "todos"},
-    {"ot": "ot-1015", "pauta": "pauta-loto-escritorio", "hace_dias": 0, "operador": "operario:2", "cerrar": 0}
+    {"ot": "ot-1015", "pauta": "pauta-loto-escritorio", "hace_dias": 0, "operador": "operario:2", "cerrar": 0},
+    {"ot": "ot-1016", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:1", "cerrar": "todos",
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["operario", "ausente"], ["equipo", "caliente"]]},
+       {"antes_del_paso": 6, "lecturas": [["operario", "ausente"]]}]}
   ]
 }

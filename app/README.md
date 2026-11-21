@@ -24,7 +24,7 @@ uv run python scripts/analizar.py ejecuciones   # cómo se ejecutó cada pauta, 
 | `servicios.py` + `bus.py` | Servicios | Atribuye lo del edge a la OT de la sesión y lo reparte por `/ot/{id}/stream` ([ADR-0007](../knowledge/decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md)) |
 | `scoring.py` | Servicios | La calificación ok · warning · error con certeza y motivos, por capa |
 | `acceso.py` | Servicios | Clientes, sus personas y el login del servicio para clientes: token Bearer, roles supervisor y operador, y qué pautas tiene habilitadas cada empresa ([ADR-0012](../knowledge/decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md)) |
-| `semilla.py` | Servicios | Datos de ejemplo: los protocolos con sus pautas y 15 OT en distintos estados (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `uv run python -m app.semilla` o `POST /interno/ots/semilla` |
+| `semilla.py` | Servicios | Datos de ejemplo: los protocolos con sus pautas y 16 OT en distintos estados (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `uv run python -m app.semilla` o `POST /interno/ots/semilla` |
 | `catalogo.py` | Servicios | El CRUD de pautas, aprobaciones, OT y eventos, con las reglas de negocio como 409. También el de protocolos y su atribución a pautas (`/interno/...`, con la clave del equipo) y las OT que pide un cliente (`/cliente/...`): [ADR-0011](../knowledge/decisions/0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md) |
 | `video.py` | Servicios | El video del edge: entra por `WS /edge/{id}/video`, sale como MJPEG y le da al juez de cámara el último cuadro |
 | `escenarios.py` | Servicios | La matriz de industria × patrón de ejecución contra cada barrera, en una caja aislada ([ADR-0008](../knowledge/decisions/0008-escenarios-por-industria-en-una-caja-aislada.md)). Las pautas de eléctrica y construcción están en `datos/` |
@@ -34,7 +34,7 @@ uv run python scripts/analizar.py ejecuciones   # cómo se ejecutó cada pauta, 
 | `../deploy/vm/` | Servicios | El servidor del demo: `deploy/vm/desplegar.sh` sube la rama actual a la VM sin borrar la bitácora |
 | `verificacion.py` | Frente 3 | Capa 3 de cámara con Claude Haiku 5.5 (`ANTHROPIC_API_KEY`; en la VM va en `/srv/factum/entorno`; modelo en `VLM_MODELO`; sin key queda el stub). La capa 2 de cámara (YOLO del edge) está en `reglas.por_deteccion` |
 | `cerebro.py` | Frente 4 | `redactar_resumen` y `responder` por el modelo, con el registro completo |
-| `analisis.py` + `scripts/analizar.py` | Servicios | Lo que se comprueba de una pauta sin modelo: contrato, citas del protocolo, factibilidad contra una estación (`datos/estaciones/`), historia de sus OT y el criterio de qué vale la pena analizar. Lo usan las skills de `.claude/skills/` ([ADR-0013](../knowledge/decisions/0013-reconocer-procesos-con-skills-de-agente-y-un-criterio.md)) |
+| `analisis.py` + `scripts/analizar.py` | Servicios | Lo que se comprueba de una pauta sin modelo: contrato, citas del protocolo, factibilidad contra una estación (`datos/estaciones/`), historia de sus OT y el criterio de qué vale la pena analizar. Lo usan las skills de `.claude/skills/` ([ADR-0015](../knowledge/decisions/0015-reconocer-procesos-con-skills-de-agente-y-un-criterio.md)) |
 | `detector.py` | Servicios | YOLO en el servidor (ONNX + onnxruntime), el modo de detección por defecto |
 
 ## Dónde corre YOLO: dos modos
@@ -47,9 +47,9 @@ Las detecciones (clase, confianza y caja) entran siempre por `servicios.recibir_
 | **Edge** | `DETECTOR_ONNX=` vacío en `/srv/factum/entorno` y el edge con `--deteccion edge` (`edge/correr_edge_vm_yolo_local.command`) | ~18 en el Mac | El edge tiene CPU/GPU: más rápido, más preciso y no carga la VM |
 
 - Con el detector del servidor activo, las detecciones que mande un edge se ignoran, para no mezclar dos modelos.
-- **Qué clases busca el detector lo dice la pauta, no quien lo lanza.** En modo edge, el edge pregunta cada 2 s `GET /edge/{id}/clases` (las `deteccion.clase` de la pauta de la OT en sesión) y arma el modelo con ellas; sin sesión, o si la pauta no pide detector, no detecta. `--clases` las fija a mano. En modo servidor las clases quedan fijas al exportar: la misma ruta dice en `detector_no_conoce` cuáles le faltan, y hay que exportar de nuevo.
+- **El detector busca lo que pide la pauta, además de sus clases de siempre.** En modo edge, el edge pregunta cada 2 s `GET /edge/{id}/clases` (las `deteccion.clase` de la pauta de la OT en sesión) y, si alguna no está entre las de `--clases`, arma el modelo de nuevo con ella. En modo servidor las clases quedan fijas al exportar: la misma ruta dice en `detector_no_conoce` cuáles le faltan, y hay que exportar de nuevo.
 - **Un detector que no busca una clase no puede decir que el objeto ya no está.** Cada detección lleva las `clases` que el modelo buscaba, y la capa 2 solo cierra un paso `presente: false` si la clase está ahí; si no, decide el VLM cuando el operario declara.
-- Los modelos se exportan con `edge/exportar_onnx.py --lado 416` (toma las clases de `datos/pauta-*.json`; `--pautas` para otras, `--clases` para fijarlas) a `datos/modelos/` (no van al repo) y `desplegar.sh` los sube si faltan en la VM. A 416 px el lápiz baja de 0,87 a ~0,67 de confianza frente a 640 px: un paso de cámara que no llega al 80 % se cierra declarando (capa 3).
+- Los modelos se exportan con `edge/exportar_onnx.py --lado 416` (clases por defecto: mouse y pencil para LOTO; soda can y red soda can para los polines, que en la estación son latas; se suman las que pidan las pautas de `datos/pauta-*.json` o de `--pautas`) a `datos/modelos/` (no van al repo) y `desplegar.sh` los sube si faltan en la VM. A 416 px el lápiz baja de 0,87 a ~0,67 de confianza frente a 640 px: un paso de cámara que no llega al 80 % se cierra declarando (capa 3).
 - Con ~5 detecciones/s, la ventana de la capa 2 va en `VENTANA_DETECCION_S=1.5` para juntar las 5 que pide.
 
 ## El banco de pruebas
@@ -64,7 +64,7 @@ Debajo de los CA está la matriz de **escenarios por industria** ([PRD](../knowl
 
 ## La clave del equipo
 
-La API es pública. Con `CLAVE_EQUIPO` en el entorno del servidor, quitarle un edge a la OT que ejecuta (`POST /ot/{id}/sesion`) o soltarlo (`DELETE /edge/{id}/sesion`) pide la cabecera `X-Clave-Equipo`, y sin ella el home queda de solo lectura. Se entra una vez con `/?clave=...` y queda en el navegador; el banco la toma de `?clave=` y `scripts/correr_casos.py`, de `--clave`. Sin la variable todo queda abierto, como en local. `GET /clave` dice si el servidor la pide: conviene mirarlo después de cada despliegue.
+La API es pública. Con `CLAVE_EQUIPO` en el entorno del servidor, quitarle un edge a la OT que ejecuta (`POST /ot/{id}/sesion`) o soltarlo (`DELETE /edge/{id}/sesion`) pide la cabecera `X-Clave-Equipo`, y sin ella el home queda de solo lectura. Se entra una vez con `/?clave=...` y queda en el navegador; el banco la toma de `?clave=` y `scripts/correr_casos.py`, de `--clave`. Un operador de un cliente no la necesita: une su OT a una estación con su token en `POST /cliente/ots/{id}/sesion`, y para quitársela a otra OT abierta lo pide con `tomar` ([ADR-0012](../knowledge/decisions/0012-login-y-clientes-cada-empresa-ve-lo-suyo.md)). La interfaz (`web/`) usa esa ruta y nunca lleva la clave. Sin la variable todo queda abierto, como en local. `GET /clave` dice si el servidor la pide: conviene mirarlo después de cada despliegue.
 
 **No se tocan sin avisar:** `contratos.py` y `reglas.py` — son el contrato entre
 los cuatro, y `tests/test_reglas.py` los vigila.

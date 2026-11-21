@@ -33,7 +33,7 @@ cd edge && .venv/bin/python detectar.py --clases "<objeto en inglés>" --foto <f
 
 Pruébalo en fotos con el objeto y sin él. La capa 2 solo cierra el paso si **todas** las detecciones de la ventana pasan de 0,8, y solo decide «ya no está» si ninguna llega a 0,25 (`reglas.por_deteccion`). Si las confianzas no quedan a esos lados, el detector no decide y el paso sigue en el VLM: no bajes los umbrales.
 
-Si sirve: agrega `"deteccion": {"clase": "<objeto>", "presente": true}` al paso, pon `capa_minima` en 2, y agrega la clase a la estación. El detector la recibe de la pauta: en modo edge no hay nada más que hacer (el edge pregunta qué clases pide la OT en sesión); en modo servidor hay que exportar el modelo de nuevo con `edge/exportar_onnx.py --pautas <la pauta> ../datos/pauta-*.json` ([cómo se despliega](../../../app/README.md#dónde-corre-yolo-dos-modos)). Mientras el detector no conozca la clase, el paso lo cierra el VLM.
+Si sirve: agrega `"deteccion": {"clase": "<objeto>", "presente": true}` al paso, pon `capa_minima` en 2, y agrega la clase a la estación. El detector la recibe de la pauta: en modo edge no hay nada más que hacer (el edge pregunta qué clases pide la OT en sesión y las suma a las suyas); en modo servidor hay que exportar el modelo de nuevo con `edge/exportar_onnx.py --pautas <la pauta> ../datos/pauta-*.json` ([cómo se despliega](../../../app/README.md#dónde-corre-yolo-dos-modos)). Mientras el detector no conozca la clase, el paso lo cierra el VLM.
 
 ## 3. Detector entrenado · solo con historia que lo pida
 

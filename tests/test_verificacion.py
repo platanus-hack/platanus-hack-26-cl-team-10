@@ -35,6 +35,13 @@ class JuezClaude(unittest.TestCase):
         self.assertEqual(p["model"], "claude-haiku-5-5")
         self.assertEqual(p["output_config"]["format"]["type"], "json_schema")
 
+    def test_con_foto_de_antes_manda_las_dos_rotuladas_y_en_orden(self):
+        c = ClienteFalso('{"respuesta": true, "confianza": 0.8}')
+        self.assertEqual(verificacion.preguntar_claude("¿La reemplazó?", JPEG, c, antes=b"antes"), (True, 0.8))
+        r1, antes, r2, ahora, pregunta = c.pedidos[0]["messages"][0]["content"]
+        self.assertEqual((r1["text"], r2["text"], pregunta["text"]), ("Foto 1, de antes:", "Foto 2, de ahora:", "¿La reemplazó?"))
+        self.assertEqual([base64.b64decode(f["source"]["data"]) for f in (antes, ahora)], [b"antes", JPEG])
+
     def test_la_confianza_se_acota_entre_0_y_1(self):
         c = ClienteFalso('{"respuesta": false, "confianza": 7}')
         self.assertEqual(verificacion.preguntar_claude("p", JPEG, c), (False, 1.0))

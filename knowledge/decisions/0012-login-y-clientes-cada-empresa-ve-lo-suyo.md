@@ -11,6 +11,8 @@ Con el [ADR-0011](./0011-protocolos-y-pautas-por-servicio-interno-ot-por-servici
 El servicio para clientes (`/cliente/...`) pide login. Una persona entra con usuario y clave en `POST /auth/entrar` y recibe un token que dura 12 horas. Con ese token, el servidor sabe quién pide y de qué empresa es, sin creerle a lo que venga en el cuerpo.
 
 - **Un cliente es una empresa**, con sus personas. Cada persona tiene uno de dos roles: el **supervisor** pide OT, las asigna a operadores de su empresa y ve todas las de su empresa; el **operador** ve las que tiene asignadas.
+- **Cualquier persona de la empresa lee el nombre y el rol de las demás** (`GET /cliente/personas`), para que un relevo diga «Ana Rojas» y no `operario:1`. El usuario con que cada una entra no sale: es la mitad del login. La lista de operadores para asignar (`GET /cliente/operadores`) sigue siendo del supervisor.
+- **El operador une su OT a una estación con su token, sin la clave del equipo** (`POST /cliente/ots/{ot_id}/sesion`). La interfaz no puede guardar la clave del equipo, porque todo lo que va en el navegador se ve. La autoriza quién es: solo el operador que tiene la OT asignada, y el `operario` de la sesión es quien entró. Una estación libre, o que ejecuta una OT ya completa, se une sin más. Si ejecuta otra OT abierta, el servidor responde 409 y hay que repetir con `tomar` en true, porque esa OT deja de recibir sus sensores: tiene que ser un acto de la persona y no un reintento. La estación que ejecuta la OT de otra empresa no se toma. Decidido por Francisco el 2026-11-21.
 - **Cada OT queda de la empresa que la pidió.** Una OT de otra empresa no existe para quien pregunta: 404, no 403, para no confirmar que existe.
 - **El equipo habilita qué pautas puede pedir cada cliente.** Un cliente ve y pide solo esas.
 - **El equipo crea las empresas y sus personas** en `/interno/clientes`, con la clave del equipo. La clave de cada persona la genera el sistema y se ve una sola vez; si se pierde, se genera otra, y eso cierra sus sesiones.
@@ -32,8 +34,13 @@ Oculta queda en la semilla (`datos/ots-semilla.json`) con una supervisora y dos 
 
 ## Pendientes y no verificado
 
+- Quitarle la estación a una OT no queda en la bitácora de ninguna de las dos: la sesión nueva dice quién la tiene y desde cuándo (`GET /edge/{id}/sesion`), pero no a quién se la quitó. Registrarlo pide un tipo de evento nuevo en `app/contratos.py`. `Brecha`.
+- Una estación no es de ninguna empresa: cualquier operador con una OT abierta puede unirla a cualquier estación libre. `Brecha`.
+- La pantalla del operador no usa todavía la ruta nueva ni ofrece tomar la estación. `Brecha`, de `web/`.
 - Las rutas anteriores (`/ots`, `/ot/{id}`, `/ot/{id}/declarar`, `/ot/{id}/asignar`) siguen abiertas y muestran las OT de todos. Hay que llevarlas detrás del login cuando la pantalla del demo lo use. `Brecha`.
 - No hay límite de intentos de login ni bloqueo por intentos fallidos. `Brecha`.
+- El tiempo de respuesta del login delata si un usuario existe: con uno que existe el servidor deriva la clave (20 ms en local, medido el 2026-11-21) y con uno que no existe responde en 0,01 ms. Se cierra derivando siempre. `Brecha`.
+- La revisión de la API contra los estándares está en [API](../architecture/API.md): ordena estas brechas y suma el formato de los errores y la validación que corre antes que el login.
 - El token vive en la base del servidor: si la base se borra, todos vuelven a entrar. Aceptable para el demo.
 - No hay pantalla de login: hoy se entra por la API. La interfaz es de Daniel (`web/`). `Brecha`.
 - El servidor del demo solo tiene HTTPS si va detrás del dominio de la VM; sin HTTPS, la clave viaja a la vista. `Candidata a validar` en la VM.
