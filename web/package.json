@@ -12,7 +12,8 @@
     "test": "vitest run",
     "dev:celular": "vite --host --mode celular",
     "build:funcion": "tsc -p tsconfig.funcion.json",
-    "desplegar": "npm run build:funcion && vercel build --prod && vercel deploy --prebuilt --prod"
+    "desplegar": "bash ../deploy/vercel/desplegar.sh",
+    "desplegar:previa": "npm run build:funcion && vercel pull --yes --environment=preview && vercel build && vercel deploy --prebuilt"
   },
   "dependencies": {
     "@fontsource-variable/bitcount-prop-single": "^5.3.0",
