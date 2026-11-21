@@ -13,7 +13,8 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.routing import WebSocketRoute
 
-OCULTAS = {"/", "/agente", "/llms.txt", "/camara", "/monitor", "/casos", "/referencia", "/referencia/clientes.json"}
+OCULTAS = {"/", "/agente", "/llms.txt", "/llms-full.txt", "/camara", "/monitor", "/casos", "/referencia",
+           "/referencia/clientes.json", "/skills", "/skills/{nombre}/SKILL.md"}
 
 # La comparten esta guía y la referencia (app/referencia.py).
 ERRORES = """| Código | Cuerpo | Qué significa |
@@ -53,6 +54,7 @@ def guia(app: FastAPI, base: str) -> str:
     return f"""# Factum · API de flujos operacionales verificables
 
 Guía para el agente que se conecta. Base: `{base}` · esquemas: `{base}/openapi.json` · referencia para probar cada ruta: `{base}/referencia`.
+Las skills de cliente (pedir, ejecutar, reportar y medir) están en `{base}/skills`, y el índice para agentes, en `{base}/llms.txt`.
 El servicio para clientes (`/cliente/...`) pide login y el interno (`/interno/...`), la clave del equipo. El resto no pide nada, salvo la clave del equipo para mover un edge (ver «Clave del equipo»): es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
 
 ## Qué es

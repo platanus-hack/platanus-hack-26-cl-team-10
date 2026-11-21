@@ -149,6 +149,9 @@ def markdown(r: dict) -> str:
         f"{'sin desviaciones' if res['sin_desviaciones'] else str(res['desviaciones']) + ' desviaciones'} · "
         f"calificación {res['calificacion']['nivel']} · estado {r['estado']}",
         "",
+        *([f"- **Por qué {res['calificacion']['nivel']}:** " + "; ".join(dict.fromkeys(
+            m for a in res["calificacion"].get("avisos", []) for m in a.get("motivos", [])))]
+          if res["calificacion"].get("nivel") != "ok" and res["calificacion"].get("avisos") else []),
         f"- **Equipo:** {r['equipo']}",
         f"- **Protocolos:** {', '.join(p['nombre'] for p in r['protocolos']) or '—'}",
         f"- **Pidió:** {gente['pidio']} · **A cargo:** {gente['a_cargo'] or '—'} · "

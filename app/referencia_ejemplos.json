@@ -534,6 +534,13 @@
           "id": "p1",
           "orden": 1,
           "titulo": "Cortar la corriente del motor",
+          "instruccion": "Aprieta el botón de parada. En el demo, el mismo botón corta el motor y lo deja trabado.",
+          "tipo_evidencia": "sensor",
+          "sensor": {
+            "id": "energia",
+            "espera": "cortada"
+          },
+          "pregunta_visual": null,
           "estado": "no_verificado",
           "control_critico": true,
           "capa": null,
@@ -544,6 +551,13 @@
           "id": "p2",
           "orden": 2,
           "titulo": "Poner tu candado",
+          "instruccion": "Deja trabado el motor: mientras esté trabado, nadie puede encenderlo. En la faena es tu candado; en el demo, el botón.",
+          "tipo_evidencia": "sensor",
+          "sensor": {
+            "id": "bloqueo",
+            "espera": "puesto"
+          },
+          "pregunta_visual": null,
           "estado": "no_verificado",
           "control_critico": true,
           "capa": null,
@@ -870,17 +884,24 @@
   },
   "POST /cliente/ots/{ot_id}/relevo/entregar": {
     "respuesta": {
-      "resumen": "Cambio de polín · demo de 2 minutos v1 sobre correa a escala del demo. Verificados: p1, p2. Sin iniciar: p3, p4, p5, p6, p7, p8. Retomar desde p3.",
+      "resumen": "Cambio de polín · demo de 2 minutos v1 sobre correa a escala del demo. Verificados: p1. Sin iniciar: p2, p3, p4, p5, p6, p7, p8. Retomar desde p2.",
       "estado": {
         "pauta": "Cambio de polín · demo de 2 minutos v1",
         "equipo": "correa a escala del demo",
-        "paso_actual": "p3",
+        "paso_actual": "p2",
         "completa": false,
         "pasos": [
           {
             "id": "p1",
             "orden": 1,
             "titulo": "Cortar la corriente del motor",
+            "instruccion": "Aprieta el botón de parada. En el demo, el mismo botón corta el motor y lo deja trabado.",
+            "tipo_evidencia": "sensor",
+            "sensor": {
+              "id": "energia",
+              "espera": "cortada"
+            },
+            "pregunta_visual": null,
             "estado": "verificado",
             "control_critico": true,
             "capa": null,
@@ -899,24 +920,26 @@
             "id": "p2",
             "orden": 2,
             "titulo": "Poner tu candado",
-            "estado": "verificado",
-            "control_critico": true,
-            "capa": 1,
-            "evidencia": {
-              "tipo": "sensor",
+            "instruccion": "Deja trabado el motor: mientras esté trabado, nadie puede encenderlo. En la faena es tu candado; en el demo, el botón.",
+            "tipo_evidencia": "sensor",
+            "sensor": {
               "id": "bloqueo",
-              "valor": "puesto",
               "espera": "puesto"
             },
-            "detalle": "bloqueo = puesto, que es lo que el paso exige"
+            "pregunta_visual": null,
+            "estado": "no_verificado",
+            "control_critico": true,
+            "capa": null,
+            "evidencia": null,
+            "detalle": null
           }
         ],
         "verificados": [
-          "p1",
-          "p2"
+          "p1"
         ],
         "en_conflicto": [],
         "pendientes": [
+          "p2",
           "p3",
           "p4",
           "p5",
