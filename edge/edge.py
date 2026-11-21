@@ -103,12 +103,16 @@ def hilo_sensores(servidor, edge_id, puerto, stats, dist_max, temp_max):
         except (serial.SerialException, OSError) as e:
             print(f"[sensores] ESP32 no disponible ({e}); reintento en 2 s")
             time.sleep(2)
+        except Exception as e:  # noqa: BLE001 - nada debe matar este hilo: sin él no hay sensores
+            print(f"[sensores] error inesperado ({e!r}); reabro el puerto en 2 s")
+            time.sleep(2)
 
 
 def _leer_y_enviar(servidor, edge_id, puerto, stats, dist_max, temp_max):
     url = f"{servidor}/edge/{edge_id}/lecturas"
     seq = int(time.time() * 1000)  # crece entre reinicios: el servidor descarta seq repetidos
-    esp = serial.Serial(puerto, 115200, timeout=2)
+    # exclusivo: dos procesos leyendo el mismo CP2102 pueden trabar el adaptador hasta desenchufarlo
+    esp = serial.Serial(puerto, 115200, timeout=2, exclusive=True)
     print(f"[sensores] leyendo {puerto}")
     dist_previa, ultimo_dato = None, time.time()
     while True:
@@ -123,6 +127,8 @@ def _leer_y_enviar(servidor, edge_id, puerto, stats, dist_max, temp_max):
             d = json.loads(linea.decode(errors="ignore"))
         except ValueError:
             continue  # boot log, línea cortada o vacía
+        if not isinstance(d, dict):
+            continue  # un pedazo de línea como "5}" se lee como número, no como lectura
         lote = []
         crudos = {k: d[k] for k in ("temp_c", "hum_pct", "dist_cm") if d.get(k) is not None}  # null = sin lectura
         for k, v in {**crudos, **estados(d, dist_previa, dist_max, temp_max)}.items():
