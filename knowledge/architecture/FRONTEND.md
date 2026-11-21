@@ -16,7 +16,7 @@ El front no verifica nada. Muestra lo que decide la API, deja al operario respon
 
 | Tema | Decisión |
 |---|---|
-| Stack | Vite + React + TypeScript, en `web/`. Una sola app con pantallas separadas por ruta, no una sola pantalla |
+| Stack | Vite + React + TypeScript, en `web/`. Una sola app con pantallas separadas por ruta, no una sola pantalla. React Router para las rutas, Mantine para los componentes, MSW para el mock y Vitest para los tests |
 | Login | Falso: se elige un usuario de una lista, sin contraseña. Uno real solo si sobra tiempo |
 | Datos mientras no hay back | Un mock que imita la forma que la API ya devuelve (`GET /ot/{id}`), más las extensiones de la [sección 8](#8-contrato-con-la-api). El mock es solo para construir |
 | Demo en vivo | Corre sobre el back real, con el supervisor en un computador y el operador en un celular. Los warns y la alerta de seguridad los disparan los sensores reales del ESP32 |
@@ -69,6 +69,56 @@ web/
 - El mock corre en el navegador con MSW, que también imita el WebSocket, y se activa con `VITE_MOCK=1`. Sin mock, el cliente apunta a `VITE_API_URL`, que en el demo es `https://34-176-44-192.sslip.io`.
 - Dentro de un navegador, el mock es un solo mundo: lo que el supervisor asigna en `/supervisor` aparece en `/operador` y en `/ot/:id`. El escenario solo fija cómo parte ese mundo, y se elige en la URL: `/ot/ot-12?escenario=warn-sobrescrito`. No cruza dispositivos, y no hace falta: el demo corre sobre el back real.
 - Los datos del mock usan la pauta real, [`datos/pauta-correa.json`](../../datos/pauta-correa.json): 6 pasos sobre la correa CT-01.
+
+### Colores
+
+Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de los letreros y las tarjetas de bloqueo de una planta, así un operario los lee como ya los lee en terreno. Reglas:
+
+- **Cada color significa una sola cosa.** Rojo es peligro, amarillo es precaución, verde es verificado y azul es acción obligatoria, que en la app es el paso actual y el botón «Hecho».
+- **Lo demás es neutro.** Una OT tranquila se ve gris y blanca, con el paso actual en azul. Cuando algo sale mal, la pantalla cambia de color, y eso es lo que se tiene que notar.
+- **Sin naranjo.** Queda entre el rojo y el amarillo y confunde los dos avisos. Tampoco hay un color de marca aparte.
+- **El color nunca va solo.** Siempre va con un ícono y un texto: con sol, con guantes o con daltonismo rojo-verde, el color no alcanza.
+- **Fondo claro.** Se lee mejor bajo el sol y en el proyector del escenario.
+- **La alerta de capa 1 se ve como una tarjeta de bloqueo:** una franja roja arriba con «Peligro» en blanco, y el cuerpo blanco con el texto en grafito.
+
+| Token | Hex | Uso |
+|---|---|---|
+| Grafito | `#1F262E` | Texto principal |
+| Roca | `#5B6570` | Texto secundario, bordes y pasos pendientes |
+| Polvo | `#EDF0F2` | Fondo de la app |
+| Blanco | `#FFFFFF` | Superficies: tarjetas, banner, barra inferior |
+| Acción | `#004C97` | Paso actual, «Hecho» y botones principales |
+| Verificado | `#00843D` | Paso verificado |
+| Precaución | `#FFD100` de relleno, `#7A5C00` para texto | Avisos de nivel `warning` (cámara y anomalías de señal), sin señal, sin conexión y la marca de sobrescrito |
+| Peligro | `#C8102E` | Lo de nivel `error`: el warn de capa 1 que suena y la alerta de seguridad |
+
+El amarillo de seguridad no se lee como texto sobre blanco (1,5:1): va siempre de relleno con texto grafito (10,5:1), y el texto amarillo usa `#7A5C00` (6,3:1). Los demás pasan AA con texto blanco: rojo 5,9:1, verde 4,8:1, azul 8,5:1.
+
+**Ejecución:** `pendiente` roca · `en_curso` y `comprobando` acción · `verificado` verificado · `warn` peligro si es capa 1 y precaución si no · `sin_senal` precaución · `sobrescrito` verificado con un borde izquierdo de precaución, porque está cerrado pero cuenta como warn.
+
+**Gestión:** `sin_asignar` roca · `asignada` y `en_ejecucion` acción · `entregada` precaución, porque espera al supervisor · `completa` verificado.
+
+El tema vive en `web/src/tema.ts` y nadie escribe un hex fuera de ahí:
+
+```ts
+import { createTheme, type MantineColorsTuple } from '@mantine/core'
+
+const accion: MantineColorsTuple = ['#ebf1f7', '#d1dfec', '#adc6de', '#85a9cd', '#5c8cbc', '#2e6caa', '#004C97', '#004180', '#00356a', '#002a53']
+const verificado: MantineColorsTuple = ['#ebf5ef', '#d1e9dc', '#add8c1', '#85c4a2', '#5cb083', '#2e9a60', '#00843D', '#007034', '#005c2b', '#004922']
+const precaucion: MantineColorsTuple = ['#fffbeb', '#fff7d1', '#fff0ad', '#ffe985', '#ffe25c', '#ffd92e', '#FFD100', '#d9b200', '#b29200', '#7A5C00']
+const peligro: MantineColorsTuple = ['#fbecee', '#f5d4d9', '#edb3bc', '#e58c9b', '#dc6679', '#d23b54', '#C8102E', '#aa0e27', '#8c0b20', '#6e0919']
+const roca: MantineColorsTuple = ['#f2f3f4', '#e1e3e5', '#cbced1', '#b0b5ba', '#969ca3', '#79818a', '#5B6570', '#4d565f', '#40474e', '#32383e']
+
+export const tema = createTheme({
+  primaryColor: 'accion',
+  primaryShade: 6,
+  colors: { accion, verificado, precaucion, peligro, roca },
+  black: '#1F262E',
+  white: '#FFFFFF',
+  autoContrast: true, // texto grafito sobre el amarillo, blanco sobre los demás
+})
+// El fondo Polvo (#EDF0F2) va en el body, con forceColorScheme="light" en el MantineProvider.
+```
 
 ## 5. Diego — gestión
 
@@ -123,7 +173,7 @@ stateDiagram-v2
   en_curso --> warn: los sensores avisan antes
   comprobando --> verificado: la evidencia lo confirma
   comprobando --> warn: la evidencia lo contradice
-  comprobando --> sin_senal: pasan 10 s sin veredicto
+  comprobando --> sin_senal: la API responde no_verificado o pasan 10 s
   sin_senal --> verificado: llega la evidencia
   sin_senal --> sobrescrito: Ya lo hice
   warn --> verificado: lo corrige y la evidencia lo confirma
@@ -134,7 +184,7 @@ stateDiagram-v2
 | Estado en pantalla | De dónde sale |
 |---|---|
 | `pendiente`, `en_curso` | `no_verificado` en la API; es `en_curso` si es el `paso_actual` |
-| `comprobando`, `sin_senal` | Solo del front: el operario tocó «Hecho» y el veredicto no llega |
+| `comprobando`, `sin_senal` | Solo del front: el operario tocó «Hecho» y la evidencia todavía no cierra el paso |
 | `verificado` | `verificado` en la API |
 | `warn` | `en_conflicto` en la API |
 | `sobrescrito` | Estado nuevo en la API. Se ve distinto de `verificado`: cerrado por la palabra de OP1, no por la evidencia |
@@ -143,13 +193,13 @@ stateDiagram-v2
 - Un paso de sensor se cierra solo cuando llega la lectura: el operario no tiene que tocar nada. «Hecho» sirve sobre todo para los pasos de cámara y de confirmación, y llama a `POST /ot/{id}/declarar`.
 - «Ya lo hice» llama a `POST /ot/{id}/sobrescribir`, con una nota opcional.
 - Un warn puede caer en cualquier paso, no solo en el actual. La API dice en cuál.
-- En `sin_senal` el front no inventa un warn ni lo hace sonar: solo muestra que no llega la señal y ofrece «Ya lo hice» *(propuesta: 10 s)*.
+- En `sin_senal` el front no inventa un warn ni lo hace sonar: solo muestra que no llega la señal y ofrece «Ya lo hice». Se entra cuando `declarar` responde `no_verificado` (por ejemplo «sin lectura de reed_bloqueo») o cuando pasan 10 s sin respuesta *(propuesta)*.
 
 ### Alerta de seguridad
 
 «Guarda abierta con energía viva» no es un paso: llega en cualquier momento, vaya el operario en el paso que vaya. Se ve como un banner rojo arriba de todo, suena, y tiene las mismas dos salidas: corregirlo, y la API la resuelve sola cuando el sensor vuelve a estar bien (llega un evento `alerta_resuelta`), o «Ya lo hice», que queda registrado como sobrescritura.
 
-El banner muestra `calificacion.avisos`: la lista de lo que está mal ahora, lo más grave primero. Un aviso existe mientras venga en esa lista.
+El banner muestra las alertas activas: las `alertas_activas` del snapshot, más cada evento `alerta` nuevo, menos las que cierra un `alerta_resuelta` (por su `evidencia.resuelve`). Se usan los eventos y no `calificacion.avisos` porque «Ya lo hice» necesita el `id` de la alerta. `calificacion.nivel` pinta el indicador general de la OT.
 
 ### Qué suena y qué no
 
@@ -193,7 +243,7 @@ Por qué la voz sale del evento y no de `calificacion.avisos`: un aviso no trae 
 - Si `/voz` falla, el front dice el mismo texto con la voz del navegador (`speechSynthesis`). El aviso nunca queda mudo.
 - Si llegan dos eventos, suenan en orden, sin pisarse.
 - Lo que se dice es el `detalle` del evento. El tono, como en la pizarra: «Oye, el candado no aparece puesto. Bloquea antes de seguir.» Si el `detalle` de la API suena muy técnico, se le pide al equipo de Francisco o se arma el texto en el front.
-- El navegador del celular no reproduce sonido hasta que el usuario toca algo. El toque en «Comenzar» o «Continuar» desbloquea el audio, y la pantalla muestra si el audio está activo, con un botón «Probar audio». Probarlo en el celular del demo, sobre todo si es iPhone.
+- El navegador del celular no reproduce sonido hasta que el usuario toca algo. El toque en «Comenzar» o «Continuar» desbloquea el audio: Diego llama a `desbloquearAudio()` de `web/src/ejecucion/voz.ts` en ese botón. Si se entra a `/ot/:id` sin ese toque (una recarga o un enlace directo), la pantalla pide un toque antes de empezar. Muestra si el audio está activo, con un botón «Probar audio». Probarlo en el celular del demo, sobre todo si es iPhone.
 - Con la pantalla bloqueada, el celular corta el WebSocket y deja de sonar. La vista de ejecución le pide al navegador que mantenga la pantalla encendida (Wake Lock API) mientras la OT está abierta.
 - Con el mock, la voz es la del navegador, salvo que `/voz` esté corriendo.
 
@@ -223,7 +273,7 @@ Un aviso de `calificacion.avisos` es `{nivel, certeza, capa, motivos}`: sin `id`
 | Qué | Para | Quién |
 |---|---|---|
 | Asignar operador: `POST /ot/{id}/asignar` `{operador}`, que también reasigna, y `operador` más `estado_general` en `GET /ots` | Diego | Diego y Dani, como capa de servicios |
-| Sobrescribir: `POST /ot/{id}/sobrescribir` `{actor, paso_id, nota?}`, que cierra el paso como `sobrescrito` y queda en la bitácora | Dani | Por acordar con el equipo de Francisco, porque choca con su regla 2 (sección 2) |
+| Sobrescribir: `POST /ot/{id}/sobrescribir` `{actor, paso_id?, alerta_id?, nota?}`, con uno de los dos ids. Cierra el paso como `sobrescrito`, o la alerta, y entra a la bitácora como un evento `sobrescritura` | Dani | Por acordar con el equipo de Francisco, porque choca con su regla 2 (sección 2) |
 | Voz: `GET /voz?texto=` | Dani | Dani |
 
 Respaldo si el ESP32 falla en el escenario: la lectura se puede escribir a mano en `POST /edge/edge-1/lecturas` o en `POST /sensores`.
@@ -307,11 +357,12 @@ En el escenario corre sobre el back real, con el supervisor en un computador, el
 |---|---|---|
 | Stack | Vite + React + TS, una app con rutas | Next.js: más pesado de montar, y el render en servidor no le aporta nada al demo. HTML plano en `app/estatico`: sin build, pero difícil de trabajar entre dos y de probar una máquina de estados |
 | Forma del mock | La del esqueleto más extensiones | `{bool, string}` de la pizarra: no distingue un warn de una alerta crítica ni muestra la evidencia. Modelo propio con adaptador: más aislado del back, pero más código, y `api/` ya hace de adaptador |
+| Componentes | Mantine, sin Tailwind | MUI: más pesado, y cuesta que no se vea como Material. shadcn/ui con Tailwind: se ve muy bien, pero cada componente se copia y se arma a mano, y dos personas agregando a la misma carpeta chocan |
 | Origen de la voz | El front pide el audio a `/voz` | Que el back adjunte el audio al warn: ata la voz a cómo el equipo de Francisco rehaga los warns. ElevenLabs desde el navegador: expone la llave en un repo público |
 
 ## 13. Queda a criterio de quien construye
 
-- Estilos y componentes. Tailwind es la sugerencia.
+- La tipografía y el resto del tema de Mantine. Los colores están fijos en la [sección 4](#colores).
 - Cómo se implementa la máquina de estados. Sugerencia: un reducer puro y tipado, probado con Vitest, sin librerías.
 - Cómo guarda el mock su estado entre llamadas.
 - Cómo se desbloquea el audio en cada navegador.

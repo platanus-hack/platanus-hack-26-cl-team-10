@@ -1,0 +1,495 @@
+# Frontend: shared base and OT execution (Dani) Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build the shared front base Diego builds on, and the operator's execution view `/ot/:id`, which shows what the API decides, lets the operator answer «Hecho» / «Ya lo hice», and speaks capa-1 errors through ElevenLabs within 2 s.
+
+**Architecture:** One Vite + React + TS app in `web/`. Everything that knows the API lives in `web/src/api/`. The execution view is a pure reducer (`ejecucion/estado.ts`) fed by the OT WebSocket stream and by `GET /ot/{id}` refetches; a hook wires it to the stream, the voice queue and the wake lock. An in-browser MSW mock (HTTP + WebSocket) imitates the deployed API plus the endpoints that don't exist yet, driven by named scenarios. The voice comes from a small FastAPI router, `app/voz.py`, that proxies and caches ElevenLabs.
+
+**Tech Stack:** Vite, React, TypeScript, React Router 7, Mantine (`@mantine/core`, `@mantine/hooks`, `@tabler/icons-react`), MSW 2 (HTTP and `ws`), Vitest + Testing Library + jsdom; Python 3.12 + FastAPI with stdlib `urllib` for the proxy, `unittest` tests.
+
+**Spec:** `knowledge/architecture/FRONTEND.md` (read it first). Live API guide: `https://34-176-44-192.sslip.io/agente`. Stream internals: `app/servicios.py` (`snapshot`, `evento_dict`), `app/scoring.py`.
+
+## Global Constraints
+
+- Node 20.20 is installed; package manager is npm. Front lives in `web/`.
+- No Tailwind. Components come from Mantine; wrap the app in `<MantineProvider theme={tema} forceColorScheme="light">` and import `@mantine/core/styles.css`.
+- Colors only from `web/src/tema.ts`, copied verbatim from FRONTEND.md §4 «Colores», with the state → color mapping given there. No hex outside that file. Red only for `error`, yellow only for `warning`/no signal/overwrite mark, green only for verified, blue only for the current step and primary actions. Every color is paired with an icon and text.
+- UI copy is Spanish and these strings are exact: «Comenzar», «Continuar», «Hecho», «Ya lo hice», «Confirmar», «Cancelar», «Entregar turno», «Recibido», «Probar audio», «Audio activo», «Audio bloqueado», «Sin conexión, reintentando», «OT completa», «Volver a mis OT», «Relevo de turno».
+- Demo users (exact): `{id:'supervisor:1', nombre:'Supervisor', rol:'supervisor'}`, `{id:'operario:1', nombre:'OP1', rol:'operador'}`, `{id:'operario:2', nombre:'OP2', rol:'operador'}`. The `id` is the `actor` sent to the API.
+- Env: `VITE_MOCK` (`'1'` = mock), `VITE_API_URL` (default `https://34-176-44-192.sslip.io`; in mock `https://api.mock`), `VITE_EDGE_ID` (default `edge-1`), `VITE_VOZ_URL` (default `${API_URL}/voz`; in mock unset → browser voice). Server: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`. No key ever in the repo or the browser.
+- Only events whose `calificacion.nivel === 'error'` are spoken. Capa 2 and capa 3 reach at most `warning`: shown, never spoken.
+- The front never closes a step or computes order: it shows `paso_actual` from the API and refetches `GET /ot/{id}` when a stream `evento` has a `paso_id`.
+- A 409 carries `{regla}`: show it verbatim, never retry the same request.
+- `web/src/api/` and `web/src/sesion/` are shared with Diego: after Task 3 is pushed, tell him before changing them.
+- Francisco's files are not edited, except one `include_router` line in `app/api.py` (Task 8) that he must be told about.
+- Commits in English, ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+## Review Focus
+
+1. **Phone loses the stream (screen dims, Wi-Fi blips).** On reconnect with `?desde=`, error events missed meanwhile are spoken once; the very first snapshot's log never is. Test in Task 5 (`reconnect snapshot speaks missed errors, first snapshot does not`).
+2. **OT id that doesn't exist.** The server closes the socket with code 4404; the client must stop retrying and show that the OT doesn't exist. Test in Task 6 (`stops on 4404`).
+3. **Audio blocked or ElevenLabs down.** `play()` rejects or the audio errors: the same text is spoken with the browser voice, exactly once, and the queue moves on. Test in Task 7 (`falls back once when play rejects and audio errors`).
+4. **Double tap on «Hecho».** A second tap while a declaration is in flight sends nothing. Test in Task 5 (`hecho_enviado is ignored while pendiente`); `useEjecucion().hecho()` returns early when the reducer kept the earlier `pendiente`, and the button is disabled while a step is `comprobando` (Task 9).
+5. **409 from declarar** (e.g. «la pauta ya está completa»): pending state clears and the rule text is shown. Test in Task 5 (`error clears pendiente and keeps the message`).
+
+---
+
+## File Structure
+
+```
+web/
+  package.json  vite.config.ts  postcss.config.cjs  index.html  .env.example
+  public/mockServiceWorker.js          generated by `npx msw init public`
+  src/
+    main.tsx            starts the mock when VITE_MOCK=1, then renders
+    App.tsx             MantineProvider + routes
+    tema.ts             Mantine theme: the safety palette from FRONTEND.md §4
+    config.ts           env → config object
+    api/tipos.ts        wire types of the live API (+ proposed extensions)
+    api/cliente.ts      fetch client, ApiError, urlStream
+    sesion/usuarios.ts  USUARIOS
+    sesion/sesion.ts    leerSesion/guardarSesion/cerrarSesion/useSesion
+    sesion/RequiereRol.tsx
+    gestion/PaginaLogin.tsx PaginaSupervisor.tsx PaginaOperador.tsx   placeholders Diego replaces
+    mocks/calificar.ts  calificacion of a mock event (mirrors app/scoring.py)
+    mocks/mundo.ts      in-memory world: OTs, append-only events, subscribers
+    mocks/escenarios.ts named scenarios
+    mocks/handlers.ts   MSW http + ws handlers over Mundo
+    mocks/navegador.ts  iniciarMock()
+    ejecucion/estado.ts the state machine: reducer + selectors
+    ejecucion/stream.ts WebSocket client with reconnection
+    ejecucion/voz.ts    voice queue, desbloquearAudio, debeSonar
+    ejecucion/useWakeLock.ts
+    ejecucion/useEjecucion.ts
+    ejecucion/PaginaOt.tsx PantallaEjecucion.tsx Paso.tsx BannerAlertas.tsx Briefing.tsx OtCompleta.tsx
+app/voz.py              GET /voz → ElevenLabs, cached in datos/voz/
+tests/test_voz.py
+```
+
+---
+
+### Task 1: Scaffold `web/` with Mantine, routes, config and session
+
+**Files:**
+- Create: everything under `web/` listed above except `api/`, `mocks/`, `ejecucion/`
+- Test: `web/src/sesion/sesion.test.ts`
+
+**Interfaces:**
+- Produces:
+  - `config: { MOCK: boolean; API_URL: string; EDGE_ID: string; VOZ_URL: string | null }` in `src/config.ts`
+  - `type Rol = 'supervisor' | 'operador'`; `type Usuario = { id: string; nombre: string; rol: Rol }`; `USUARIOS: Usuario[]` in `sesion/usuarios.ts`
+  - `leerSesion(): Usuario | null`, `guardarSesion(u: Usuario): void`, `cerrarSesion(): void`, `useSesion(): Usuario | null` in `sesion/sesion.ts` (localStorage key `factum.sesion`, every access in try/catch)
+  - `<RequiereRol rol={Rol}>` redirects to `/login` without a matching session
+  - `nombreDe(actor: string): string` in `sesion/usuarios.ts` (`'operario:1'` → `'OP1'`, unknown → the actor itself)
+  - Routes: `/login`, `/supervisor` (supervisor), `/operador` (operador), `/ot/:id` (operador, placeholder until Task 9), `/` → `/login`
+
+- [ ] **Step 1: Create the app**
+
+Run: `npm create vite@latest web -- --template react-ts && cd web && npm install && npm install react-router @mantine/core @mantine/hooks @tabler/icons-react && npm install -D postcss postcss-preset-mantine postcss-simple-vars vitest jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event msw`
+If create-vite asks about experimental options, answer No. Add `postcss.config.cjs` per Mantine's Vite guide, `test: { environment: 'jsdom', setupFiles: ['src/test-setup.ts'] }` in `vite.config.ts` (setup imports `@testing-library/jest-dom/vitest`), `server: { fs: { allow: ['..'] } }` so the mock can import `../datos/pauta-correa.json`, and scripts `"test": "vitest run"`.
+
+- [ ] **Step 2: Write the failing test** `web/src/sesion/sesion.test.ts`
+
+```ts
+it('round-trips the session through localStorage', () => {
+  guardarSesion(USUARIOS[1]); expect(leerSesion()).toEqual({ id: 'operario:1', nombre: 'OP1', rol: 'operador' })
+  cerrarSesion(); expect(leerSesion()).toBeNull()
+})
+it('returns null on corrupt storage', () => { localStorage.setItem('factum.sesion', '{'); expect(leerSesion()).toBeNull() })
+it('names actors', () => { expect(nombreDe('operario:2')).toBe('OP2'); expect(nombreDe('sistema')).toBe('sistema') })
+```
+
+- [ ] **Step 3: Run it** — `cd web && npm test` → FAIL (module not found).
+- [ ] **Step 4: Implement** `tema.ts` (verbatim from FRONTEND.md §4; body background `#EDF0F2`), `config.ts`, `sesion/*`, `App.tsx` with the routes, and three placeholder pages in `gestion/`. The placeholder `/login` lists `USUARIOS` as Mantine `Button`s that `guardarSesion` and navigate to `/supervisor` or `/operador`; the placeholder `/operador` links to `/ot/ot-12`. Add `.env.example` with the four `VITE_*` vars.
+- [ ] **Step 5: Verify** — `npm test` → PASS; `npm run build` → exit 0; `npm run dev`, open `/login`, pick OP1, land on `/operador`.
+- [ ] **Step 6: Commit** — `git add web && git commit -m "feat(web): scaffold Vite app with Mantine, routes and fake session"`
+
+### Task 2: API types and client
+
+**Files:**
+- Create: `web/src/api/tipos.ts`, `web/src/api/cliente.ts`
+- Test: `web/src/api/cliente.test.ts`
+
+**Interfaces:**
+- Consumes: `config` (Task 1)
+- Produces, in `tipos.ts` (field names are the wire names; verified against `app/servicios.py` and `app/cerebro.py`):
+
+```ts
+export type EstadoPasoApi = 'no_verificado' | 'verificado' | 'en_conflicto' | 'sobrescrito' // 'sobrescrito' is our proposal
+export type Nivel = 'ok' | 'warning' | 'error'
+export type Calificacion = { nivel: Nivel; certeza: number; capa: number | null; motivos: string[] }
+export type CalificacionOt = Calificacion & { avisos: Calificacion[] }
+export type TipoEvento = 'ot_abierta' | 'paso_iniciado' | 'declaracion' | 'veredicto' | 'alerta' | 'alerta_resuelta'
+  | 'relevo_entregado' | 'relevo_recibido' | 'propuesta_pauta' | 'sobrescritura' // 'sobrescritura' is our proposal
+export type Evento = { id: number; ot_id: string; tipo: TipoEvento; ts: string; actor: string; detalle: string
+  paso_id: string | null; estado: EstadoPasoApi | null; capa: number | null; declarado: string | null
+  evidencia: Record<string, unknown> | null; calificacion: Calificacion | null }
+export type PasoEstado = { id: string; orden: number; titulo: string; estado: EstadoPasoApi; control_critico: boolean
+  capa: number | null; evidencia: Record<string, unknown> | null; detalle: string | null }
+export type EstadoOt = { pauta: string; equipo: string; paso_actual: string | null; completa: boolean; pasos: PasoEstado[]
+  verificados: string[]; en_conflicto: string[]; pendientes: string[] }
+export type TipoEvidencia = 'sensor' | 'camara' | 'confirmacion'
+export type PasoPauta = { id: string; orden: number; titulo: string; instruccion: string; tipo_evidencia: TipoEvidencia
+  capa_minima: number; control_critico: boolean; pregunta_visual: string | null; sensor: { id: string; espera: string } | null }
+export type Pauta = { id: string; nombre: string; version: number; equipo: string; pasos: PasoPauta[] }
+export type EstadoGeneral = 'sin_asignar' | 'asignada' | 'en_ejecucion' | 'entregada' | 'completa'
+export type OtResumen = { ot: string; pauta: string; version: number; equipo: string; abierta_en: string
+  paso_actual: string | null; completa: boolean; operador?: string | null; estado_general?: EstadoGeneral } // last two: proposal
+export type Sesion = { edge_id: string; ot_id: string; operario: string; desde: string }
+export type Snapshot = { tipo: 'snapshot'; ot: string; estado: EstadoOt; calificacion: CalificacionOt; alertas_activas: Evento[]
+  sesion: Sesion | null; video: unknown; sensores: Record<string, string>; bitacora: Evento[] }
+export type MensajeStream = Snapshot
+  | { tipo: 'lectura'; edge_id: string; sensor_id: string; valor: string; ts: string }
+  | { tipo: 'evento'; evento: Evento }
+  | { tipo: 'calificacion_ot'; calificacion: CalificacionOt }
+  | { tipo: 'sesion'; sesion: Sesion; video: unknown }
+export type RespuestaDeclarar = { paso: string; estado: EstadoPasoApi; capa: number | null; detalle: string; interrumpe: boolean }
+export type CuerpoSobrescribir = { actor: string; paso_id?: string; alerta_id?: number; nota?: string }
+```
+
+- And in `cliente.ts`:
+  - `class ApiError extends Error { status: number; tipo: 'regla' | 'no_existe' | 'timeout' | 'red' | 'http'; regla: string | null }`
+  - `crearCliente(base: string, fetchImpl?: typeof fetch): Cliente` where `Cliente` has `listarOts(): Promise<OtResumen[]>`, `leerOt(id): Promise<EstadoOt>`, `leerPauta(id, version): Promise<Pauta>`, `abrirSesion(otId, edgeId, operario): Promise<Sesion>`, `declarar(otId, actor, texto): Promise<RespuestaDeclarar>` (10 000 ms timeout via AbortController), `sobrescribir(otId, cuerpo: CuerpoSobrescribir): Promise<Evento>`, `entregarTurno(otId, actor): Promise<{ resumen: string }>`, `recibirTurno(otId, actor): Promise<{ firmado_por: string }>`. `actor` goes as a query param on the two relevo calls, as the API expects.
+  - `api: Cliente = crearCliente(config.API_URL)`
+  - `urlStream(base: string, otId: string, desde: number): string` (`https://` → `wss://`, `http://` → `ws://`, path `/ot/{otId}/stream?desde={desde}`)
+  - Diego adds `asignar` later; leave it out.
+
+- [ ] **Step 1: Write the failing tests** `cliente.test.ts` (fake `fetchImpl` returning `new Response(...)`)
+
+```ts
+it('maps 409 to ApiError regla', async () => {
+  const c = crearCliente('https://x', async () => new Response(JSON.stringify({ regla: 'la pauta ya está completa' }), { status: 409 }))
+  await expect(c.declarar('ot-1', 'operario:1', 'hecho')).rejects.toMatchObject({ status: 409, tipo: 'regla', regla: 'la pauta ya está completa' })
+})
+it('maps a network failure to tipo red', async () => {
+  const c = crearCliente('https://x', async () => { throw new TypeError('Failed to fetch') })
+  await expect(c.leerOt('ot-1')).rejects.toMatchObject({ status: 0, tipo: 'red' })
+})
+it('times out declarar after 10 s', async () => { /* vi.useFakeTimers; fetchImpl honours signal.abort; advance 10_000 → tipo 'timeout' */ })
+it('sends actor as query on relevo', async () => { /* capture URL → endsWith('/ot/ot-1/relevo/entregar?actor=operario%3A1') */ })
+it('builds the stream url', () => {
+  expect(urlStream('https://34-176-44-192.sslip.io', 'ot-1', 7)).toBe('wss://34-176-44-192.sslip.io/ot/ot-1/stream?desde=7')
+})
+```
+
+- [ ] **Step 2: Run** — `npm test -- cliente` → FAIL.
+- [ ] **Step 3: Implement** `tipos.ts` and `cliente.ts`.
+- [ ] **Step 4: Run** — `npm test -- cliente` → PASS.
+- [ ] **Step 5: Commit** — `git commit -m "feat(web): typed client for the live OT API"`
+
+### Task 3: Mock world, the `feliz` scenario and MSW handlers; push for Diego
+
+**Files:**
+- Create: `web/src/mocks/calificar.ts`, `mundo.ts`, `escenarios.ts`, `handlers.ts`, `navegador.ts`; modify `web/src/main.tsx`
+- Test: `web/src/mocks/calificar.test.ts`, `web/src/mocks/mundo.test.ts`
+
+**Interfaces:**
+- Consumes: `tipos.ts`, `urlStream`, `config`, `../../../datos/pauta-correa.json` (the real pauta; 6 steps, p1/p2/p4/p5 sensor, p3 camera, p6 confirmation)
+- Produces:
+  - `calificarEvento(ev: Pick<Evento, 'tipo' | 'estado' | 'capa' | 'detalle' | 'evidencia'>): Calificacion | null`
+  - `class Mundo` with `constructor(pauta: Pauta)`, `crearOt(id: string, operador: string | null): void`, `agregar(otId: string, ev: Omit<Evento, 'id' | 'ot_id' | 'ts' | 'calificacion'>): Evento`, `estado(otId): EstadoOt`, `calificacion(otId): CalificacionOt`, `alertasActivas(otId): Evento[]`, `snapshot(otId, desde: number): Snapshot`, `resumenes(): OtResumen[]`, `operador(otId): string | null`, `asignar(otId, operador: string | null): void`, `abrirSesion(otId, edgeId, operario): Sesion`, `suscribir(otId, fn: (m: MensajeStream) => void): () => void`, `alCambiarPaso: ((otId: string, paso: PasoPauta) => void) | null`, `caido: boolean`, `pauta: Pauta`
+  - `type Temporizador = (ms: number, fn: () => void) => void`
+  - `type Escenario = { preparar(m: Mundo): void; alAbrirSesion?(m: Mundo, otId: string, t: Temporizador): void; alAvanzar?(m: Mundo, otId: string, paso: PasoPauta, t: Temporizador): void; alDeclarar(m: Mundo, otId: string, paso: PasoPauta, actor: string, t: Temporizador): RespuestaDeclarar }`
+  - `type NombreEscenario = 'feliz' | 'warn-corregido' | 'warn-sobrescrito' | 'alerta-seguridad' | 'camara-no' | 'sin-senal' | 'relevo' | 'api-caida' | 'completa'` (Diego extends with his four)
+  - `ESCENARIOS: Partial<Record<NombreEscenario, Escenario>>` (Task 4 fills the rest), `escenarioDeLaUrl(search: string): NombreEscenario` (unknown or missing → `'feliz'`)
+  - `Mundo.asignar` exists so Diego can add the `POST /ot/:id/asignar` handler; this task doesn't add it.
+  - Helpers exported for Task 4: `declararFeliz(m, otId, paso, actor): RespuestaDeclarar`, `cerrarPorSensor(m, otId, paso): void`, `veredicto(m, otId, paso, estado, capa, detalle, evidencia?): Evento`
+  - `crearHandlers(m: Mundo, e: Escenario, t: Temporizador): RequestHandler[]` (http + ws)
+  - `iniciarMock(): Promise<void>`
+
+Rules the mock must follow:
+- `calificarEvento`, mirroring `app/scoring.py`: `alerta_resuelta` → ok; `alerta` capa 1 → error, capa 2 → warning; `veredicto` capa 1: `en_conflicto` → error, else ok; capa 3: `en_conflicto` → warning, else ok, `certeza` = `evidencia.confianza ?? 1`; capa null → ok with motivos `[detalle, 'lo cerró una persona, no un sensor']`; `sobrescritura` → warning; anything else → null. `certeza` 1 unless stated; `motivos` = `[detalle]`.
+- `estado(otId)`: per step, the last event with that `paso_id` and a non-null `estado` wins (`veredicto` or `sobrescritura`); `paso_actual` = first step in order that is neither `verificado` nor `sobrescrito`; `completa` = no such step; `verificados`/`en_conflicto`/`pendientes` like `app/cerebro.py`.
+- `alertasActivas`: `alerta` events not pointed at by a later `alerta_resuelta` (`evidencia.resuelve`) or `sobrescritura` (`evidencia.alerta_id`).
+- `agregar` assigns a global increasing `id`, ISO `ts`, `calificacion`, then publishes `{tipo:'evento'}` followed by `{tipo:'calificacion_ot'}` to subscribers of that OT, then calls `alCambiarPaso` if `paso_actual` changed.
+- `calificacion(otId)`: `avisos` = non-ok calificaciones of the last verdict per step plus active alerts, `error` first; top level = the worst (or `{nivel:'ok', certeza:1, capa:null, motivos:['sin nada que calificar']}`).
+- `resumenes()`: `estado_general` = `completa` if complete; `entregada` if the last `relevo_entregado` has no later `relevo_recibido` and there is no operator; `sin_asignar` if no operator; `en_ejecucion` if there is a session or any `veredicto`; else `asignada`.
+- `feliz`: `preparar` creates `ot-12` (operario:1), `ot-13` (operario:2), `ot-14` (no operator), each starting with an `ot_abierta` event. `alAvanzar` on a sensor step → after 4000 ms `cerrarPorSensor` (verdict `verificado`, capa 1, detalle `${sensor.id} = ${espera}, que es lo que el paso exige`, evidencia `{tipo:'sensor', id, valor: espera, espera}`). `alDeclarar` → `declararFeliz`: a `declaracion` event (`declarado` = texto 'hecho', detalle `declara sobre «${titulo}»`) then a `verificado` verdict, capa 1 / 3 / null by `tipo_evidencia` (camera evidencia `{tipo:'camara', respuesta:true, confianza:0.91}`).
+- Handlers: `GET /ots`, `GET /ot/:id`, `GET /pautas/:id`, `POST /ot/:id/sesion` (`m.abrirSesion`, then `e.alAbrirSesion`, then `e.alAvanzar` for the current step, since that step became current before anything changed; `crearHandlers` also sets `m.alCambiarPaso` to call `e.alAvanzar`), `POST /ot/:id/declarar` (409 `{regla:'la pauta ya está completa'}` when complete, otherwise `e.alDeclarar` on the current step), `POST /ot/:id/sobrescribir`, `POST /ot/:id/relevo/entregar` (appends `relevo_entregado` with a resumen like `Cambio de rodillo… Verificados: p1, p3. Sobrescritos: p2. Retomar desde p4.`, sets operator to null), `POST /ot/:id/relevo/recibir` (appends `relevo_recibido`, detalle `${actor} confirma que recibió el turno`, sets operator to actor). Unknown OT → 404 `{no_existe}`.
+- `sobrescribir`: with `paso_id`, only when that step is `en_conflicto` or `no_verificado`, else 409 `{regla:'el paso ya está cerrado'}`; appends `sobrescritura` with `paso_id`, `estado:'sobrescrito'`, `actor`, `declarado: nota ?? null`, detalle `${actor} dice que hizo «${titulo}»`. With `alerta_id`, only when that alert is active; appends `sobrescritura` with `paso_id:null`, `estado:null`, `evidencia:{alerta_id}`, detalle `${actor} dice que ya lo corrigió: ${alerta.detalle}`.
+- WS `ws.link(urlStream(config.API_URL, ':id', 0).split('?')[0])`: on connection send `m.snapshot(id, desde)` (from `client.url.searchParams`), then forward subscriber messages; unknown OT → `client.close(4404)`. While `m.caido`, HTTP → `HttpResponse.error()` and new sockets are closed with 1011; going `caido` closes every open socket.
+- `iniciarMock`: build `Mundo`, run `preparar`, `setupWorker(...crearHandlers(m, e, setTimeout)).start({ onUnhandledRequest: 'bypass' })`. `main.tsx` awaits it only when `config.MOCK`.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+// calificar.test.ts — table over the rules above, e.g.
+expect(calificarEvento({ tipo: 'alerta', capa: 1, estado: 'en_conflicto', detalle: 'X', evidencia: null })?.nivel).toBe('error')
+expect(calificarEvento({ tipo: 'veredicto', capa: 3, estado: 'en_conflicto', detalle: 'X', evidencia: { confianza: 0.62 } })).toMatchObject({ nivel: 'warning', certeza: 0.62 })
+expect(calificarEvento({ tipo: 'declaracion', capa: null, estado: null, detalle: 'X', evidencia: null })).toBeNull()
+// mundo.test.ts
+it('sobrescrito counts as closed for paso_actual', () => { /* p1 verificado, p2 sobrescritura → estado().paso_actual === 'p3' */ })
+it('alerta_resuelta removes the alert', () => { /* alerta id=n, then alerta_resuelta evidencia {resuelve:n} → alertasActivas() is [] */ })
+it('publishes evento then calificacion_ot', () => { /* suscribir, agregar → tipos ['evento','calificacion_ot'] */ })
+it('snapshot honours desde', () => { /* 3 events, snapshot(ot, 2).bitacora.map(e => e.id) equals [3] */ })
+it('estado_general goes entregada after relevo_entregado with no operator', () => { /* ... */ })
+```
+
+- [ ] **Step 2: Run** — `npm test -- mocks` → FAIL.
+- [ ] **Step 3: Implement** `calificar.ts`, `mundo.ts`, the `feliz` scenario plus helpers in `escenarios.ts`, `handlers.ts`, `navegador.ts`; run `npx msw init public --save`.
+- [ ] **Step 4: Run** — `npm test` → PASS.
+- [ ] **Step 5: Verify in the browser** — `VITE_MOCK=1 npm run dev`; in the console `await (await fetch('https://api.mock/ots')).json()` returns three OTs, and `new WebSocket('wss://api.mock/ot/ot-12/stream?desde=0').onmessage = e => console.log(JSON.parse(e.data).tipo)` logs `snapshot`.
+- [ ] **Step 6: Commit and push** — `git commit -m "feat(web): in-browser mock of the OT API with the happy-path scenario" && git push`. Tell Diego the base is up (message in the conversation).
+
+### Task 4: The remaining execution scenarios
+
+**Files:**
+- Modify: `web/src/mocks/escenarios.ts`
+- Test: `web/src/mocks/escenarios.test.ts`
+
+**Interfaces:**
+- Consumes: `Mundo`, `Escenario`, `declararFeliz`, `cerrarPorSensor`, `veredicto` (Task 3)
+- Produces: the eight remaining entries of `ESCENARIOS`, behaving exactly as follows (everything not listed behaves like `feliz`):
+
+| Name | Behaviour |
+|---|---|
+| `warn-corregido` | p1 does not auto-close. First «Hecho» on p1 → `en_conflicto`, capa 1, detalle `el operario declaró «hecho» y reed_bloqueo = abierto, se esperaba cerrado`; 5000 ms later `cerrarPorSensor(p1)` |
+| `warn-sobrescrito` | p1 does not auto-close. «Hecho» on p1 → the same conflict; nothing closes it until «Ya lo hice» |
+| `alerta-seguridad` | `alAbrirSesion`: 8000 ms → `alerta`, capa 1, `estado:'en_conflicto'`, detalle `GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.`, evidencia `{tipo:'sensor', guarda:'abierta', energia:'viva'}`; 10 000 ms after that, if still active, `alerta_resuelta` with evidencia `{resuelve: id}` and detalle `Se normalizó con energia = cortada: GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.` |
+| `camara-no` | First «Hecho» on p3 → `en_conflicto`, capa 3, detalle `el operario declaró «hecho» y la cámara responde que no (62%)`, evidencia `{tipo:'camara', respuesta:false, confianza:0.62}`; the second → `verificado` |
+| `sin-senal` | No sensor step auto-closes. «Hecho» on a sensor step → `no_verificado`, capa 1, detalle `sin lectura de ${sensor.id}` |
+| `relevo` | `ot-12` belongs to operario:2 and starts with: `ot_abierta`; p1 `verificado` capa 1; p2 `sobrescritura` by operario:1; p3 `verificado` capa 3; `relevo_entregado` by operario:1 with a resumen naming p1, p3 verified, p2 overwritten, resume at p4 |
+| `api-caida` | `alAbrirSesion`: 5000 ms → `m.caido = true` (closes sockets); 15 000 ms later `m.caido = false` |
+| `completa` | `ot-12` starts with all six steps `verificado` |
+
+- [ ] **Step 1: Write the failing tests** (fake timers; a `t` that is `setTimeout` under `vi.useFakeTimers()`)
+
+```ts
+it('warn-corregido: conflict, then the sensor closes it after 5 s', () => { /* alDeclarar(p1).estado === 'en_conflicto'; advance 5000; m.estado('ot-12').pasos[0].estado === 'verificado' */ })
+it('alerta-seguridad: error alert at 8 s, resolved at 18 s', () => { /* advance 8000 → alertasActivas length 1 and its calificacion.nivel 'error'; advance 10000 → length 0 */ })
+it('alerta-seguridad: an overwritten alert is not resolved again', () => { /* sobrescritura with alerta_id before 18 s → no alerta_resuelta appended */ })
+it('relevo: starts at p4 with a pending handover', () => { /* estado().paso_actual === 'p4'; last event tipo 'relevo_entregado' */ })
+it('completa: estado().completa is true', () => {})
+it('escenarioDeLaUrl falls back to feliz', () => { expect(escenarioDeLaUrl('?escenario=nope')).toBe('feliz') })
+```
+
+- [ ] **Step 2: Run** — `npm test -- escenarios` → FAIL.
+- [ ] **Step 3: Implement** the eight scenarios.
+- [ ] **Step 4: Run** — `npm test` → PASS.
+- [ ] **Step 5: Commit** — `git commit -m "feat(web): execution mock scenarios"`
+
+### Task 5: The execution state machine
+
+**Files:**
+- Create: `web/src/ejecucion/estado.ts`
+- Test: `web/src/ejecucion/estado.test.ts`
+
+**Interfaces:**
+- Consumes: `tipos.ts`
+- Produces:
+
+```ts
+export type EstadoUi = 'pendiente' | 'en_curso' | 'comprobando' | 'sin_senal' | 'verificado' | 'warn' | 'sobrescrito'
+export type Conexion = 'conectando' | 'en_vivo' | 'reconectando' | 'no_existe'
+export type Ejecucion = { ot: EstadoOt | null; calificacion: CalificacionOt | null; alertas: Evento[]; bitacora: Evento[]
+  ultimoId: number; pendiente: { pasoId: string } | null; sinSenal: string[]; conexion: Conexion
+  mensaje: string | null; porSonar: Evento[] }
+export type Accion =
+  | { tipo: 'snapshot'; snapshot: Snapshot; inicial: boolean }
+  | { tipo: 'evento'; evento: Evento }
+  | { tipo: 'calificacion'; calificacion: CalificacionOt }
+  | { tipo: 'estado'; estado: EstadoOt }
+  | { tipo: 'hecho_enviado'; pasoId: string }
+  | { tipo: 'hecho_respondido'; pasoId: string; estado: EstadoPasoApi }
+  | { tipo: 'hecho_sin_respuesta'; pasoId: string }
+  | { tipo: 'error'; mensaje: string }
+  | { tipo: 'mensaje_visto' }
+  | { tipo: 'conexion'; conexion: Conexion }
+  | { tipo: 'sonado'; ids: number[] }
+export const inicial: Ejecucion
+export function reducir(s: Ejecucion, a: Accion): Ejecucion
+export function estadoUi(paso: PasoEstado, s: Ejecucion): EstadoUi
+export function relevoPendiente(bitacora: Evento[]): { resumen: string; entregado_por: string; ts: string } | null
+export function avance(ot: EstadoOt): { hechos: number; total: number }   // hechos = verificado + sobrescrito
+export function contarCierre(bitacora: Evento[]): { sobrescritos: number; avisos: number } // avisos = alerta + veredicto en_conflicto
+```
+
+Rules:
+- `snapshot`: replace `ot`, `calificacion`, `alertas` (= `alertas_activas`); merge `bitacora` deduped by id; `ultimoId` = max id; `conexion` = `en_vivo`; unless `inicial`, append to `porSonar` the snapshot events with `id > previous ultimoId` and `calificacion?.nivel === 'error'`.
+- `evento`: ignore if `id <= ultimoId`. Otherwise append, bump `ultimoId`; `alerta` → add to `alertas`; `alerta_resuelta` → remove `evidencia.resuelve`; `sobrescritura` with `evidencia.alerta_id` → remove it; a `veredicto` for `pendiente.pasoId` clears `pendiente` and, when `no_verificado`, adds the step to `sinSenal`; any verdict/sobrescritura with another `estado` removes its step from `sinSenal`; `calificacion?.nivel === 'error'` → push to `porSonar`.
+- `hecho_enviado`: no-op while `pendiente` is set; else set it and clear `mensaje`.
+- `hecho_respondido`: clear `pendiente`; `no_verificado` → add to `sinSenal`. `hecho_sin_respuesta`: clear `pendiente`, add to `sinSenal`.
+- `error`: clear `pendiente`, set `mensaje`.
+- `estadoUi`: API `verificado` / `sobrescrito` / `en_conflicto` map to `verificado` / `sobrescrito` / `warn`. For `no_verificado`: `comprobando` if pending, else `sin_senal` if listed, else `en_curso` if it is `ot.paso_actual`, else `pendiente`.
+- `relevoPendiente`: the last `relevo_entregado` with no later `relevo_recibido` → `{resumen: detalle, entregado_por: actor, ts}`.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('first snapshot does not speak, reconnect snapshot speaks missed errors', () => {
+  const s1 = reducir(inicial, { tipo: 'snapshot', inicial: true, snapshot: snap([ev(1, 'error')]) })
+  expect(s1.porSonar).toEqual([])
+  const s2 = reducir(s1, { tipo: 'snapshot', inicial: false, snapshot: snap([ev(2, 'error'), ev(3, 'warning')]) })
+  expect(s2.porSonar.map(e => e.id)).toEqual([2])
+})
+it('a repeated event id is ignored and never queued twice', () => { /* evento id 5 twice → bitacora length +1, porSonar length 1 */ })
+it('hecho_enviado is ignored while pendiente', () => { /* second hecho_enviado for p2 keeps pendiente p1 */ })
+it('error clears pendiente and keeps the message', () => { /* → pendiente null, mensaje 'la pauta ya está completa' */ })
+it('no_verificado answer goes to sin_senal, a later verdict leaves it', () => { /* estadoUi sin_senal, then evento veredicto verificado → 'verificado' */ })
+it('alerta_resuelta and alert overwrite remove the alert', () => {})
+it('maps every API state to its UI state', () => { /* table of the six cases */ })
+it('relevoPendiente is null once received', () => {})
+```
+
+- [ ] **Step 2: Run** — `npm test -- estado` → FAIL.
+- [ ] **Step 3: Implement** `estado.ts` as pure functions (no React import).
+- [ ] **Step 4: Run** — `npm test -- estado` → PASS.
+- [ ] **Step 5: Commit** — `git commit -m "feat(web): execution state machine as a pure reducer"`
+
+### Task 6: Stream client with reconnection
+
+**Files:**
+- Create: `web/src/ejecucion/stream.ts`
+- Test: `web/src/ejecucion/stream.test.ts`
+
+**Interfaces:**
+- Consumes: `MensajeStream`, `Conexion`
+- Produces: `conectarStream(urlDe: (desde: number) => string, desde: () => number, on: { mensaje(m: MensajeStream, inicial: boolean): void; conexion(c: Conexion): void }, opciones?: { WebSocketImpl?: typeof WebSocket; esperasMs?: number[] }): () => void` — returns `cerrar()`. Default waits `[1000, 2000, 4000, 8000]`, the last one repeating. `inicial` is true only for the first snapshot of the first successful connection. Each reconnect calls `desde()` again. Close code 4404 → `conexion('no_existe')` and no retry. `cerrar()` → no retry.
+
+- [ ] **Step 1: Write the failing tests** with a `FakeWebSocket` that records instances and exposes `open()`, `recibir(obj)`, `cerrar(code)`
+
+```ts
+it('reconnects with the latest desde and marks the second snapshot as not inicial', () => { /* desde getter returns 0 then 12; second url ends with desde=12; mensaje called with inicial false */ })
+it('backs off 1s, 2s, 4s, 8s, 8s', () => {})
+it('stops on 4404', () => { /* cerrar(4404) → conexion('no_existe'); advance 60_000 → still one instance */ })
+it('stops after cerrar()', () => {})
+```
+
+- [ ] **Step 2: Run** — FAIL. **Step 3: Implement.** **Step 4: Run** — PASS.
+- [ ] **Step 5: Commit** — `git commit -m "feat(web): OT stream client with resume and backoff"`
+
+### Task 7: Voice queue in the browser
+
+**Files:**
+- Create: `web/src/ejecucion/voz.ts`
+- Test: `web/src/ejecucion/voz.test.ts`
+
+**Interfaces:**
+- Consumes: `config.VOZ_URL`, `Evento`
+- Produces:
+  - `type AudioLike = { src: string; play(): Promise<void>; onended: (() => void) | null; onerror: (() => void) | null }`
+  - `type DepsVoz = { crearAudio(): AudioLike; urlVoz: ((texto: string) => string) | null; hablarNavegador(texto: string, alTerminar: () => void): void }`
+  - `crearVoz(deps: DepsVoz): { desbloquear(): Promise<void>; decir(texto: string): void; probar(): void; estado(): 'bloqueado' | 'activo'; alCambiar(fn: (e: 'bloqueado' | 'activo') => void): () => void }`
+  - `voz` (singleton built with real deps: one `new Audio()`, `urlVoz = config.VOZ_URL ? t => `${config.VOZ_URL}?texto=${encodeURIComponent(t)}` : null`, `speechSynthesis` with `lang = 'es-CL'`)
+  - `desbloquearAudio(): Promise<void>` (= `voz.desbloquear`, called by Diego's «Comenzar» button)
+  - `debeSonar(ev: Evento): boolean` → `ev.calificacion?.nivel === 'error'`
+- Behaviour: one audio element for everything. `desbloquear` plays a silent clip (a short silent WAV data URI constant) on it and speaks an empty utterance; resolving play → `activo`. `decir` queues; one item plays at a time and the next starts on `onended`. If `urlVoz` is null, or `play()` rejects, or `onerror` fires, the item is spoken with `hablarNavegador` — at most once per item — and the queue continues when it ends. `probar()` says `Audio activo. Así vas a escuchar los avisos.`
+
+- [ ] **Step 1: Write the failing tests** with fake deps
+
+```ts
+it('plays in order without overlapping', () => { /* decir a, decir b → src is a; fire onended → src is b */ })
+it('falls back once when play rejects and audio errors', async () => { /* play rejects AND onerror fires → hablarNavegador called once with the text */ })
+it('uses the browser voice when there is no voz url', () => {})
+it('desbloquear marks activo when play resolves, stays bloqueado when it rejects', async () => {})
+it('debeSonar only for error', () => {})
+```
+
+- [ ] **Step 2: Run** — FAIL. **Step 3: Implement.** **Step 4: Run** — PASS.
+- [ ] **Step 5: Commit** — `git commit -m "feat(web): voice queue with browser fallback"`
+
+### Task 8: `/voz` endpoint with ElevenLabs
+
+**Files:**
+- Create: `app/voz.py`, `tests/test_voz.py`
+- Modify: `app/api.py` (one line: `app.include_router(voz.router)` after the app is created, plus `from app import voz`), `.gitignore` (add `datos/voz/`)
+
+**Interfaces:**
+- Produces: `router: APIRouter` with `GET /voz?texto=` → `audio/mpeg`.
+- Module constants: `MODELO = "eleven_flash_v2_5"`, `URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream?output_format=mp3_44100_128"`, `MAX_TEXTO = 300`, `CARPETA = datos/voz` (tests patch it), `abrir_elevenlabs(texto: str, voice_id: str, llave: str)` returning a readable response (tests patch it). Only stdlib (`urllib.request`); no new dependency.
+- Behaviour: blank or longer than `MAX_TEXTO` → 422 `{"voz": ...}`. Cache key `sha256(f"{voice_id}:{MODELO}:{texto}")`; a cached file → `FileResponse`. Missing `ELEVENLABS_API_KEY` or `ELEVENLABS_VOICE_ID` → 503 `{"voz": "falta ELEVENLABS_API_KEY"}` (or `_VOICE_ID`). Upstream HTTP error → 502 `{"voz": "ElevenLabs respondió <code>"}`. Otherwise stream the body in 4096-byte chunks while writing `<key>.mp3.tmp`, renamed to `<key>.mp3` once complete.
+
+- [ ] **Step 1: Write the failing tests** (`unittest`, skipped without httpx, same pattern as `tests/test_stream.py`)
+
+```python
+def test_sin_llave_responde_503(self): ...            # env cleared → 503, json["voz"] mentions ELEVENLABS_API_KEY
+def test_texto_vacio_o_largo_responde_422(self): ...  # texto="  " and "x"*301
+def test_transmite_y_guarda_en_cache(self): ...       # patched abrir returns io.BytesIO(b"ID3audio"); 200, audio/mpeg, body; 2nd call does not call abrir
+def test_error_de_elevenlabs_responde_502(self): ...  # patched abrir raises urllib.error.HTTPError(code=401)
+```
+
+- [ ] **Step 2: Run** — `uv run --with httpx python -m unittest tests.test_voz -v` → FAIL.
+- [ ] **Step 3: Implement** `app/voz.py`, add the include line and `.gitignore` entry.
+- [ ] **Step 4: Run** — `uv run --with httpx python -m unittest discover tests -v` → all PASS (Francisco's tests included).
+- [ ] **Step 5: Verify against ElevenLabs** — with Dani's key and a Spanish voice id exported: `uv run uvicorn app.api:app --port 8000 &` then `curl -s -o /tmp/voz.mp3 -w '%{http_code} %{content_type}\n' 'http://localhost:8000/voz?texto=Oye,%20el%20candado%20no%20aparece%20puesto'` → `200 audio/mpeg`, and the file plays. If ElevenLabs answers 4xx, check its current docs for the model id and endpoint before changing anything else.
+- [ ] **Step 6: Commit** — `git commit -m "feat(voz): ElevenLabs proxy with disk cache"`. Tell Francisco about the `include_router` line, and ask him to set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` on the VM and redeploy.
+
+### Task 9: The execution screen
+
+**Files:**
+- Create: `web/src/ejecucion/useWakeLock.ts`, `useEjecucion.ts`, `PaginaOt.tsx`, `PantallaEjecucion.tsx`, `Paso.tsx`, `BannerAlertas.tsx`; modify `App.tsx` (route `/ot/:id` → `PaginaOt`)
+- Test: `web/src/ejecucion/Paso.test.tsx`
+
+**Interfaces:**
+- Consumes: `api`, `urlStream`, `config`, `reducir`/`inicial`/`estadoUi`/`avance`, `conectarStream`, `voz`/`debeSonar`, `useSesion`, `nombreDe`
+- Produces:
+  - `useWakeLock(activo: boolean): void` — `navigator.wakeLock.request('screen')` when active, re-requested on `visibilitychange` back to visible, released otherwise; silently no-op when unsupported.
+  - `useEjecucion(otId: string, usuario: Usuario): { s: Ejecucion; pauta: Pauta | null; sesionAbierta: boolean; audio: 'bloqueado' | 'activo'; comenzar(): Promise<void>; hecho(): Promise<void>; yaLoHice(pasoId: string, nota?: string): Promise<void>; yaLoHiceAlerta(alertaId: number, nota?: string): Promise<void>; entregarTurno(): Promise<void>; recibirTurno(): Promise<void>; probarAudio(): void }`
+  - `<Paso paso={PasoEstado} pauta={PasoPauta | undefined} ui={EstadoUi} cerradoPor={string | null} onYaLoHice={(nota?: string) => void} />`
+- Wiring in `useEjecucion`: on mount, `listarOts()` → find `ot === otId` → `leerPauta(pauta, version)`; connect the stream right away (listening needs no tap) with `desde = () => s.ultimoId`; dispatch `snapshot`/`evento`/`calificacion`/`conexion`; on an `evento` with `paso_id`, refetch `leerOt` → `estado`; every item of `porSonar` → `voz.decir(ev.detalle)` then `sonado`. `comenzar()` = `desbloquearAudio()` + `abrirSesion(otId, config.EDGE_ID, usuario.id)`; it runs automatically on mount when the audio is already `activo` (Diego's tap unlocked it). `hecho()` dispatches `hecho_enviado` for `ot.paso_actual`, calls `declarar(otId, usuario.id, 'hecho')`, then `hecho_respondido`; `ApiError` timeout → `hecho_sin_respuesta`; regla → `error(regla)`; red → `error('Sin conexión, reintentando')`. Wake lock is on while the session is open and the OT is not complete.
+- Screen (`PaginaOt` picks; `PantallaEjecucion` renders):
+  - `conexion === 'no_existe'` → «Esta OT no existe» and a link to `/operador`.
+  - Session not open and audio `bloqueado` → full-screen gate: one big «Comenzar» (no step closed yet) or «Continuar», with the line «Activa el audio para escuchar los avisos». Its tap calls `comenzar()`.
+  - Otherwise: header with `OT-12`-style id, equipo, pauta, elapsed time `mm:ss` since the session opened, `avance` as `n/total`, a Mantine `Badge` coloured by `calificacion.nivel`, and «Audio activo» / «Audio bloqueado» with «Probar audio». A yellow strip «Sin conexión, reintentando» while `reconectando`. `BannerAlertas` (an `error` alert is a lockout tag: red `peligro` strip with «Peligro» in white over a white body with the `detalle` in graphite; a `warning` alert is a `precaucion` fill with graphite text; each has «Ya lo hice»). The `mensaje` (409 rule) in an `Alert` with «Entendido» → `mensaje_visto`. The step list. A fixed bottom bar with «Hecho» (disabled while a step is `comprobando`, when there is no `paso_actual`, or unless `en_vivo`) and «Entregar turno».
+  - `Paso` per `EstadoUi`: `verificado` ✓; `sobrescrito` ✓ plus «a la palabra de OP1» (from `cerradoPor`); `warn` ✗ with `paso.detalle` and «Ya lo hice»; `en_curso` with the pauta `instruccion`; `comprobando` «Comprobando…»; `sin_senal` «No llega la señal del sensor» and «Ya lo hice»; `pendiente` muted. «Ya lo hice» opens an inline optional note (`Textarea`, placeholder «Nota (opcional)») with «Confirmar» / «Cancelar» — no browser dialogs.
+
+- [ ] **Step 1: Write the failing test** `Paso.test.tsx`
+
+```tsx
+it('warn shows the detail and sends the note on Confirmar', async () => {
+  const onYaLoHice = vi.fn()
+  render(<MantineProvider><Paso paso={{ ...p1, estado: 'en_conflicto', detalle: 'reed_bloqueo = abierto' }} pauta={pp1} ui="warn" cerradoPor={null} onYaLoHice={onYaLoHice} /></MantineProvider>)
+  expect(screen.getByText('reed_bloqueo = abierto')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Ya lo hice' }))
+  await user.type(screen.getByPlaceholderText('Nota (opcional)'), 'puse el candado')
+  await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+  expect(onYaLoHice).toHaveBeenCalledWith('puse el candado')
+})
+it('sobrescrito says whose word closed it', () => { /* cerradoPor 'OP1' → text 'a la palabra de OP1' */ })
+it('verificado and pendiente offer no Ya lo hice', () => {})
+```
+
+- [ ] **Step 2: Run** — FAIL. **Step 3: Implement** the hook and components. **Step 4: Run** — `npm test` → PASS.
+- [ ] **Step 5: Verify on the mock** — `VITE_MOCK=1 npm run dev`, log in as OP1, open `/ot/ot-12?escenario=feliz` → gate, «Comenzar», p1 closes alone after ~4 s and the list refreshes. `?escenario=warn-sobrescrito` → «Hecho» on p1 speaks the conflict (browser voice) and shows ✗; «Ya lo hice» with a note → ✓ «a la palabra de OP1» and p2 becomes current. `?escenario=alerta-seguridad` → red banner and speech at ~8 s, gone at ~18 s. `?escenario=camara-no` → p3 conflict shown but silent. `?escenario=sin-senal` → «No llega la señal del sensor». `?escenario=api-caida` → yellow strip at ~5 s, back to live at ~20 s with no repeated speech.
+- [ ] **Step 6: Commit** — `git commit -m "feat(web): OT execution screen with warns, overwrite and voice"`
+
+### Task 10: Handover and completion
+
+**Files:**
+- Create: `web/src/ejecucion/Briefing.tsx`, `OtCompleta.tsx`; modify `PaginaOt.tsx`, `PantallaEjecucion.tsx`
+- Test: `web/src/ejecucion/Briefing.test.tsx`
+
+**Interfaces:**
+- Consumes: `relevoPendiente`, `contarCierre`, `estadoUi`, `nombreDe`, `useEjecucion().entregarTurno/recibirTurno`
+- Produces: `<Briefing ot={EstadoOt} bitacora={Evento[]} alertas={Evento[]} relevo={{resumen, entregado_por, ts}} onRecibido={() => void} />`, `<OtCompleta ot={EstadoOt} bitacora={Evento[]} />`
+- `PaginaOt` order: `no_existe` → message; `ot.completa` → `OtCompleta`; `relevoPendiente(bitacora)` with `entregado_por !== usuario.id` → `Briefing`; else the gate or the execution screen (Task 9).
+- `Briefing`: title «Relevo de turno», «Entregado por OP1 a las HH:MM», the resumen, each closed step with how it closed (capa 1 «por sensor», capa 3 «por cámara», null «por una persona», `sobrescrito` «a la palabra de OP1»), the inherited warns (steps `en_conflicto` and active alerts), «Sigue en: N · título», and «Recibido». «Recibido» calls `recibirTurno()`, which runs `desbloquearAudio()`, `recibirTurno(otId, usuario.id)` and `abrirSesion(...)`, in that order.
+- «Entregar turno» in the execution screen: inline confirmation «¿Entregar el turno?» with «Confirmar» / «Cancelar»; on confirm `entregarTurno(otId, usuario.id)`, close the stream, navigate to `/operador`.
+- `OtCompleta`: «OT completa», `n` verified, `contarCierre` sobrescritos and avisos, «Volver a mis OT» → `/operador`. The KPI report is P1: not here.
+
+- [ ] **Step 1: Write the failing test**
+
+```tsx
+it('lists how each step closed and where to resume', () => {
+  // relevo fixture: p1 verificado capa 1, p2 sobrescrito by operario:1, p3 verificado capa 3, paso_actual p4
+  expect(screen.getByText(/por sensor/)).toBeInTheDocument()
+  expect(screen.getByText(/a la palabra de OP1/)).toBeInTheDocument()
+  expect(screen.getByText(/Sigue en: 4/)).toBeInTheDocument()
+})
+it('Recibido calls onRecibido', async () => {})
+```
+
+- [ ] **Step 2: Run** — FAIL. **Step 3: Implement.** **Step 4: Run** — `npm test` → PASS.
+- [ ] **Step 5: Verify on the mock** — as OP2 open `/ot/ot-12?escenario=relevo` → briefing → «Recibido» → execution at p4; finish p4–p6 → «OT completa». As OP1 on `feliz`, «Entregar turno» → «Confirmar» → back on `/operador`. `?escenario=completa` opens straight on «OT completa».
+- [ ] **Step 6: Commit** — `git commit -m "feat(web): shift handover briefing and completion screen"`
+
+### Task 11: Run it on the demo phone against the live API
+
+**Files:**
+- Modify: `web/vite.config.ts`, `web/package.json` (a `dev:celular` script); install `@vitejs/plugin-basic-ssl` as a dev dependency
+
+- [ ] **Step 1: Serve over HTTPS on the LAN** — `dev:celular` runs `vite --host --mode celular` with the basic-ssl plugin enabled only in that mode (Wake Lock and reliable audio need a secure context). On the phone, open `https://<laptop-ip>:5173`, accept the self-signed certificate. If the venue Wi-Fi blocks device-to-device traffic, deploy `web/dist` from a personal mirror of the repo (org repos can't connect to Vercel), as the team does for the API.
+- [ ] **Step 2: Live run** — no `VITE_MOCK`. Open the OT the team prepared on the live API (`curl -X POST https://34-176-44-192.sslip.io/ot/<id>/abrir` if none exists; agree the id with Francisco first, the server is shared). As OP1, «Comenzar»: `GET https://34-176-44-192.sslip.io/sesiones` shows `edge-1` on that OT. Have someone open the guard with live energy (or `POST /edge/edge-1/lecturas` with `guarda=abierta` and `energia=viva`): the phone speaks within 2 s with the ElevenLabs voice and the banner turns red; closing the guard clears it. Lock and unlock the phone during the run: the stream resumes and nothing is spoken twice.
+- [ ] **Step 3: Record what failed** in the conversation with Dani; fix in the owning task's files with a test first.
+- [ ] **Step 4: Commit** — `git commit -m "chore(web): HTTPS dev server for testing on the phone"`
