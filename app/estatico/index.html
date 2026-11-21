@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Mantenimiento verificado — esqueleto</title>
+<style>
+  body{font:16px/1.5 system-ui;max-width:720px;margin:2rem auto;padding:0 1rem}
+  .verificado{color:#1a7f37}.en_conflicto{color:#b91c1c;font-weight:700}.no_verificado{color:#6b7280}
+  li{margin:.4rem 0} button{margin:.2rem}
+</style>
+<h1>Esqueleto del flujo</h1>
+<p>UI mínima para ensayar. El frente 2 la reemplaza por la app del operario con voz.</p>
+<p>
+  <button onclick="api('POST','/pauta/demo')">1· Cargar pauta demo</button>
+  <button onclick="api('POST','/ot/ot-1/abrir')">2· Abrir OT</button>
+  <button onclick="refrescar()">Refrescar</button>
+</p>
+<p>
+  <input id="texto" placeholder="lo que declara el operario" size="40">
+  <button onclick="declarar()">Declarar</button>
+</p>
+<p>
+  sensores:
+  <button onclick="sensor('reed_bloqueo','cerrado')">bloqueo cerrado</button>
+  <button onclick="sensor('reed_bloqueo','abierto')">bloqueo abierto</button>
+  <button onclick="sensor('guarda','abierta')">guarda abierta</button>
+  <button onclick="sensor('guarda','cerrada')">guarda cerrada</button>
+  <button onclick="sensor('energia','viva')">energía viva</button>
+  <button onclick="sensor('energia','cortada')">energía cortada</button>
+</p>
+<div id="salida"></div><ol id="pasos"></ol>
+<script>
+async function api(m,u,b){const r=await fetch(u,{method:m,headers:{'content-type':'application/json'},body:b?JSON.stringify(b):null});const j=await r.json();document.getElementById('salida').textContent=JSON.stringify(j);refrescar();return j}
+async function declarar(){await api('POST','/ot/ot-1/declarar',{actor:'operario:A',texto:document.getElementById('texto').value})}
+async function sensor(id,v){await api('POST','/sensores',{sensor_id:id,valor:v})}
+async function refrescar(){const r=await fetch('/ot/ot-1');if(!r.ok)return;const e=await r.json();
+document.getElementById('pasos').innerHTML=e.pasos.map(p=>`<li class="${p.estado}">${p.titulo} — <b>${p.estado}</b>${p.detalle?` · ${p.detalle}`:''}</li>`).join('')}
+</script>

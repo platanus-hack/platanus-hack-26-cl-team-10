@@ -33,11 +33,12 @@
 
 | Tarea | Responsable | Estado | Notas |
 |---|---|---|---|
-| Acordar el formato de paso y de evento | Equipo | en curso | Propuesta escrita en [LOGICA](../architecture/LOGICA.md). **Bloquea a los cuatro frentes**: hasta que se acuerde, nadie puede escribir código sin riesgo de rehacerlo |
-| Frente 1 · Protocolo a pasos con tipo de evidencia y pregunta visual | — | pendiente | [ADR-0006](../decisions/0006-la-ot-nace-del-protocolo.md) |
-| Frente 2 · App del operario: voz de ida y vuelta, un paso a la vez | — | pendiente | El orden lo impone la app ([ADR-0002](../decisions/0002-la-aplicacion-impone-el-orden-de-la-pauta.md)). Dejar botones como respaldo |
-| Frente 3 · Verificación: capa 1 con sensores, capa 3 con cámara | — | pendiente | Solo la capa 1 interrumpe ([ADR-0004](../decisions/0004-verificacion-por-capas.md)) |
-| Frente 4 · Registro de eventos, relevo de turno y vista del supervisor | — | pendiente | El relevo es una lectura de los eventos, no un documento aparte |
+| Acordar el formato de paso y de evento | Equipo | en curso | Propuesta en [LOGICA](../architecture/LOGICA.md) e implementada en `app/contratos.py`. Falta que el equipo la ratifique |
+| Esqueleto del flujo: contratos, reglas, bitácora, API y recorrido del demo | Daniel | hecho | 2026-11-21. `app/` con un stub por frente, 12 pruebas de las tres reglas y `scripts/recorrido_demo.py` con los cinco momentos corriendo. Quién toca qué: `app/README.md` |
+| Frente 1 · Protocolo a pasos con tipo de evidencia y pregunta visual | — | pendiente | [ADR-0006](../decisions/0006-la-ot-nace-del-protocolo.md). Stub en `app/protocolos.py`, rama `feat/protocolo-a-pasos` |
+| Frente 2 · App del operario: voz de ida y vuelta, un paso a la vez | — | pendiente | El orden lo impone la app ([ADR-0002](../decisions/0002-la-aplicacion-impone-el-orden-de-la-pauta.md)). Dejar botones como respaldo. UI de ensayo en `app/estatico/`, rama `feat/app-operario` |
+| Frente 3 · Verificación: capa 1 con sensores, capa 3 con cámara | — | pendiente | Solo la capa 1 interrumpe ([ADR-0004](../decisions/0004-verificacion-por-capas.md)). Stub en `app/verificacion.py`, rama `feat/verificacion` |
+| Frente 4 · Registro de eventos, relevo de turno y vista del supervisor | — | pendiente | El relevo es una lectura de los eventos, no un documento aparte. Stub en `app/cerebro.py`, rama `feat/cerebro-relevo` |
 | Regla de seguridad del demo: guarda abierta con energía viva | — | pendiente | Es el momento del demo. Capa 1, independiente del paso en curso ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario)) |
 
 ## Decisiones abiertas

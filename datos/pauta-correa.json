@@ -1,0 +1,64 @@
+{
+  "id": "pauta-correa-ct-01",
+  "nombre": "Cambio de rodillo en correa transportadora",
+  "version": 1,
+  "equipo": "correa CT-01",
+  "pasos": [
+    {
+      "id": "p1",
+      "orden": 1,
+      "titulo": "Cortar la energía y bloquear con candado",
+      "instruccion": "Abre el interruptor principal, pon el candado y la tarjeta de bloqueo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "reed_bloqueo", "espera": "cerrado" }
+    },
+    {
+      "id": "p2",
+      "orden": 2,
+      "titulo": "Retirar la guarda",
+      "instruccion": "Saca la guarda que cubre el rodillo.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": { "id": "guarda", "espera": "abierta" }
+    },
+    {
+      "id": "p3",
+      "orden": 3,
+      "titulo": "Cambiar el rodillo",
+      "instruccion": "Retira el rodillo gastado, instala el nuevo y aprieta los pernos.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿Está el rodillo nuevo instalado y con los dos pernos puestos?"
+    },
+    {
+      "id": "p4",
+      "orden": 4,
+      "titulo": "Reinstalar la guarda",
+      "instruccion": "Vuelve a montar la guarda y asegúrala.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "guarda", "espera": "cerrada" }
+    },
+    {
+      "id": "p5",
+      "orden": 5,
+      "titulo": "Retirar el bloqueo y energizar",
+      "instruccion": "Saca el candado y la tarjeta, y cierra el interruptor.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "reed_bloqueo", "espera": "abierto" }
+    },
+    {
+      "id": "p6",
+      "orden": 6,
+      "titulo": "Prueba de detención",
+      "instruccion": "Arranca la correa, detenla y confirma que para en menos de 3 segundos.",
+      "tipo_evidencia": "confirmacion",
+      "capa_minima": 1
+    }
+  ]
+}
