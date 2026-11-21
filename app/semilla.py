@@ -84,6 +84,11 @@ def _ejecutar(s: Servicios, d: dict, pauta) -> None:
                     seq[0] += 1
                     s.recibir_lectura(EDGE, sensor, valor, seq[0])
 
+    def observaciones(despues_del_paso: int) -> None:
+        for o in d.get("observaciones", []):
+            if o["despues_del_paso"] == despues_del_paso:
+                s.observar(d["ot"], operador, o["texto"], o["categoria"], o.get("paso"))
+
     hasta = len(pauta.pasos) if d["cerrar"] == "todos" else d["cerrar"]
     for paso in pauta.en_orden[:hasta]:
         lecturas(paso.orden)
@@ -93,6 +98,7 @@ def _ejecutar(s: Servicios, d: dict, pauta) -> None:
         else:
             confianza["valor"] = d.get("camara", {}).get(paso.id, CAMARA_POR_DEFECTO)
             s.declarar(d["ot"], operador, f"listo: {paso.titulo.lower()}")
+        observaciones(paso.orden)
     lecturas(hasta + 1)
     s.terminar_sesion(EDGE)
 

@@ -17,14 +17,20 @@
     {"ot": "ot-1002", "pauta": "pauta-polin-demo", "hace_dias": 0, "operador": "operario:2", "cerrar": 3,
      "intercalar": [
        {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["operario", "ausente"],
-         ["temp_c", "24.1"], ["temp_c", "24.0"], ["temp_c", "24.3"], ["temp_c", "23.9"], ["temp_c", "24.2"], ["temp_c", "24.0"], ["temp_c", "24.1"], ["temp_c", "23.8"], ["temp_c", "24.2"], ["temp_c", "24.0"], ["temp_c", "39.4"]]}]},
+         ["temp_c", "24.1"], ["temp_c", "24.0"], ["temp_c", "24.3"], ["temp_c", "23.9"], ["temp_c", "24.2"], ["temp_c", "24.0"], ["temp_c", "24.1"], ["temp_c", "23.8"], ["temp_c", "24.2"], ["temp_c", "24.0"], ["temp_c", "39.4"]]}],
+     "observaciones": [
+       {"despues_del_paso": 3, "paso": "p3", "categoria": "pauta", "texto": "Desde el tablero la correa queda a dos pasos: es fácil acercarse antes de tener el candado puesto. Conviene que el punto de bloqueo quede junto al tablero."}]},
     {"ot": "ot-1003", "pauta": "pauta-polin-ct-01", "hace_dias": 5, "operador": "operario:1", "cerrar": "todos",
      "intercalar": [
-       {"antes_del_paso": 2, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["guarda", "cerrada"], ["guarda", "abierta"], ["guarda", "cerrada"]]}]},
+       {"antes_del_paso": 2, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["guarda", "cerrada"], ["guarda", "abierta"], ["guarda", "cerrada"]]}],
+     "observaciones": [
+       {"despues_del_paso": 4, "categoria": "equipo", "texto": "El polín 14 del retorno suena al girarlo con la mano; revisarlo en la próxima detención."}]},
     {"ot": "ot-1004", "pauta": "pauta-polin-ct-01", "hace_dias": 0, "operador": "operario:1", "cerrar": 4,
      "intercalar": [
        {"antes_del_paso": 5, "lecturas": [["bloqueo", "retirado"]]}]},
-    {"ot": "ot-1005", "pauta": "pauta-correa-ct-01", "hace_dias": 9, "operador": "operario:2", "cerrar": "todos"},
+    {"ot": "ot-1005", "pauta": "pauta-correa-ct-01", "hace_dias": 9, "operador": "operario:2", "cerrar": "todos",
+     "observaciones": [
+       {"despues_del_paso": 1, "paso": "p1", "categoria": "pauta", "texto": "La pauta junta cortar la energía y bloquear en un solo paso; en terreno son dos momentos distintos y falta comprobar energía cero."}]},
     {"ot": "ot-1006", "pauta": "pauta-brazo-01", "hace_dias": 4, "operador": "operario:2", "cerrar": "todos",
      "camara": {"p5": 0.62}},
     {"ot": "ot-1007", "pauta": "pauta-brazo-01", "hace_dias": 0, "operador": "operario:1", "cerrar": 0},
@@ -35,7 +41,9 @@
     {"ot": "ot-1009", "pauta": "pauta-celda-mt-01", "hace_dias": 0, "operador": null, "cerrar": 0},
     {"ot": "ot-1010", "pauta": "pauta-excavadora-01", "hace_dias": 2, "operador": "operario:2", "cerrar": "todos",
      "intercalar": [
-       {"antes_del_paso": 1, "lecturas": [["implementos", "levantados"], ["motor", "encendido"], ["zona", "libre"], ["zona", "ocupada"], ["zona", "libre"]]}]},
+       {"antes_del_paso": 1, "lecturas": [["implementos", "levantados"], ["motor", "encendido"], ["zona", "libre"], ["zona", "ocupada"], ["zona", "libre"]]}],
+     "observaciones": [
+       {"despues_del_paso": 2, "categoria": "seguridad", "texto": "La zona bajo el balde no está demarcada en el piso; un ayudante entró sin darse cuenta."}]},
     {"ot": "ot-1011", "pauta": "pauta-excavadora-01", "hace_dias": 1, "operador": "operario:2", "cerrar": 2},
     {"ot": "ot-1012", "pauta": "pauta-camion-detencion-01", "hace_dias": 1, "operador": "operario:1", "cerrar": "todos"},
     {"ot": "ot-1013", "pauta": "pauta-camion-detencion-01", "hace_dias": 0, "operador": null, "cerrar": 0},

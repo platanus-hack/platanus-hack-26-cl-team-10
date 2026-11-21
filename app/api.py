@@ -12,14 +12,16 @@ import asyncio
 import hmac
 import json
 import os
+from datetime import date
 from pathlib import Path
+from typing import Literal
 
-from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from app import acceso, catalogo, cerebro, db, escenarios, protocolos, referencia, semilla, verificacion
+from app import acceso, catalogo, cerebro, db, escenarios, mejora, metricas, protocolos, referencia, semilla, verificacion
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -165,6 +167,20 @@ class SesionCliente(BaseModel):
     edge_id: str = Field(default=EDGE_POR_DEFECTO, description="La estación donde se ejecuta la OT.")
     tomar: bool = Field(default=False, description="En true, le quita la estación a la OT abierta que la ocupa. "
                         "Esa OT deja de recibir sus sensores, así que se manda solo cuando la persona lo pide.")
+
+
+class Observacion(BaseModel):
+    texto: str = Field(description="Lo que el operario vio, en sus palabras.")
+    categoria: Literal["pauta", "seguridad", "equipo", "otra"] = Field(
+        default="pauta", description="`pauta` y `seguridad` alimentan la mejora de la pauta; `equipo` habla de la "
+        "máquina y va a las métricas por equipo.")
+    paso_id: str | None = Field(default=None, description="El paso del que habla, si habla de uno.")
+
+
+class Revision(BaseModel):
+    decision: Literal["aceptar", "descartar"] = Field(description="Aceptar la manda al equipo de Factum para la versión "
+                                                      "siguiente de la pauta; descartar la cierra.")
+    nota: str = Field(default="", description="Por qué. Descartar la exige.")
 
 
 class LecturaEdge(BaseModel):
@@ -494,6 +510,110 @@ def asignar_ot_del_cliente(ot_id: str, a: AsignacionCliente, authorization: str 
     return servicios.asignar(ot_id, a.operador, p["id"])
 
 
+# ─── Mejora continua y métricas de la empresa (app/mejora.py, app/metricas.py) ─
+# Se leen de la bitácora al pedirlas, por pauta, equipo, paso o día, nunca por persona (ADR-0013, ADR-0014).
+
+OrdenGrupos = Literal["desviaciones", "cumplimiento", "ots", "minutos"]
+Desde = Query(default=None, description="Desde este día, incluido, según cuándo se abrió la OT (AAAA-MM-DD).")
+Hasta = Query(default=None, description="Hasta este día, incluido (AAAA-MM-DD).")
+Orden = Query(default="desviaciones", description="`desviaciones`: las más desviadas primero; `cumplimiento`: el peor "
+              "primero; `ots`: las más ejecutadas primero; `minutos`: las más lentas primero.")
+Limite = Query(default=50, ge=1, le=500, description="Cuántas devolver.")
+
+
+def _ejecuciones(p: dict, desde: date | None = None, hasta: date | None = None) -> list[metricas.Ejecucion]:
+    if desde and hasta and desde > hasta:
+        raise HTTPException(422, f"desde ({desde}) es posterior a hasta ({hasta})")
+    return metricas.ejecuciones(cx, acceso.ots_de(cx, p, servicios._ots_en_sesion()), desde, hasta)
+
+
+def _supervisor(authorization: str | None) -> dict:
+    p = _persona(authorization)
+    acceso.exige_rol(p, "supervisor")
+    return p
+
+
+@app.post("/cliente/ots/{ot_id}/observaciones", status_code=201)
+def observar(ot_id: str, o: Observacion, authorization: str | None = Header(default=None)) -> dict:
+    """El operario que tiene la OT, o el supervisor de su empresa, deja lo que vio mientras se ejecuta: una pieza
+    gastada, un paso que no calza con el equipo. No cierra ningún paso. Queda en la bitácora con quién lo dijo, y las
+    de `pauta` y `seguridad` alimentan las propuestas de mejora. 404 si la OT o el paso no son suyos."""
+    p = _persona(authorization)
+    acceso.ot_de(cx, p, ot_id)
+    return evento_dict(servicios.observar(ot_id, p["id"], o.texto, o.categoria, o.paso_id))
+
+
+@app.get("/cliente/mejoras")
+def mejoras_del_cliente(estado: Literal["abierta", "aceptada", "descartada", "aplicada", "superada"] | None = None,
+                        authorization: str | None = Header(default=None)) -> list[dict]:
+    """Las propuestas para mejorar las pautas de la empresa, las que más pesan primero. Una nace cuando el mismo paso
+    de la misma versión tuvo señales en dos o más OT: alertas de orden o de control, conflictos, pasos que confirmó una
+    persona porque la evidencia no los vio, y observaciones de los operarios. Cuando hay una versión nueva, `validacion`
+    dice si el paso dejó de desviarse. Solo supervisor."""
+    p = _supervisor(authorization)
+    todas = mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"])
+    return [m for m in todas if estado is None or m["estado"] == estado]
+
+
+@app.post("/cliente/mejoras/{propuesta_id}/revision")
+def revisar_mejora(propuesta_id: str, r: Revision, authorization: str | None = Header(default=None)) -> dict:
+    """El supervisor valida una propuesta: aceptarla la manda al equipo de Factum para la versión siguiente de la pauta;
+    descartarla la cierra y pide una nota. Se puede cambiar de opinión: queda la última. 404 si no es de su empresa;
+    409 si la pauta ya tiene una versión más nueva."""
+    p = _supervisor(authorization)
+    return mejora.revisar(cx, _ejecuciones(p), p["cliente"]["id"], propuesta_id, r.decision, r.nota, p["id"])
+
+
+@app.get("/cliente/metricas")
+def metricas_del_cliente(desde: date | None = Desde, hasta: date | None = Hasta,
+                         authorization: str | None = Header(default=None)) -> dict:
+    """La foto de la empresa: OT por estado, cuántas completas sin desviaciones, con qué evidencia se cerraron los pasos,
+    las desviaciones por clase y cuánto tardan en resolverse, el tiempo de ejecución, los relevos, las observaciones y
+    las propuestas de mejora. Solo supervisor."""
+    p = _supervisor(authorization)
+    es = _ejecuciones(p, desde, hasta)
+    return {"periodo": {"desde": desde, "hasta": hasta}, **metricas.resumen(es),
+            "mejoras": mejora.conteo(mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"]))}
+
+
+@app.get("/cliente/metricas/pautas")
+def metricas_por_pauta(desde: date | None = Desde, hasta: date | None = Hasta, orden: OrdenGrupos = Orden,
+                       limite: int = Limite, authorization: str | None = Header(default=None)) -> list[dict]:
+    """Cada pauta que la empresa ejecutó: cumplimiento, desviaciones por clase, tiempo de ejecución, observaciones y el
+    paso que más se desvía. Solo supervisor."""
+    return metricas.por_pauta(cx, _ejecuciones(_supervisor(authorization), desde, hasta), orden, limite)
+
+
+@app.get("/cliente/metricas/pautas/{pauta_id}/pasos")
+def metricas_por_paso(pauta_id: str, version: int | None = Query(default=None, description="Sin versión, la última aprobada."),
+                      orden: Literal["pauta", "desviaciones"] = Query(default="pauta", description="`pauta`: en el orden "
+                      "de la pauta; `desviaciones`: los más desviados primero."),
+                      desde: date | None = Desde, hasta: date | None = Hasta,
+                      authorization: str | None = Header(default=None)) -> list[dict]:
+    """Cada paso de una versión de la pauta: con qué evidencia se cerró, cuántas veces se desvió y qué observaron los
+    operarios. Solo las OT de esa versión. 404 si la pauta no está habilitada para la empresa. Solo supervisor."""
+    p = _supervisor(authorization)
+    if pauta_id not in {x["id"] for x in acceso.pautas_habilitadas(cx, p["cliente"]["id"])}:
+        raise db.NoExiste(f"pauta {pauta_id}")
+    pauta = db.leer_pauta(cx, pauta_id, version or catalogo.ultima_aprobada(cx, pauta_id))
+    return metricas.por_paso(_ejecuciones(p, desde, hasta), pauta, orden)
+
+
+@app.get("/cliente/metricas/equipos")
+def metricas_por_equipo(desde: date | None = Desde, hasta: date | None = Hasta, orden: OrdenGrupos = Orden,
+                        limite: int = Limite, authorization: str | None = Header(default=None)) -> list[dict]:
+    """Lo mismo por equipo, más lo que los operarios observaron de la máquina (categoría `equipo`). Solo supervisor."""
+    return metricas.por_equipo(_ejecuciones(_supervisor(authorization), desde, hasta), orden, limite)
+
+
+@app.get("/cliente/metricas/serie")
+def metricas_en_el_tiempo(intervalo: Literal["dia", "semana"] = "dia", desde: date | None = Desde,
+                          hasta: date | None = Hasta, authorization: str | None = Header(default=None)) -> list[dict]:
+    """Por día o por semana, sin huecos: OT abiertas y completas, desviaciones, alertas de seguridad y observaciones,
+    para graficar. Solo supervisor."""
+    return metricas.serie(_ejecuciones(_supervisor(authorization), desde, hasta), intervalo)
+
+
 # ─── Servicio interno: clientes, personas y qué pautas tiene cada uno ───────
 
 
@@ -530,6 +650,20 @@ def cambiar_clave(persona_id: str, x_clave_equipo: str | None = Header(default=N
     """Una clave nueva al azar, que se ve una sola vez. Cierra las sesiones abiertas de esa persona."""
     _solo_equipo(x_clave_equipo)
     return {"persona": persona_id, "clave": acceso.nueva_clave(cx, persona_id)}
+
+
+@app.get("/interno/mejoras")
+def mejoras_de_todos(estado: Literal["abierta", "aceptada", "descartada", "aplicada", "superada"] | None = "aceptada",
+                     x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
+    """Las propuestas de mejora de cada empresa, con su `cliente`. Por defecto, las que un supervisor aceptó: son las
+    que el equipo lleva a la versión siguiente de la pauta."""
+    _solo_equipo(x_clave_equipo)
+    salida = []
+    for c in acceso.listar_clientes(cx):
+        p = {"id": "equipo", "rol": "supervisor", "cliente": c}
+        salida += [{**m, "cliente": c} for m in mejora.propuestas(cx, _ejecuciones(p), c["id"])
+                   if estado is None or m["estado"] == estado]
+    return salida
 
 
 @app.put("/interno/clientes/{cliente_id}/pautas/{pauta_id}")

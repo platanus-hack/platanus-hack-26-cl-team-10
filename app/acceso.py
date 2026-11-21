@@ -23,7 +23,7 @@ import sqlite3
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
 
-from app import catalogo, db
+from app import catalogo, db, mejora
 from app.catalogo import ReglaDeNegocio
 
 ROLES = ("supervisor", "operador")
@@ -61,6 +61,7 @@ class SinPermiso(Exception):
 
 def preparar(cx: sqlite3.Connection) -> None:
     catalogo.preparar(cx)
+    mejora.preparar(cx)
     cx.executescript(_ESQUEMA)
 
 
