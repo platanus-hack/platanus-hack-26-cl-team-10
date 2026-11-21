@@ -26,8 +26,11 @@ def limpiar_forzados() -> None:
     _FORZAR.clear()
 
 
-def juez_camara(pregunta: str) -> tuple[bool, float]:
-    """TODO frente 3: llamar al VLM con el cuadro actual y esta pregunta.
+def juez_camara(pregunta: str, cuadro: bytes | None = None) -> tuple[bool, float]:
+    """TODO frente 3: llamar al VLM con `cuadro` (JPEG del edge, o None si no hay video) y esta pregunta.
+
+    El cuadro lo entrega app/servicios.py: es el último que mandó la cámara del edge
+    que ejecuta la OT (app/video.py). La firma de reglas.JuezCamara no cambia.
 
     Mientras no exista, responde lo que se haya forzado, y si no se forzó nada
     responde que sí con confianza baja, para que el flujo avance en los ensayos.

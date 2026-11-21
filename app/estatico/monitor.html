@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor de OT</title>
+<style>
+  :root{--ok:#2f7d5b;--ok-bg:#e3f3ea;--warn:#9a6400;--warn-bg:#fdf3d6;--err:#b42318;--err-bg:#fdeceb;--line:#d9dee5;--muted:#5b6673}
+  body{font:16px/1.5 system-ui;margin:0;background:#f7f8fa;color:#16202b}
+  header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 20px;background:#141c26;color:#eef2f7}
+  header input,header button{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid #2e3b4e;background:#1d2734;color:#eef2f7}
+  main{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;padding:16px 20px}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+  #video{width:100%;border-radius:10px;background:#000;min-height:200px;display:block}
+  .nivel{font-size:22px;font-weight:800;padding:4px 14px;border-radius:999px;display:inline-block}
+  .ok{background:var(--ok-bg);color:var(--ok)} .warning{background:var(--warn-bg);color:var(--warn)} .error{background:var(--err-bg);color:var(--err)}
+  #avisos{list-style:none;padding:0;margin:10px 0 0}
+  #avisos li{padding:10px 12px;border-radius:10px;margin:6px 0;transition:opacity .4s,transform .4s}
+  #avisos li.sale{opacity:0;transform:translateX(30px)}
+  #avisos li small{display:block;opacity:.8}
+  #pasos li{margin:3px 0} .verificado{color:var(--ok)} .en_conflicto{color:var(--err);font-weight:700} .no_verificado{color:var(--muted)}
+  #bitacora{max-height:340px;overflow:auto;font-size:15px;margin:0;padding-left:18px}
+  #bitacora li{margin:4px 0}
+  .muted{color:var(--muted);font-size:15px}
+</style>
+</head>
+<body>
+<header>
+  <b>Monitor</b>
+  <label>OT <input id="ot" value="ot-1" size="8"></label>
+  <button id="conectar">Conectar</button>
+  <span id="conexion" class="muted">desconectado</span>
+</header>
+<main>
+  <div>
+    <div class="card"><img id="video" alt="Video del edge"><p class="muted" id="video-estado">Sin sesión: no hay edge que mirar.</p></div>
+    <div class="card" style="margin-top:16px"><h3 style="margin:0 0 6px">Pasos</h3><ol id="pasos"></ol></div>
+  </div>
+  <div>
+    <div class="card">
+      <div>Calificación de la OT <span id="nivel" class="nivel ok">ok</span> <span class="muted" id="certeza"></span></div>
+      <ul id="avisos"></ul>
+      <p class="muted" id="sin-avisos">Sin avisos activos.</p>
+    </div>
+    <div class="card" style="margin-top:16px"><h3 style="margin:0 0 6px">Bitácora en vivo</h3><ol id="bitacora" reversed></ol></div>
+  </div>
+</main>
+<script>
+// Un aviso existe mientras el servidor lo mande en `calificacion.avisos`. Cuando el sensor
+// se corrige, el siguiente mensaje ya no lo trae y aquí se va con una animación.
+let ws = null, ultimo = 0;
+const $ = id => document.getElementById(id);
+
+function pintarCalificacion(c) {
+  $("nivel").className = "nivel " + c.nivel; $("nivel").textContent = c.nivel;
+  $("certeza").textContent = `certeza ${Math.round(c.certeza * 100)}%`;
+  const lista = $("avisos"), vivos = new Set();
+  (c.avisos || []).forEach(a => {
+    const clave = a.nivel + "|" + a.motivos[0];
+    vivos.add(clave);
+    let li = [...lista.children].find(x => x.dataset.clave === clave);
+    if (!li) { li = document.createElement("li"); li.dataset.clave = clave; lista.append(li); }
+    li.className = a.nivel;
+    li.innerHTML = `<b>${a.nivel.toUpperCase()}</b> · capa ${a.capa ?? "persona"} · certeza ${Math.round(a.certeza * 100)}%<small>${a.motivos.join(" · ")}</small>`;
+  });
+  [...lista.children].forEach(li => {
+    if (!vivos.has(li.dataset.clave) && !li.classList.contains("sale")) {
+      li.classList.add("sale"); setTimeout(() => li.remove(), 400);
+    }
+  });
+  $("sin-avisos").style.display = (c.avisos || []).length ? "none" : "block";
+}
+
+function pintarPasos(estado) {
+  $("pasos").innerHTML = estado.pasos.map(p =>
+    `<li class="${p.estado}">${p.titulo}${p.id === estado.paso_actual ? " ←" : ""}</li>`).join("");
+}
+
+function anotar(ev) {
+  ultimo = Math.max(ultimo, ev.id || 0);
+  const li = document.createElement("li");
+  const c = ev.calificacion ? ` [${ev.calificacion.nivel}]` : "";
+  li.textContent = `${ev.ts.slice(11, 19)} ${ev.tipo}${ev.paso_id ? " " + ev.paso_id : ""}${c}: ${ev.detalle}`;
+  $("bitacora").prepend(li);
+}
+
+function video(v) {
+  if (!v) return;
+  $("video").src = v.url + "?t=" + Date.now();
+  $("video-estado").textContent = v.hay_video ? `Video de ${v.edge_id}` : `Esperando la cámara de ${v.edge_id} (/camara)`;
+}
+
+async function refrescarPasos(ot) {
+  const r = await fetch(`/ot/${ot}`); if (r.ok) pintarPasos(await r.json());
+}
+
+function conectar() {
+  const ot = $("ot").value.trim();
+  if (ws) { ws.onclose = null; ws.close(); }
+  const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ot/${encodeURIComponent(ot)}/stream?desde=${ultimo}`;
+  ws = new WebSocket(url);
+  ws.onopen = () => $("conexion").textContent = "en vivo";
+  ws.onclose = () => { $("conexion").textContent = "reconectando…"; setTimeout(conectar, 1500); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.tipo === "snapshot") {
+      if (ultimo === 0) $("bitacora").innerHTML = "";
+      m.bitacora.forEach(anotar); pintarPasos(m.estado); pintarCalificacion(m.calificacion); video(m.video);
+    } else if (m.tipo === "evento") {
+      anotar(m.evento); if (m.evento.tipo === "veredicto") refrescarPasos(ot);
+    } else if (m.tipo === "calificacion_ot") {
+      pintarCalificacion(m.calificacion);
+    } else if (m.tipo === "sesion") {
+      video(m.video);
+    }
+  };
+}
+$("conectar").onclick = () => { ultimo = 0; $("bitacora").innerHTML = ""; conectar(); };
+</script>
+</body>
+</html>
