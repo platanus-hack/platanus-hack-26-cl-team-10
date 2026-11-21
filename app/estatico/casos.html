@@ -352,6 +352,9 @@ function igual(a, b) {
 
 // ─── Servidor ───────────────────────────────────────────────────────────────
 const parametros = new URLSearchParams(location.search);
+// La clave del equipo entra una vez por ?clave= y queda en este navegador: va en cada llamada.
+if (parametros.has("clave")) localStorage.setItem("clave_equipo", parametros.get("clave"));
+const CLAVE = localStorage.getItem("clave_equipo");
 const SERVIDORES = [
   {nombre: "Local", url: "http://localhost:8000"},
   {nombre: "VM del demo", url: "https://34-176-44-192.sslip.io"},
@@ -462,6 +465,7 @@ class Corrida {
 
   async http(metodo, ruta, cuerpo, opciones = {}) {
     const cabeceras = {}, peticion = {method: metodo, headers: cabeceras};
+    if (CLAVE && !opciones.sinClave) cabeceras["x-clave-equipo"] = CLAVE;
     let enviado = "";
     if (cuerpo instanceof Blob) {
       cabeceras["content-type"] = cuerpo.type;
@@ -614,7 +618,8 @@ async function limpiar(c) {
   try {
     if (c.enSesion) {
       await c.lecturas(SEGURO.slice(0, 2));
-      await c.http("DELETE", `/edge/${c.edge}/sesion`);
+      const soltada = await c.http("DELETE", `/edge/${c.edge}/sesion`);
+      if (soltada.status === 401) c.nota("La sesión de la corrida quedó abierta: este servidor pide la clave del equipo. Abre el banco con <code>?clave=</code>.");
     }
     if (c.sensoresAntes) {
       await c.lecturas(SEGURO.map(([id, valor]) => [id, c.sensoresAntes[id] ?? valor]));
@@ -961,6 +966,33 @@ const CASOS = [
       c.comprobar("Editar o borrar devuelve 405 por las cinco vías", [405, 405, 405, 405, 405], intentos.map(r => r.status));
       c.comprobar("La bitácora queda idéntica", antes.cuerpo, despues.cuerpo);
       c.comprobar("Por el stream no sale ningún cambio", ["snapshot"], tipos(s.mensajes));
+    },
+  },
+  {
+    id: "CA17", servicio: "catalogo", objetivo: "O4",
+    titulo: "Un edge en sesión no se toma ni se suelta sin la clave del equipo",
+    dado: "un servidor con clave de equipo y un edge que ejecuta la OT 1",
+    cuando: "alguien sin la clave lo une a otra OT o lo suelta",
+    entonces: "recibe 401 y el edge sigue en la OT 1; repetir la sesión que ya tiene no pide clave",
+    porque: `La API es pública y el edge no sabe de OT: quien cambia su sesión decide a qué OT entran sus lecturas (${ADR(7)}). Sin <code>CLAVE_EQUIPO</code> el servidor queda abierto, como en local, y la tarjeta comprueba eso.`,
+    test: "tests/test_api_crud.py · CrudPorHTTP",
+    async correr(c) {
+      await preparar(c, {sesion: false, sensores: false, ot2: true});
+      const sesion = {edge_id: c.edge, operario: "operario:casos"}, sin = {sinClave: true};
+      c.exigir(await c.http("POST", `/ot/${c.ot}/sesion`, sesion), "abrir la sesión", 200);
+      const pide = c.exigir(await c.http("GET", "/clave"), "leer si el servidor pide clave", 200).cuerpo.requerida;
+      c.fase("cuando");
+      const repetir = await c.http("POST", `/ot/${c.ot}/sesion`, sesion, sin);
+      const tomar = await c.http("POST", `/ot/${c.ot2}/sesion`, sesion, sin);
+      const duena = await c.http("GET", `/edge/${c.edge}/sesion`);
+      const soltar = await c.http("DELETE", `/edge/${c.edge}/sesion`, undefined, sin);
+      c.fase("entonces");
+      c.observar("Este servidor pide clave", pide, "Con CLAVE_EQUIPO definida se espera 401; sin ella, que todo siga abierto.");
+      c.comprobar("Repetir la sesión que ya tiene no pide clave", 200, repetir.status);
+      c.comprobar("Unirlo a otra OT sin la clave", pide ? 401 : 200, tomar.status);
+      c.comprobar("El edge queda unido a", pide ? c.ot : c.ot2, duena.cuerpo.ot_id);
+      c.comprobar("Soltarlo sin la clave", pide ? 401 : 204, soltar.status);
+      await c.http("DELETE", `/edge/${c.edge}/sesion`);
     },
   },
   {

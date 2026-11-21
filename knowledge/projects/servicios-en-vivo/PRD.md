@@ -49,6 +49,7 @@ cámara → WS /edge/{id}/video → último cuadro → juez de cámara al declar
 | Entidad | Cambio | Regla o fuente |
 | --- | --- | --- |
 | `sesiones` | Nueva: une un edge con la OT que ejecuta | ADR-0007 |
+| Clave del equipo | Con `CLAVE_EQUIPO` en el servidor, quitarle un edge a la OT que ejecuta, o soltarlo, pide la cabecera `X-Clave-Equipo`; un edge libre o repetir su sesión, no. Sin la variable, todo abierto | La API es pública: sin esto cualquiera cambia a qué OT entran las lecturas del demo |
 | `aprobaciones` | Nueva: quién aprobó cada versión de pauta | Una persona aprueba antes de usar ([ADR-0003](../../decisions/0003-patrones-de-arquitectura-para-el-mvp.md)) |
 | `pautas` | Cambiar = versión siguiente; nunca encima de otra ni saltando | Pauta versionada (ADR-0003) |
 | `ots` | Solo desde una pauta aprobada; guarda la versión | [ADR-0006](../../decisions/0006-la-ot-nace-del-protocolo.md) |
@@ -109,8 +110,9 @@ Promesas: un modelo nunca contradice a un sensor; solo la capa 1 llega a ERROR; 
 - **CA14 —** **Dado** un agente nuevo, **cuando** lee `/agente`, **entonces** encuentra todas las rutas de la API con la URL del servidor.
 - **CA16 —** **Dado** un paso en curso cuyo sensor no muestra lo hecho, **cuando** una persona lo confirma con su motivo en `POST /ot/{id}/pasos/{paso}/confirmar`, **entonces** el paso queda verificado por persona, la bitácora guarda quién, por qué y qué marcaba el sensor, la OT queda en `warning`, y las reglas de seguridad siguen mandando. Sin motivo, como `sistema` o sobre un paso que no es el actual, recibe 409.
 - **CA15 —** **Dado** el banco `/casos` apuntando a un servidor, **cuando** se corre un criterio, **entonces** usa una OT y un edge propios de la corrida, muestra cada llamada con su respuesta y cada mensaje del stream, compara lo esperado con lo obtenido, y al terminar deja los sensores como estaban y su sesión cerrada.
+- **CA17 —** **Dado** un servidor con clave de equipo y un edge que ejecuta la OT 1, **cuando** alguien sin la clave lo une a otra OT o lo suelta, **entonces** recibe 401 y el edge sigue en la OT 1; repetir la sesión que ya tiene no pide clave.
 
-Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.py`, `tests/test_stream.py`, `tests/test_api_crud.py`, `tests/test_video.py`, `tests/test_casos.py` y `tests/test_confirmar.py`, y del CA1 al CA14 su tarjeta en `/casos`; `tests/test_casos.py` falla si un criterio queda sin tarjeta.
+Cada criterio tiene su test en `tests/test_servicios.py`, `tests/test_catalogo.py`, `tests/test_stream.py`, `tests/test_api_crud.py`, `tests/test_video.py`, `tests/test_casos.py` y `tests/test_confirmar.py`, y cada uno, salvo el CA15, su tarjeta en `/casos`; `tests/test_casos.py` falla si un criterio queda sin tarjeta.
 
 ## 9. Riesgos y decisiones abiertas
 

@@ -43,7 +43,7 @@
 | Demo LOTO en el home: pauta, sensores en vivo y declarar paso | Jonathan | hecho | 2026-11-21. `datos/pauta-loto.json` (#14); `/` es el monitor de la demo y abre la OT que el edge ejecuta (#17, #18); los pasos de cámara cierran en la VM (#20) |
 | YOLO en el servidor (ONNX) en vez del edge | Jonathan | en curso | Experimento en la rama `exp/yolo-servidor` |
 | Servicios en vivo: sesión por edge, stream por OT, calificación por capa y CRUD con reglas de negocio | Francisco | en curso | [PRD](../projects/servicios-en-vivo/PRD.md) y [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md). Recorrido animado en [servicios.html](../architecture/servicios.html). Desplegado en `https://34-176-44-192.sslip.io`, guía para agentes en `/agente` |
-| Banco de pruebas `/casos`: cada criterio del PRD corrido contra un servidor vivo | Francisco | hecho | 2026-11-21. CA1 a CA16 pasan contra local con el código integrado con `main` (15 de 15 tarjetas; CA15 es el banco mismo). Falta correrlo contra la VM: ver [Servicios: estado y resultados](#servicios-estado-y-resultados) |
+| Banco de pruebas `/casos`: cada criterio del PRD corrido contra un servidor vivo | Francisco | hecho | 2026-11-21. CA1 a CA17 pasan contra local con el código integrado con `main` (16 de 16 tarjetas; CA15 es el banco mismo). Falta correrlo contra la VM: ver [Servicios: estado y resultados](#servicios-estado-y-resultados) |
 | Escenarios por industria: 24 patrones × minería, eléctrica y construcción contra cada barrera | Francisco | hecho | 2026-11-21. [PRD](../projects/escenarios-por-industria/PRD.md) y [ADR-0008](../decisions/0008-escenarios-por-industria-en-una-caja-aislada.md). Los 72 escenarios pasan, con un archivo de tests por industria y una sección por industria en `/casos`. Reglas por industria, orden invertido, control perdido y confirmación por persona en `reglas.py`, `servicios.py` y [LOGICA](../architecture/LOGICA.md). Abierto: [§9 del PRD](../projects/escenarios-por-industria/PRD.md#9-riesgos-y-decisiones-abiertas) |
 | Regla de seguridad del demo: guarda abierta con energía viva | — | hecho | Capa 1, independiente del paso en curso, en `app/reglas.py` ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario)). La pauta LOTO del demo no monta sensor de guarda, así que hoy no aparece en vivo |
 
@@ -53,7 +53,7 @@ Al 2026-11-21, con `dreamxist/services` integrada con `main` (YOLO en capa 2 de 
 
 **Qué hay.** Toda la API de servicios vive en `app/`, y [app/README.md](../../app/README.md) dice qué archivo hace qué:
 
-- sesión por edge, stream por OT, calificación por capa y CRUD con reglas ([PRD](../projects/servicios-en-vivo/PRD.md), CA1 a CA16);
+- sesión por edge, stream por OT, calificación por capa y CRUD con reglas ([PRD](../projects/servicios-en-vivo/PRD.md), CA1 a CA17);
 - reglas de capa 1 por industria, más orden invertido y control perdido ([LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario));
 - la confirmación por persona contra el sensor, `POST /ot/{id}/pasos/{paso}/confirmar` ([LOGICA](../architecture/LOGICA.md#cuando-la-persona-y-el-sensor-no-coinciden));
 - la matriz de escenarios por industria en una caja aislada ([PRD](../projects/escenarios-por-industria/PRD.md));
@@ -66,10 +66,10 @@ El recorrido animado de una lectura está en [servicios.html](../architecture/se
 
 | Verificación | Comando | Resultado |
 |---|---|---|
-| Tests unitarios y de casos de uso | `uv run --with httpx python -m unittest discover tests` | 239 pasan, 0 fallan. También corre con `pytest` |
+| Tests unitarios y de casos de uso | `uv run --with httpx python -m unittest discover tests` | 240 pasan, 0 fallan. También corre con `pytest` |
 | De esos, por industria | `python3 -m unittest tests.test_mineria tests.test_electrica tests.test_construccion` | 27, 26 y 26 pasan |
 | Recorrido del demo | `python3 scripts/recorrido_demo.py` | Pauta completa, 11 eventos, ninguno editado |
-| Banco contra local | `uv run python scripts/correr_casos.py http://localhost:8000` | 15 de 15 tarjetas pasan (CA1 a CA16) |
+| Banco contra local | `uv run python scripts/correr_casos.py http://localhost:8000` | 16 de 16 tarjetas pasan (CA1 a CA17), con y sin `CLAVE_EQUIPO` en el servidor |
 | Matriz de escenarios | `POST /escenarios/correr` | 72 de 72 pasan, 0 brechas abiertas |
 | Simulación de capa 2 | `python3 scripts/simular_capa2.py` | Sin ciclo de carga (minería), el detector de hoy sostiene un escalón 100 % con 0,9 falsas alarmas cada 1.000. Con ciclo (eléctrica, construcción), lo sostiene 6 % y 30 %; el CUSUM contra el ciclo, 100 % |
 | Eval de capa 3 | `python3 scripts/evaluar_capa3.py` | 24 escenas sin imagen. El juez sin cuadro responde el stub: acepta 15 de 15 pasos mal hechos. Mide al VLM real cuando haya imágenes y `ANTHROPIC_API_KEY` |
@@ -88,7 +88,7 @@ El recorrido animado de una lectura está en [servicios.html](../architecture/se
 - Quién fotografía las escenas del eval de capa 3.
 - La ventana de gracia de A3.
 - El costo de la VM: la estimación da 18 a 24 USD al mes, y el tope fijado es unos 20.
-- La API es pública y sin autenticación. Quien abre la URL del demo puede apretar «Nueva demo LOTO» y quedarse con la sesión del edge en medio del pitch, o correr el banco `/casos` y pisar los sensores. Lo acotado hoy es el gasto: memoria de video por edge y llamadas al juez de cámara (`VLM_MAX_LLAMADAS`, 3.000 por proceso). Falta decidir, antes del pitch, si las escrituras piden un token o si la sesión de un edge ocupado no se puede tomar.
+- La API es pública. Con `CLAVE_EQUIPO` en el servidor, quitarle un edge a la OT que ejecuta, o soltarlo, pide la cabecera `X-Clave-Equipo` (CA17), y sin la clave el home queda de solo lectura: no muestra «Nueva demo LOTO» ni «Declarar paso». Se entra una vez con `?clave=` y queda en el navegador. Falta ponerla en `/srv/factum/entorno` de la VM y desplegar; hasta entonces el servidor sigue abierto. Queda abierto a propósito: las lecturas del edge, `/declarar` y `/confirmar` no piden clave, así que esto frena el clic de un visitante, no a quien llame a la API a mano. El gasto está acotado: video de hasta 8 edges y 3.000 llamadas al juez de cámara por proceso (`VLM_MAX_LLAMADAS`).
 
 ## Decisiones abiertas
 

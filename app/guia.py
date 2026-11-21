@@ -140,6 +140,7 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
 
 | Código | Cuerpo | Qué significa |
 |---|---|---|
+| 401 | `{{"clave": "..."}}` | El edge ya ejecuta otra OT, o se lo quiere soltar, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
 | 404 | `{{"no_existe": "..."}}` | La OT, pauta, paso, evento o sesión no existe |
 | 409 | `{{"regla": "..."}}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
 | 422 | `{{"detail": ...}}` o `{{"cuadro": "..."}}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |

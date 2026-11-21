@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -103,6 +104,8 @@ def main() -> int:
     p.add_argument("servidor", nargs="?", default="http://localhost:8000")
     p.add_argument("--captura", help="guarda una imagen del resumen y las primeras tarjetas al terminar")
     p.add_argument("--con-sesiones-ajenas", action="store_true")
+    p.add_argument("--clave", default=os.environ.get("CLAVE_EQUIPO"),
+                   help="la clave del equipo, si el servidor la pide (por defecto, CLAVE_EQUIPO)")
     a = p.parse_args()
     if CHROME is None:
         print("No encuentro Chrome; define CHROME con la ruta del ejecutable.")
@@ -110,6 +113,8 @@ def main() -> int:
 
     servidor = a.servidor.rstrip("/")
     url = f"{servidor}/casos?correr=todos" + ("&ajenas=ok" if a.con_sesiones_ajenas else "")
+    if a.clave:
+        url += "&clave=" + urllib.parse.quote(a.clave)
     perfil = tempfile.mkdtemp(prefix="casos-chrome-")
     chrome = subprocess.Popen(
         [CHROME, "--headless=new", "--remote-debugging-port=0", f"--user-data-dir={perfil}",
