@@ -57,11 +57,11 @@ class ElBancoSeSirve(unittest.TestCase):
     def test_la_pagina_trae_la_matriz_de_escenarios_y_el_servidor_la_corre(self):
         self.assertIn("Escenarios por industria", self.c.get("/casos").text)
         catalogo = self.c.get("/escenarios").json()
-        self.assertEqual(len(catalogo), 66)
+        self.assertEqual(len(catalogo), 69)
         r = self.c.post("/escenarios/correr").json()
-        self.assertEqual({x["sello"] for x in r}, {"pasa", "brecha"})
+        self.assertEqual({x["sello"] for x in r}, {"pasa"})
         uno = self.c.post("/escenarios/MIN-B2/correr").json()
-        self.assertEqual(uno["sello"], "brecha")
+        self.assertEqual(uno["sello"], "pasa")
         self.assertTrue(uno["bitacora"] and uno["stream"])
         self.assertEqual(self.c.post("/escenarios/NO-EXISTE/correr").status_code, 404)
 
@@ -90,7 +90,8 @@ class ElBancoSeSirve(unittest.TestCase):
         self.c.post("/ot/casos-ca5-prueba/sesion", json={"edge_id": edge, "operario": "operario:casos"})
         self.c.post(f"/edge/{edge}/lecturas", json=[{"sensor_id": "energia", "valor": "viva"},
                                                     {"sensor_id": "guarda", "valor": "abierta"}])
-        self.assertEqual(len(self.c.get("/ot/casos-ca5-prueba/alertas").json()), 1)
+        claves = [a["evidencia"]["clave"].split(":")[0] for a in self.c.get("/ot/casos-ca5-prueba/alertas").json()]
+        self.assertEqual(sorted(claves), ["orden", "seguridad"])
 
         self.c.post(f"/edge/{edge}/lecturas", json=seguro[:2])
         self.assertEqual(self.c.delete(f"/edge/{edge}/sesion").status_code, 204)

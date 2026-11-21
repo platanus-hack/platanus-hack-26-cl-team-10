@@ -94,17 +94,35 @@ class Detector:
         raise NotImplementedError
 
 
+class MADAntes(Detector):
+    nombre = "MAD con historia móvil (antes)"
+    explicacion = "como corría hasta el 2026-11-21: compara contra las últimas 300 lecturas, falla incluida, sin piso de dispersión"
+
+    def __init__(self, s: Senal) -> None:
+        self.h: list[float] = []
+
+    def marca(self, x: float) -> bool:
+        h = self.h
+        self.h = (h + [x])[-HISTORIA_MAX:]
+        if len(h) < 10:
+            return False
+        centro = median(h)
+        mad = median(abs(v - centro) for v in h) * 1.4826
+        return (abs(x - centro) / mad if mad else (0.0 if x == centro else float("inf"))) >= DESVIO_WARNING
+
+
 class MADActual(Detector):
-    nombre = "MAD con historia móvil (hoy)"
-    explicacion = "scoring.capa2 tal cual corre en servicios.py: compara contra las últimas 300 lecturas, falla incluida"
+    nombre = "MAD que no aprende de la falla (hoy)"
+    explicacion = ("scoring.capa2 tal cual corre en servicios.py: la historia solo suma lecturas normales y la "
+                   "dispersión tiene un piso de 1 % de la mediana")
 
     def __init__(self, s: Senal) -> None:
         self.h: list[float] = []
 
     def marca(self, x: float) -> bool:
         c = capa2("s", self.h, x)
-        self.h.append(x)
-        self.h = self.h[-HISTORIA_MAX:]
+        if c.nivel is Nivel.OK:
+            self.h = (self.h + [x])[-HISTORIA_MAX:]
         return c.nivel is Nivel.WARNING
 
 
@@ -209,7 +227,7 @@ class CUSUMSinCiclo(Detector):
 
 
 def detectores(s: Senal) -> list[Detector]:
-    return [MADActual(s), MADCongelada(s), EWMA(s), CUSUM(s), CUSUMSinCiclo(s), UmbralFijo(s)]
+    return [MADAntes(s), MADActual(s), MADCongelada(s), EWMA(s), CUSUM(s), CUSUMSinCiclo(s), UmbralFijo(s)]
 
 
 class Pegado(Detector):

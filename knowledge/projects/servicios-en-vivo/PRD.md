@@ -68,10 +68,17 @@ CUANDO llega una lectura del edge
   ENTONCES
     la regla de seguridad que EMPIEZA entra como alerta de capa 1 (una vez mientras dura)
     si es el sensor del paso actual y lo cierra, entra su veredicto
-    si es numérica y se aleja de su historia, entra una alerta de capa 2 (una vez)
+    si deshace un control crítico ya verificado, entra una alerta de capa 1 (control)
+    si cierra un paso posterior mientras el actual, crítico, sigue abierto, entra una alerta de capa 1 (orden)
+    si es numérica y se aleja de su historia normal, entra una alerta de capa 2 (una vez); diez iguales seguidas, sensor pegado
     todo sale por el stream de esa OT, con su calificación
 CUANDO la condición de una alerta abierta desaparece
   ENTONCES entra alerta_resuelta que la apunta, y el aviso deja de venir en calificacion.avisos
+CUANDO el sensor del paso en curso lleva más de 5 s sin lecturas
+  ENTONCES la OT baja a warning: el sensor puede haberse caído
+CUANDO el operario declara
+  SI nombra un paso que su sensor ya cerró → se registra y no se evalúa contra el siguiente
+  SI el paso es de cámara y no hay un cuadro de los últimos 10 s → no se verifica y no se le pregunta al juez
 
 Promesas: un modelo nunca contradice a un sensor; solo la capa 1 llega a ERROR; la bitácora solo agrega.
 ```

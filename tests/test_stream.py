@@ -45,6 +45,13 @@ class StreamDeLaOT(unittest.TestCase):
             self.assertEqual(veredicto["estado"], "en_conflicto")
             self.assertEqual(veredicto["calificacion"]["nivel"], "error")
 
+    @staticmethod
+    def hasta_la_calificacion(ws):
+        mensajes = [ws.receive_json()]
+        while mensajes[-1]["tipo"] != "calificacion_ot":
+            mensajes.append(ws.receive_json())
+        return mensajes
+
     def test_la_bitacora_por_rest_ya_no_falla(self):
         r = self.c.get("/ot/ot-1/eventos")
         self.assertEqual(r.status_code, 200)
@@ -55,14 +62,15 @@ class StreamDeLaOT(unittest.TestCase):
         with self.c.websocket_connect("/ot/ot-1/stream") as ws:
             ws.receive_json()
             self.c.post("/edge/edge-1/lecturas", json=[{"sensor_id": "guarda", "valor": "abierta"}])
-            m = [ws.receive_json() for _ in range(3)]
-            self.assertEqual(m[1]["evento"]["tipo"], "alerta")
-            self.assertEqual(m[2]["calificacion"]["avisos"][0]["nivel"], "error")
+            m = self.hasta_la_calificacion(ws)
+            clases = [x["evento"]["evidencia"]["clave"].split(":")[0] for x in m if x["tipo"] == "evento"]
+            self.assertEqual(clases, ["seguridad", "orden"])
+            self.assertEqual(m[-1]["calificacion"]["avisos"][0]["nivel"], "error")
 
             self.c.post("/edge/edge-1/lecturas", json=[{"sensor_id": "guarda", "valor": "cerrada"}])
-            m = [ws.receive_json() for _ in range(3)]
-            self.assertEqual(m[1]["evento"]["tipo"], "alerta_resuelta")
-            self.assertEqual(m[2]["calificacion"]["avisos"], [])
+            m = self.hasta_la_calificacion(ws)
+            self.assertEqual({x["evento"]["tipo"] for x in m if x["tipo"] == "evento"}, {"alerta_resuelta"})
+            self.assertEqual(m[-1]["calificacion"]["avisos"], [])
         self.assertEqual(self.c.get("/ot/ot-1/alertas").json(), [])
 
     def test_entra_video_por_websocket_y_sale_por_http(self):

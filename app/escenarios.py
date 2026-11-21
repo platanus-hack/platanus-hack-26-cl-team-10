@@ -58,11 +58,10 @@ class PasoClave:
 
 @dataclass(frozen=True)
 class Peligro:
-    """Una condición de seguridad de la industria. `vigente` = ya está en reglas.py."""
+    """Una condición de seguridad de la industria, escrita en reglas.py."""
 
     regla: str
     lecturas: tuple[tuple[str, str], ...]
-    vigente: bool
     fuente: str
 
 
@@ -91,6 +90,7 @@ class Industria:
     peligro: Peligro
     senal: Senal
     fuente_orden: str
+    recorrido: tuple[dict, ...] = ()
 
 
 MINERIA = Industria(
@@ -101,12 +101,17 @@ MINERIA = Industria(
     p2=PasoClave("guarda", "abierta", "cerrada", "guarda retirada"),
     hasta_camara=(("reed_bloqueo", "cerrado"), ("guarda", "abierta")),
     paso_camara="p3", dice_camara="rodillo cambiado",
-    peligro=Peligro("Guarda abierta con energía viva", (("energia", "viva"), ("guarda", "abierta")), True,
+    peligro=Peligro("Guarda abierta con energía viva", (("energia", "viva"), ("guarda", "abierta")),
                     "Regla vigente en LOGICA. Mantención solo con la energía cortada y la máquina bloqueada, y guardas puestas "
                     "mientras opera (REFERENCIAS 44, DS 132 art. 52; REFERENCIAS 45, 30 CFR 56.14105 y 56.14112(b))"),
     senal=Senal("vibracion", "mm/s", 2.0, 0.12, 6.5, "vibración del rodillo"),
     fuente_orden=("Bloqueo antes de intervenir y protecciones puestas antes de volver a servicio (REFERENCIAS 44, DS 132 "
                   "art. 52). Ocho muertes en correas desde 2017, todas evitables con bloqueo (REFERENCIAS 46)"),
+    recorrido=(
+        {"lee": [["reed_bloqueo", "cerrado"], ["guarda", "abierta"]]}, {"cuadro": True}, {"dice": "rodillo cambiado"},
+        {"lee": [["guarda", "cerrada"], ["reed_bloqueo", "abierto"], ["energia", "viva"]]},
+        {"dice": "la correa paró en dos segundos"},
+    ),
 )
 
 ELECTRICA = Industria(
@@ -118,13 +123,19 @@ ELECTRICA = Industria(
     p2=PasoClave("candado_mando", "cerrado", "abierto", "mando bloqueado"),
     hasta_camara=(("seccionador", "abierto"), ("candado_mando", "cerrado"), ("tension", "ausente"), ("tierra", "puesta")),
     paso_camara="p5", dice_camara="zona señalizada",
-    peligro=Peligro("Puesta a tierra con tensión presente", (("tension", "presente"), ("tierra", "puesta")), False,
+    peligro=Peligro("Puesta a tierra con tensión presente", (("tension", "presente"), ("tierra", "puesta")),
                     "Verificar la ausencia de tensión antes de instalar cualquier tierra (REFERENCIAS 50, 29 CFR 1910.269(n)(5); "
                     "REFERENCIAS 48, RD 614/2001 anexo II; REFERENCIAS 49, RPTD N°15 9.1.5)"),
     senal=Senal("temperatura_conexion", "°C", 45.0, 1.5, 80.0, "temperatura de la conexión del interruptor"),
     fuente_orden=("Cinco etapas en orden y ningún trabajo hasta completarlas (REFERENCIAS 48, RD 614/2001 anexo II A.1; "
                   "REFERENCIAS 49, RPTD N°15 9.1.5). Retirar las tierras en el orden equivocado fue el factor principal de "
                   "los accidentes con tierras (REFERENCIAS 51)"),
+    recorrido=(
+        {"lee": [["seccionador", "abierto"], ["candado_mando", "cerrado"], ["tension", "ausente"], ["tierra", "puesta"]]},
+        {"cuadro": True}, {"dice": "zona señalizada"},
+        {"lee": [["tierra", "retirada"], ["candado_mando", "abierto"], ["seccionador", "cerrado"], ["tension", "presente"]]},
+        {"dice": "celda en servicio, confirmado con el centro de control"},
+    ),
 )
 
 CONSTRUCCION = Industria(
@@ -137,12 +148,20 @@ CONSTRUCCION = Industria(
     hasta_camara=(("implementos", "en_suelo"), ("motor", "apagado"), ("palanca_seguridad", "bloqueada"),
                   ("presion_hidraulica", "aliviada")),
     paso_camara="p5", dice_camara="manguera cambiada",
-    peligro=Peligro("Persona en la zona con los implementos levantados", (("implementos", "levantados"), ("zona", "ocupada")), False,
+    peligro=Peligro("Persona en la zona con los implementos levantados", (("implementos", "levantados"), ("zona", "ocupada")),
                     "Nadie trabaja bajo una parte levantada que no esté calzada (REFERENCIAS 52, 29 CFR 1926.600(a)(3)(i))"),
     senal=Senal("temperatura_aceite", "°C", 60.0, 2.0, 95.0, "temperatura del aceite hidráulico"),
     fuente_orden=("Implementos abajo o bloqueados, mandos en neutro y motor detenido antes de reparar (REFERENCIAS 52, "
                   "29 CFR 1926.600(a)(3)(i)). Bloquear la palanca y aliviar la presión no tienen norma de construcción: "
                   "vienen del fabricante (1910.147 excluye la construcción)"),
+    recorrido=(
+        {"lee": [["implementos", "en_suelo"], ["motor", "apagado"], ["palanca_seguridad", "bloqueada"],
+                 ["presion_hidraulica", "aliviada"]]},
+        {"cuadro": True}, {"dice": "manguera cambiada"},
+        {"lee": [["palanca_seguridad", "desbloqueada"], ["motor", "encendido"], ["presion_hidraulica", "con_presion"],
+                 ["implementos", "levantados"]]},
+        {"dice": "sin fugas en los mandos"},
+    ),
 )
 
 INDUSTRIAS = (MINERIA, ELECTRICA, CONSTRUCCION)
@@ -170,6 +189,7 @@ GRUPOS = {
 }
 
 PATRONES = (
+    Patron("A0", "A", "La pauta completa, bien hecha", 1, "¿Las reglas dan alguna falsa alarma?"),
     Patron("A1", "A", "Lo hace y el sensor lo ve, sin hablar", 1, "¿El paso se cierra solo con la lectura?"),
     Patron("A2", "A", "El sensor lo ve y después lo dice", 1, "¿La declaración tardía se confunde con el paso siguiente?"),
     Patron("A3", "A", "Lo dice y después el sensor lo ve", 1, "¿Interrumpe por una diferencia de segundos?"),
@@ -239,51 +259,11 @@ def _serie(s: Senal, n: int, semilla: int) -> list[float]:
     return [round(azar.gauss(s.media, s.desvio), 2) for _ in range(n)]
 
 
-BRECHA_DECLARACION_TARDIA = (
-    "La declaración se atribuye al paso actual. Si el sensor ya cerró el paso, la palabra cae sobre el "
-    "siguiente y abre un conflicto de capa 1 que interrumpe. Se cierra si la declaración puede nombrar "
-    "su paso (decisión pendiente)."
-)
-BRECHA_ORDEN = (
-    "LOGICA dice que el orden lo comprueba la capa 1 con las marcas de tiempo, pero no hay regla que lo "
-    "haga: la lectura del paso siguiente se ignora y, cuando el paso saltado se hace, la bitácora queda "
-    "limpia. Pide una regla en reglas.py (contrato)."
-)
-BRECHA_REVERSION = (
-    "Ninguna regla mira un control crítico que se deshace después de verificado. Pide una regla en "
-    "reglas.py (contrato)."
-)
-BRECHA_FRESCURA = (
-    "scoring.py define 5 s de frescura, pero el servicio nunca le pasa la edad de la lectura: un sensor "
-    "caído sigue calificando con certeza total. Se cierra en servicios.py, sin tocar el contrato."
-)
-BRECHA_SIN_CUADRO = (
-    "Sin cuadro el juez no tiene qué mirar, pero si responde que sí el paso se verifica. El stub de hoy "
-    "responde que sí con 55 %. Se cierra en servicios.py: sin cuadro, el paso de cámara no se verifica."
-)
-
-BRECHA_ESCALON = (
-    "El detector compara cada valor con la historia del mismo sensor, y esa historia incluye la falla: "
-    "con la mitad de la ventana en el valor nuevo, la falla pasa a ser lo normal y la alerta se resuelve "
-    "sola mientras la falla sigue. Se cierra eligiendo el detector con scripts/simular_capa2.py."
-)
-BRECHA_PEGADO = (
-    "Con un sensor quieto la dispersión de su historia es cero, y cualquier movimiento cuenta como "
-    "infinitos desvíos. Un sensor pegado es una falla del sensor, no del equipo, y pide su propio aviso."
-)
-
-
 _fuente_reversion = {
     "MIN": "Las protecciones se reponen antes de volver a servicio (REFERENCIAS 44, DS 132 art. 52)",
     "ELE": "No se energiza mientras haya tierras o bloqueos, y se repone en orden inverso (REFERENCIAS 48, RD 614 anexo II A.2; REFERENCIAS 50, 1910.269(m)(3)(xiii))",
     "CON": "Implementos abajo o bloqueados mientras dura la reparación (REFERENCIAS 52, 29 CFR 1926.600(a)(3)(i))",
 }
-
-
-def _brecha_peligro(i: Industria) -> str | None:
-    if i.peligro.vigente:
-        return None
-    return f"La regla «{i.peligro.regla}» no existe en reglas.py. Agregarla es una decisión de producto (LOGICA) y toca el contrato."
 
 
 def escenarios_de(i: Industria) -> list[Escenario]:
@@ -292,6 +272,11 @@ def escenarios_de(i: Industria) -> list[Escenario]:
     E = lambda codigo, **k: Escenario(id=f"{i.codigo}-{codigo}", industria=i, patron=PATRON[codigo], inicio=i.seguro, **k)  # noqa: E731
 
     lista = [
+        E("A0", dado="la OT abierta y los sensores en estado seguro", cuando="el operario hace cada paso en orden y lo cierra su evidencia",
+          entonces="la pauta queda completa sin alertas, sin conflictos y sin interrumpir nunca",
+          pasos=list(i.recorrido),
+          espera={"paso_actual": None, "alertas_capa1": 0, "conflictos": 0, "interrupciones": 0, "nivel_maximo": "ok"},
+          fuente="El control de las reglas: un aviso falso repetido enseña a ignorar el aviso (LOGICA)"),
         E("A1", dado=f"el paso «{p1.sensor}» en curso", cuando=f"llega {p1.sensor} = {p1.hecho} y el operario no dice nada",
           entonces="el paso queda verificado por la capa 1 y la pauta avanza",
           pasos=[_lee((p1.sensor, p1.hecho))],
@@ -299,10 +284,9 @@ def escenarios_de(i: Industria) -> list[Escenario]:
           fuente="Un paso de sensor lo cierra la lectura (LOGICA; ADR-0004)"),
         E("A2", dado="el sensor ya cerró el paso 1", cuando=f"el operario dice «{p1.dice}» un momento después",
           entonces="la declaración queda registrada y no abre ningún conflicto",
-          pasos=[_lee((p1.sensor, p1.hecho)), {"dice": p1.dice}],
+          pasos=[_lee((p1.sensor, p1.hecho)), {"dice": p1.dice, "paso": "p1"}],
           espera={"estados": {"p1": "verificado", "p2": "no_verificado"}, "conflictos": 0, "interrupciones": 0, "nivel_maximo": "ok"},
-          fuente="Un paso de sensor nunca se cierra hablando; la palabra se guarda como declarado (LOGICA)",
-          brecha=BRECHA_DECLARACION_TARDIA),
+          fuente="Un paso de sensor nunca se cierra hablando; la palabra se guarda como declarado (LOGICA). La app manda el paso que mostraba"),
         E("A3", dado="el paso 1 en curso", cuando=f"el operario dice «{p1.dice}» y el sensor llega un momento después",
           entonces="el conflicto queda en la bitácora y el paso se verifica al llegar la lectura",
           pasos=[{"dice": p1.dice}, _lee((p1.sensor, p1.hecho))],
@@ -320,33 +304,32 @@ def escenarios_de(i: Industria) -> list[Escenario]:
           espera={"estados": {"p1": "en_conflicto"}, "paso_actual": "p1", "nivel": "error"},
           fuente="La app pregunta por un paso a la vez y evalúa solo el actual (ADR-0002)"),
         E("B1", dado="el paso 1 sin hacer", cuando=f"llega {p2.sensor} = {p2.hecho}, que cierra el paso 2",
-          entonces="la pauta no avanza",
+          entonces="la pauta no avanza y entra una alerta de orden invertido",
           pasos=[_lee((p2.sensor, p2.hecho))],
-          espera={"estados": {"p1": "no_verificado", "p2": "no_verificado"}, "paso_actual": "p1"},
+          espera={"estados": {"p1": "no_verificado", "p2": "no_verificado"}, "paso_actual": "p1", "desviaciones_de_orden": 1},
           fuente=f"El orden lo impone la aplicación; un VLM detectó 3 de 12 cambios de orden (ADR-0002; REFERENCIAS 9). {i.fuente_orden}"),
         E("B2", dado="el paso 1 sin hacer", cuando=f"el operario hace el paso 2 ({p2.sensor} = {p2.hecho}) y después el 1",
-          entonces="la bitácora registra que el orden se invirtió",
+          entonces="la bitácora registra que el orden se invirtió, y la alerta se resuelve al hacer el paso saltado",
           pasos=[_lee((p2.sensor, p2.hecho)), _lee((p1.sensor, p1.hecho))],
-          espera={"desviaciones_de_orden": 1},
-          fuente=f"El orden lo comprueba la capa 1 con las marcas de tiempo (LOGICA). {i.fuente_orden}",
-          brecha=BRECHA_ORDEN),
+          espera={"desviaciones_de_orden": 1, "estados": {"p1": "verificado"}, "alertas_abiertas": 0, "nivel_maximo": "error"},
+          fuente=f"El orden lo comprueba la capa 1 con las marcas de tiempo (LOGICA). {i.fuente_orden}"),
         E("B3", dado="el paso 1 sin hacer", cuando=f"se da la condición «{i.peligro.regla.lower()}»",
           entonces="entra una alerta de capa 1 que interrumpe",
           pasos=[_lee(*i.peligro.lecturas)],
-          espera={"alertas_capa1": 1, "nivel": "error", "interrupciones": 1},
-          fuente=i.peligro.fuente, brecha=_brecha_peligro(i)),
+          espera={"alertas_seguridad": {"min": 1}, "nivel": "error", "interrupciones": {"min": 1}},
+          fuente=i.peligro.fuente),
         E("C1", dado="los pasos 1 y 2 verificados", cuando=f"{p1.sensor} vuelve a {p1.sin_hacer}",
-          entonces="entra una alerta de capa 1: el control crítico se perdió",
-          pasos=[_lee((p1.sensor, p1.hecho), (p2.sensor, p2.hecho)), _lee((p1.sensor, p1.sin_hacer))],
-          espera={"alertas_capa1": 1, "nivel": "error"},
+          entonces="entra una alerta de capa 1: el control crítico se perdió, y se resuelve al reponerlo",
+          pasos=[_lee((p1.sensor, p1.hecho), (p2.sensor, p2.hecho)), _lee((p1.sensor, p1.sin_hacer)),
+                 _lee((p1.sensor, p1.hecho))],
+          espera={"controles_deshechos": 1, "desviaciones_de_orden": 0, "nivel_maximo": "error", "alertas_abiertas": 0},
           fuente=(f"El paso es control crítico (LOGICA). La ejecución inefectiva del control explicó 19 de 26 fatales ICMM "
-                  f"(REFERENCIAS 40). {_fuente_reversion[i.codigo]}"),
-          brecha=BRECHA_REVERSION),
+                  f"(REFERENCIAS 40). {_fuente_reversion[i.codigo]}")),
         E("C2", dado="los pasos 1 y 2 verificados", cuando=f"{p1.sensor} vuelve a {p1.sin_hacer} y se da «{i.peligro.regla.lower()}»",
           entonces="entra una alerta de capa 1 que interrumpe",
           pasos=[_lee((p1.sensor, p1.hecho), (p2.sensor, p2.hecho)), _lee((p1.sensor, p1.sin_hacer), *i.peligro.lecturas)],
-          espera={"alertas_capa1": 1, "nivel": "error", "interrupciones": 1},
-          fuente=i.peligro.fuente, brecha=_brecha_peligro(i)),
+          espera={"alertas_seguridad": {"min": 1}, "controles_deshechos": 1, "nivel": "error"},
+          fuente=i.peligro.fuente),
         E("D1", dado="el paso 1 en curso", cuando=f"llega {p1.sensor} = {p1.hecho} tres veces",
           entonces="hay un solo veredicto",
           pasos=[_lee((p1.sensor, p1.hecho), (p1.sensor, p1.hecho), (p1.sensor, p1.hecho))],
@@ -356,8 +339,7 @@ def escenarios_de(i: Industria) -> list[Escenario]:
           entonces="la calificación baja a warning: el sensor puede haberse caído",
           pasos=[_lee((p1.sensor, p1.hecho)), {"pasa": 8}],
           espera={"nivel": "warning"},
-          fuente="Capa 1: certeza total mientras la lectura esté fresca, 5 s (scoring.py; ADR-0007). Candidata a validar",
-          brecha=BRECHA_FRESCURA),
+          fuente="Capa 1: certeza total mientras la lectura esté fresca, 5 s (scoring.py; ADR-0007). Candidata a validar"),
     ]
 
     camino = [_lee(*i.hasta_camara), {"cuadro": True}]
@@ -380,14 +362,13 @@ def escenarios_de(i: Industria) -> list[Escenario]:
         E("F4", dado=f"el paso de cámara {i.paso_camara} en curso, sin video", cuando="el juez de hoy responde",
           entonces="el paso no se verifica: no hubo cuadro que mirar", juez="stub",
           pasos=[_lee(*i.hasta_camara), {"dice": i.dice_camara}],
-          espera={"estados": {i.paso_camara: "no_verificado"}},
-          fuente="Un paso de cámara se juzga con el último cuadro del edge (ADR-0007)",
-          brecha=BRECHA_SIN_CUADRO),
+          espera={"estados": {i.paso_camara: "no_verificado"}, "nivel": "warning"},
+          fuente="Un paso de cámara se juzga con el último cuadro del edge (ADR-0007)"),
         E("F5", dado=f"el paso de cámara {i.paso_camara} en curso, con video", cuando=f"el juez dice que sí con 95 % y se da «{i.peligro.regla.lower()}»",
           entonces="la OT queda en error por la capa 1, aunque la cámara diga que todo está bien", juez=(True, 0.95),
           pasos=[*camino, {"dice": i.dice_camara}, _lee(*i.peligro.lecturas)],
-          espera={"estados": {i.paso_camara: "verificado"}, "alertas_capa1": 1, "nivel": "error"},
-          fuente="Un modelo nunca contradice a un sensor (ADR-0004)", brecha=_brecha_peligro(i)),
+          espera={"estados": {i.paso_camara: "verificado"}, "alertas_seguridad": {"min": 1}, "nivel": "error"},
+          fuente="Un modelo nunca contradice a un sensor (ADR-0004)"),
     ]
 
     alto = round(s.media + 8 * s.desvio, 2)
@@ -395,30 +376,30 @@ def escenarios_de(i: Industria) -> list[Escenario]:
         E("G1", dado=f"12 lecturas normales de {s.que_mide} ({s.media:g} {s.unidad})", cuando=f"llega un pico de {s.pico:g} {s.unidad} y después un valor normal",
           entonces="entra una alerta de capa 2 una vez, se resuelve y la OT nunca pasa de warning",
           pasos=[_lee(*[(s.sensor, str(v)) for v in base]), _lee((s.sensor, str(s.pico))), _lee((s.sensor, str(s.media)))],
-          espera={"alertas_capa2": 1, "resueltas": 1, "alertas_abiertas": 0, "nivel": "ok", "nivel_maximo": "warning", "interrupciones": 0},
+          espera={"anomalias": 1, "resueltas": 1, "alertas_abiertas": 0, "nivel": "ok", "nivel_maximo": "warning", "interrupciones": 0},
           fuente="La capa 2 detecta anomalías, se muestra y no interrumpe (ADR-0004; ADR-0007)"),
         E("G2", dado=f"12 lecturas normales de {s.que_mide}", cuando=f"la señal sube a {alto:g} {s.unidad} y se queda ahí 30 lecturas",
           entonces="la alerta sigue abierta mientras la señal no vuelva",
           pasos=[_lee(*[(s.sensor, str(v)) for v in base]),
                  _lee(*[(s.sensor, str(v)) for v in _serie(Senal(s.sensor, s.unidad, alto, s.desvio, 0, ""), 30, 11)])],
-          espera={"alertas_abiertas": 1, "nivel": "warning"},
-          fuente="Un aviso vive mientras dure su condición (PRD servicios en vivo, O5)", brecha=BRECHA_ESCALON),
+          espera={"anomalias": 1, "alertas_abiertas": 1, "nivel": "warning"},
+          fuente="Un aviso vive mientras dure su condición (PRD servicios en vivo, O5)"),
         E("G3", dado=f"12 lecturas normales de {s.que_mide}", cuando=f"la señal sube {s.desvio / 2:g} {s.unidad} por lectura durante 40 lecturas",
           entonces="entra una alerta de capa 2 antes de que termine la subida",
           pasos=[_lee(*[(s.sensor, str(v)) for v in base]),
                  _lee(*[(s.sensor, str(round(s.media + (k + 1) * s.desvio / 2, 2))) for k in range(40)])],
-          espera={"alertas_capa2": {"min": 1}},
+          espera={"anomalias": {"min": 1}},
           fuente="Detectar la falla antes del daño es para qué está la capa 2 (ADR-0004). Algoritmo: Brecha"),
         E("G4", dado=f"{s.que_mide} normal", cuando="llegan 60 lecturas con su ruido normal",
           entonces="no entra ninguna alerta",
           pasos=[_lee(*[(s.sensor, str(v)) for v in _serie(s, 60, 23)])],
-          espera={"alertas_capa2": 0},
+          espera={"anomalias": 0, "sensores_pegados": 0},
           fuente="Un aviso falso repetido le enseña al operario a ignorar el aviso (LOGICA)"),
         E("G5", dado=f"15 lecturas idénticas de {s.que_mide}", cuando=f"llega una que se mueve {s.desvio / 10:g} {s.unidad}",
-          entonces="no entra una alerta de anomalía por un movimiento menor que el ruido normal",
+          entonces="avisa que el sensor está pegado, no confunde el movimiento mínimo con una falla, y el aviso se va cuando vuelve a variar",
           pasos=[_lee(*[(s.sensor, str(s.media))] * 15), _lee((s.sensor, str(round(s.media + s.desvio / 10, 3))))],
-          espera={"alertas_capa2": 0},
-          fuente="Desvío robusto: (valor − mediana) / MAD (scoring.py)", brecha=BRECHA_PEGADO),
+          espera={"anomalias": 0, "sensores_pegados": 1, "alertas_abiertas": 0},
+          fuente="Un sensor pegado es una falla del sensor, no del equipo (scoring.py; simulación de capa 2)"),
     ]
     return lista
 
@@ -487,7 +468,7 @@ def correr(e: Escenario) -> dict:
                         seq += 1
                         s.recibir_lectura(EDGE, sensor, str(valor), seq)
                 elif "dice" in paso:
-                    s.declarar(OT, OPERARIO, paso["dice"])
+                    s.declarar(OT, OPERARIO, paso["dice"], paso.get("paso"))
                 elif "juez" in paso:
                     juez_actual[0] = paso["juez"] if paso["juez"] == "stub" else tuple(paso["juez"])
                 elif "cuadro" in paso:
@@ -501,6 +482,7 @@ def correr(e: Escenario) -> dict:
             "bitacora": [evento_dict(ev) for ev in db.eventos(cx, OT)],
             "stream": bus.mensajes,
         }
+        cx.close()
 
     comparacion = {k: {"esperado": v, "obtenido": obtenido.get(k), "cumple": _cumple(v, obtenido.get(k))}
                    for k, v in e.espera.items()}
@@ -531,6 +513,7 @@ def _medir(cx, s: Servicios, pauta, bus: _Captura) -> dict:
     for n in niveles:
         maximo = _peor(maximo, n)
     alertas = [ev for ev in evs if ev.tipo is TipoEvento.ALERTA]
+    de_clase = lambda clase: sum(1 for a in alertas if str((a.evidencia or {}).get("clave", "")).startswith(clase))  # noqa: E731
     verificados: dict[str, int] = {}
     for ev in evs:
         if ev.tipo is TipoEvento.VEREDICTO and ev.estado is Estado.VERIFICADO and ev.paso_id:
@@ -545,7 +528,11 @@ def _medir(cx, s: Servicios, pauta, bus: _Captura) -> dict:
         "alertas_capa2": sum(1 for a in alertas if a.capa == Capa.APRENDIZAJE),
         "alertas_abiertas": len(s.alertas_activas(OT)),
         "resueltas": sum(1 for ev in evs if ev.tipo is TipoEvento.ALERTA_RESUELTA),
-        "desviaciones_de_orden": sum(1 for a in alertas if (a.evidencia or {}).get("tipo") == "orden"),
+        "alertas_seguridad": de_clase("seguridad:"),
+        "desviaciones_de_orden": de_clase("orden:"),
+        "controles_deshechos": de_clase("control:"),
+        "anomalias": de_clase("senal:"),
+        "sensores_pegados": de_clase("pegado:"),
         "conflictos": sum(1 for ev in evs if ev.tipo is TipoEvento.VEREDICTO and ev.estado is Estado.EN_CONFLICTO),
         "interrupciones": sum(1 for ev in evs if (c := calificar_evento(ev)) and c.nivel is Nivel.ERROR
                               and ev.tipo is not TipoEvento.ALERTA_RESUELTA),

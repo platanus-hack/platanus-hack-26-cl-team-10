@@ -73,8 +73,19 @@ curl {base}/ot/ot-1/eventos                         # la bitácora
 
 Sensores de la pauta del demo: `reed_bloqueo` (`cerrado` · `abierto`), `guarda` (`abierta` · `cerrada`),
 `energia` (`viva` · `cortada`). Un valor numérico (por ejemplo `vibracion`) pasa además por la detección
-de anomalías. La regla de seguridad vigente: `guarda = abierta` con `energia = viva` abre una alerta de
-nivel `error`, y se resuelve sola cuando cualquiera de los dos sensores se corrige.
+de anomalías. **El edge reenvía cada sensor al menos cada 5 s, cambie o no**: si el sensor del paso en curso
+calla más que eso, la OT baja a `warning`.
+
+Reglas de seguridad, una por industria: `guarda = abierta` con `energia = viva` (minería); `tierra = puesta`
+con `tension = presente`, y `seccionador = cerrado` con `tierra = puesta` (eléctrica); `zona = ocupada` con
+`implementos = levantados` (construcción). Abren una alerta `error` y se resuelven solas cuando el sensor se
+corrige. Además, alertas de la pauta: **orden invertido** (se cerró un paso posterior con un control crítico
+pendiente) y **control perdido** (se deshizo un control crítico ya verificado). La clase de cada alerta está en
+`evidencia.clave`: `seguridad:`, `orden:`, `control:`, `senal:` o `pegado:`.
+
+**Al declarar**, manda `paso_id` con el paso que la app le mostraba al operario
+(`{{"actor":"operario:A","texto":"bloqueo puesto","paso_id":"p1"}}`). Si su sensor ya lo cerró, la palabra se
+registra y no se evalúa contra el paso siguiente. Un paso de cámara necesita un cuadro de los últimos 10 s.
 
 ## En vivo: `WS {ws}/ot/{{ot_id}}/stream?desde=<id>`
 
@@ -115,7 +126,9 @@ reglas) llega a `error`. La capa 2 (anomalía de señal) y la capa 3 (cámara) l
 
 `{base}/casos` es el banco de pruebas: una tarjeta por criterio de aceptación, que corre la secuencia real
 de llamadas contra este servidor u otro, con una OT y un edge propios (`casos-…`), y muestra cada request,
-cada response y los mensajes del stream. Sirve de ejemplo ejecutable de cada recorrido.
+cada response y los mensajes del stream. Sirve de ejemplo ejecutable de cada recorrido. Debajo, la matriz de
+escenarios por industria (`GET /escenarios`): cada forma de ejecutar un paso en minería, eléctrica y
+construcción, corrida en una caja aislada que no toca la bitácora de este servidor.
 
 ## Errores
 

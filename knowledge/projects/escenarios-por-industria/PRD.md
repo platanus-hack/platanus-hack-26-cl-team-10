@@ -14,17 +14,17 @@
 
 **Antes.** Francisco quiere saber si el sistema detecta que un operario se saltó el bloqueo y lo hizo después. Tiene que armar a mano una OT, mandar lecturas y leer la bitácora, y la respuesta vale solo para la correa.
 
-**Después.** Abre `/casos`, corre los escenarios y ve que en las tres industrias ese patrón (B2) deja la bitácora limpia. Lee de dónde sale lo esperado (DS 132 art. 52, RD 614 anexo II, 29 CFR 1926.600) y qué regla lo cerraría.
+**Después.** Abre `/casos`, corre los escenarios y ve ese patrón (B2) en las tres industrias: la bitácora registra el orden invertido y la alerta se resuelve cuando se hace el paso saltado. Al lado lee de dónde sale lo esperado (DS 132 art. 52, RD 614 anexo II, 29 CFR 1926.600). El test de cada industria lo dice con las palabras del oficio: `test_b2_abrir_la_guarda_y_bloquear_despues_queda_en_la_bitacora`.
 
 ## 3. Objetivos y no-objetivos
 
-- **O1 —** Cada industria tiene los mismos 22 patrones, y la matriz completa corre sin tocar la bitácora ni los sensores del servidor.
+- **O1 —** Cada industria tiene los mismos 23 patrones, cada uno con su test de caso de uso en el archivo de su industria, y la matriz completa corre sin tocar la bitácora ni los sensores del servidor.
 - **O2 —** Cada escenario dice de dónde sale lo que espera: una regla de LOGICA, un ADR o una norma con número en REFERENCIAS.
 - **O3 —** Cada brecha dice qué hace hoy el sistema, por qué y qué la cierra; y si alguien la cierra, el test lo avisa.
 - **O4 —** Para la capa 2, una simulación compara detectores contra fallas típicas de cada industria y dice cuál aguanta cuál.
 - **O5 —** Para la capa 3, un eval mide la falsa aceptación, el falso rechazo y la calibración del juez sobre escenas de cada industria.
 - **NO1 —** No calibra umbrales: las señales de la capa 2 son sintéticas y la capa 3 todavía no tiene imágenes.
-- **NO2 —** No agrega reglas a `reglas.py` ni cambia `contratos.py`: las propone (§5.3) y las decide el equipo.
+- **NO2 —** No cambia `contratos.py`: las reglas nuevas usan los tipos de evento que ya existen (`alerta` y `alerta_resuelta`, con `evidencia.tipo`).
 - **NO3 —** No reemplaza los CA del servicio, que siguen probando el camino HTTP real en `/casos`.
 
 ## 4. Flujo: hoy → después
@@ -56,34 +56,35 @@ En construcción, bloquear la palanca y aliviar la presión **no tienen norma**:
 
 ### 5.2 Patrones de ejecución
 
-Los mismos en las tres industrias. La barrera es la capa del [ADR-0004](../../decisions/0004-verificacion-por-capas.md) que decide el caso.
+Los mismos en las tres industrias. La barrera es la capa del [ADR-0004](../../decisions/0004-verificacion-por-capas.md) que decide el caso. Los 69 escenarios pasan; la última columna dice qué lo hace pasar.
 
-| Grupo | Patrón | Barrera | Lo que pregunta | Hoy (las tres industrias) |
+| Grupo | Patrón | Barrera | Lo que pregunta | Qué lo decide |
 | --- | --- | --- | --- | --- |
-| A · Cuándo llega la evidencia | A1 Lo hace y el sensor lo ve, sin hablar | 1 | ¿Se cierra solo con la lectura? | pasa |
-| | A2 El sensor lo ve y después lo dice | 1 | ¿La palabra tardía se confunde con el paso siguiente? | **brecha** |
-| | A3 Lo dice y después el sensor lo ve | 1 | ¿Interrumpe por segundos de diferencia? | pasa, con nota |
-| | A4 Lo dice y el sensor nunca lo confirma | 1 | ¿Queda en conflicto y a la vista? | pasa |
-| | A5 Dice que hizo el siguiente sin hacer este | 1 | ¿Se detecta el salto? | pasa |
-| B · El orden | B1 Se salta el paso y hace el siguiente | 1 | ¿La pauta avanza igual? | pasa |
-| | B2 Se lo salta, hace el siguiente y vuelve | 1 | ¿Queda registro del orden invertido? | **brecha** |
-| | B3 Se lo salta y crea la condición de peligro | 1 | ¿Suena la alerta? | pasa en minería; **brecha** en las otras |
-| C · Un control se deshace | C1 Deshace un control crítico verificado | 1 | ¿Se avisa que el control se perdió? | **brecha** |
-| | C2 Lo deshace y se crea el peligro | 1 | ¿Suena la alerta? | pasa en minería; **brecha** en las otras |
-| D · La lectura | D1 El sensor repite la lectura | 1 | ¿Se cuenta una vez? | pasa |
-| | D3 El sensor deja de mandar | 1 | ¿Baja la certeza? | **brecha** |
-| F · La cámara | F1 Confirma con confianza alta | 3 | ¿Se cierra sin aviso? | pasa |
-| | F2 Confirma con confianza baja | 3 | ¿Pide que alguien mire? | pasa |
-| | F3 Contradice al operario | 3 | ¿Conflicto sin interrumpir? | pasa |
-| | F4 Sin video, el juez dice que sí | 3 | ¿Se acepta un sí sin cuadro? | **brecha** |
-| | F5 Dice que sí y un sensor marca peligro | 3 | ¿Un modelo contradice a un sensor? | pasa en minería; **brecha** en las otras |
-| G · La señal | G1 Un pico aislado | 2 | ¿Avisa una vez y se resuelve? | pasa |
-| | G2 Un escalón que se sostiene | 2 | ¿El aviso dura lo que dura la falla? | **brecha** |
-| | G3 Una deriva lenta | 2 | ¿Se detecta antes del daño? | pasa |
-| | G4 Ruido normal | 2 | ¿Da falsas alarmas? | pasa |
-| | G5 Un sensor pegado que se mueve apenas | 2 | ¿Confunde quieto con falla? | **brecha** |
+| A · Cuándo llega la evidencia | A0 La pauta completa, bien hecha | 1 | ¿Las reglas dan alguna falsa alarma? | El control de todas las demás: cero alertas, cero conflictos |
+| | A1 Lo hace y el sensor lo ve, sin hablar | 1 | ¿Se cierra solo con la lectura? | El paso por sensor |
+| | A2 El sensor lo ve y después lo dice | 1 | ¿La palabra tardía se confunde con el paso siguiente? | La declaración nombra su paso; si ya estaba cerrado, solo se registra |
+| | A3 Lo dice y después el sensor lo ve | 1 | ¿Interrumpe por segundos de diferencia? | Sí: conflicto y después verificado. Ver §9 |
+| | A4 Lo dice y el sensor nunca lo confirma | 1 | ¿Queda en conflicto y a la vista? | El paso por sensor |
+| | A5 Dice que hizo el siguiente sin hacer este | 1 | ¿Se detecta el salto? | La app evalúa el paso actual |
+| B · El orden | B1 Se salta el paso y hace el siguiente | 1 | ¿La pauta avanza igual? | No avanza, y entra el orden invertido |
+| | B2 Se lo salta, hace el siguiente y vuelve | 1 | ¿Queda registro del orden invertido? | Orden invertido, resuelto al hacer el paso saltado |
+| | B3 Se lo salta y crea la condición de peligro | 1 | ¿Suena la alerta? | La regla de peligro de su industria |
+| C · Un control se deshace | C1 Deshace un control crítico verificado | 1 | ¿Se avisa que el control se perdió? | Control crítico deshecho, resuelto al reponerlo |
+| | C2 Lo deshace y se crea el peligro | 1 | ¿Suena la alerta? | Control deshecho más la regla de peligro |
+| D · La lectura | D1 El sensor repite la lectura | 1 | ¿Se cuenta una vez? | El veredicto entra una vez |
+| | D3 El sensor deja de mandar | 1 | ¿Baja la certeza? | Frescura: el sensor del paso en curso sin lecturas por más de 5 s baja la OT a warning |
+| F · La cámara | F1 Confirma con confianza alta | 3 | ¿Se cierra sin aviso? | La calificación de capa 3 |
+| | F2 Confirma con confianza baja | 3 | ¿Pide que alguien mire? | Bajo 75 % queda en warning |
+| | F3 Contradice al operario | 3 | ¿Conflicto sin interrumpir? | La cámara se muestra y no suena |
+| | F4 Sin video, el juez dice que sí | 3 | ¿Se acepta un sí sin cuadro? | Sin cuadro de los últimos 10 s no se le pregunta al juez |
+| | F5 Dice que sí y un sensor marca peligro | 3 | ¿Un modelo contradice a un sensor? | La regla de peligro deja la OT en error |
+| G · La señal | G1 Un pico aislado | 2 | ¿Avisa una vez y se resuelve? | El desvío robusto |
+| | G2 Un escalón que se sostiene | 2 | ¿El aviso dura lo que dura la falla? | La historia solo aprende de lecturas normales |
+| | G3 Una deriva lenta | 2 | ¿Se detecta antes del daño? | El desvío robusto |
+| | G4 Ruido normal | 2 | ¿Da falsas alarmas? | El desvío robusto |
+| | G5 Un sensor pegado que se mueve apenas | 2 | ¿Confunde quieto con falla? | Piso de dispersión de 1 % y aviso aparte de sensor pegado tras 10 lecturas idénticas |
 
-En total, 66 escenarios: 39 pasan y 27 son brechas.
+Los escenarios de la capa 2 no tienen ciclo de trabajo. Con un ciclo de carga, el detector de hoy no sostiene un escalón: lo muestra la [simulación](./capa2-simulacion.md) y es la primera decisión de §9.
 
 Los criterios del servicio, ordenados en la misma taxonomía. Son transversales: valen igual en las tres industrias.
 
@@ -99,19 +100,20 @@ Los criterios del servicio, ordenados en la misma taxonomía. Son transversales:
 | CA13 | F1, con el cuadro como evidencia | 3 |
 | CA14 | Guía para agentes | — |
 
-### 5.3 Reglas de capa 1 propuestas por industria
+### 5.3 Reglas de capa 1 por industria
 
-Cada una cierra brechas de la matriz y tiene su norma. Ninguna está en `reglas.py`: agregarlas toca el contrato y [LOGICA](../../architecture/LOGICA.md) en el mismo commit. Todas `Candidata a validar`.
+Escritas en `reglas.py` y en [LOGICA](../../architecture/LOGICA.md#qué-puede-interrumpir-al-operario) en el mismo cambio. Todas `Candidata a validar`, como LOGICA.
 
-| Regla | Industria | Condición sobre sensores | Fuente | Cierra |
+| Regla | Industria | Condición sobre sensores | Fuente | Escenarios |
 | --- | --- | --- | --- | --- |
-| Orden invertido | Las tres | Llega la lectura que cierra un paso posterior mientras el actual no está verificado → alerta de capa 1 con `evidencia.tipo = "orden"`, aunque después se haga | LOGICA; 44 art. 52; 48 A.1; 52 | B2 |
-| Control crítico deshecho | Las tres | El sensor de un paso `control_critico` ya verificado vuelve a su valor anterior antes del paso que lo deshace en la pauta → alerta de capa 1 | 44 art. 52; 48 A.2; 50 (m)(3)(xiii); 52 | C1 |
+| Orden invertido | Las tres | Llega la lectura que cierra un paso posterior mientras el paso en curso, control crítico, sigue abierto | LOGICA; 44 art. 52; 47; 48 A.1; 52 | B1, B2 |
+| Control crítico deshecho | Las tres | El sensor de un control crítico verificado deja de marcar su valor antes del paso que lo deshace; se apaga en los pasos de confirmación finales | 44 art. 52; 48 A.2; 50 (m)(3)(xiii); 52 | C1, C2 |
+| Guarda abierta con energía viva | Minería | `guarda = abierta` con `energia = viva` | 44, 45 | B3, C2, F5 |
 | Tierra con tensión | Eléctrica | `tierra = puesta` con `tension = presente` | 50 (n)(5); 48 A.1; 49 9.1.5 | B3, C2, F5 |
-| Reponer con tierras puestas | Eléctrica | `seccionador = cerrado` con `tierra = puesta` | 50 (m)(3)(xiii); 48 A.2; 49 9.1.7 | Patrón nuevo cuando entre la regla |
-| Persona bajo implemento levantado | Construcción | `zona = ocupada` con `implementos = levantados` | 52; 53 en minería | B3, C2, F5 |
-| Correa en movimiento con guarda abierta | Minería | Necesita un sensor de velocidad que el demo no tiene | 44 art. 116; 45 56.14112(b) | — |
-| El candado lo saca quien lo puso | Minería | Necesita identificar el candado o a la persona (RFID) | 45 56.12016 | — |
+| Cierre con tierras puestas | Eléctrica | `seccionador = cerrado` con `tierra = puesta` | 50 (m)(3)(xiii); 48 A.2; 49 9.1.7 | C2 y `test_reponer_el_servicio_con_las_tierras_puestas_interrumpe` |
+| Persona bajo implemento levantado | Construcción | `zona = ocupada` con `implementos = levantados` | 52; 53 si la máquina opera en una mina | B3, C2, F5 |
+
+Quedan fuera porque el demo no tiene el sensor: correa en movimiento con la guarda abierta (44 art. 116; 45 56.14112(b)), que pide velocidad, y «el candado lo saca quien lo puso» (45 56.12016), que pide identificar el candado o a la persona.
 
 El patrón que estas reglas atacan es el que la evidencia repite: el control existía y no se ejecutó. ICMM lo encontró en 19 de 26 fatales (40); MSHA, en una correa con procedimiento escrito de bloqueo que no se aplicó (47), y en ocho muertes en correas evitables con bloqueo (46); OSHA, en tierras retiradas en el orden equivocado (51).
 
@@ -139,13 +141,13 @@ Promesas: la misma matriz para las tres industrias; lo esperado siempre con fuen
 
 ## 7. Alcance
 
-**Entra:** las tres pautas, los 22 patrones por industria, la caja aislada, `GET /escenarios` y `POST /escenarios[/{id}]/correr`, la matriz y el detalle en `/casos`, `tests/test_escenarios.py`, la simulación de capa 2 y el eval de capa 3 con su set de escenas.
+**Entra:** las tres pautas, los 23 patrones por industria, las reglas de §5.3 en `reglas.py`, la frescura, la declaración con su paso y el paso de cámara sin cuadro en `servicios.py`, el detector de capa 2 que no aprende de la falla, la caja aislada, `GET /escenarios` y `POST /escenarios[/{id}]/correr`, la matriz y el detalle en `/casos`, `tests/test_escenarios.py`, la simulación de capa 2 y el eval de capa 3 con su set de escenas.
 
-**No entra:** escribir las reglas de §5.3 (decide el equipo), cambiar el detector de capa 2 (sale de la simulación y del ensayo), conectar un VLM (frente 3), juntar las imágenes del eval y patrones de relevo de turno.
+**No entra:** el detector de capa 2 para equipos con ciclo de carga (§9), conectar un VLM (frente 3), juntar las imágenes del eval y patrones de relevo de turno.
 
 ## 8. Criterios de aceptación
 
-- **CA1 —** **Dado** el catálogo, **cuando** se corre, **entonces** cada industria tiene los 22 patrones y cada escenario sin brecha cumple lo esperado.
+- **CA1 —** **Dado** el catálogo, **cuando** se corre, **entonces** cada industria tiene los 23 patrones, cada patrón tiene su test en el archivo de su industria, y cada escenario sin brecha cumple lo esperado.
 - **CA2 —** **Dado** un escenario con brecha, **cuando** alguien cambia el código y el escenario empieza a cumplir, **entonces** el test falla y pide quitar la marca.
 - **CA3 —** **Dado** un servidor con su bitácora, **cuando** se corre la matriz, **entonces** su base no cambia.
 - **CA4 —** **Dado** cualquier escenario, **cuando** se lee, **entonces** dice de dónde sale lo que espera.
@@ -153,23 +155,16 @@ Promesas: la misma matriz para las tres industrias; lo esperado siempre con fuen
 - **CA6 —** **Dado** la simulación de capa 2, **cuando** se corre, **entonces** informa, por industria y detector, las falsas alarmas y si detecta y sostiene el pico, el escalón, la deriva y el sensor pegado.
 - **CA7 —** **Dado** un juez de cámara, **cuando** se corre el eval de capa 3, **entonces** informa la falsa aceptación, el falso rechazo y la confianza en aciertos y errores, y cuenta aparte los casos sin imagen.
 
-Los tests: `tests/test_escenarios.py` (CA1 a CA4), `tests/test_casos.py` (CA5) y `tests/test_barreras.py` (CA6 y CA7).
+Los tests: los casos de uso de cada industria en `tests/test_mineria.py`, `tests/test_electrica.py` y `tests/test_construccion.py`, 25 por industria; la matriz como un todo en `tests/test_escenarios.py` (CA1 a CA4); `tests/test_casos.py` (CA5) y `tests/test_barreras.py` (CA6 y CA7).
 
 ## 9. Riesgos y decisiones abiertas
 
-Ordenadas por lo que cambian. Las tres primeras son de capa 1 y cambian lo que se muestra en el demo.
-
 | Tema | Impacto | Qué falta decidir | Se consulta a | Decide |
 | --- | --- | --- | --- | --- |
-| Orden invertido (B2) | alto | Saltarse el bloqueo y hacerlo después deja la bitácora limpia en las tres industrias. Es el momento del demo. ¿Entra la regla «orden invertido» de §5.3 en `reglas.py`? | Equipo | Equipo |
-| Declaración tardía (A2) | alto | Si el sensor cerró el paso y el operario lo dice después, la palabra cae sobre el siguiente y abre un conflicto de capa 1 que **interrumpe**. Es una falsa alarma en el oído. ¿`POST /ot/{id}/declarar` acepta `paso_id`, y una declaración sobre un paso ya verificado solo se registra? | Frente 2 | Francisco |
-| Control deshecho (C1) | alto | Sacar el candado con la guarda abierta no avisa nada si la energía no está viva. ¿Entra la regla «control crítico deshecho»? | Equipo | Equipo |
-| Reglas de eléctrica y construcción | medio | Sin ellas, B3, C2 y F5 no alertan en esas industrias. ¿Las reglas de seguridad pasan a ser datos de la pauta, en vez de código en `reglas.py`? Es un cambio de contrato, pero evita tocar código por cada industria | Equipo | Equipo |
-| Sin cuadro (F4) | medio | El stub dice que sí con 55 % aunque no haya video, y el paso se verifica. ¿`servicios.py` deja sin verificar un paso de cámara sin cuadro? No toca el contrato | Frente 3 | Francisco |
-| Frescura (D3) | medio | `scoring.py` define 5 s de frescura y el servicio nunca le pasa la edad: un sensor caído sigue con certeza total. Se arregla en `servicios.py` | Frente 3 | Francisco |
-| Detector de capa 2 (G2, G5) | medio | Con la historia móvil de hoy, un escalón sostenido apaga su alarma: cubre 47 % de la falla en minería, 13 % en construcción y 4 % en eléctrica, y en eléctrica detecta 32 % de las derivas. El CUSUM contra el ciclo de trabajo detecta y sostiene todo, con 7 a 11 falsas alarmas cada 1.000 lecturas; el umbral fijo tiene casi cero falsas alarmas y es más lento en la deriva. Ver la [simulación](./capa2-simulacion.md). ¿Umbral fijo más CUSUM contra el ciclo, con un detector aparte de sensor pegado? Pide conocer el ciclo, por ejemplo con la corriente | Frente 3 | Francisco |
-| Ventana de gracia (A3) | bajo | Decirlo un segundo antes de que el sensor lo vea abre un conflicto que interrumpe. ¿Se espera unos segundos antes de declarar el conflicto? `Candidata a validar` | Frente 2 | Equipo |
-| Imágenes del eval de capa 3 | alto para el frente 3 | El set tiene 24 escenas y ninguna imagen. Hoy el eval solo dice que el stub acepta todo (falsa aceptación 15 de 15). ¿Se fotografían en la maqueta del demo con `/camara`? IndustReal (13) trae cuadros con errores de ejecución para una primera pasada | Frente 3 | Frente 3 |
+| Señal de carga para la capa 2 | alto fuera del demo | Con un ciclo de carga el detector de hoy sostiene un escalón 6 % del tiempo en eléctrica y 30 % en construcción. El CUSUM contra el ciclo lo sostiene entero, con 8 a 11 falsas alarmas cada 1.000 lecturas, pero necesita saber en qué parte del ciclo va el equipo. ¿Hay una señal de carga (corriente del motor o del transformador) en esas estaciones? En la correa del demo no hace falta: sin ciclo, el detector de hoy sostiene el escalón entero con 1,1 falsas alarmas cada 1.000 | Frente 3 | Francisco |
+| Imágenes del eval de capa 3 | alto para el frente 3 | El set tiene 24 escenas y ninguna imagen; hoy el eval solo dice que el stub acepta los 15 pasos mal hechos. ¿Quién las fotografía en la maqueta con `/camara`? IndustReal (13) trae cuadros con errores de ejecución para una primera pasada | Frente 3 | Frente 3 |
+| Lo que el edge y la app tienen que mandar | medio | Tres cambios ya hechos en la API que dependen de otros frentes. Primero, el edge reenvía cada sensor al menos cada 5 s, cambie o no; si no, la OT baja a warning por frescura. Segundo, la app manda `paso_id` al declarar; sin eso vuelve la falsa alarma de A2. Tercero, la cámara transmite durante los pasos de cámara; un cuadro de más de 10 s no cuenta | Frentes 2 y 3 | Francisco |
+| Ventana de gracia (A3) | bajo | Decirlo un segundo antes de que el sensor lo vea abre un conflicto que interrumpe, como dice LOGICA. ¿Se espera unos segundos antes de declararlo? `Candidata a validar` en el ensayo | Frente 2 | Equipo |
 
 ## Fuentes
 

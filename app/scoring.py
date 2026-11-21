@@ -112,11 +112,9 @@ def capa2(sensor_id: str, historia: Sequence[float], valor: float) -> Calificaci
         )
 
     centro = median(historia)
-    mad = median(abs(x - centro) for x in historia) * 1.4826
-    if mad == 0:
-        desvio = 0.0 if valor == centro else float("inf")
-    else:
-        desvio = abs(valor - centro) / mad
+    # Un piso de 1 % de la mediana: con una historia quieta, un movimiento mínimo no es una anomalía.
+    mad = max(median(abs(x - centro) for x in historia) * 1.4826, abs(centro) * 0.01, 1e-9)
+    desvio = abs(valor - centro) / mad
 
     certeza = min(1.0, n / (3 * HISTORIA_MIN))
     if desvio >= DESVIO_WARNING:
@@ -124,10 +122,19 @@ def capa2(sensor_id: str, historia: Sequence[float], valor: float) -> Calificaci
             Nivel.WARNING,
             certeza,
             Capa.APRENDIZAJE,
-            (f"{sensor_id} = {valor:g}, lejos de su mediana {centro:g} "
-             f"({'sin variación previa' if mad == 0 else f'{desvio:.1f} desvíos'})",),
+            (f"{sensor_id} = {valor:g}, lejos de su mediana {centro:g} ({desvio:.1f} desvíos)",),
         )
     return Calificacion(Nivel.OK, certeza, Capa.APRENDIZAJE, (f"{sensor_id} = {valor:g}, dentro de lo normal",))
+
+
+def frescura(sensor_id: str, edad_s: float) -> Calificacion | None:
+    """Capa 1 sin lecturas recientes: lo que dice el sensor ya no es seguro. El edge reenvía
+    cada sensor al menos cada FRESCURA_S segundos, cambie o no."""
+    certeza = _certeza_por_frescura(edad_s)
+    if certeza >= 1.0:
+        return None
+    return Calificacion(Nivel.WARNING, certeza, Capa.DETERMINISTA,
+                        (f"sin lecturas de {sensor_id} hace {edad_s:.0f} s: el sensor puede haberse caído",))
 
 
 # ─── Capa 3 · cámara ────────────────────────────────────────────────────────

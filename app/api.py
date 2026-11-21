@@ -60,6 +60,7 @@ ESTATICO = Path(__file__).resolve().parent / "estatico"
 class Declaracion(BaseModel):
     actor: str
     texto: str
+    paso_id: str | None = None
 
 
 class LecturaSensor(BaseModel):
@@ -183,7 +184,7 @@ def estado_ot(ot_id: str) -> dict:
 def declarar(ot_id: str, d: Declaracion) -> dict:
     """El operario habla. La evidencia manda: el veredicto lo decide reglas.py, y un paso
     de cámara se juzga con el último cuadro del edge de la OT."""
-    return servicios.declarar(ot_id, d.actor, d.texto)
+    return servicios.declarar(ot_id, d.actor, d.texto, d.paso_id)
 
 
 @app.post("/sensores")

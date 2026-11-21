@@ -247,6 +247,9 @@ const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 const pausa = ms => new Promise(r => setTimeout(r, ms));
 const tipos = evs => (evs || []).map(e => e.tipo);
+// Clase de una alerta o de su resolución: seguridad, orden, control, senal o pegado.
+const clase = e => String(e?.evidencia?.clave || "").split(":")[0];
+const deClase = (evs, c) => (evs || []).filter(e => clase(e) === c);
 const deTipo = (evs, t) => (evs || []).filter(e => e.tipo === t);
 const json = v => v === undefined ? "—" : JSON.stringify(v);
 const recorte = (t, n = 150) => t.length > n ? t.slice(0, n) + "…" : t;
@@ -603,11 +606,13 @@ const CASOS = [
       const cal2 = await c.http("GET", `/ot/${c.ot2}/calificacion`);
       await pausa(300);
       c.comprobar("La lectura se atribuye a la OT de la sesión", c.ot, r.cuerpo[1].ot);
-      c.comprobar("Nace una alerta de capa 1", [["alerta", 1]], r.cuerpo[1].eventos.map(e => [e.tipo, e.capa]));
-      c.comprobar("La OT 1 tiene esa alerta activa", 1, a1.cuerpo.length);
+      c.comprobar("Nace la alerta de seguridad, de capa 1", [["alerta", 1, "seguridad"]], r.cuerpo[1].eventos.map(e => [e.tipo, e.capa, clase(e)]));
+      c.comprobar("La OT 1 tiene esa alerta activa", 1, deClase(a1.cuerpo, "seguridad").length);
       c.comprobar("La OT 2 no tiene alertas", [], a2.cuerpo);
       c.comprobar("La bitácora de la OT 2 sigue solo con la apertura", ["ot_abierta"], tipos(e2.cuerpo));
-      c.comprobar("Por el stream de la OT 1 llega la alerta", ["alerta"], s1.mensajes.filter(m => m.tipo === "evento").map(m => m.evento.tipo));
+      c.comprobar("Por el stream de la OT 1 llega la alerta", true, s1.mensajes.some(m => m.tipo === "evento" && clase(m.evento) === "seguridad"));
+      c.observar("Las demás alertas de la OT 1", deClase(a1.cuerpo, "orden").map(e => e.detalle),
+        "La guarda se abrió con el bloqueo pendiente: además entra la alerta de orden invertido (escenario B1).");
       c.comprobar("Por el stream de la OT 2 no llega nada", ["snapshot"], tipos(s2.mensajes));
       c.observar("Calificación de la OT 2 mientras dura la condición", cal2.cuerpo.nivel,
         "La alerta no entra a su bitácora, pero la calificación se calcula con los sensores de ahora, que son globales (PRD §9, «Sensores globales»).");
@@ -658,9 +663,11 @@ const CASOS = [
       await s.esperar(3);
       c.fase("entonces");
       const estado = await c.http("GET", `/ot/${c.ot}`);
-      c.comprobar("No nace ningún veredicto", [], tipos(r.cuerpo[0].eventos));
+      c.comprobar("No nace ningún veredicto", [], deTipo(r.cuerpo[0].eventos, "veredicto"));
       c.comprobar("La pauta sigue en el paso de bloqueo", "p1", estado.cuerpo.paso_actual);
       c.comprobar("Ningún paso quedó verificado", [], estado.cuerpo.verificados);
+      c.observar("Lo que sí entra", r.cuerpo[0].eventos.map(e => e.detalle),
+        "Abrir la guarda con el bloqueo pendiente es un control saltado: entra la alerta de orden invertido (escenario B1).");
     },
   },
   {
@@ -684,10 +691,10 @@ const CASOS = [
       await c.lecturas([["guarda", "abierta"]]);
       c.fase("entonces");
       const evs2 = await c.http("GET", `/ot/${c.ot}/eventos`);
-      c.comprobar("Con tres lecturas en condición, la alerta entra una vez", 1, deTipo(evs1.cuerpo, "alerta").length);
+      c.comprobar("Con tres lecturas en condición, la alerta entra una vez", 1, deClase(deTipo(evs1.cuerpo, "alerta"), "seguridad").length);
       c.comprobar("Mientras dura, la OT está en error", "error", cal1.cuerpo.nivel);
       c.comprobar("Al cerrarse la guarda, la OT vuelve a ok", "ok", cal2.cuerpo.nivel);
-      c.comprobar("Cuando la condición vuelve, entra otra alerta", 2, deTipo(evs2.cuerpo, "alerta").length);
+      c.comprobar("Cuando la condición vuelve, entra otra alerta", 2, deClase(deTipo(evs2.cuerpo, "alerta"), "seguridad").length);
     },
   },
   {
@@ -842,27 +849,31 @@ const CASOS = [
       const s = c.stream(c.ot);
       await s.esperar(1);
       const r0 = await c.lecturas([["energia", "viva"], ["guarda", "abierta"]]);
-      const alerta = r0.cuerpo[1].eventos.find(e => e.tipo === "alerta");
+      const alerta = r0.cuerpo[1].eventos.find(e => e.tipo === "alerta" && clase(e) === "seguridad");
       const cal0 = await c.http("GET", `/ot/${c.ot}/calificacion`);
       c.fase("cuando");
       const r1 = await c.lecturas([["guarda", "cerrada"]]);
       const cal1 = await c.http("GET", `/ot/${c.ot}/calificacion`);
       const activas = await c.http("GET", `/ot/${c.ot}/alertas`);
       const r2 = await c.lecturas([["guarda", "abierta"]]);
-      const alerta2 = r2.cuerpo[0].eventos.find(e => e.tipo === "alerta");
+      const alerta2 = r2.cuerpo[0].eventos.find(e => e.tipo === "alerta" && clase(e) === "seguridad");
       const r3 = await c.lecturas([["energia", "cortada"]]);
       await s.esperar(ms => ms.filter(m => m.tipo === "calificacion_ot").length >= 5);
       c.fase("entonces");
       const trasResolver = s.mensajes
-        .map((m, i) => m.tipo === "evento" && m.evento.tipo === "alerta_resuelta" ? s.mensajes.slice(i + 1).find(x => x.tipo === "calificacion_ot") : null)
-        .filter(Boolean).map(m => m.calificacion.avisos.length);
-      c.comprobar("Dado: la OT está en error con un aviso", {nivel: "error", avisos: 1}, {nivel: cal0.cuerpo.nivel, avisos: cal0.cuerpo.avisos.length});
-      c.comprobar("Al cerrar la guarda entra alerta_resuelta", ["alerta_resuelta"], tipos(r1.cuerpo[0].eventos));
-      c.comprobar("Apunta a la alerta que cierra", alerta?.id, r1.cuerpo[0].eventos[0]?.evidencia?.resuelve);
+        .map((m, i) => m.tipo === "evento" && m.evento.tipo === "alerta_resuelta" && clase(m.evento) === "seguridad"
+          ? s.mensajes.slice(i + 1).find(x => x.tipo === "calificacion_ot") : null)
+        .filter(Boolean).map(m => m.calificacion.avisos.filter(a => a.motivos[0].includes("ENERGÍA VIVA")).length);
+      c.comprobar("Dado: la OT está en error con el aviso de guarda abierta con energía viva", {nivel: "error", avisos: 1},
+        {nivel: cal0.cuerpo.nivel, avisos: cal0.cuerpo.avisos.filter(a => a.motivos[0].includes("ENERGÍA VIVA")).length});
+      const resuelta1 = r1.cuerpo[0].eventos.find(e => e.tipo === "alerta_resuelta" && clase(e) === "seguridad");
+      c.comprobar("Al cerrar la guarda entra alerta_resuelta", "alerta_resuelta", resuelta1?.tipo);
+      c.comprobar("Apunta a la alerta que cierra", alerta?.id, resuelta1?.evidencia?.resuelve);
       c.comprobar("La OT vuelve a ok y sin avisos", {nivel: "ok", avisos: []}, {nivel: cal1.cuerpo.nivel, avisos: cal1.cuerpo.avisos});
       c.comprobar("No quedan alertas activas", [], activas.cuerpo);
-      c.comprobar("Cortar la energía también resuelve la alerta siguiente", alerta2?.id, r3.cuerpo[0].eventos[0]?.evidencia?.resuelve);
-      c.comprobar("Por el stream, la calificación que sigue a cada resolución llega sin avisos", [0, 0], trasResolver);
+      c.comprobar("Cortar la energía también resuelve la alerta siguiente", alerta2?.id,
+        r3.cuerpo[0].eventos.find(e => e.tipo === "alerta_resuelta" && clase(e) === "seguridad")?.evidencia?.resuelve);
+      c.comprobar("Por el stream, la calificación que sigue a cada resolución ya no trae el aviso", [0, 0], trasResolver);
     },
   },
   {

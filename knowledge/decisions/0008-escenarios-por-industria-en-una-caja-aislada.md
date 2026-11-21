@@ -26,7 +26,7 @@ Queremos saber cómo responde cada barrera del [ADR-0004](./0004-verificacion-po
 ## Consecuencias
 
 - Una industria nueva es una pauta y una descripción de sus sensores. Sus 22 escenarios salen solos y los que no aplican quedan a la vista como brecha.
-- Las brechas de la matriz se vuelven decisiones con nombre ([PRD §9](../projects/escenarios-por-industria/PRD.md#9-riesgos-y-decisiones-abiertas)). Las de capa 1 piden reglas en `reglas.py` y tocan el contrato. Las de frescura, sin cuadro y declaración tardía se cierran en `servicios.py`.
+- La primera corrida dejó 27 brechas con nombre. Se cerraron todas: las de capa 1 con reglas en `reglas.py` y [LOGICA](../architecture/LOGICA.md#qué-puede-interrumpir-al-operario), sin tocar `contratos.py`; las de frescura, sin cuadro y declaración tardía, en `servicios.py`; las de capa 2, con una historia que no aprende de la falla. El mecanismo de brecha queda para la próxima industria o patrón.
 - La caja no prueba HTTP ni el WebSocket real. Lo que reporta del stream es lo que el servicio publicó en su bus.
 
 ## Pendientes y no verificado

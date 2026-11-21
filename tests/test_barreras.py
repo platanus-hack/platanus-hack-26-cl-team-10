@@ -30,12 +30,17 @@ class LaSimulacionDeCapa2ComparaDetectores(unittest.TestCase):
                 self.assertIn((s.industria, d.nombre), resumen)
         self.assertIn("Falsas alarmas", texto)
 
-    def test_la_historia_movil_de_hoy_suelta_un_escalon_que_sigue(self):
+    def test_la_historia_que_aprende_de_la_falla_suelta_un_escalon_y_la_de_hoy_no(self):
         _, r = self.sim.tabla(semillas=4)
-        hoy = r[("Eléctrica", self.sim.MADActual.nombre)]
-        con_ciclo = r[("Eléctrica", self.sim.CUSUMSinCiclo.nombre)]
-        self.assertLess(hoy["cubre"], 0.5)
-        self.assertGreater(con_ciclo["cubre"], 0.9)
+        self.assertLess(r[("Minería", self.sim.MADAntes.nombre)]["cubre"], 0.6)
+        self.assertGreater(r[("Minería", self.sim.MADActual.nombre)]["cubre"], 0.9)
+
+    def test_con_un_ciclo_de_trabajo_el_detector_de_hoy_no_alcanza_y_el_cusum_contra_el_ciclo_si(self):
+        _, r = self.sim.tabla(semillas=4)
+        for industria in ("Eléctrica", "Construcción"):
+            with self.subTest(industria):
+                self.assertLess(r[(industria, self.sim.MADActual.nombre)]["cubre"], 0.5)
+                self.assertGreater(r[(industria, self.sim.CUSUMSinCiclo.nombre)]["cubre"], 0.9)
 
     def test_la_linea_base_cubre_dos_ciclos_de_trabajo(self):
         for s in self.sim.SENALES:

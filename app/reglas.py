@@ -142,21 +142,102 @@ def _por_confirmacion(declarado: str | None) -> Veredicto:
 # decisión de producto: va también en LOGICA.md.
 
 
-def reglas_seguridad(sensores: Mapping[str, str]) -> list[Veredicto]:
-    """Devuelve las alertas que disparan las lecturas actuales. Todas capa 1."""
-    alertas: list[Veredicto] = []
+_PELIGROS: tuple[tuple[dict[str, str], str, str], ...] = (
+    # (condición sobre sensores, aviso, fuente en REFERENCIAS)
+    ({"guarda": "abierta", "energia": "viva"},
+     "GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.",
+     "Minería: DS 132 art. 52 (44); 30 CFR 56.14105 y 56.14112(b) (45)"),
+    ({"tierra": "puesta", "tension": "presente"},
+     "PUESTA A TIERRA CON TENSIÓN PRESENTE. Retirar y verificar ausencia de tensión antes de volver a poner tierra.",
+     "Eléctrica: 29 CFR 1910.269(n)(5) (50); RD 614/2001 anexo II (48); RPTD N°15 9.1.5 (49)"),
+    ({"tierra": "puesta", "seccionador": "cerrado"},
+     "CIERRE CON TIERRAS PUESTAS. Abrir el seccionador: no se repone el servicio mientras haya tierras.",
+     "Eléctrica: 29 CFR 1910.269(m)(3)(xiii) (50); RD 614/2001 anexo II A.2 (48); RPTD N°15 9.1.7 (49)"),
+    ({"zona": "ocupada", "implementos": "levantados"},
+     "PERSONA BAJO LOS IMPLEMENTOS LEVANTADOS. Salir de la zona o bajar y calzar los implementos.",
+     "Construcción: 29 CFR 1926.600(a)(3)(i) (52)"),
+)
 
-    if sensores.get("guarda") == "abierta" and sensores.get("energia") == "viva":
-        alertas.append(
-            Veredicto(
-                Estado.EN_CONFLICTO,
-                Capa.DETERMINISTA,
-                "GUARDA ABIERTA CON ENERGÍA VIVA. Detener y aislar la energía antes de continuar.",
-                {"tipo": "sensor", "guarda": "abierta", "energia": "viva"},
-                interrumpe=True,
-            )
+
+def reglas_seguridad(sensores: Mapping[str, str]) -> list[Veredicto]:
+    """Devuelve las alertas que disparan las lecturas actuales. Todas capa 1.
+
+    Una regla por peligro de alta consecuencia de cada industria, con su norma. Cada
+    una mira sensores propios de su equipo, así que en una estación solo puede
+    disparar la de su industria.
+    """
+    return [
+        Veredicto(
+            Estado.EN_CONFLICTO,
+            Capa.DETERMINISTA,
+            aviso,
+            {"tipo": "sensor", **condicion, "fuente": fuente},
+            interrumpe=True,
         )
-    return alertas
+        for condicion, aviso, fuente in _PELIGROS
+        if all(sensores.get(k) == v for k, v in condicion.items())
+    ]
+
+
+def desviacion_de_orden(pauta: Pauta, estados: Mapping[str, Estado], sensor_id: str, valor: str) -> Veredicto | None:
+    """El orden lo comprueba la capa 1 (ADR-0002, LOGICA): una lectura que cierra un paso
+    posterior mientras el actual, un control crítico, sigue abierto, es un control saltado,
+    aunque después se haga. Si el paso pendiente no es crítico no se avisa: cerrar la guarda
+    porque sonó una alerta no es una desviación que valga una interrupción.
+
+    Se mira el primer paso sin verificar que usa ese sensor: con eso, la guarda cerrada
+    del inicio no se confunde con «reinstalar la guarda», que viene después de abrirla.
+    """
+    actual = paso_actual(pauta, estados)
+    if actual is None or not actual.control_critico:
+        return None
+    adelantado = next(
+        (p for p in pauta.en_orden
+         if p.sensor and p.sensor.id == sensor_id and estados.get(p.id) is not Estado.VERIFICADO),
+        None,
+    )
+    if adelantado is None or adelantado.orden <= actual.orden or adelantado.sensor.espera != valor:
+        return None
+    return Veredicto(
+        Estado.EN_CONFLICTO,
+        Capa.DETERMINISTA,
+        f"ORDEN INVERTIDO: «{adelantado.titulo}» ({sensor_id} = {valor}) antes de «{actual.titulo}».",
+        {"tipo": "orden", "adelantado": adelantado.id, "pendiente": actual.id, "sensor": sensor_id, "valor": valor},
+        interrumpe=True,
+    )
+
+
+def controles_deshechos(pauta: Pauta, estados: Mapping[str, Estado], sensores: Mapping[str, str]) -> list[Veredicto]:
+    """Un control crítico ya verificado que se deshace antes de tiempo (LOGICA).
+
+    Para cada sensor cuenta el último paso verificado que lo usa: si es control
+    crítico y el sensor ya no marca lo que ese paso exige, el control se perdió. El
+    paso de la pauta que lo deshace a propósito queda verificado antes de llegar acá,
+    así que no cuenta. Deja de mirar cuando solo quedan pasos de confirmación, que es
+    cuando la pauta devuelve el equipo a servicio.
+    """
+    actual = paso_actual(pauta, estados)
+    if actual is None or all(
+        p.tipo_evidencia is TipoEvidencia.CONFIRMACION for p in pauta.en_orden if p.orden >= actual.orden
+    ):
+        return []
+    ultimo: dict[str, Paso] = {}
+    for p in pauta.en_orden:
+        if p.sensor and estados.get(p.id) is Estado.VERIFICADO:
+            ultimo[p.sensor.id] = p
+    return [
+        Veredicto(
+            Estado.EN_CONFLICTO,
+            Capa.DETERMINISTA,
+            f"CONTROL PERDIDO: «{p.titulo}» se deshizo ({sensor_id} = {sensores.get(sensor_id)}, "
+            f"exige {p.sensor.espera}).",
+            {"tipo": "control", "paso": p.id, "sensor": sensor_id, "valor": sensores.get(sensor_id),
+             "espera": p.sensor.espera},
+            interrumpe=True,
+        )
+        for sensor_id, p in ultimo.items()
+        if p.control_critico and sensores.get(sensor_id) not in (None, p.sensor.espera)
+    ]
 
 
 # ─── Lectura del registro ───────────────────────────────────────────────────

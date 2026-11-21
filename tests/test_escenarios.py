@@ -1,9 +1,10 @@
-"""Escenarios por industria: cada patrón de ejecución, en cada industria, contra su barrera.
+"""La matriz de escenarios como un todo: completa, con fuentes, aislada y sin brechas olvidadas.
 
 Correr:  python3 -m unittest tests.test_escenarios
-Un escenario sin brecha tiene que cumplir lo esperado. Uno con brecha tiene que seguir
-sin cumplirlo: si alguien la cierra, este test avisa que hay que quitar la marca y
-contarlo en el PRD. Ver knowledge/projects/escenarios-por-industria/PRD.md.
+Los casos de uso de cada industria están en test_mineria.py, test_electrica.py y
+test_construccion.py. Acá: un escenario sin brecha tiene que cumplir lo esperado, y uno
+con brecha tiene que seguir sin cumplirlo; si alguien la cierra, este test avisa que hay
+que quitar la marca. Ver knowledge/projects/escenarios-por-industria/PRD.md.
 """
 
 import unittest
@@ -50,28 +51,19 @@ class LaCajaEstaAislada(unittest.TestCase):
         self.assertEqual(db.RUTA.stat().st_mtime if db.RUTA.exists() else None, antes)
 
 
-class LoQueLaMatrizEncontro(unittest.TestCase):
-    """Los comportamientos que motivaron la matriz, escritos como casos de uso."""
+class CadaIndustriaTieneSusCasosDeUso(unittest.TestCase):
+    """Los tests por industria (test_mineria, test_electrica, test_construccion) cubren cada patrón."""
 
-    def test_una_declaracion_tardia_hoy_interrumpe_con_un_conflicto_en_el_paso_siguiente(self):
-        r = correr(buscar("MIN-A2"))
-        self.assertEqual(r["obtenido"]["estados"]["p2"], "en_conflicto")
-        self.assertEqual(r["obtenido"]["interrupciones"], 1)
+    def test_cada_archivo_de_industria_prueba_cada_patron(self):
+        import re
+        from pathlib import Path
 
-    def test_saltarse_el_bloqueo_y_hacerlo_despues_hoy_deja_la_bitacora_limpia(self):
-        r = correr(buscar("MIN-B2"))
-        self.assertEqual((r["obtenido"]["alertas_capa1"], r["obtenido"]["nivel"]), (0, "ok"))
-
-    def test_en_mineria_la_regla_de_seguridad_gana_aunque_la_camara_diga_que_si(self):
-        r = correr(buscar("MIN-F5"))
-        self.assertEqual(r["obtenido"]["estados"]["p3"], "verificado")
-        self.assertEqual(r["obtenido"]["nivel"], "error")
-
-    def test_la_camara_nunca_interrumpe(self):
-        for i in INDUSTRIAS:
-            for codigo in ("F1", "F2", "F3"):
-                with self.subTest(f"{i.codigo}-{codigo}"):
-                    self.assertEqual(correr(buscar(f"{i.codigo}-{codigo}"))["obtenido"]["interrupciones"], 0)
+        carpeta = Path(__file__).parent
+        for archivo, industria in [("test_mineria.py", "MIN"), ("test_electrica.py", "ELE"), ("test_construccion.py", "CON")]:
+            texto = (carpeta / archivo).read_text(encoding="utf-8")
+            cubiertos = set(re.findall(r"def test_([a-g]\d)_", texto))
+            with self.subTest(industria):
+                self.assertEqual(sorted({p.codigo.lower() for p in PATRONES} - cubiertos), [])
 
 
 if __name__ == "__main__":
