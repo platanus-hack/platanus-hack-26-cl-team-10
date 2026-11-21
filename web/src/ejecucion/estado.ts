@@ -168,3 +168,8 @@ export function contarCierre(bitacora: Evento[]): { sobrescritos: number; avisos
     avisos: bitacora.filter((e) => e.tipo === 'alerta' || (e.tipo === 'veredicto' && e.estado === 'en_conflicto')).length,
   }
 }
+
+/** Quién cerró un paso a su palabra (el actor de la última sobrescritura), o null. */
+export function cerradoPor(bitacora: Evento[], pasoId: string): string | null {
+  return bitacora.findLast((e) => e.tipo === 'sobrescritura' && e.paso_id === pasoId)?.actor ?? null
+}

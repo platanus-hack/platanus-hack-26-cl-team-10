@@ -1,5 +1,5 @@
 import type { Calificacion, EstadoOt, EstadoPasoApi, Evento, Nivel, PasoEstado, Snapshot } from '../api/tipos'
-import { avance, contarCierre, estadoUi, inicial, reducir, relevoPendiente, type Accion, type Ejecucion } from './estado'
+import { avance, cerradoPor, contarCierre, estadoUi, inicial, reducir, relevoPendiente, type Accion, type Ejecucion } from './estado'
 
 const cal = (nivel: Nivel): Calificacion => ({ nivel, certeza: 1, capa: 1, motivos: ['m'] })
 
@@ -149,4 +149,13 @@ it('contarCierre counts overwrites and warnings', () => {
     ev(5, { tipo: 'alerta_resuelta' }),
   ]
   expect(contarCierre(bitacora)).toEqual({ sobrescritos: 1, avisos: 2 })
+})
+
+it('cerradoPor names who overwrote a step, latest first', () => {
+  const bitacora = [
+    ev(1, { tipo: 'sobrescritura', paso_id: 'p2', actor: 'operario:1' }),
+    ev(2, { tipo: 'sobrescritura', paso_id: 'p2', actor: 'operario:2' }),
+  ]
+  expect(cerradoPor(bitacora, 'p2')).toBe('operario:2')
+  expect(cerradoPor(bitacora, 'p1')).toBeNull()
 })

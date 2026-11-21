@@ -149,6 +149,45 @@ it('api-caida: the strip shows while down, the stream comes back, nothing is spo
   expect(dicho).toEqual([])
 }, 10_000)
 
+it('relevo: OP2 reads the briefing, signs it and continues at step 4', async () => {
+  abrir('relevo', 'ot-12', USUARIOS[2])
+  expect(await screen.findByText('Relevo de turno')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Hecho' })).toBeNull()
+  await userEvent.click(screen.getByRole('button', { name: 'Recibido' }))
+  await screen.findByRole('button', { name: 'Hecho' })
+  expect(within(fila('Reinstalar la guarda')).getByText('Vuelve a montar la guarda y asegúrala.')).toBeInTheDocument()
+  const tipos = m.eventos('ot-12').map((e) => [e.tipo, e.actor])
+  expect(tipos).toContainEqual(['relevo_recibido', 'operario:2'])
+  expect(m.resumenes()[0].operador).toBe('operario:2')
+})
+
+it('the operator who handed over does not get the briefing', async () => {
+  abrir('relevo', 'ot-12', USUARIOS[1])
+  await screen.findByRole('button', { name: /^(Comenzar|Continuar|Hecho)$/ })
+  expect(screen.queryByText('Relevo de turno')).toBeNull()
+})
+
+it('Entregar turno asks first, hands over and goes back to the list', async () => {
+  abrir('feliz')
+  await entrar()
+  await userEvent.click(await screen.findByRole('button', { name: 'Entregar turno' }))
+  expect(screen.getByText('¿Entregar el turno?')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+  expect(m.eventos('ot-12').some((e) => e.tipo === 'relevo_entregado')).toBe(false)
+  await userEvent.click(screen.getByRole('button', { name: 'Entregar turno' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+  expect(await screen.findByText('mis OT')).toBeInTheDocument()
+  expect(m.resumenes()[0]).toMatchObject({ operador: null, estado_general: 'entregada' })
+})
+
+it('completa: shows the closing counts and the way back', async () => {
+  abrir('completa')
+  expect(await screen.findByText('OT completa')).toBeInTheDocument()
+  expect(screen.getByText('6 de 6 pasos verificados')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('link', { name: 'Volver a mis OT' }))
+  expect(await screen.findByText('mis OT')).toBeInTheDocument()
+})
+
 it('an unknown OT says so instead of retrying forever', async () => {
   abrir('feliz', 'ot-99')
   expect(await screen.findByText('Esta OT no existe')).toBeInTheDocument()

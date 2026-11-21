@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Nivel } from '../api/tipos'
 import { nombreDe } from '../sesion/usuarios'
 import { BannerAlertas } from './BannerAlertas'
-import { avance, estadoUi } from './estado'
+import { avance, cerradoPor, estadoUi } from './estado'
 import { Paso } from './Paso'
 import type { Ejecutor } from './useEjecucion'
 
@@ -80,9 +80,9 @@ function Cabecera({ otId, e }: { otId: string; e: Ejecutor }) {
 export function PantallaEjecucion({ otId, e, pie }: { otId: string; e: Ejecutor; pie?: ReactNode }) {
   const { s, pauta } = e
   const ot = s.ot!
-  const cerradoPor = (pasoId: string) => {
-    const ev = s.bitacora.findLast((x) => x.tipo === 'sobrescritura' && x.paso_id === pasoId)
-    return ev ? nombreDe(ev.actor) : null
+  const quienCerro = (pasoId: string) => {
+    const actor = cerradoPor(s.bitacora, pasoId)
+    return actor ? nombreDe(actor) : null
   }
   const puedeDeclarar = !!ot.paso_actual && !s.pendiente && s.conexion === 'en_vivo'
 
@@ -116,7 +116,7 @@ export function PantallaEjecucion({ otId, e, pie }: { otId: string; e: Ejecutor;
               paso={p}
               pauta={pauta?.pasos.find((x) => x.id === p.id)}
               ui={estadoUi(p, s)}
-              cerradoPor={cerradoPor(p.id)}
+              cerradoPor={quienCerro(p.id)}
               onYaLoHice={(nota) => void e.yaLoHice(p.id, nota)}
             />
           ))}

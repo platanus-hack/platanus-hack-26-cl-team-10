@@ -1,11 +1,13 @@
-import { Anchor, Button, Center, Loader, Stack, Text } from '@mantine/core'
+import { Anchor, Button, Center, Group, Loader, Stack, Text } from '@mantine/core'
 import { IconVolume } from '@tabler/icons-react'
-import { useEffect, useRef } from 'react'
-import { Link, useParams } from 'react-router'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router'
 import type { EstadoOt } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import type { Usuario } from '../sesion/usuarios'
+import { Briefing } from './Briefing'
 import { avance, relevoPendiente } from './estado'
+import { OtCompleta } from './OtCompleta'
 import { PantallaEjecucion } from './PantallaEjecucion'
 import { useEjecucion } from './useEjecucion'
 
@@ -42,8 +44,31 @@ function Puerta({ otId, ot, onEntrar }: { otId: string; ot: EstadoOt; onEntrar()
   )
 }
 
+/** «Entregar turno» pide confirmación en la misma pantalla, sin diálogos del navegador. */
+function EntregarTurno({ onConfirmar }: { onConfirmar(): void }) {
+  const [preguntando, setPreguntando] = useState(false)
+  if (!preguntando)
+    return (
+      <Button variant="subtle" color="roca" onClick={() => setPreguntando(true)}>
+        Entregar turno
+      </Button>
+    )
+  return (
+    <Group justify="space-between" wrap="nowrap">
+      <Text fw={700}>¿Entregar el turno?</Text>
+      <Group gap="xs" wrap="nowrap">
+        <Button onClick={onConfirmar}>Confirmar</Button>
+        <Button variant="default" onClick={() => setPreguntando(false)}>
+          Cancelar
+        </Button>
+      </Group>
+    </Group>
+  )
+}
+
 function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
   const e = useEjecucion(otId, usuario)
+  const navigate = useNavigate()
   const { s } = e
   const relevo = relevoPendiente(s.bitacora)
   const intentado = useRef(false)
@@ -96,17 +121,35 @@ function Ejecucion({ otId, usuario }: { otId: string; usuario: Usuario }) {
         </Center>
       )
     case 'completa':
-      return (
-        <Center mih="100vh">
-          <Text fw={800} size="xl">
-            OT completa
-          </Text>
-        </Center>
-      )
+      return <OtCompleta ot={s.ot!} bitacora={s.bitacora} />
     case 'briefing':
+      return (
+        <Briefing
+          ot={s.ot!}
+          bitacora={s.bitacora}
+          alertas={s.alertas}
+          relevo={relevo!}
+          onRecibido={() => {
+            intentado.current = true
+            void e.recibirTurno()
+          }}
+        />
+      )
     case 'puerta':
       return <Puerta otId={otId} ot={s.ot!} onEntrar={entrar} />
     case 'ejecucion':
-      return <PantallaEjecucion otId={otId} e={e} />
+      return (
+        <PantallaEjecucion
+          otId={otId}
+          e={e}
+          pie={
+            <EntregarTurno
+              onConfirmar={async () => {
+                if (await e.entregarTurno()) navigate('/operador')
+              }}
+            />
+          }
+        />
+      )
   }
 }
