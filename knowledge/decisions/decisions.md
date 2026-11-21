@@ -4,6 +4,7 @@
 
 | ADR | Fecha | Decisión | Estado |
 |---|---|---|---|
+| [0004](./0004-verificacion-por-capas.md) | 2026-11-21 | Verificación en tres capas: sensores y reglas primero, aprendizaje automático sobre señales, y VLM solo para lo que se ve o se redacta | `proposed` |
 | [0003](./0003-patrones-de-arquitectura-para-el-mvp.md) | 2026-11-21 | Tres patrones ahora (registro que solo agrega, aprobación humana, pauta versionada); el resto espera a que duela | `proposed` |
 | [0002](./0002-la-aplicacion-impone-el-orden-de-la-pauta.md) | 2026-11-21 | La aplicación impone el orden de la pauta y el VLM solo comprueba el paso actual | `proposed` |
 | [0001](./0001-mineria-como-mercado-de-entrada.md) | 2026-11-21 | Minería como mercado de entrada; eléctrica y construcción como expansión | `proposed` |

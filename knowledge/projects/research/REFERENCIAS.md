@@ -1,6 +1,6 @@
 # Referencias
 
-> Documento vivo. Las 37 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
+> Documento vivo. Las 39 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
 >
 > De casi todas se leyó solo el resumen. Las leídas completas tienen nota en [notas/](./notas/).
 
@@ -53,6 +53,11 @@
 36. Diario Financiero. [¿Cuánto han aumentado realmente los accidentes mineros?](https://www.df.cl/regiones/cuanto-han-aumentado-realmente-los-accidentes-mineros-fatalidades) Cifras de Sernageomin, vía prensa. Falta la fuente primaria.
 37. MSHA. [Accident, Injuries and Illnesses Data Set](https://www.msha.gov/data-and-reports/data-sources-and-calculators/data-resources/mdsrg/accident-injuries-and-illnesses-data-set). Accidentes mineros de EE.UU. desde 1983.
 
+## Costo de la detención
+
+38. Reporte Minero (2026-07-01). [Ingemerca: sistemas de transferencia minera que reducen paradas millonarias](https://www.reporteminero.cl/noticia/entrevistas/2026/07/ingemerca-soluciones-transferencia-minera-paradas-planta). Entrevista a Ricardo Segovia, gerente general de Ingemerca: una parada de planta no programada cuesta entre USD 100.000 y 300.000 por hora y suele durar 4 o 5 horas. Es la estimación de un proveedor que vende la solución, sin estudio detrás. El mismo ejecutivo dijo USD 150.000 a 200.000 por hora en [REDIMIN, 2025-04-29](https://www.redimin.cl/innovaciones-de-ingemerca-en-2025-reducen-riesgos-y-costos-en-transporte-de-minerales-por-correas), la única nota que liga la cifra a las correas. Leídas completas.
+39. CNN Chile. [Hasta $200.000 USD: Los pequeños errores en terreno que pueden costar millones a la minería](https://www.cnnchile.com/pais/hasta-200-000-usd-los-pequenos-errores-en-terreno-que-pueden-costar-millones-a-la-mineria/). Sin fecha visible en la página. Una hora de detención no planificada cuesta entre USD 40.000 y más de 200.000 «según estimaciones del sector»; menciona estudios de ABB sin título ni año. No habla de correas. Leída completa.
+
 ## No encontradas
 
 Venían en la planilla de la revisión IEEE y no aparecieron en la web abierta. No se citan sin abrirlas desde el enlace original de la planilla.
@@ -81,6 +86,7 @@ Aparecieron en la conversación de research o en búsquedas, pero no se confirm�
 - **Cui et al.**, A*STAR: [marco de calidad de datos para mantenimiento predictivo](https://oar.a-star.edu.sg/storage/3/3rngr1xj2e/pdm-data-quality-assessment-framework-20240226.pdf), probado en remolcadores.
 - **PARAM** ([arXiv 2508.04714](https://arxiv.org/html/2508.04714v2)) y **LLM-R** ([arXiv 2411.04476](https://arxiv.org/pdf/2411.04476)): agentes con RAG para planificar mantenimiento.
 - **Tesis del MIT** sobre un [chatbot multimodal para causa raíz](https://dspace.mit.edu/bitstream/handle/1721.1/163337/LorenteAnon-cla6-mgt-2025-thesis.pdf?sequence=1&isAllowed=y), con sensores, OT y video.
+- **Piper Alpha (1988) e informe Cullen**: el caso clásico de un accidente de mantenimiento por un relevo de turno y un permiso de trabajo mal traspasados. Citado de memoria; sirve para el [relevo de turno](../../architecture/FLUJO.md#5-bitácora-y-relevo-de-turno).
 - **Proveedores de verificación de bloqueo con cámara**, no revisados por pares: [Roboflow](https://roboflow.com/ai/lockout-tagout-verification) e [iFactory](https://ifactoryapp.com/ai-vision-camera/ai-vision-lockout-tagout-verification).
 
 ## Sin enlace verificado
