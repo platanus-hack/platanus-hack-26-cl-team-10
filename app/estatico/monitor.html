@@ -55,6 +55,7 @@
   button:active{transform:translateY(1px)}
   button.principal{background:var(--lima);border-color:var(--lima);color:var(--tinta)}
   button.principal:hover{background:#e6ffc4}
+  #ots{max-width:25ch;text-overflow:ellipsis}
   #conexion{display:flex;align-items:center;gap:8px}
   #conexion::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--linea-2)}
   #conexion.viva{color:var(--lima)} #conexion.viva::before{background:var(--lima);animation:late 1.6s ease-in-out infinite}
@@ -67,6 +68,11 @@
   h1{font:400 clamp(24px,2.5vw,40px)/1.05 var(--titular);letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
   #equipo{margin-top:6px}
   #accion{margin-left:auto;max-width:46ch;text-align:right;text-transform:none;letter-spacing:.02em;font-size:13px;min-height:1.4em}
+  /* La ficha de la OT: de quién es, quién la ejecuta y de qué protocolo sale */
+  #ficha{display:flex;flex-wrap:wrap;gap:1px;margin:0 0 22px;background:var(--linea);border:1px solid var(--linea)}
+  #ficha div{flex:1 1 150px;background:var(--panel);padding:10px 14px;min-width:0}
+  #ficha div.ancho{flex:3 1 300px}
+  #ficha dd{margin:4px 0 0;color:var(--texto);text-transform:none;letter-spacing:.02em;font-size:13px;overflow-wrap:anywhere}
   .rejilla{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px 32px;align-items:start}
   .col{display:grid;gap:28px;min-width:0}
 
@@ -146,6 +152,7 @@
   #pasos small{display:block;font:400 12px/1.5 var(--mono);letter-spacing:.02em;overflow-wrap:anywhere}
   #pasos .estado{font:500 12px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase}
   #pasos .verificado{color:var(--texto)} #pasos .verificado small{color:var(--tenue)}
+  #pasos small.instruccion{font:400 14px/1.45 var(--sans);letter-spacing:0;color:var(--texto);margin:4px 0 6px;max-width:62ch}
   #pasos small.capa{color:var(--lima);text-transform:uppercase;letter-spacing:.09em}
   #pasos .en_conflicto small.capa{color:inherit}
   #pasos .verificado .num{border-color:var(--lima)} #pasos .verificado .estado{color:var(--lima)}
@@ -183,6 +190,7 @@
   <div class="grupo">
     <label class="rot">OT <input id="ot" value="ot-loto" spellcheck="false" autocomplete="off"></label>
     <button id="conectar">Conectar</button>
+    <select id="ots" title="Las OT que ya existen y no han terminado" aria-label="Abrir una OT que ya existe"><option value="">OT abiertas</option></select>
     <span id="conexion" class="rot" role="status">desconectado</span>
   </div>
   <div class="grupo derecha">
@@ -190,7 +198,8 @@
       <option value="polin">Cambio de polín</option>
       <option value="loto">LOTO</option>
     </select>
-    <button id="nueva" class="principal" title="Abre una OT nueva con la pauta elegida y la une al edge">Nueva demo</button>
+    <button id="ejecutar" class="principal" title="Une esta OT a la estación, a nombre de su operador" hidden>Ejecutar aquí</button>
+    <button id="nueva" class="principal" title="Abre una OT nueva con la pauta elegida, asignada al operador del demo, y la une al edge">Nueva demo</button>
     <button id="declarar" title="El operario dice que hizo el paso actual: si el modelo del edge no está seguro, decide el VLM">Declarar paso</button>
   </div>
 </header>
@@ -199,6 +208,7 @@
     <div><h1 id="titulo">Monitor de OT</h1><p id="equipo" class="rot"></p></div>
     <p id="accion" class="rot" role="status"></p>
   </div>
+  <dl id="ficha" class="rot" aria-label="Ficha de la OT" hidden></dl>
   <div class="rejilla">
     <div class="col">
       <section aria-label="Video del edge">
@@ -243,6 +253,8 @@
 // Un aviso existe mientras el servidor lo mande en `calificacion.avisos`. Cuando el sensor
 // se corrige, el siguiente mensaje ya no lo trae y aquí se va con una animación.
 let ws = null, ultimo = 0, previos = {};
+// De la OT que se mira: su ficha (empresa, operador, protocolos y pasos de la pauta), su último estado y su sesión.
+let ficha = null, estado = null, sesion = null, todas = [], soloLectura = false;
 const $ = id => document.getElementById(id);
 const dos = n => String(n).padStart(2, "0");
 const pct = x => `${Math.round(x * 100)} %`;
@@ -286,7 +298,13 @@ function pintarCalificacion(c) {
   $("alarma").hidden = !grave;
 }
 
+// Qué cierra el paso: es lo que el operario necesita saber antes de hacerlo.
+const cierre = p => (p.tipo_evidencia === "sensor" ? `se cierra solo · sensor ${p.sensor.id} = ${p.sensor.espera}`
+  : p.tipo_evidencia === "camara" ? "lo mira la cámara · «Declarar paso»" : "con tu palabra · «Declarar paso»")
+  + (p.control_critico ? " · control crítico" : "");
+
 function pintarPasos(e) {
+  estado = e;
   const total = e.pasos.length, actual = e.pasos.find(p => p.id === e.paso_actual);
   $("titulo").textContent = e.pauta; $("equipo").textContent = e.equipo;
   $("avance").textContent = `${e.verificados.length} de ${total}`;
@@ -302,6 +320,9 @@ function pintarPasos(e) {
     if (hecho) num.innerHTML = HECHO;
     const cuerpo = el("div");
     cuerpo.append(el("b", "", p.titulo));
+    const info = ficha && ficha.pasos.find(x => x.id === p.id);
+    if (info && esActual) cuerpo.append(el("small", "instruccion", info.instruccion), el("small", "capa", cierre(info)));
+    else if (info) li.title = info.instruccion;
     if (p.detalle && p.estado !== "no_verificado") cuerpo.append(el("small", "", p.detalle), el("small", "capa", CAPAS[p.capa] || "persona"));
     const rotulo = hecho ? "verificado" : p.estado === "en_conflicto" ? "en conflicto" : esActual ? "en curso" : "pendiente";
     li.append(num, cuerpo, el("span", "estado", rotulo));
@@ -354,6 +375,58 @@ function pintarCajas(d) {
 
 async function refrescarPasos(ot) {
   const r = await fetch(`/ot/${ot}`); if (r.ok) pintarPasos(await r.json());
+  cargarFicha(ot);
+}
+
+// La ficha llega aparte del stream: con ella los pasos muestran su instrucción y se sabe a nombre de quién se ejecuta.
+async function cargarFicha(ot) {
+  const r = await fetch(`/ot/${encodeURIComponent(ot)}/ficha`, {headers: conClave()});
+  if (!r.ok || ot !== $("ot").value.trim()) return;
+  ficha = await r.json();
+  const celdas = [["Empresa", ficha.cliente && ficha.cliente.nombre], ["OT", ficha.ot],
+    ["Operador", ficha.operador_nombre || ficha.operador || "sin asignar"], [ficha.pedida_por_nombre ? "Supervisor" : "La pidió", ficha.pedida_por_nombre || ficha.pedida_por],
+    ["Protocolo", ficha.protocolos.map(p => p.nombre).join(" + ")], ["Pauta", `${ficha.pauta} v${ficha.version}`],
+    ["Estado", ficha.estado_general.replace("_", " ")]].filter(c => c[1]);
+  $("ficha").replaceChildren(...celdas.map(([k, v]) => { const d = el("div", k === "Protocolo" ? "ancho" : ""); d.append(el("dt", "", k), el("dd", "", v)); return d; }));
+  $("ficha").hidden = false;
+  if (estado) pintarPasos(estado);
+  botonEjecutar();
+}
+
+// Una OT que nadie está ejecutando se puede unir a esta estación, a nombre del operador que la tiene asignada.
+function botonEjecutar() {
+  $("ejecutar").hidden = soloLectura || !ficha || !!sesion || ficha.completa || !ficha.operador;
+  $("ejecutar").textContent = `Ejecutar en ${edge}`;
+  $("nueva").classList.toggle("principal", $("ejecutar").hidden);  // una sola acción principal a la vez
+  if (!ficha || sesion) return;
+  $("video-estado").textContent = ficha.completa ? "OT completa: ya no se ejecuta en ninguna estación."
+    : !ficha.operador ? "Esta OT no tiene operador: su supervisor la tiene que asignar antes de ejecutarla."
+    : `Nadie está ejecutando esta OT. «Ejecutar en ${edge}» la une a esta estación a nombre de ${ficha.operador_nombre || ficha.operador}.`;
+}
+
+async function ejecutar() {
+  const ot = $("ot").value.trim();
+  try {
+    const ocupa = (await (await fetch("/sesiones")).json()).find(s => s.edge_id === edge && s.ot_id !== ot);
+    const abierta = ocupa && (await cargarOts()).find(o => o.ot === ocupa.ot_id && !o.completa);
+    // Quitarle la estación a una OT sin terminar la deja sin sus sensores: lo decide la persona.
+    if (abierta && !confirm(`${edge} está ejecutando la OT ${abierta.ot}, que no ha terminado. ¿Quitársela?`)) return;
+    const quien = ficha.operador_nombre || ficha.operador;  // reiniciar borra la ficha
+    await llamar("POST", `/ot/${ot}/sesion`, {edge_id: edge, operario: ficha.operador});
+    reiniciar();
+    $("accion").textContent = `OT ${ot} en ${edge}, a nombre de ${quien}.`;
+  } catch (e) { $("accion").textContent = "No se pudo ejecutar acá: " + e.message; }
+}
+
+// Las OT que existen: las que no han terminado van al selector, primero las que ya tienen operador.
+async function cargarOts() {
+  todas = await (await fetch("/ots")).json();
+  const abiertas = todas.filter(o => !o.completa)
+    .sort((a, b) => !!b.operador - !!a.operador || b.abierta_en.localeCompare(a.abierta_en));
+  const opcion = (valor, texto) => { const o = el("option", "", texto); o.value = valor; return o; };
+  $("ots").replaceChildren(opcion("", `OT abiertas (${abiertas.length})`), ...abiertas.map(o =>
+    opcion(o.ot, `${o.ot} · ${o.pauta} · ${o.cerrados}/${o.total} · ${o.operador || "sin asignar"}`)));
+  return todas;
 }
 
 function conexion(texto, clase) { $("conexion").textContent = texto; $("conexion").className = "rot " + clase; }
@@ -364,22 +437,29 @@ function conectar() {
   const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ot/${encodeURIComponent(ot)}/stream?desde=${ultimo}`;
   ws = new WebSocket(url);
   ws.onopen = () => conexion("en vivo", "viva");
-  ws.onclose = () => { conexion("reconectando…", "cortada"); setTimeout(conectar, 1500); };
+  ws.onclose = e => {
+    if (e.code === 4404) {  // la OT no existe: reintentar no la va a crear
+      conexion("no existe", "cortada"); $("titulo").textContent = `La OT ${ot} no existe`;
+      $("accion").textContent = "Elige una en «OT abiertas» o revisa el id.";
+      return;
+    }
+    conexion("reconectando…", "cortada"); setTimeout(conectar, 1500);
+  };
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.tipo === "snapshot") {
       if (ultimo === 0) $("bitacora").innerHTML = "";
       m.bitacora.forEach(anotar); pintarPasos(m.estado); pintarCalificacion(m.calificacion); video(m.video);
-      if (!m.sesion) $("video-estado").textContent =
-        "Esta OT no tiene un edge unido, así que no hay cámara. Usa «Nueva demo» para abrir una con el edge.";
-      edge = m.sesion ? m.sesion.edge_id : edge;
+      sesion = m.sesion; edge = sesion ? sesion.edge_id : edge;
+      if (!sesion) $("video-estado").textContent = "Esta OT no tiene un edge unido, así que no hay cámara.";
+      cargarFicha(ot);
       Object.entries(m.sensores || {}).forEach(([k, v]) => pintarSensor(k, v, false));
     } else if (m.tipo === "evento") {
       anotar(m.evento); if (m.evento.tipo === "veredicto") refrescarPasos(ot);
     } else if (m.tipo === "calificacion_ot") {
       pintarCalificacion(m.calificacion);
     } else if (m.tipo === "sesion") {
-      video(m.video);
+      sesion = m.sesion; edge = sesion.edge_id; video(m.video); botonEjecutar();
     } else if (m.tipo === "detecciones") {
       pintarCajas(m);
     } else if (m.tipo === "lectura") {
@@ -432,7 +512,7 @@ async function soloLecturaSinClave() {
   try {
     const c = await (await fetch("/clave", {headers: conClave()})).json();
     if (!c.requerida || c.valida) return;
-    $("nueva").hidden = $("declarar").hidden = $("pauta").hidden = true;
+    $("nueva").hidden = $("declarar").hidden = $("pauta").hidden = soloLectura = true; botonEjecutar();
     $("accion").textContent = "Vista de solo lectura: para operar la demo, abre esta página con ?clave= y la clave del equipo.";
   } catch (e) { /* un servidor anterior a la clave: queda todo a la vista */ }
 }
@@ -441,32 +521,44 @@ async function llamar(metodo, url, cuerpo) {
   const r = await fetch(url, {method: metodo, headers: {"content-type": "application/json", ...conClave()},
                               body: cuerpo ? JSON.stringify(cuerpo) : undefined});
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.detail || j.regla || j.clave || r.status);
+  if (!r.ok) throw new Error(j.detail || j.regla || j.clave || j.permiso || j.no_existe || r.status);
   return j;
 }
 
-function reiniciar() { ultimo = 0; previos = {}; $("bitacora").innerHTML = ""; conectar(); }
+// Cambiar de OT: se borra lo de la anterior, para que nunca quede a la vista bajo el id de otra.
+function reiniciar() {
+  const v = $("ot").value.trim(), real = todas.find(o => o.ot.toLowerCase() === v.toLowerCase());
+  if (real) $("ot").value = real.ot;  // «OT-1002» es ot-1002
+  history.replaceState(null, "", `?ot=${encodeURIComponent($("ot").value.trim())}`);
+  ultimo = 0; previos = {}; ficha = estado = sesion = null;
+  $("bitacora").innerHTML = ""; $("pasos").innerHTML = ""; $("avance").textContent = $("equipo").textContent = $("accion").textContent = "";
+  $("titulo").textContent = "Monitor de OT"; $("ficha").hidden = true; botonEjecutar();
+  $("marco").classList.add("vacio"); $("video").removeAttribute("src"); $("video-estado").textContent = "";
+  document.body.dataset.nivel = "ok"; $("nivel").textContent = "—"; $("certeza").textContent = "";
+  $("avisos").innerHTML = ""; $("sin-avisos").hidden = false; $("alarma").hidden = true;
+  conectar(); cargarOts().catch(() => {});
+}
 
-// Una OT nueva con la pauta elegida, unida al edge que se venía mirando: para repetir la demo.
+// La demo es una OT del negocio: la pide el supervisor del demo, queda asignada a su operador y se une
+// al edge que se venía mirando. Las personas y las pautas las deja la semilla (POST /interno/ots/semilla).
+const DEMO = {supervisor: "supervisor:francisco", operador: "operario:jonathan"};
+const PAUTAS = {polin: "pauta-polin-estacion", loto: "pauta-loto-escritorio"};
 async function nuevaDemo() {
-  const cual = $("pauta").value;
-  const ot = `ot-${cual}-` + new Date().toTimeString().slice(0, 8).replaceAll(":", "");
   $("accion").textContent = "Abriendo una OT nueva…";
   try {
-    const {pauta} = await llamar("POST", `/pauta/demo?pauta=${cual}`);
-    await llamar("POST", `/ot/${ot}/abrir?pauta_id=${pauta}`);
-    await llamar("POST", `/ot/${ot}/sesion`, {edge_id: edge, operario: "operario:A"});
-    $("ot").value = ot; history.replaceState(null, "", `?ot=${ot}`);
+    const {ot, operador} = await llamar("POST", "/interno/ots", {pauta_id: PAUTAS[$("pauta").value], ...DEMO});
+    await llamar("POST", `/ot/${ot}/sesion`, {edge_id: edge, operario: operador});
+    $("ot").value = ot;
     reiniciar();
     $("accion").textContent = `OT ${ot} abierta con ${edge}. Empieza por el paso 1.`;
-  } catch (e) { $("accion").textContent = "No se pudo abrir la OT: " + e.message; }
+  } catch (e) { $("accion").textContent = `No se pudo abrir la OT: ${e.message}. Si faltan las personas del demo, carga la semilla.`; }
 }
 
 // El operario dice que hizo el paso actual: capa 2 si el modelo del edge está seguro, si no el VLM.
 async function declarar() {
   $("accion").textContent = "Verificando el paso…";
   try {
-    const r = await llamar("POST", `/ot/${$("ot").value.trim()}/declarar`, {actor: "operario:A", texto: "hecho"});
+    const r = await llamar("POST", `/ot/${$("ot").value.trim()}/declarar`, {actor: sesion ? sesion.operario : "operario:A", texto: "hecho"});
     $("accion").textContent = `${r.paso}: ${r.estado} (capa ${r.capa ?? "persona"}) · ${r.detalle}`;
   } catch (e) { $("accion").textContent = "No se pudo declarar: " + e.message; }
 }
@@ -474,21 +566,21 @@ async function declarar() {
 $("conectar").onclick = reiniciar;
 $("ot").onkeydown = e => { if (e.key === "Enter") reiniciar(); };
 $("nueva").onclick = nuevaDemo;
+$("ejecutar").onclick = ejecutar;
+$("ots").onchange = () => { if ($("ots").value) { $("ot").value = $("ots").value; reiniciar(); } };
 $("declarar").onclick = declarar;
 // Sin ?ot= se abre la OT que algún edge está ejecutando ahora (la sesión más reciente):
 // así el home siempre muestra la cámara en vivo.
+// La estación (el edge) es la de esa sesión, también cuando la URL trae otra OT: ahí se va a ejecutar.
 async function iniciar() {
   const otDeLaUrl = new URLSearchParams(location.search).get("ot");
-  if (otDeLaUrl) {
-    $("ot").value = otDeLaUrl;
-  } else {
-    try {
-      const sesiones = await (await fetch("/sesiones")).json();
-      const ultima = sesiones.sort((a, b) => a.desde.localeCompare(b.desde)).pop();
-      if (ultima) { $("ot").value = ultima.ot_id; edge = ultima.edge_id; }
-    } catch (e) { /* sin sesiones: queda la OT por defecto */ }
-  }
-  conectar();
+  try {
+    const sesiones = await (await fetch("/sesiones")).json();
+    const ultima = sesiones.sort((a, b) => a.desde.localeCompare(b.desde)).pop();
+    if (ultima) { $("ot").value = ultima.ot_id; edge = ultima.edge_id; }
+  } catch (e) { /* sin sesiones: queda la OT por defecto */ }
+  if (otDeLaUrl) $("ot").value = otDeLaUrl;
+  conectar(); cargarOts().catch(() => {});
 }
 soloLecturaSinClave();
 iniciar();

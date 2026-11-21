@@ -155,6 +155,12 @@ class PersonaNueva(BaseModel):
     rol: str
 
 
+class OtDelEquipo(BaseModel):
+    pauta_id: str
+    supervisor: str
+    operador: str
+
+
 class AsignacionCliente(BaseModel):
     operador: str
 
@@ -339,11 +345,23 @@ def sembrar_protocolos(x_clave_equipo: str | None = Header(default=None)) -> dic
 
 @app.post("/interno/ots/semilla")
 def sembrar_ots(x_clave_equipo: str | None = Header(default=None)) -> dict:
-    """La minera ficticia Oculta con sus personas, los protocolos con sus pautas habilitadas para ella y 16 OT
+    """La minera ficticia Oculta con sus personas, los protocolos con sus pautas habilitadas para ella y 19 OT
     de ejemplo (`datos/ots-semilla.json`), ejecutadas contra las reglas reales. `accesos` trae las claves de las
     personas creadas en esta llamada: es la única vez que se ven. Se puede repetir sin duplicar."""
     _solo_equipo(x_clave_equipo)
     return semilla.cargar(cx)
+
+
+@app.post("/interno/ots", status_code=201)
+def dejar_ot_lista(p: OtDelEquipo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """El equipo deja una OT lista para ejecutar: pedida a nombre de un supervisor y asignada a un operador de su
+    empresa, con las mismas reglas que si la pidiera él. Es lo que hace «Nueva demo». 403 si la pauta no está
+    habilitada o el operador es de otra empresa; 404 si la persona no existe."""
+    _solo_equipo(x_clave_equipo)
+    supervisor = acceso.persona(cx, p.supervisor)
+    acceso.operador_de_la_empresa(cx, supervisor, p.operador)
+    ot = acceso.pedir_ot(cx, supervisor, p.pauta_id)["ot"]
+    return servicios.asignar(ot, p.operador, supervisor["id"])
 
 
 @app.get("/interno/protocolos/{protocolo_id}")
@@ -460,6 +478,15 @@ def ot_para_clientes(ot_id: str, authorization: str | None = Header(default=None
     return {**o, "calificacion": servicios.calificacion(ot_id)}
 
 
+@app.get("/cliente/ots/{ot_id}/ficha")
+def ficha_para_clientes(ot_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Lo que hace falta para ejecutar una OT: su avance, quién la pidió y quién la tiene, de qué protocolos sale
+    y cada paso de su pauta con su instrucción y su evidencia, en la versión que la OT ejecuta. 404 como en
+    `GET /cliente/ots/{ot_id}`."""
+    acceso.ot_de(cx, _persona(authorization), ot_id)
+    return acceso.ficha(cx, ot_id, servicios._ots_en_sesion())
+
+
 @app.post("/cliente/ots/{ot_id}/sesion")
 def iniciar_sesion_del_cliente(ot_id: str, s: SesionCliente, authorization: str | None = Header(default=None)) -> dict:
     """El operador que tiene la OT asignada la une a una estación con su token, sin la clave del equipo. El
@@ -572,6 +599,14 @@ def estado_ot(ot_id: str) -> dict:
     fila = db.leer_ot(cx, ot_id)
     pauta = db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"])
     return cerebro.estado_de_ot(pauta, db.eventos(cx, ot_id))
+
+
+@app.get("/ot/{ot_id}/ficha")
+def ficha_de_ot(ot_id: str, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Lo que la estación necesita para ejecutar una OT que ya existe: su avance, su operador, de qué protocolos
+    sale y cada paso de su pauta con su instrucción y su evidencia. Con la clave del equipo trae además la
+    empresa y los nombres de quien la pidió y de quien la tiene."""
+    return acceso.ficha(cx, ot_id, servicios._ots_en_sesion(), con_empresa=_clave_valida(x_clave_equipo))
 
 
 @app.post("/ot/{ot_id}/declarar")
