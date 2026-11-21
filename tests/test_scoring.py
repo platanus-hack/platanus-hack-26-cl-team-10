@@ -64,6 +64,14 @@ class Capa2_Senales(unittest.TestCase):
         self.assertIs(capa2("temperatura", plano, 20.0).nivel, Nivel.OK)
         self.assertIs(capa2("temperatura", plano, 23.0).nivel, Nivel.WARNING)
 
+    def test_la_resolucion_del_sensor_no_es_anomalia(self):
+        # DHT22: pasos de 0,1 °C sobre una historia plana
+        self.assertIs(capa2("temp_c", [25.2] * 12, 25.3).nivel, Nivel.OK)
+        # HC-SR04: ±2 cm de ruido normal a 1,8 m
+        ultra = [178.1, 177.9, 178.0, 178.1, 178.0, 177.8, 178.2, 178.0, 178.1, 177.9, 178.0, 178.0]
+        self.assertIs(capa2("dist_cm", ultra, 180.1).nivel, Nivel.OK)
+        self.assertIs(capa2("dist_cm", ultra, 30.0).nivel, Nivel.WARNING)  # una mano sí
+
     def test_la_alerta_de_capa2_en_la_bitacora_es_warning(self):
         ev = Evento(ot_id="ot-1", tipo=TipoEvento.ALERTA, ts="t", actor="sistema",
                     capa=Capa.APRENDIZAJE, detalle="vibración alta", evidencia={"certeza": 0.8})

@@ -12,7 +12,7 @@ enciende fuera de la falla.
 ## Detectores
 
 - **MAD con historia móvil (antes)**: como corría hasta el 2026-11-21: compara contra las últimas 300 lecturas, falla incluida, sin piso de dispersión.
-- **MAD que no aprende de la falla (hoy)**: scoring.capa2 tal cual corre en servicios.py: la historia solo suma lecturas normales y la dispersión tiene un piso de 1 % de la mediana.
+- **MAD que no aprende de la falla (hoy)**: scoring.capa2 tal cual corre en servicios.py: la historia solo suma lecturas normales y la dispersión tiene el piso de ruido de scoring.py (2 % de la mediana, calibrado con sensores reales).
 - **MAD con línea base fija**: la misma fórmula, pero la línea base se toma al calibrar y no se mueve.
 - **EWMA (λ 0,2 · L 3)**: media móvil exponencial contra su límite de control; suaviza el ruido y ve cambios chicos sostenidos.
 - **CUSUM (k 0,5 · h 5)**: suma acumulada de desvíos; el clásico para detectar un corrimiento sostenido de la media.
@@ -29,7 +29,7 @@ Media 2 mm/s, ruido 0.12, sin ciclo. Línea base: 60 lecturas.
 | Detector | Falsas alarmas / 1.000 lecturas | Pico | Escalón: detecta · retardo · cubre | Deriva: detecta · retardo | Alarma por sensor pegado |
 |---|---|---|---|---|---|
 | MAD con historia móvil (antes) | 7.8 | 100 % | 100 % · 0 · 47 % | 100 % · 25 | 0 % |
-| MAD que no aprende de la falla (hoy) | 1.1 | 100 % | 100 % · 0 · 100 % | 100 % · 25 | 0 % |
+| MAD que no aprende de la falla (hoy) | 0.9 | 100 % | 100 % · 0 · 100 % | 100 % · 25 | 0 % |
 | MAD con línea base fija | 2.2 | 100 % | 100 % · 0 · 100 % | 100 % · 24 | 0 % |
 | EWMA (λ 0,2 · L 3) | 9.0 | 95 % | 100 % · 0 · 100 % | 100 % · 12 | 28 % |
 | CUSUM (k 0,5 · h 5) | 8.2 | 100 % | 100 % · 0 · 100 % | 100 % · 12 | 60 % |
@@ -61,7 +61,7 @@ Media 60 °C, ruido 2, con un ciclo de ±4 °C cada 40 lecturas. Línea base: 80
 | Detector | Falsas alarmas / 1.000 lecturas | Pico | Escalón: detecta · retardo · cubre | Deriva: detecta · retardo | Alarma por sensor pegado |
 |---|---|---|---|---|---|
 | MAD con historia móvil (antes) | 0.0 | 68 % | 100 % · 0 · 13 % | 92 % · 55 | 0 % |
-| MAD que no aprende de la falla (hoy) | 0.1 | 68 % | 100 % · 0 · 30 % | 92 % · 55 | 0 % |
+| MAD que no aprende de la falla (hoy) | 0.0 | 68 % | 100 % · 0 · 30 % | 92 % · 55 | 0 % |
 | MAD con línea base fija | 0.0 | 75 % | 100 % · 0 · 72 % | 100 % · 48 | 0 % |
 | EWMA (λ 0,2 · L 3) | 25.9 | 55 % | 100 % · 1 · 100 % | 100 % · 12 | 38 % |
 | CUSUM (k 0,5 · h 5) | 26.6 | 60 % | 100 % · 1 · 100 % | 100 % · 3 | 78 % |

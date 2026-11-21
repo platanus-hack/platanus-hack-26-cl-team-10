@@ -12,6 +12,8 @@ G="--zone=$ZONA --project=$PROYECTO --account=$CUENTA --quiet"
 
 paquete=$(mktemp -d)/factum.tgz
 COPYFILE_DISABLE=1 tar czf "$paquete" pyproject.toml uv.lock app datos/pauta-*.json tests/test_mineria.py tests/test_electrica.py tests/test_construccion.py
+# /tmp es compartido: lo que dejó el deploy de otro usuario no se puede sobrescribir
+gcloud compute ssh "$VM" $G --command="sudo rm -f /tmp/factum.tgz /tmp/instalar.sh"
 gcloud compute scp "$paquete" deploy/vm/instalar.sh "$VM":/tmp/ $G
 gcloud compute ssh "$VM" $G --command="sudo DOMINIO=$DOMINIO bash /tmp/instalar.sh"
 echo "Listo: https://$DOMINIO/agente"

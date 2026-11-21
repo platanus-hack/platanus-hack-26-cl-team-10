@@ -4,3 +4,5 @@ datos/bitacora.sqlite3
 .DS_Store
 datos/evidencias/
 datos/evals/capa3/imagenes/
+data/
+*.pt

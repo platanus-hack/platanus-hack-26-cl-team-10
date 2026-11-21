@@ -114,7 +114,7 @@ class MADAntes(Detector):
 class MADActual(Detector):
     nombre = "MAD que no aprende de la falla (hoy)"
     explicacion = ("scoring.capa2 tal cual corre en servicios.py: la historia solo suma lecturas normales y la "
-                   "dispersión tiene un piso de 1 % de la mediana")
+                   "dispersión tiene el piso de ruido de scoring.py (2 % de la mediana, calibrado con sensores reales)")
 
     def __init__(self, s: Senal) -> None:
         self.h: list[float] = []

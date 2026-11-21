@@ -45,6 +45,7 @@ from app.reglas import (
     estados_desde_eventos,
     evaluar,
     paso_actual,
+    por_deteccion,
     reglas_seguridad,
 )
 from app.contratos import Veredicto
@@ -54,6 +55,11 @@ from app.video import SEGUNDOS_GUARDADOS, Video
 HISTORIA_MAX = 300
 SEQ_RECORDADOS = 500
 IGUALES_PEGADO = 10
+# Capa 2 de cámara: se juzga con las detecciones del último segundo, y solo si hay
+# suficientes (a ~18/s, 5 son ~0,3 s) para que un cuadro suelto no cierre un paso.
+VENTANA_DETECCION_S = 1.0
+DETECCIONES_MIN = 5
+JUICIO_CADA_S = 0.5  # cada cuánto se revisa el paso con lo que llega del edge
 
 # El juez de cámara recibe la pregunta del paso y el cuadro actual (o None si no hay video).
 JuezConCuadro = Callable[[str, bytes | None], tuple[bool, float]]
@@ -103,6 +109,7 @@ class Servicios:
         self._historia: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=HISTORIA_MAX))
         self._seq: dict[str, deque[int]] = defaultdict(lambda: deque(maxlen=SEQ_RECORDADOS))
         self._iguales: dict[str, tuple[float, int]] = {}
+        self._ultimo_juicio: dict[str, float] = defaultdict(float)
 
     # ─── Sesión: qué OT ejecuta cada edge ──────────────────────────────────
 
@@ -134,6 +141,49 @@ class Servicios:
 
     def _video_de(self, edge_id: str) -> dict:
         return {**self.video.estado(edge_id), "url": f"/edge/{edge_id}/video.mjpg"}
+
+    def recibir_detecciones(self, edge_id: str, d: dict) -> dict:
+        """Lo que vio el modelo del edge. Va en vivo a la UI; no escribe en la bitácora
+        (son varias por segundo): queda como evidencia cuando un paso de cámara se juzga."""
+        det = self.video.recibir_detecciones(edge_id, d)
+        mensaje = {"tipo": "detecciones", "edge_id": edge_id, **det}
+        self.bus.publicar(canal_edge(edge_id), mensaje)
+        sesion = self.sesion(edge_id)
+        if sesion is not None:
+            self.bus.publicar(canal_ot(sesion["ot_id"]), mensaje)
+            if det["ts"] - self._ultimo_juicio[edge_id] >= JUICIO_CADA_S:
+                self._ultimo_juicio[edge_id] = det["ts"]
+                if self._paso_por_deteccion(sesion["ot_id"], edge_id):
+                    self.publicar_calificacion(sesion["ot_id"])
+        return det
+
+    def _detecciones_para_juzgar(self, edge_id: str) -> list[dict]:
+        dets = self.video.detecciones_recientes(edge_id, VENTANA_DETECCION_S)
+        return dets if len(dets) >= DETECCIONES_MIN else []
+
+    def _paso_por_deteccion(self, ot_id: str, edge_id: str) -> list[Evento]:
+        """Capa 2 de cámara sin que el operario hable: solo el paso actual, solo si es de
+        cámara con `deteccion`, y solo si el modelo del edge está seguro (ADR-0002, 0004)."""
+        fila = db.leer_ot(self.cx, ot_id)
+        pauta = db.leer_pauta(self.cx, fila["pauta_id"], fila["pauta_version"])
+        paso = paso_actual(pauta, estados_desde_eventos(db.eventos(self.cx, ot_id)))
+        if paso is None or paso.deteccion is None:
+            return []
+        v = por_deteccion(paso, self._detecciones_para_juzgar(edge_id))
+        if v is None:
+            return []
+        return [self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.VEREDICTO, ts=db.ahora(), actor="sistema",
+                                    paso_id=paso.id, estado=v.estado, capa=v.capa,
+                                    evidencia=self._con_cuadro(v.evidencia, ot_id, paso.id, edge_id),
+                                    detalle=v.detalle))]
+
+    def _con_cuadro(self, evidencia: dict | None, ot_id: str, paso_id: str, edge_id: str | None) -> dict | None:
+        """El cuadro que estaba en pantalla queda en disco como evidencia del veredicto."""
+        if evidencia is None:
+            return None
+        cuadro = self.video.ultimo(edge_id) if edge_id else None
+        return {**evidencia, "cuadro": (self.video.guardar_evidencia(cuadro, f"{ot_id}-{paso_id}-{cuadro.n}")
+                                        if cuadro else None)}
 
     # ─── Bitácora: agregar y repartir ──────────────────────────────────────
 
@@ -233,25 +283,26 @@ class Servicios:
         self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.DECLARACION, ts=db.ahora(), actor=actor,
                             paso_id=paso.id, declarado=texto, detalle=f"declara sobre «{paso.titulo}»"))
 
-        cuadro = None
+        cuadro, edge_id, v = None, None, None
         if paso.tipo_evidencia is TipoEvidencia.CAMARA:
             sesion = self.sesion_de_ot(ot_id)
-            cuadro = self.video.ultimo(sesion["edge_id"]) if sesion else None
+            edge_id = sesion["edge_id"] if sesion else None
+            cuadro = self.video.ultimo(edge_id) if edge_id else None
             if cuadro is not None and time.time() - cuadro.ts > SEGUNDOS_GUARDADOS:
                 cuadro = None
+            # Capa 2 primero: si el modelo del edge está seguro, decide él; si no, el juez (capa 3).
+            v = por_deteccion(paso, self._detecciones_para_juzgar(edge_id)) if edge_id else None
+            if v is None and cuadro is None:
+                # Sin un cuadro reciente el juez no tiene qué mirar: su respuesta no es evidencia.
+                v = Veredicto(Estado.NO_VERIFICADO, Capa.MODELO,
+                              f"sin video reciente del edge: no hay cuadro para responder «{paso.pregunta_visual}»")
 
-        if paso.tipo_evidencia is TipoEvidencia.CAMARA and cuadro is None:
-            # Sin un cuadro reciente el juez no tiene qué mirar: su respuesta no es evidencia.
-            v = Veredicto(Estado.NO_VERIFICADO, Capa.MODELO,
-                          f"sin video reciente del edge: no hay cuadro para responder «{paso.pregunta_visual}»")
-        else:
+        if v is None:
             v = evaluar(paso, texto, db.estado_sensores(self.cx),
                         lambda pregunta: self.juez(pregunta, cuadro.jpeg if cuadro else None))
         evidencia = dict(v.evidencia) if v.evidencia else None
-        if paso.tipo_evidencia is TipoEvidencia.CAMARA and evidencia is not None:
-            evidencia["cuadro"] = (
-                self.video.guardar_evidencia(cuadro, f"{ot_id}-{paso.id}-{cuadro.n}") if cuadro else None
-            )
+        if paso.tipo_evidencia is TipoEvidencia.CAMARA:
+            evidencia = self._con_cuadro(evidencia, ot_id, paso.id, edge_id)
 
         ev = self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.VEREDICTO, ts=db.ahora(), actor="sistema",
                                  paso_id=paso.id, estado=v.estado, capa=v.capa, declarado=texto,

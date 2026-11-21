@@ -9,6 +9,7 @@ La app impone el orden (ADR-0002): /ot/{id}/declarar solo evalúa el paso actual
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -23,7 +24,7 @@ from app.bus import canal_ot
 from app.contratos import Evento, TipoEvento
 from app.reglas import evaluar, paso_actual, estados_desde_eventos, propuesta_de_mejora
 from app.servicios import Servicios, evento_dict
-from app.video import FPS_MAX, CuadroInvalido
+from app.video import FPS_MAX, CuadroInvalido, DeteccionInvalida
 
 app = FastAPI(
     title="Factum · mantenimiento verificado",
@@ -38,6 +39,7 @@ servicios = Servicios(cx)
 
 EDGE_POR_DEFECTO = "edge-1"
 PAUTA_DEMO = "pauta-correa-ct-01"
+PAUTAS_DEMO = {"correa": protocolos.PAUTA_DEMO, "loto": protocolos.PAUTA_DEMO.parent / "pauta-loto.json"}
 
 
 @app.exception_handler(ReglaDeNegocio)
@@ -99,9 +101,12 @@ def portada() -> FileResponse:
 
 
 @app.post("/pauta/demo")
-def cargar_pauta_demo() -> dict:
-    """Frente 1: cuando exista PDF→pasos, este endpoint recibe el PDF."""
-    pauta = protocolos.desde_json()
+def cargar_pauta_demo(pauta: str = "correa") -> dict:
+    """Frente 1: cuando exista PDF→pasos, este endpoint recibe el PDF.
+    `pauta`: `correa` (cambio de rodillo) o `loto` (bloqueo con cámara y ESP32)."""
+    if pauta not in PAUTAS_DEMO:
+        raise HTTPException(404, f"pauta de demo desconocida: {pauta}; hay {sorted(PAUTAS_DEMO)}")
+    pauta = protocolos.desde_json(PAUTAS_DEMO[pauta])
     db.guardar_pauta(cx, pauta)
     if not catalogo.aprobada(cx, pauta.id, pauta.version):
         catalogo.aprobar_pauta(cx, pauta.id, pauta.version, "supervisor:demo")
@@ -241,17 +246,24 @@ def alertas_activas(ot_id: str) -> list[dict]:
 
 @app.websocket("/edge/{edge_id}/video")
 async def video_entrada(ws: WebSocket, edge_id: str) -> None:
-    """La cámara manda JPEG en mensajes binarios. Un cuadro malo se avisa y no corta la conexión."""
+    """La cámara manda JPEG en mensajes binarios y las detecciones de su modelo en mensajes
+    de texto: {"tipo": "detecciones", "modelo", "ts", "objetos": [{"clase", "conf", "caja"}]},
+    con la caja normalizada 0-1 (x1, y1, x2, y2). Un mensaje malo se avisa y no corta la conexión."""
     await ws.accept()
     while True:
         m = await ws.receive()
         if m["type"] == "websocket.disconnect":
             return
-        if m.get("bytes"):
-            try:
+        try:
+            if m.get("bytes"):
                 servicios.video.recibir(edge_id, m["bytes"])
-            except CuadroInvalido as e:
-                await ws.send_json({"error": str(e)})
+            elif m.get("text"):
+                d = json.loads(m["text"])
+                if not isinstance(d, dict) or d.get("tipo") != "detecciones":
+                    raise DeteccionInvalida('se espera un objeto con "tipo": "detecciones"')
+                servicios.recibir_detecciones(edge_id, d)
+        except (CuadroInvalido, DeteccionInvalida, json.JSONDecodeError) as e:
+            await ws.send_json({"error": str(e)})
 
 
 @app.post("/edge/{edge_id}/cuadro")
@@ -264,6 +276,15 @@ async def cuadro_entrada(edge_id: str, request: Request) -> dict:
 @app.get("/edge/{edge_id}/video")
 def video_estado(edge_id: str) -> dict:
     return servicios.video.estado(edge_id)
+
+
+@app.get("/edge/{edge_id}/detecciones")
+def detecciones_actuales(edge_id: str) -> dict:
+    """Lo último que vio el modelo del edge: clase, confianza y caja normalizada."""
+    d = servicios.video.ultimas_detecciones(edge_id)
+    if d is None:
+        raise KeyError(f"detecciones del edge {edge_id}")
+    return d
 
 
 @app.get("/edge/{edge_id}/cuadro.jpg")

@@ -44,6 +44,13 @@ FRESCURA_S = 5.0
 CONFIANZA_CAMARA_MIN = 0.75
 HISTORIA_MIN = 10
 DESVIO_WARNING = 3.5
+# Piso de la dispersión de capa 2: un sensor real tiene resolución y ruido. Sin piso, el
+# DHT22 (pasos de 0,1 °C, casi siempre plano) alertaba con cada décima y el ultrasonido
+# con ±2 cm. Calibrado reproduciendo 2.293 lecturas reales del ESP32 del demo: alertas
+# abiertas temp 95 → 0, humedad 15 → 1, distancia 28 → 16, y las 16 son cambios reales
+# (una mano frente al sensor). `Candidata a validar` con más equipos.
+PISO_RELATIVO = 0.02  # 2 % de la mediana
+PISO_ABSOLUTO = 0.1   # para señales que rondan el 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +106,7 @@ def _certeza_por_frescura(edad_s: float | None) -> float:
 
 def capa2(sensor_id: str, historia: Sequence[float], valor: float) -> Calificacion:
     """Desvío robusto: (valor - mediana) / MAD escalado. No le afectan los picos sueltos.
+    El MAD nunca baja del piso de ruido (PISO_RELATIVO, PISO_ABSOLUTO).
 
     Algoritmo de partida para la Brecha de la capa 2; se reemplaza sin cambiar la firma.
     """
@@ -112,9 +120,8 @@ def capa2(sensor_id: str, historia: Sequence[float], valor: float) -> Calificaci
         )
 
     centro = median(historia)
-    # Un piso de 1 % de la mediana: con una historia quieta, un movimiento mínimo no es una anomalía.
-    mad = max(median(abs(x - centro) for x in historia) * 1.4826, abs(centro) * 0.01, 1e-9)
-    desvio = abs(valor - centro) / mad
+    mad = median(abs(x - centro) for x in historia) * 1.4826
+    desvio = abs(valor - centro) / max(mad, PISO_RELATIVO * abs(centro), PISO_ABSOLUTO)
 
     certeza = min(1.0, n / (3 * HISTORIA_MIN))
     if desvio >= DESVIO_WARNING:
@@ -167,7 +174,8 @@ def calificar(v: Veredicto, edad_lectura_s: float | None = None) -> Calificacion
             return capa3(v)
         case Capa.APRENDIZAJE:
             nivel = Nivel.WARNING if v.estado is Estado.EN_CONFLICTO else Nivel.OK
-            return Calificacion(nivel, 1.0, Capa.APRENDIZAJE, (v.detalle,))
+            certeza = float((v.evidencia or {}).get("confianza", 1.0))  # la del modelo del edge, si la hay
+            return Calificacion(nivel, certeza, Capa.APRENDIZAJE, (v.detalle,))
         case None:
             return Calificacion(Nivel.OK, 1.0, None, (v.detalle, "lo cerró una persona, no un sensor"))
     raise AssertionError(f"capa no cubierta: {v.capa}")

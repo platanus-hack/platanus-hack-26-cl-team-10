@@ -83,7 +83,7 @@ Los mismos en las tres industrias. La barrera es la capa del [ADR-0004](../../de
 | | G2 Un escalón que se sostiene | 2 | ¿El aviso dura lo que dura la falla? | La historia solo aprende de lecturas normales |
 | | G3 Una deriva lenta | 2 | ¿Se detecta antes del daño? | El desvío robusto |
 | | G4 Ruido normal | 2 | ¿Da falsas alarmas? | El desvío robusto |
-| | G5 Un sensor pegado que se mueve apenas | 2 | ¿Confunde quieto con falla? | Piso de dispersión de 1 % y aviso aparte de sensor pegado tras 10 lecturas idénticas |
+| | G5 Un sensor pegado que se mueve apenas | 2 | ¿Confunde quieto con falla? | El piso de ruido de scoring.py (2 % de la mediana, calibrado con sensores reales) y aviso aparte de sensor pegado tras 10 lecturas idénticas |
 
 Los escenarios de la capa 2 no tienen ciclo de trabajo. Con un ciclo de carga, el detector de hoy no sostiene un escalón: lo muestra la [simulación](./capa2-simulacion.md) y es la primera decisión de §9.
 

@@ -27,7 +27,7 @@ python3 scripts/evaluar_capa3.py      # capa 3: falsa aceptación y falso rechaz
 | `estatico/camara.html` · `estatico/monitor.html` | Servicios | El celular como cámara del edge, y la OT en vivo con video, avisos y bitácora |
 | `estatico/casos.html` | Servicios | El banco de pruebas en `/casos`: una tarjeta por criterio del [PRD](../knowledge/projects/servicios-en-vivo/PRD.md), que corre su secuencia real contra el servidor elegido (local o la VM) con una OT y un edge propios, y muestra cada llamada y el stream en vivo |
 | `../deploy/vm/` | Servicios | El servidor del demo: `deploy/vm/desplegar.sh` sube la rama actual a la VM sin borrar la bitácora |
-| `verificacion.py` | Frente 3 | `juez_camara` por el VLM real; el ESP32 escribe en `POST /sensores` |
+| `verificacion.py` | Frente 3 | Capa 3 de cámara con Claude Haiku 5.5 (`ANTHROPIC_API_KEY`; en la VM va en `/srv/factum/entorno`; modelo en `VLM_MODELO`; sin key queda el stub). La capa 2 de cámara (YOLO del edge) está en `reglas.por_deteccion` |
 | `cerebro.py` | Frente 4 | `redactar_resumen` y `responder` por el modelo, con el registro completo |
 
 ## El banco de pruebas

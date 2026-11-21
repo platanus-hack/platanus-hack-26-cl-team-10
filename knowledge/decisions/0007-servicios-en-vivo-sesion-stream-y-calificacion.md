@@ -37,6 +37,7 @@ Una VM `e2-small` en `southamerica-west1` con Caddy (HTTPS automático) y la API
 ## Pendientes y no verificado
 
 - Los umbrales de la calificación (frescura 5 s, confianza de cámara 75 %, 3,5 desvíos en capa 2) son de partida; se calibran en el ensayo. `Candidata a validar`.
+- Capa 2 calibrada con sensores reales: la dispersión no baja de un piso de ruido (2 % de la mediana, mínimo 0,1). Reproduciendo 2.293 lecturas del ESP32 del demo, las alertas abiertas bajaron de 138 a 17 y las que quedan son cambios reales. `Candidata a validar` con más equipos (`app/scoring.py`).
 - La justificación en texto la redacta el frente 4 sobre los motivos; hoy viajan los motivos sin redactar. `Brecha`.
 
 ## Referencias
