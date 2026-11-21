@@ -27,6 +27,7 @@
 - [research](./projects/research/research.md): hallazgos, vacíos y lectura prioritaria.
 - [REFERENCIAS](./projects/research/REFERENCIAS.md): las 39 referencias verificadas, numeradas y con enlace.
 - [notas/](./projects/research/notas/): una nota por paper leído completo.
+- [Presentaciones del último año](./projects/research/tour-platanus.md): tracks, preguntas del jurado y ganadores de Santiago 2025 y las cuatro paradas del Latam Tour 26, y las preguntas que nos van a hacer. Una nota por edición en [tour/](./projects/research/tour/) y las transcripciones en [fuentes/videos-platanus/](./projects/research/fuentes/videos-platanus/).
 - [fuentes/](./projects/research/fuentes/): la revisión IEEE original en CSV.
 - [Board interactivo](./projects/research/board-mantenimiento-verificado.html): problema, flujo y referencias en una página. Es anterior al planteamiento del equipo del 2026-11-21 y no lo incluye. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
 
