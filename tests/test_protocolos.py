@@ -363,6 +363,39 @@ class AislarBloquearYComprobar(Base):
         self.declarar("lo reemplacé")
         self.assertEqual(self.cerrados(), 5)
 
+    def mirar(self, foto):
+        """Una vuelta del juicio automático: llega un cuadro y el servidor le pregunta al VLM por su cuenta."""
+        self.s.video.recibir("edge-1", b"\xff\xd8" + foto + b"\xff\xd9")
+        with mock.patch("app.servicios.VLM_CADA_S", 0):
+            hilo = self.s._paso_por_vlm("ot-1", "edge-1")
+        if hilo:
+            hilo.join()
+        return hilo is not None
+
+    def test_estacion_los_pasos_de_camara_se_cierran_solos_sin_declarar(self):
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")
+        self.assertFalse(self.mirar(b"temprano"))  # el paso en curso es de sensor: no se le pregunta a la cámara
+        self.leer(equipo="frio")
+        self.camara = lambda pregunta, antes: False
+        self.assertTrue(self.mirar(b"sin el rojo"))
+        self.assertEqual((self.cerrados(), self.s.snapshot("ot-1")["estado"]["en_conflicto"]), (3, []))  # un «no» no se anota
+        self.camara = lambda pregunta, antes: True
+        self.mirar(b"con el rojo")
+        self.assertEqual(self.cerrados(), 4)
+        self.mirar(b"con el nuevo")
+        self.assertEqual(self.cerrados(), 5)
+        # el reemplazo se juzgó contra la foto con que se vio el rojo, no contra una posterior
+        self.assertEqual(self.juez[-1][1:], (b"\xff\xd8con el nuevo\xff\xd9", b"\xff\xd8con el rojo\xff\xd9"))
+        self.assertFalse(self.mirar(b"despues"))  # el paso que sigue es de sensor
+
+    def test_estacion_el_juicio_automatico_pide_certeza_alta_y_se_cansa(self):
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.s.juez = lambda pregunta, cuadro, antes=None: (True, 0.55)  # un «sí» dudoso, como el del ensayo sin VLM
+        self.mirar(b"dudosa")
+        self.assertEqual(self.cerrados(), 3)
+        with mock.patch("app.servicios.VLM_INTENTOS", 1):
+            self.assertFalse(self.mirar(b"otra"))  # ya gastó sus intentos: espera a que el operario declare
+
     def test_estacion_sin_la_foto_del_polin_rojo_no_hay_con_que_comparar(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
         self.s.confirmar_por_persona("ot-1", "e4", "supervisor:X", "la cámara no lo enfoca")  # se cierra sin foto

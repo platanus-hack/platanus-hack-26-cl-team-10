@@ -84,6 +84,8 @@ class Paso:
     deteccion: Deteccion | None = None
     # id del paso cuya foto es el «antes»: el juez compara esa foto con la de ahora
     comparar_con: str | None = None
+    # el VLM lo juzga solo, cada pocos segundos, sin esperar a que el operario declare
+    automatico: bool = False
 
     def __post_init__(self) -> None:
         if self.tipo_evidencia is TipoEvidencia.SENSOR and self.sensor is None:
@@ -94,6 +96,8 @@ class Paso:
             raise ValueError(f"paso {self.id}: deteccion solo aplica a pasos de camara")
         if self.comparar_con is not None and self.tipo_evidencia is not TipoEvidencia.CAMARA:
             raise ValueError(f"paso {self.id}: comparar_con solo aplica a pasos de camara")
+        if self.automatico and self.tipo_evidencia is not TipoEvidencia.CAMARA:
+            raise ValueError(f"paso {self.id}: automatico solo aplica a pasos de camara")
 
     @classmethod
     def desde_dict(cls, d: dict) -> Paso:
@@ -110,6 +114,7 @@ class Paso:
             sensor=Sensor(s["id"], s["espera"]) if s else None,
             deteccion=Deteccion(det["clase"], bool(det.get("presente", True))) if det else None,
             comparar_con=d.get("comparar_con"),
+            automatico=bool(d.get("automatico", False)),
         )
 
 
