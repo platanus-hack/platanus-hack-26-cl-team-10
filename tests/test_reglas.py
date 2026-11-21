@@ -90,6 +90,35 @@ class PropuestaDeMejora(unittest.TestCase):
         self.assertEqual(len(props), 1)
         self.assertEqual(props[0]["paso_id"], "p2")
 
+    def _veredicto(self, ot, paso, minuto, estado=Estado.VERIFICADO, evidencia=None):
+        return Evento(ot_id=ot, tipo=TipoEvento.VEREDICTO, ts=f"2026-11-21T10:{minuto:02d}:00+00:00",
+                      actor="sistema", paso_id=paso, estado=estado, evidencia=evidencia, detalle="x")
+
+    def test_el_paso_que_se_lleva_mas_de_la_mitad_del_tiempo_es_propuesta_con_sus_numeros(self):
+        evs = []
+        for ot in ("ot-1", "ot-2"):
+            evs += [self._veredicto(ot, "p1", 0), self._veredicto(ot, "p2", 2),
+                    self._veredicto(ot, "p3", 5, Estado.NO_VERIFICADO),  # un intento fallido no cierra
+                    self._veredicto(ot, "p3", 22), self._veredicto(ot, "p4", 24)]
+        props = propuesta_de_mejora(evs)
+        self.assertEqual([p["paso_id"] for p in props], ["p3"])
+        self.assertEqual(props[0]["segundos"], 20 * 60)  # desde el cierre de p2, no desde el intento fallido
+        self.assertEqual(props[0]["parte_del_tiempo"], 0.83)
+        self.assertEqual(props[0]["reintentos"], 1.0)
+        self.assertEqual(props[0]["veces"], 0)
+
+    def test_una_sola_ot_lenta_no_es_propuesta(self):
+        evs = [self._veredicto("ot-1", "p1", 0), self._veredicto("ot-1", "p2", 2),
+               self._veredicto("ot-1", "p3", 40), self._veredicto("ot-1", "p4", 42)]
+        self.assertEqual(propuesta_de_mejora(evs), [])
+
+    def test_el_paso_que_cierra_una_persona_en_dos_ots_apunta_al_sensor(self):
+        persona = {"tipo": "persona", "motivo": "x"}
+        props = propuesta_de_mejora([self._veredicto(ot, "p1", 0, evidencia=persona) for ot in ("ot-1", "ot-2")])
+        self.assertEqual(props[0]["por_persona"], 2)
+        self.assertIn("sensor", props[0]["nota"])
+        self.assertIsNone(props[0]["segundos"])  # el primer paso de una OT no tiene desde dónde medirse
+
 
 if __name__ == "__main__":
     unittest.main()

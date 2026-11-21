@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from app import acceso, catalogo, cerebro, db, escenarios, protocolos, semilla, verificacion
+from app import acceso, analisis, catalogo, cerebro, db, escenarios, protocolos, semilla, verificacion
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -470,6 +470,15 @@ def iniciar_sesion_del_cliente(ot_id: str, s: SesionCliente, authorization: str 
     return servicios.iniciar_sesion(ot_id, s.edge_id, p["id"])
 
 
+@app.get("/cliente/analisis")
+def analisis_del_cliente(authorization: str | None = Header(default=None)) -> dict:
+    """El reporte del supervisor sobre las OT de su empresa: cuántas cerraron sin observaciones, qué
+    alertas hubo, cuánto demora y cuánto se reintenta cada paso de cada pauta, y qué conviene revisar."""
+    p = _persona(authorization)
+    acceso.exige_rol(p, "supervisor")
+    return {"cliente": p["cliente"], **analisis.reporte(cx, acceso.ots_de(cx, p, servicios._ots_en_sesion()))}
+
+
 @app.get("/cliente/operadores")
 def operadores_del_cliente(authorization: str | None = Header(default=None)) -> list[dict]:
     """Los operadores de la empresa, para asignarles OT. Solo supervisor."""
@@ -731,6 +740,12 @@ def pagina_monitor() -> FileResponse:
     return FileResponse(ESTATICO / "monitor.html")
 
 
+@app.get("/analisis")
+def pagina_analisis() -> FileResponse:
+    """El reporte del supervisor: resultados, tiempos y propuestas de mejora de su empresa."""
+    return FileResponse(ESTATICO / "analisis.html")
+
+
 @app.get("/casos")
 def pagina_casos() -> FileResponse:
     """El banco de pruebas: cada criterio del PRD, corrido contra este servidor u otro."""
@@ -829,5 +844,11 @@ def bitacora(ot_id: str) -> list[dict]:
 
 @app.get("/supervisor/propuestas")
 def propuestas() -> list[dict]:
-    """Frente 4: desviaciones repetidas → propuesta de cambio a la pauta."""
-    return propuesta_de_mejora(db.todos_los_eventos(cx))
+    """Frente 4: lo que un paso repite entre OT (conflictos, cierres por persona, demora) →
+    propuesta de cambio a la pauta, con sus reintentos y su tiempo. Cada pauta por separado."""
+    salida = []
+    for (pauta_id, version), evs in db.eventos_por_pauta(cx).items():
+        pauta = db.leer_pauta(cx, pauta_id, version)
+        salida += [{"pauta_id": pauta_id, "pauta_version": version, "pauta": pauta.nombre,
+                    "titulo": pauta.paso(p["paso_id"]).titulo, **p} for p in propuesta_de_mejora(evs)]
+    return salida

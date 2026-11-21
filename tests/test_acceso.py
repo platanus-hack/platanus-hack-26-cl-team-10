@@ -168,6 +168,21 @@ class PorHTTP(unittest.TestCase):
         self.assertEqual(self.c.post("/cliente/ots", json={"pauta_id": "pauta-polin-demo"}, headers=ana).status_code, 403)
         self.assertEqual(self.c.get("/cliente/operadores", headers=ana).status_code, 403)
 
+    def test_el_analisis_es_del_supervisor_y_solo_de_su_empresa(self):
+        self.assertEqual(self.c.get("/cliente/analisis").status_code, 401)
+        self.assertEqual(self.c.get("/cliente/analisis", headers=self.cabecera("ana.rojas@oculta.example")).status_code, 403)
+        self.assertEqual(self.c.get("/analisis").status_code, 200)
+        # Una OT de otra empresa, con la misma pauta, no entra en las cuentas de Oculta.
+        self.assertEqual(self.c.post("/ot/ot-ajena/abrir", params={"pauta_id": "pauta-polin-ct-01"}).status_code, 200)
+        r = self.c.get("/cliente/analisis", headers=self.cabecera("carla.munoz@oculta.example")).json()
+        self.assertEqual((r["cliente"]["id"], r["ots"], sum(p["ots"] for p in r["pautas"])), ("oculta", 16, 16))
+        self.assertLessEqual(r["sin_observaciones"], r["completas"])
+        polin = next(p for p in r["pautas"] if p["pauta_id"] == "pauta-polin-ct-01")
+        self.assertEqual([s["orden"] for s in polin["pasos"]], sorted(s["orden"] for s in polin["pasos"]))
+        self.assertIsNone(polin["pasos"][0]["segundos"])  # el primer paso no tiene desde dónde medirse
+        self.assertEqual(polin["segundos"], sum(s["segundos"] or 0 for s in polin["pasos"]))
+        self.assertEqual([p["paso_id"] for p in r["propuestas"]], [s["paso_id"] for p in r["pautas"] for s in p["pasos"] if s["nota"]])
+
     def test_la_lista_trae_la_calificacion_de_cada_ot(self):
         carla = self.cabecera("carla.munoz@oculta.example")
         lista = self.c.get("/cliente/ots", headers=carla).json()

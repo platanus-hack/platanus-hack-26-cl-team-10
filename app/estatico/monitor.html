@@ -44,6 +44,7 @@
   .marca svg{width:18px;height:18px;stroke:var(--lima)}
   .grupo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .derecha{margin-left:auto}
+  header a{color:var(--tenue);text-decoration:none;padding:10px 4px} header a:hover{color:var(--lima)}
   label{display:flex;align-items:center;gap:8px}
   input,select,button{font:500 13px/1 var(--mono);letter-spacing:.06em;height:36px;padding:0 12px;border-radius:3px;
                       border:1px solid var(--linea-2);background:var(--panel);color:var(--texto)}
@@ -186,6 +187,7 @@
     <span id="conexion" class="rot" role="status">desconectado</span>
   </div>
   <div class="grupo derecha">
+    <a class="rot" href="/analisis" title="Resultados, tiempos y propuestas de mejora de tu empresa">Análisis</a>
     <select id="pauta" title="Qué pauta ejecuta la OT nueva" aria-label="Pauta de la demo">
       <option value="polin">Cambio de polín</option>
       <option value="loto">LOTO</option>

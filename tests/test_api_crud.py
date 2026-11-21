@@ -62,6 +62,30 @@ class CrudPorHTTP(unittest.TestCase):
         self.assertEqual(self.c.delete("/ot/ot-1/eventos").status_code, 405)
         self.assertEqual(self.c.put("/ot/ot-1/eventos", json={}).status_code, 405)
 
+    def test_las_propuestas_no_mezclan_el_mismo_paso_de_pautas_distintas(self):
+        from dataclasses import replace
+
+        from app import api, db
+        from app.contratos import Estado, Evento, TipoEvento
+        from app.protocolos import desde_json
+
+        correa = desde_json()
+        otra = replace(correa, id="pauta-otra", nombre="Otra pauta")
+        for pauta, ots in ((correa, ("ot-1", "ot-2")), (otra, ("ot-3",))):
+            db.guardar_pauta(api.cx, pauta)
+            for ot in ots:
+                db.abrir_ot(api.cx, ot, pauta, "supervisor:X")
+        for ot in ("ot-1", "ot-3"):
+            db.agregar(api.cx, Evento(ot_id=ot, tipo=TipoEvento.VEREDICTO, ts=db.ahora(), actor="sistema",
+                                      paso_id="p2", estado=Estado.EN_CONFLICTO, detalle="x"))
+        self.assertEqual(self.c.get("/supervisor/propuestas").json(), [])
+
+        db.agregar(api.cx, Evento(ot_id="ot-2", tipo=TipoEvento.VEREDICTO, ts=db.ahora(), actor="sistema",
+                                  paso_id="p2", estado=Estado.EN_CONFLICTO, detalle="x"))
+        (p,) = self.c.get("/supervisor/propuestas").json()
+        self.assertEqual((p["pauta_id"], p["paso_id"], p["ots"]), (correa.id, "p2", ["ot-1", "ot-2"]))
+        self.assertEqual(p["titulo"], correa.paso("p2").titulo)
+
     def test_la_sesion_se_abre_se_lee_y_se_termina(self):
         self.c.post("/pauta/demo")
         self.c.post("/ot/ot-1/abrir")
