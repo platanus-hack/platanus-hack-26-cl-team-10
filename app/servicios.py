@@ -70,6 +70,11 @@ SIN_PEGADO = frozenset({"temp_c", "hum_pct"})
 VENTANA_DETECCION_S = float(os.environ.get("VENTANA_DETECCION_S", "1.0"))
 DETECCIONES_MIN = 5
 JUICIO_CADA_S = 0.5  # cada cuánto se revisa el paso con lo que llega del edge
+# Un paso de cámara `automatico` lo juzga el VLM sin que nadie declare: una pregunta cada VLM_CADA_S,
+# hasta VLM_INTENTOS por paso (después espera la declaración), y solo cierra con certeza alta.
+VLM_CADA_S = float(os.environ.get("VLM_CADA_S", "3"))
+VLM_INTENTOS = 40
+VLM_CERTEZA = 0.8
 
 # El juez de cámara recibe la pregunta del paso y el cuadro actual (o None si no hay video);
 # si el paso compara (Paso.comparar_con), recibe además la foto de antes como tercer argumento.
@@ -129,6 +134,9 @@ class Servicios:
         self._seq: dict[str, deque[int]] = defaultdict(lambda: deque(maxlen=SEQ_RECORDADOS))
         self._iguales: dict[str, tuple[float, int]] = {}
         self._ultimo_juicio: dict[str, float] = defaultdict(float)
+        self._vlm_ultimo: dict[str, float] = defaultdict(float)   # por OT: cuándo se le preguntó al VLM
+        self._vlm_intentos: dict[tuple[str, str], int] = defaultdict(int)  # por OT y paso
+        self._vlm_ocupado: set[str] = set()                        # OT con una pregunta en vuelo
         self._candado_asignar = threading.Lock()
 
     # ─── Sesión: qué OT ejecuta cada edge ──────────────────────────────────
@@ -189,6 +197,7 @@ class Servicios:
                 self._ultimo_juicio[edge_id] = det["ts"]
                 if self._paso_por_deteccion(sesion["ot_id"], edge_id):
                     self.publicar_calificacion(sesion["ot_id"])
+                self._paso_por_vlm(sesion["ot_id"], edge_id)
         return det
 
     def _detecciones_para_juzgar(self, edge_id: str) -> list[dict]:
@@ -223,6 +232,53 @@ class Servicios:
             except OSError:  # sin disco o carpeta rota: se pierde la foto, no el veredicto
                 log.exception("no se pudo guardar el cuadro de %s %s", ot_id, paso_id)
         return {**evidencia, "cuadro": ruta}
+
+    def _paso_por_vlm(self, ot_id: str, edge_id: str) -> threading.Thread | None:
+        """Capa 3 sin que el operario hable, para los pasos de cámara `automatico`: le pregunta al
+        VLM por el cuadro actual en un hilo aparte (tarda segundos) y devuelve ese hilo. Un «no»
+        no se anota: solo el «sí» con certeza alta cierra el paso, y la foto juzgada queda de evidencia."""
+        if ot_id in self._vlm_ocupado or time.time() - self._vlm_ultimo[ot_id] < VLM_CADA_S:
+            return None
+        self._vlm_ultimo[ot_id] = time.time()  # también limita cada cuánto se lee la base para mirar el paso
+        pauta, estados = self._pauta_y_estados(ot_id)
+        paso = paso_actual(pauta, estados)
+        if paso is None or not paso.automatico or self._vlm_intentos[ot_id, paso.id] >= VLM_INTENTOS:
+            return None
+        cuadro = self.video.ultimo(edge_id)
+        if cuadro is None or time.time() - cuadro.ts > SEGUNDOS_GUARDADOS:
+            return None
+        antes = self._cuadro_de_paso(ot_id, paso.comparar_con) if paso.comparar_con else None
+        if paso.comparar_con and antes is None:
+            return None
+        self._vlm_ocupado.add(ot_id)
+        self._vlm_intentos[ot_id, paso.id] += 1
+
+        def juzgar() -> None:
+            try:
+                si, confianza = (self.juez(paso.pregunta_visual, cuadro.jpeg, antes) if antes is not None
+                                 else self.juez(paso.pregunta_visual, cuadro.jpeg))
+                actual = paso_actual(*self._pauta_y_estados(ot_id))
+                if not si or confianza < VLM_CERTEZA or actual is None or actual.id != paso.id:
+                    return
+                try:
+                    ruta = self.video.guardar_evidencia(cuadro, f"{ot_id}-{paso.id}-{cuadro.n}")
+                except OSError:
+                    log.exception("no se pudo guardar el cuadro de %s %s", ot_id, paso.id)
+                    ruta = None
+                self.agregar(Evento(
+                    ot_id=ot_id, tipo=TipoEvento.VEREDICTO, ts=db.ahora(), actor="sistema", paso_id=paso.id,
+                    estado=Estado.VERIFICADO, capa=Capa.MODELO, detalle=f"la cámara responde que sí ({confianza:.0%})",
+                    evidencia={"tipo": "camara", "pregunta": paso.pregunta_visual, "respuesta": True,
+                               "confianza": confianza, "automatico": True, "cuadro": ruta}))
+                self.publicar_calificacion(ot_id)
+            except Exception:  # noqa: BLE001 - un juicio fallido no cierra nada; se reintenta en la próxima vuelta
+                log.exception("el juicio automático de %s %s falló", ot_id, paso.id)
+            finally:
+                self._vlm_ocupado.discard(ot_id)
+
+        hilo = threading.Thread(target=juzgar, name="vlm-automatico", daemon=True)
+        hilo.start()
+        return hilo
 
     def _cuadro_de_paso(self, ot_id: str, paso_id: str) -> bytes | None:
         """La foto con que se verificó ese paso: el «antes» de un paso que compara."""
