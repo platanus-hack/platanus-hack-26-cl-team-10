@@ -75,20 +75,34 @@ def hilo_detecciones(canal, ultimo, clases, conf, stats):
             stats["det"] += 1
 
 
-def hilo_sensores(servidor, edge_id, puerto, stats):
+def estados(d, dist_previa, dist_max, temp_max):
+    """Estados discretos para las pautas: las reglas del servidor comparan igualdad, no rangos.
+    operario 'presente' solo si las 2 últimas distancias están cerca (filtra ecos sueltos)."""
+    e = {}
+    dist = d.get("dist_cm")
+    cerca = lambda x: x is not None and x < dist_max
+    e["operario"] = "presente" if cerca(dist) and cerca(dist_previa) else "ausente"
+    if d.get("temp_c") is not None:
+        e["equipo"] = "frio" if d["temp_c"] < temp_max else "caliente"
+    return e
+
+
+def hilo_sensores(servidor, edge_id, puerto, stats, dist_max, temp_max):
     url = f"{servidor}/edge/{edge_id}/lecturas"
     seq = int(time.time() * 1000)  # crece entre reinicios: el servidor descarta seq repetidos
     esp = serial.Serial(puerto, 115200, timeout=2)
+    dist_previa = None
     while True:
         try:
             d = json.loads(esp.readline().decode(errors="ignore"))
         except ValueError:
             continue  # boot log o línea cortada
         lote = []
-        for k in ("temp_c", "hum_pct", "dist_cm"):
-            if d.get(k) is not None:  # null = sin lectura (p. ej. nada al alcance del ultrasonido)
-                seq += 1
-                lote.append({"sensor_id": k, "valor": str(d[k]), "seq": seq})
+        crudos = {k: d[k] for k in ("temp_c", "hum_pct", "dist_cm") if d.get(k) is not None}  # null = sin lectura
+        for k, v in {**crudos, **estados(d, dist_previa, dist_max, temp_max)}.items():
+            seq += 1
+            lote.append({"sensor_id": k, "valor": str(v), "seq": seq})
+        dist_previa = d.get("dist_cm")
         if not lote:
             continue
         req = urllib.request.Request(url, json.dumps(lote).encode(), {"Content-Type": "application/json"})
@@ -110,6 +124,8 @@ def main():
     ap.add_argument("--clases", nargs="+", default=["mouse", "pencil"])
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
     ap.add_argument("--puerto", default="/dev/cu.usbserial-0001", help="'' para no leer sensores")
+    ap.add_argument("--dist-max", type=float, default=60, help="cm: más cerca = operario presente")
+    ap.add_argument("--temp-max", type=float, default=30, help="°C: bajo esto = equipo frío")
     a = ap.parse_args()
 
     servidor = a.servidor.rstrip("/")
@@ -124,7 +140,8 @@ def main():
 
     threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats), daemon=True).start()
     if a.puerto:
-        threading.Thread(target=hilo_sensores, args=(servidor, a.edge, a.puerto, stats), daemon=True).start()
+        threading.Thread(target=hilo_sensores, args=(servidor, a.edge, a.puerto, stats, a.dist_max, a.temp_max),
+                         daemon=True).start()
 
     alto = a.ancho * 9 // 16
     periodo, t_stats = 1 / a.fps, time.time()

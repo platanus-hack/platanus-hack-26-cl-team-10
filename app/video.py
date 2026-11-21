@@ -96,6 +96,12 @@ class Video:
             cola = self._detecciones.get(edge_id)
             return cola[-1] if cola else None
 
+    def detecciones_recientes(self, edge_id: str, segundos: float) -> list[dict]:
+        """Las detecciones del último tramo, de la más vieja a la más nueva."""
+        desde = time.time() - segundos
+        with self._lock:
+            return [d for d in self._detecciones.get(edge_id, ()) if d["ts"] >= desde]
+
     def recibir(self, edge_id: str, jpeg: bytes) -> Cuadro:
         if not jpeg.startswith(JPEG_INICIO):
             raise CuadroInvalido("el cuadro no es un JPEG")

@@ -39,6 +39,7 @@ servicios = Servicios(cx)
 
 EDGE_POR_DEFECTO = "edge-1"
 PAUTA_DEMO = "pauta-correa-ct-01"
+PAUTAS_DEMO = {"correa": protocolos.PAUTA_DEMO, "loto": protocolos.PAUTA_DEMO.parent / "pauta-loto.json"}
 
 
 @app.exception_handler(ReglaDeNegocio)
@@ -94,9 +95,12 @@ def portada() -> FileResponse:
 
 
 @app.post("/pauta/demo")
-def cargar_pauta_demo() -> dict:
-    """Frente 1: cuando exista PDF→pasos, este endpoint recibe el PDF."""
-    pauta = protocolos.desde_json()
+def cargar_pauta_demo(pauta: str = "correa") -> dict:
+    """Frente 1: cuando exista PDF→pasos, este endpoint recibe el PDF.
+    `pauta`: `correa` (cambio de rodillo) o `loto` (bloqueo con cámara y ESP32)."""
+    if pauta not in PAUTAS_DEMO:
+        raise HTTPException(404, f"pauta de demo desconocida: {pauta}; hay {sorted(PAUTAS_DEMO)}")
+    pauta = protocolos.desde_json(PAUTAS_DEMO[pauta])
     db.guardar_pauta(cx, pauta)
     if not catalogo.aprobada(cx, pauta.id, pauta.version):
         catalogo.aprobar_pauta(cx, pauta.id, pauta.version, "supervisor:demo")

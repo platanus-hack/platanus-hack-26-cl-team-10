@@ -164,7 +164,8 @@ def calificar(v: Veredicto, edad_lectura_s: float | None = None) -> Calificacion
             return capa3(v)
         case Capa.APRENDIZAJE:
             nivel = Nivel.WARNING if v.estado is Estado.EN_CONFLICTO else Nivel.OK
-            return Calificacion(nivel, 1.0, Capa.APRENDIZAJE, (v.detalle,))
+            certeza = float((v.evidencia or {}).get("confianza", 1.0))  # la del modelo del edge, si la hay
+            return Calificacion(nivel, certeza, Capa.APRENDIZAJE, (v.detalle,))
         case None:
             return Calificacion(Nivel.OK, 1.0, None, (v.detalle, "lo cerró una persona, no un sensor"))
     raise AssertionError(f"capa no cubierta: {v.capa}")
