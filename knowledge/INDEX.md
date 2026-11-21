@@ -1,6 +1,6 @@
 # Knowledge del equipo 10 — índice
 
-> Mantenimiento verificado en operaciones críticas: qué es, qué evidencia lo respalda, qué se decidió y en qué va. Track Physical World, Platanus Hack 26 Santiago.
+> Factum vuelve verificable cualquier flujo operacional; el caso de uso es el mantenimiento de maquinaria en operaciones críticas. Acá está qué es, qué evidencia lo respalda, qué se decidió y en qué va. Track Physical World, Platanus Hack 26 Santiago.
 
 ## Empezar aquí
 
@@ -37,6 +37,11 @@
 - [Presentaciones del último año](./projects/research/tour-platanus.md): tracks, preguntas del jurado y ganadores de Santiago 2025 y las cuatro paradas del Latam Tour 26, y las preguntas que nos van a hacer. Una nota por edición en [tour/](./projects/research/tour/) y las transcripciones en [fuentes/videos-platanus/](./projects/research/fuentes/videos-platanus/).
 - [fuentes/](./projects/research/fuentes/): la revisión IEEE original en CSV.
 - [Board interactivo](./projects/research/board-mantenimiento-verificado.html): problema, flujo y referencias en una página. Resume el FLUJO con el planteamiento del equipo y los ADR 0004 a 0006; ante una diferencia, manda el FLUJO. GitHub no lo renderiza: descárgalo y ábrelo en el navegador.
+
+## Código
+
+- [app/README](../app/README.md): cómo correr la API y los tests, y qué archivo hace qué.
+- La guía para un agente que se conecta se sirve en `/agente`, armada desde las rutas reales.
 
 ## Cómo se trabaja
 

@@ -4,19 +4,20 @@ Estándar · knowledge · versión 2026-09-25, adaptado al equipo 10 de Platanus
 
 Este directorio es la cadena de conocimiento del proyecto. Guarda lo que no cambia cuando cambia el código: el problema, la evidencia que lo respalda, las decisiones y de dónde salen, y en qué va cada frente. Lo lee cualquier integrante, o un agente, antes de tomar una tarea.
 
-Hoy estamos en **research**. Cada integrante sube lo que investiga a `projects/research/` y anota su avance en [SEGUIMIENTO](./roadmap/SEGUIMIENTO.md).
+En qué va cada frente está en [SEGUIMIENTO](./roadmap/SEGUIMIENTO.md), y solo ahí. El research de cada integrante va a `projects/research/`.
 
 ## Cómo leerlo
 
 1. [INDEX](./INDEX.md) es la entrada.
 2. [CONTEXTO](./domain/CONTEXTO.md) dice qué problema resolvemos y cómo nos evalúan.
 3. [FLUJO](./architecture/FLUJO.md) dice cómo funciona la solución, paso a paso.
-4. [research](./projects/research/research.md) dice qué encontramos y qué falta.
-5. Si algo de acá contradice al código, manda el código, y el documento se corrige en el mismo commit.
+4. [LOGICA](./architecture/LOGICA.md) dice las reglas de negocio que el código implementa.
+5. [research](./projects/research/research.md) dice qué encontramos y qué falta.
+6. Si algo de acá contradice al código, manda el código, y el documento se corrige en el mismo commit.
 
 ## Dos modos de documento
 
-- **Vivos**, con nombre fijo, se editan a medida que crecen: `CONTEXTO`, `GLOSARIO`, `FLUJO`, `REFERENCIAS` y `SEGUIMIENTO`.
+- **Vivos**, con nombre fijo, se editan a medida que crecen: `CONTEXTO`, `GLOSARIO`, `FLUJO`, `LOGICA`, `REFERENCIAS` y `SEGUIMIENTO`.
 - **Inmutables**: los ADR numerados y las notas de lectura de cada paper. Si algo cambia, se escribe otro que los reemplaza.
 
 ## Estado de validación

@@ -1,11 +1,12 @@
-# El esqueleto
+# La aplicación
 
-Implementa [LOGICA.md](../knowledge/architecture/LOGICA.md). Correr:
+La API de Factum: implementa [LOGICA.md](../knowledge/architecture/LOGICA.md). Correr:
 
 ```bash
 uv run uvicorn app.api:app --reload   # la demo queda en http://localhost:8000 (ensayo manual en /ensayo)
 python3 -m unittest discover tests    # reglas, calificación y servicios, sin dependencias
 uv run --with httpx python -m unittest discover tests   # además el WebSocket de punta a punta
+uv run --with pytest --with httpx pytest -q   # lo mismo con pytest
 python3 scripts/recorrido_demo.py     # los cinco momentos del demo, de punta a punta
 uv run python scripts/correr_casos.py http://localhost:8000   # el banco /casos en Chrome sin ventana: cuántos casos pasan
 python3 scripts/simular_capa2.py      # capa 2: qué detector aguanta qué falla, por industria (señales sintéticas)
@@ -53,6 +54,10 @@ Las detecciones (clase, confianza y caja) entran siempre por `servicios.recibir_
 - El caso de cámara usa un JPEG generado en el navegador, o la cámara real abriendo `/camara?edge=<el edge de la corrida>`.
 
 Debajo de los CA está la matriz de **escenarios por industria** ([PRD](../knowledge/projects/escenarios-por-industria/PRD.md)): 24 patrones de ejecución en minería, eléctrica y construcción, contra la barrera que los decide. Sus casos de uso, con las palabras de cada oficio, están en `tests/test_mineria.py`, `tests/test_electrica.py` y `tests/test_construccion.py`. Al final de `/casos` hay una sección por industria: su trasfondo, su pauta y la arquitectura por la que pasa cada uno de esos tests (`/casos?correr=mineria&test=B2` abre uno directo). Corren en una caja aislada del servidor, así que se pueden correr en la VM sin tocar nada. Un escenario nuevo entra en `escenarios.py`; si lo que espera el producto todavía no pasa, lleva `brecha` con la razón, y `tests/test_escenarios.py` avisa cuando alguien la cierra.
+
+## La clave del equipo
+
+La API es pública. Con `CLAVE_EQUIPO` en el entorno del servidor, quitarle un edge a la OT que ejecuta (`POST /ot/{id}/sesion`) o soltarlo (`DELETE /edge/{id}/sesion`) pide la cabecera `X-Clave-Equipo`, y sin ella el home queda de solo lectura. Se entra una vez con `/?clave=...` y queda en el navegador; el banco la toma de `?clave=` y `scripts/correr_casos.py`, de `--clave`. Sin la variable todo queda abierto, como en local. `GET /clave` dice si el servidor la pide: conviene mirarlo después de cada despliegue.
 
 **No se tocan sin avisar:** `contratos.py` y `reglas.py` — son el contrato entre
 los cuatro, y `tests/test_reglas.py` los vigila.

@@ -1,6 +1,6 @@
 # Factum
 
-**AI Augmented Operator.** Verifica cada paso del mantenimiento mientras se ejecuta y avisa al operario en el momento si se salta uno.
+**AI Augmented Operator.** Vuelve verificable cualquier flujo operacional: comprueba cada paso mientras se ejecuta y avisa al operario en el momento si se salta uno. El caso de uso es el mantenimiento de maquinaria, donde una mala ejecución cuesta vidas y horas de detención.
 
 ## El problema
 

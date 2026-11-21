@@ -4,6 +4,7 @@
 
 | ADR | Fecha | Decisión | Estado |
 |---|---|---|---|
+| [0009](./0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md) | 2026-11-21 | El producto vuelve verificable cualquier flujo operacional; el mantenimiento de maquinaria es el caso de uso. Extiende al 0005 | `proposed` |
 | [0008](./0008-escenarios-por-industria-en-una-caja-aislada.md) | 2026-11-21 | Los escenarios por industria corren en una caja aislada; cada barrera se mide con su herramienta (reglas, simulación, eval) | `proposed` |
 | [0007](./0007-servicios-en-vivo-sesion-stream-y-calificacion.md) | 2026-11-21 | Servicios en vivo: la sesión une el edge con la OT, un WebSocket por OT y la calificación ok · warning · error se calcula por capa | `proposed` |
 | [0006](./0006-la-ot-nace-del-protocolo.md) | 2026-11-21 | La OT nace del protocolo: el disparo puede ser calendario, pedido o falla | `proposed` |

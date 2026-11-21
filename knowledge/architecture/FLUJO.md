@@ -27,7 +27,7 @@ flowchart TD
   H1 -. "anticipa la falla" .-> C1
 ```
 
-Los números entre paréntesis remiten a [REFERENCIAS](../projects/research/REFERENCIAS.md). El flujo incorpora el [planteamiento del equipo del 2026-11-21](../domain/fuentes/2026-11-21-planteamiento-del-equipo.md). Las líneas punteadas son visión, fuera del alcance del demo.
+El flujo se cuenta con el caso de uso, el mantenimiento de maquinaria; vale igual para cualquier flujo operacional ([ADR-0009](../decisions/0009-flujo-operacional-verificable-mantenimiento-como-caso-de-uso.md)). Los números entre paréntesis remiten a [REFERENCIAS](../projects/research/REFERENCIAS.md). El flujo incorpora el [planteamiento del equipo del 2026-11-21](../domain/fuentes/2026-11-21-planteamiento-del-equipo.md). Las líneas punteadas son visión, fuera del alcance del demo.
 
 ## 1. Conectar sin integrar
 
@@ -99,7 +99,7 @@ Cada paso se comprueba con la primera capa que puede decidirlo. `Candidata a val
 | Capa | Qué decide | Ejemplo |
 |---|---|---|
 | 1 · Determinista: sensores y reglas | El orden y todo lo que un sensor mide | La energía se cortó antes de abrir la guarda |
-| 2 · Aprendizaje automático sobre señales | Anomalías en vibración o temperatura | La correa vibra distinto que ayer. Algoritmo por definir |
+| 2 · Aprendizaje automático sobre señales y sobre la imagen | Anomalías en vibración o temperatura, y el objeto que un detector ve con certeza | La correa vibra distinto que ayer, con algoritmo por definir. El detector ve el dispositivo de bloqueo en cada detección reciente |
 | 3 · VLM por API | Lo que solo se ve o se redacta | El candado y la tarjeta están puestos; el resumen del relevo |
 
 ## Demo propuesto

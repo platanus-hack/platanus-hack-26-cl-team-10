@@ -1,7 +1,7 @@
 [project]
 name = "mantenimiento-verificado"
 version = "0.1.0"
-description = "Esqueleto del flujo de mantenimiento verificado: team-10, Platanus Hack 26"
+description = "Factum: flujos operacionales verificables. team-10, Platanus Hack 26"
 requires-python = ">=3.12,<3.15"  # onnxruntime (detector en el servidor) no tiene ruedas para 3.15
 dependencies = [
     "anthropic>=2.12.0",

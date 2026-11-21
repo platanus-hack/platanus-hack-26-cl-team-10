@@ -29,7 +29,7 @@ from app.servicios import Servicios, evento_dict
 from app.video import FPS_MAX, TAMANO_MAX, CuadroInvalido, DeteccionInvalida
 
 app = FastAPI(
-    title="Factum · mantenimiento verificado",
+    title="Factum · flujos operacionales verificables",
     description="API del demo. La guía para un agente que se conecta, con el recorrido, los "
     "WebSocket y los errores, está en `/agente` (Markdown).",
 )

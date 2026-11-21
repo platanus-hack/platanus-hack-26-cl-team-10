@@ -38,10 +38,10 @@ def guia(app: FastAPI, base: str) -> str:
     base = base.rstrip("/")
     ws = base.replace("https://", "wss://").replace("http://", "ws://")
     rutas = "\n".join(f"| `{m}` | `{p}` | {q} |" for m, p, q in catalogo_de_rutas(app))
-    return f"""# Factum · API de mantenimiento verificado
+    return f"""# Factum · API de flujos operacionales verificables
 
 Guía para el agente que se conecta. Base: `{base}` · esquemas: `{base}/openapi.json` · explorador: `{base}/docs`.
-Sin autenticación: es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
+Sin autenticación, salvo la clave del equipo para mover un edge (ver «Clave del equipo»): es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
 
 ## Qué es
 
@@ -117,7 +117,7 @@ reglas) llega a `error`. La capa 2 (anomalía de señal) y la capa 3 (cámara) l
 
 ## Video
 
-- Entrada: `WS {ws}/edge/{{edge_id}}/video`, un JPEG por mensaje binario (máximo 2 MB, hasta 10 por segundo).
+- Entrada: `WS {ws}/edge/{{edge_id}}/video`, un JPEG por mensaje binario (máximo 2 MB, hasta 20 por segundo).
   Un cuadro inválido devuelve `{{"error": ...}}` y no corta la conexión. Por HTTP: `POST /edge/{{edge_id}}/cuadro`
   con el JPEG como cuerpo. El servidor guarda video de hasta 8 edges a la vez: si llega uno más, sale el
   que lleva más tiempo sin transmitir.
@@ -135,6 +135,13 @@ de llamadas contra este servidor u otro, con una OT y un edge propios (`casos-�
 cada response y los mensajes del stream. Sirve de ejemplo ejecutable de cada recorrido. Debajo, la matriz de
 escenarios por industria (`GET /escenarios`): cada forma de ejecutar un paso en minería, eléctrica y
 construcción, corrida en una caja aislada que no toca la bitácora de este servidor.
+
+## Clave del equipo
+
+Si el servidor tiene `CLAVE_EQUIPO`, dos llamadas piden la cabecera `X-Clave-Equipo`: `POST /ot/{{ot_id}}/sesion` cuando el
+edge ya ejecuta otra OT, y `DELETE /edge/{{edge_id}}/sesion`. Unir un edge libre o repetir la sesión que ya tiene no la pide,
+y el resto de la API tampoco. `GET /clave` dice si este servidor la pide y si la que mandas sirve. En el navegador, el home
+y el banco la guardan al abrirlos una vez con `?clave=`.
 
 ## Errores
 
