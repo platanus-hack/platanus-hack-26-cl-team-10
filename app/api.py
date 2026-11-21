@@ -17,9 +17,9 @@ from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app import acceso, catalogo, cerebro, db, escenarios, protocolos, semilla, verificacion
+from app import acceso, catalogo, cerebro, db, escenarios, protocolos, referencia, semilla, verificacion
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
 from app.bus import canal_ot
@@ -28,11 +28,8 @@ from app.reglas import evaluar, paso_actual, estados_desde_eventos, propuesta_de
 from app.servicios import Servicios, evento_dict
 from app.video import FPS_MAX, TAMANO_MAX, CuadroInvalido, DeteccionInvalida
 
-app = FastAPI(
-    title="Factum · flujos operacionales verificables",
-    description="API del demo. La guía para un agente que se conecta, con el recorrido, los "
-    "WebSocket y los errores, está en `/agente` (Markdown).",
-)
+app = FastAPI(title=referencia.TITULO, version=referencia.VERSION)
+app.openapi = lambda: referencia.completa(app)  # el OpenAPI ordenado: grupos, seguridad, errores y ejemplos
 # El front y el agente del equipo viven en otros dominios: sin CORS el navegador los bloquea.
 # Sin credenciales ni cookies, así que abrirlo a cualquier origen no expone sesiones.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -133,13 +130,13 @@ class PautaDeProtocolo(BaseModel):
 
 
 class PedidoOt(BaseModel):
-    pauta_id: str
-    ot_id: str | None = None
+    pauta_id: str = Field(description="Una pauta de `GET /cliente/pautas`. La OT sale de su última versión aprobada.")
+    ot_id: str | None = Field(default=None, description="El id que tendrá la OT. Si no viene, el servicio le pone uno.")
 
 
 class Credenciales(BaseModel):
-    usuario: str
-    clave: str
+    usuario: str = Field(description="El usuario que entregó el equipo de Factum. No distingue mayúsculas.")
+    clave: str = Field(description="La clave de esa persona. La genera el sistema y se ve una sola vez.")
 
 
 class ClienteNuevo(BaseModel):
@@ -156,7 +153,7 @@ class PersonaNueva(BaseModel):
 
 
 class AsignacionCliente(BaseModel):
-    operador: str
+    operador: str = Field(description="El `id` de un operador de `GET /cliente/operadores`.")
 
 
 class Sesion(BaseModel):
@@ -165,8 +162,9 @@ class Sesion(BaseModel):
 
 
 class SesionCliente(BaseModel):
-    edge_id: str = EDGE_POR_DEFECTO
-    tomar: bool = False
+    edge_id: str = Field(default=EDGE_POR_DEFECTO, description="La estación donde se ejecuta la OT.")
+    tomar: bool = Field(default=False, description="En true, le quita la estación a la OT abierta que la ocupa. "
+                        "Esa OT deja de recibir sus sensores, así que se manda solo cuando la persona lo pide.")
 
 
 class LecturaEdge(BaseModel):
@@ -717,6 +715,18 @@ async def video_salida(edge_id: str, request: Request, limite: int | None = None
 def guia_para_el_agente(request: Request) -> Response:
     """La guía en Markdown para el agente que se conecta: recorrido, WebSocket, errores y endpoints."""
     return Response(texto_de_la_guia(app, str(request.base_url)), media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/referencia", include_in_schema=False)
+def pagina_referencia() -> Response:
+    """La referencia de la API para leer y probar, con Scalar: el documento de un cliente y el completo."""
+    return referencia.pagina(app.openapi_url)
+
+
+@app.get("/referencia/clientes.json", include_in_schema=False)
+def referencia_para_clientes() -> dict:
+    """El OpenAPI con solo lo que usa una empresa cliente."""
+    return referencia.para_clientes(app)
 
 
 @app.get("/camara")

@@ -13,7 +13,19 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.routing import WebSocketRoute
 
-OCULTAS = {"/", "/agente", "/llms.txt", "/camara", "/monitor", "/casos"}
+OCULTAS = {"/", "/agente", "/llms.txt", "/camara", "/monitor", "/casos", "/referencia", "/referencia/clientes.json"}
+
+# La comparten esta guía y la referencia (app/referencia.py).
+ERRORES = """| Código | Cuerpo | Qué significa |
+|---|---|---|
+| 401 | `{"clave": "..."}` | El edge ya ejecuta otra OT, o se lo quiere soltar, o la llamada es del servicio interno, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
+| 401 | `{"login": "..."}` | El servicio para clientes no recibió un token válido: falta, no existe o venció. Entrar con `POST /auth/entrar` |
+| 403 | `{"permiso": "..."}` | La persona entró, pero su rol o su empresa no la dejan: un operador que pide una OT, o una pauta que su empresa no tiene habilitada |
+| 404 | `{"no_existe": "..."}` | La OT, pauta, protocolo, paso, evento o sesión no existe |
+| 409 | `{"regla": "..."}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
+| 422 | `{"detail": ...}` o `{"cuadro": "..."}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |
+| 405 | — | Se intentó editar o borrar algo que solo se lee (la bitácora) |
+| 500 | — | Falló el servidor. No dice nada sobre si lo pedido existe: avisar al equipo |"""
 
 
 def catalogo_de_rutas(app: FastAPI) -> list[tuple[str, str, str]]:
@@ -40,8 +52,8 @@ def guia(app: FastAPI, base: str) -> str:
     rutas = "\n".join(f"| `{m}` | `{p}` | {q} |" for m, p, q in catalogo_de_rutas(app))
     return f"""# Factum · API de flujos operacionales verificables
 
-Guía para el agente que se conecta. Base: `{base}` · esquemas: `{base}/openapi.json` · explorador: `{base}/docs`.
-Sin autenticación, salvo la clave del equipo para mover un edge (ver «Clave del equipo»): es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
+Guía para el agente que se conecta. Base: `{base}` · esquemas: `{base}/openapi.json` · referencia para probar cada ruta: `{base}/referencia`.
+El servicio para clientes (`/cliente/...`) pide login y el interno (`/interno/...`), la clave del equipo. El resto no pide nada, salvo la clave del equipo para mover un edge (ver «Clave del equipo»): es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
 
 ## Qué es
 
@@ -162,16 +174,7 @@ y el banco la guardan al abrirlos una vez con `?clave=`.
 
 ## Errores
 
-| Código | Cuerpo | Qué significa |
-|---|---|---|
-| 401 | `{{"clave": "..."}}` | El edge ya ejecuta otra OT, o se lo quiere soltar, o la llamada es del servicio interno, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
-| 401 | `{{"login": "..."}}` | El servicio para clientes no recibió un token válido: falta, no existe o venció. Entrar con `POST /auth/entrar` |
-| 403 | `{{"permiso": "..."}}` | La persona entró, pero su rol o su empresa no la dejan: un operador que pide una OT, o una pauta que su empresa no tiene habilitada |
-| 404 | `{{"no_existe": "..."}}` | La OT, pauta, protocolo, paso, evento o sesión no existe |
-| 409 | `{{"regla": "..."}}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
-| 422 | `{{"detail": ...}}` o `{{"cuadro": "..."}}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |
-| 405 | — | Se intentó editar o borrar algo que solo se lee (la bitácora) |
-| 500 | — | Falló el servidor. No dice nada sobre si lo pedido existe: avisar al equipo |
+{ERRORES}
 
 ## Todos los endpoints
 

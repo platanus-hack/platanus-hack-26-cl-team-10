@@ -27,6 +27,7 @@ python3 scripts/evaluar_capa3.py      # capa 3: falsa aceptación y falso rechaz
 | `video.py` | Servicios | El video del edge: entra por `WS /edge/{id}/video`, sale como MJPEG y le da al juez de cámara el último cuadro |
 | `escenarios.py` | Servicios | La matriz de industria × patrón de ejecución contra cada barrera, en una caja aislada ([ADR-0008](../knowledge/decisions/0008-escenarios-por-industria-en-una-caja-aislada.md)). Las pautas de eléctrica y construcción están en `datos/` |
 | `guia.py` | Servicios | La guía para agentes en `/agente`, con el catálogo de endpoints armado desde las rutas |
+| `referencia.py` | Servicios | La referencia para leer y probar en `/referencia`, con Scalar: ordena el OpenAPI en grupos, declara el login y la clave del equipo, y suma los errores y los ejemplos de `app/referencia_ejemplos.json`. Una ruta nueva necesita su grupo, o `tests/test_referencia.py` falla. La revisión contra los estándares está en [API](../knowledge/architecture/API.md) |
 | `estatico/camara.html` · `estatico/monitor.html` | Servicios | El celular como cámara del edge, y la OT en vivo con video, avisos y bitácora |
 | `estatico/casos.html` | Servicios | El banco de pruebas en `/casos`: una tarjeta por criterio del [PRD](../knowledge/projects/servicios-en-vivo/PRD.md), que corre su secuencia real contra el servidor elegido (local o la VM) con una OT y un edge propios, y muestra cada llamada y el stream en vivo |
 | `../deploy/vm/` | Servicios | El servidor del demo: `deploy/vm/desplegar.sh` sube la rama actual a la VM sin borrar la bitácora |
