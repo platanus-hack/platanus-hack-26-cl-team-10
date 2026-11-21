@@ -8,7 +8,9 @@
      Cada umbral, regla y mensaje de esta página sale del código de app/, edge/ y deploy/vm/, no de
      los documentos. Las trazas del caso LOTO y los ejemplos de cada capa son la salida real de
      app/servicios.py corrido en una base en memoria sobre datos/pauta-loto.json; las pautas son
-     las de datos/ tal cual. Si el código cambia, esta página se corrige en el mismo commit
+     las de datos/ tal cual. Las pantallas 8 a 10 son diseño: el borrador de pauta del brazo, la
+     matriz de 24 patrones y el validador se corrieron contra app/ sin modificarlo, y el motor de
+     la celda en 3D se comprobó contra servicios.py con secuencias al azar. Si el código cambia, esta página se corrige en el mismo commit
      (CONTRIBUTING, regla 2). Un solo archivo, sin build ni red: funciona sin conexión. -->
 <style>
 :root{
@@ -44,7 +46,7 @@ header.portada p{color:#b8c2cf;font-size:17px;max-width:900px;margin:0}
 /* navegación entre pantallas */
 nav.pantallas{position:sticky;top:0;z-index:10;background:var(--paper);border-bottom:1px solid var(--line);box-shadow:0 2px 10px rgba(20,28,38,.05)}
 nav.pantallas .wrap{display:flex;gap:6px;padding-top:8px;padding-bottom:8px;overflow-x:auto}
-nav.pantallas button{flex:0 0 auto;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:6px 12px;color:var(--ink);font-size:15px;text-align:left;line-height:1.25}
+nav.pantallas button{flex:0 0 auto;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:7px 10px;color:var(--ink);font-size:15px;text-align:left;line-height:1.25}
 nav.pantallas button b{display:block}
 nav.pantallas button small{color:var(--muted);font-size:15px}
 nav.pantallas button[aria-selected=true]{background:var(--deep);border-color:var(--deep);color:#fff}
@@ -283,15 +285,54 @@ svg .nodo.apagado{opacity:.25}
 .stream{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .stream span{font-family:var(--mono);font-size:15px;border-radius:6px;padding:0 7px;background:var(--violet-bg);color:var(--violet)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* pantallas de diseño (8 a 10) */
+nav.pantallas .wrap{flex-wrap:wrap;overflow:visible}
+nav.pantallas button.diseno{border-style:dashed;border-color:var(--stub)}
+nav.pantallas button.primera{margin-left:14px}
+nav.pantallas .sep{flex:0 0 auto;align-self:center;font-size:15px;font-weight:700;color:var(--stub);padding:0 4px 0 8px}
+.celda-grid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+@media (max-width:1050px){.celda-grid{grid-template-columns:1fr}}
+.visor{position:relative;border-radius:16px;overflow:hidden;background:var(--deep)}
+.visor canvas{display:block;width:100%;height:500px;touch-action:none;cursor:grab}
+.visor canvas:active{cursor:grabbing}
+.visor .vistas{position:absolute;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.visor .vistas button{background:rgba(20,28,38,.82);color:#eef2f7;border:1px solid #3a475a;border-radius:8px;padding:3px 10px;font-size:15px}
+.visor .zoom{position:absolute;right:10px;bottom:8px;display:flex;align-items:center;gap:6px;background:rgba(20,28,38,.82);border-radius:8px;padding:3px 10px;color:#b8c2cf;font-size:15px}
+.visor .zoom input{width:110px;accent-color:#7fa6dd}
+.visor .ayuda{position:absolute;left:10px;bottom:8px;color:#b8c2cf;font-size:15px;background:rgba(20,28,38,.82);border-radius:8px;padding:3px 10px;pointer-events:none}
+.guion{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:12px}
+.guion h3{margin:0 0 4px;font-size:18px}
+.guion p{margin:0 0 10px}
+.mando{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media (max-width:700px){.mando{grid-template-columns:1fr}}
+.mando .card{padding:12px 14px}
+.mando label.linea{display:flex;gap:8px;align-items:flex-start;font-size:15px;margin:6px 0}
+.mando label.linea input{margin-top:4px;accent-color:var(--deep)}
+.mando label.linea small{display:block;color:var(--muted)}
+table.matriz{font-size:15px}
+table.matriz th,table.matriz td{padding:5px 10px}
+table.matriz tbody tr{cursor:pointer}
+table.matriz tbody tr:hover{background:var(--soft)}
+table.matriz tbody tr.sel{outline:2px solid var(--ink);outline-offset:-2px;background:#fbfcfd}
+.celda-m{display:inline-block;font-weight:700;font-size:15px;border-radius:6px;padding:0 8px}
+.celda-m.pasa{background:var(--ok-bg);color:var(--ok)} .celda-m.falla{background:var(--err-bg);color:var(--err)}
+.cadena button.eslabon{text-align:left;color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
+.cadena button.eslabon[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:1px;background:#fff}
+.sql{font-size:14.5px;min-height:0}
+.borrador{border-left:5px solid var(--stub);background:#eef0f4;border-radius:10px;padding:10px 14px;font-size:15px;color:#3c4653;margin:0 0 16px}
+.borrador b{color:var(--ink)}
+ol.plan{margin:0;padding-left:22px}
+ol.plan li{margin:0 0 8px}
 </style>
 </head>
 <body>
 
 <header class="portada">
   <div class="wrap">
-    <span class="chip">Arquitectura</span><span class="chip">Factum por dentro</span><span class="chip">cada número sale del código</span>
+    <span class="chip">Arquitectura</span><span class="chip">Factum por dentro</span><span class="chip">7 pantallas de lo construido</span><span class="chip">3 de diseño</span>
     <h1>Cómo un protocolo escrito se vuelve una pauta, una OT, pasos verificados y alertas cuando algo no se cumple</h1>
-    <p>Siete pantallas, en el orden en que ocurre: el protocolo entra y se vuelve pauta comprobable, de la pauta aprobada nace la OT, cada lectura del edge pasa por tres capas, la calificación dice qué tan grave es, y todo llega a la pantalla. Al final, la pauta LOTO paso a paso.</p>
+    <p>Diez pantallas. Las siete primeras muestran lo que el código hace hoy, en el orden en que ocurre: el protocolo se vuelve pauta, de la pauta nace la OT, cada lectura pasa por tres capas y la calificación llega a la pantalla. Las tres últimas son diseño: la celda del brazo en 3D, los requerimientos contra la evidencia y cómo construir el paso de protocolo a pauta.</p>
   </div>
 </header>
 
@@ -714,6 +755,188 @@ svg .nodo.apagado{opacity:.25}
   <div class="pie"><button data-ir="sistema">← 6 · Software y hardware</button><span></span></div>
 </div></section>
 
+<!-- ═══ 8 · La celda del brazo en 3D ═══════════════════════════════════════ -->
+<section class="pantalla" id="p-celda"><div class="wrap">
+  <h2>8 · La celda del brazo en 3D</h2>
+  <p class="entrada">El caso de uso del demo: un brazo robótico en una celda, con el ultrasonido en el costado abierto. Gira la escena, toca cada pieza para ver qué manda y qué pasos cierra, y sigue el guion o mueve tú al operario. Lo que responde a la derecha es la lógica de Factum, la misma de las pantallas anteriores, corriendo sobre un borrador de pauta del brazo.</p>
+  <p class="borrador"><b>Diseño, no construido.</b> La celda, el relé y la pauta del brazo todavía no existen: la pauta de <span id="celda-pauta-n"></span> pasos es un borrador escrito para este documento, y los nombres de sensor <code>zona</code>, <code>energia</code> y <code>bloqueo</code> son los que propone. Lo que sí es real es la lógica: el motor de esta pantalla reproduce <code>servicios.py</code> y se comprobó contra el código con secuencias al azar sobre las cinco pautas.</p>
+  <div class="celda-grid">
+    <div>
+      <div class="visor">
+        <canvas id="c3d" aria-label="La celda del brazo en tres dimensiones"></canvas>
+        <div class="vistas" id="celda-vistas"><button data-vista="general">General</button><button data-vista="arriba">Desde la cámara</button><button data-vista="entrada">Desde la entrada</button><button data-vista="cerca">De cerca</button></div>
+        <div class="zoom"><label for="celda-zoom">Distancia</label><input type="range" id="celda-zoom" min="60" max="230" value="142"></div>
+        <div class="ayuda">Arrastra para girar · toca una pieza</div>
+      </div>
+      <div class="guion">
+        <h3 id="celda-guion-t"></h3>
+        <p id="celda-guion-x"></p>
+        <div class="mandos" style="margin:0"><button class="boton" id="celda-guion-atras">← Atrás</button><button class="boton primario" id="celda-guion-sigue">Siguiente del guion →</button><button class="boton" id="celda-guion-cero">Reiniciar</button></div>
+      </div>
+      <div class="mando">
+        <div class="card">
+          <h4>Mueve tú la celda</h4>
+          <div class="control-fila" style="margin:4px 0"><label for="celda-dist" style="min-width:0">Operario</label><input type="range" id="celda-dist" min="5" max="100" step="1" value="100" style="direction:rtl"></div>
+          <p class="nota" id="celda-dist-o" style="margin:0 0 8px"></p>
+          <div class="botones" style="margin:0"><button id="celda-falla">Falla: suelta la pieza</button><button id="celda-energia"></button><button id="celda-bloqueo"></button><button id="celda-ajustar">Ajustar la pinza y declarar</button><button id="celda-mal">Declarar sin ajustarla</button><button id="celda-probar">Declarar el ciclo probado</button></div>
+          <p style="margin:10px 0 0" id="celda-estado"></p>
+        </div>
+        <div class="card">
+          <h4>Lo que todavía no existe</h4>
+          <label class="linea"><input type="checkbox" id="celda-regla"><span>Regla nueva en <code>reglas.py</code><small>«<span id="celda-regla-t"></span>»</small></span></label>
+          <label class="linea"><input type="checkbox" id="celda-corte"><span>Corte local del ESP32<small>Con la zona ocupada y la energía viva abre el relé por su cuenta, al segundo siguiente, con o sin OT.</small></span></label>
+          <p class="nota" style="margin:8px 0 0">Con las dos apagadas queda lo que el servidor hace hoy con esta pauta.</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="tel">
+        <div class="barra"><span class="ot" id="celda-ot"></span><span class="badge gris" id="celda-nivel"></span></div>
+        <ol id="celda-pasos"></ol>
+        <div class="avisos" id="celda-avisos"></div>
+      </div>
+      <div class="card" style="margin-top:12px"><h4>Bitácora de la OT</h4><ol class="bitacora" id="celda-bitacora" style="max-height:250px"></ol></div>
+      <div class="card" style="margin-top:12px" id="celda-pieza"></div>
+    </div>
+  </div>
+  <div class="bloque tres" style="margin-top:22px">
+    <div class="card"><h3>Por qué «Entrar a la celda» es un paso</h3><p class="nota">Con ese paso después del corte y del bloqueo, acercarse con el brazo energizado es la lectura de un paso posterior con un control crítico pendiente. La regla de orden invertido que ya existe lo detecta, sin código nuevo. Es lo que la pauta LOTO no podía hacer: ahí el bloqueo se cerraba con la cámara.</p></div>
+    <div class="card"><h3>Para qué sirve igual la regla nueva</h3><p class="nota">Orden y control miran la pauta, así que dejan de mirar cuando la pauta termina. Con el brazo de vuelta en servicio, alguien que entra a la celda no rompe ningún paso. Solo una regla de seguridad, que se evalúa con cada lectura, lo ve. Es el último tramo del guion.</p></div>
+    <div class="card"><h3>El corte cierra el paso 1</h3><p class="nota">Cuando el ESP32 abre el relé, la lectura <code>energia = cortada</code> es la que el paso «Cortar la energía» espera, y lo cierra. La bitácora dice que quedó cortada, no quién la cortó. Si eso importa para una auditoría, el corte de emergencia necesita su propia marca. <code>Brecha</code>.</p></div>
+  </div>
+  <div class="pie"><button data-ir="loto">← 7 · El caso LOTO</button><button data-ir="requisitos">9 · Requerimientos →</button></div>
+</div></section>
+
+<!-- ═══ 9 · Requerimientos ═════════════════════════════════════════════════ -->
+<section class="pantalla" id="p-requisitos"><div class="wrap">
+  <h2>9 · Requerimientos: qué cumple la lógica de hoy</h2>
+  <p class="entrada">La lógica tiene que servir al demo y a cualquier flujo que se le cargue. Aquí está cada requerimiento con su origen, y al lado la evidencia de que se cumple o lo que falta. La prueba es la misma para todos los casos: los 24 patrones de ejecución, corridos contra el código real en minería, eléctrica, construcción y el brazo.</p>
+  <div class="numeros" id="req-numeros"></div>
+
+  <div class="bloque">
+    <h3>Los mismos 24 patrones, en cada caso</h3>
+    <p>Cada fila es una forma de ejecutar un paso: bien, saltándoselo, deshaciendo un control, con la cámara en contra. Las tres industrias son las de <code>app/escenarios.py</code>. El brazo es el borrador de pauta de la pantalla 8, corrido por la misma función. Toca una fila.</p>
+    <div class="card" style="padding:0;overflow:auto"><table class="matriz" id="matriz"></table></div>
+    <div class="resultado" id="matriz-detalle"></div>
+    <p class="honesto"><b>Lo que cambia con la regla nueva son tres patrones:</b> B3, C2 y F5, los que crean la condición de peligro. Los otros dos que no pasan en el brazo, G2 y G3, son de la capa 2 y dependen de una señal de temperatura que supuse para este borrador, no de una medida.</p>
+  </div>
+
+  <div class="bloque">
+    <h3>Requerimiento por requerimiento</h3>
+    <div class="chips" id="req-filtros" role="group" aria-label="Filtrar por estado"></div>
+    <div class="card" style="padding:0;overflow:auto"><table><thead><tr><th>Tipo</th><th>Requerimiento</th><th>De dónde sale</th><th>Estado</th><th>Evidencia, o lo que falta</th></tr></thead><tbody id="req-tabla"></tbody></table></div>
+    <p class="nota" style="margin-top:8px">Los requerimientos no funcionales no están escritos como tales en ningún documento del repo: esta lista los junta desde los ADR, los PRD y el CONTEXTO, y es <code>Candidata a validar</code> por el equipo.</p>
+  </div>
+
+  <div class="bloque tres">
+    <div class="card"><h3>Lo que el demo necesita y no está</h3><p class="nota">Cuatro piezas: el relé y el corte local, la regla de persona en la zona con energía viva, la OT que se abre sola con la falla, y la voz. Ninguna cambia <code>contratos.py</code>: la regla es una línea en <code>reglas._PELIGROS</code>, y la pauta entra por <code>POST /pautas</code>.</p></div>
+    <div class="card"><h3>Lo que frena un segundo caso</h3><p class="nota">Los sensores globales. Hoy el brazo usa <code>zona</code> y <code>energia</code>, los mismos nombres que la excavadora y la correa. En un servidor compartido, una lectura que dejó otra estación puede completar la condición de peligro de esta. La salida es que el sensor se guarde por edge.</p></div>
+    <div class="card"><h3>Lo que nadie ha medido</h3><p class="nota">Falsas alarmas y latencia. Son los dos requerimientos no funcionales que el jurado va a preguntar y los dos sin número. El eval de capa 3 espera sus imágenes, y la latencia del aviso y del relé se mide con un cronómetro sobre la celda armada.</p></div>
+  </div>
+  <div class="pie"><button data-ir="celda">← 8 · La celda en 3D</button><button data-ir="diseno">10 · Diseño: de protocolo a pauta →</button></div>
+</div></section>
+
+<!-- ═══ 10 · Diseño: de protocolo a pauta ══════════════════════════════════ -->
+<section class="pantalla" id="p-diseno"><div class="wrap">
+  <h2>10 · Diseño: de protocolo a pauta</h2>
+  <p class="entrada">Cómo se construye lo que hoy es un stub: extraer los pasos del protocolo del cliente, llevarlos a una pauta comprobable, guardarla, validarla, probarla y medir qué tan bien quedó. Cada pieza dice de dónde sale y cómo se comprueba.</p>
+  <p class="borrador"><b>Diseño, no construido.</b> Nada de esta pantalla está en <code>app/</code>. Hay dos cosas que sí se corrieron para escribirla, y están marcadas: el validador, como prototipo sobre las cinco pautas, y la simulación del borrador del brazo. Todo el diseño es <code>Candidata a validar</code>.</p>
+
+  <div class="bloque">
+    <h3>Las seis etapas</h3>
+    <p>Dos etapas usan un modelo y cuatro no. El modelo propone; lo que decide si una pauta sirve son reglas, una simulación y una persona. Toca una etapa.</p>
+    <div class="cadena" id="dis-etapas"></div>
+    <div class="stub" style="margin-top:14px" id="dis-etapa"></div>
+  </div>
+
+  <div class="bloque dos">
+    <div class="card">
+      <h3>Cómo se guarda</h3>
+      <p class="nota">La pauta sigue donde está: una fila por versión en <code>pautas</code>, con su aprobación en <code>aprobaciones</code>. Lo nuevo va en tablas aparte, para no agregar campos a <code>contratos.py</code>, que es el contrato entre los cuatro frentes.</p>
+      <table><tbody>
+        <tr><td><b><code>protocolos</code></b></td><td>El documento del cliente: su huella, su nombre y quién lo entregó. El archivo va a disco con la huella como nombre.</td></tr>
+        <tr><td><b><code>pauta_origen</code></b></td><td>Por cada paso de cada versión, la página y la cita de donde salió. Es lo que deja auditar una pauta contra su protocolo.</td></tr>
+        <tr><td><b><code>extracciones</code></b></td><td>Qué modelo y qué versión de la instrucción produjo cada candidata, y cuánto coincidieron las corridas.</td></tr>
+        <tr><td><b><code>correcciones</code></b></td><td>Lo que la persona cambió antes de aprobar, campo por campo. Es la medida de calidad que sale sola del uso.</td></tr>
+        <tr><td><b><code>inventario</code></b></td><td>Los sensores de cada edge, con sus valores posibles y su valor de reposo, y las clases del detector.</td></tr>
+        <tr><td><b><code>sensores</code></b></td><td>La que ya existe, con la clave cambiada a <code>(edge_id, id)</code>: es lo que aísla una estación de otra.</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <h3>El esquema propuesto</h3>
+<pre class="sql">CREATE TABLE protocolos (
+  sha256 TEXT PRIMARY KEY, nombre TEXT NOT NULL,
+  paginas INTEGER NOT NULL, recibido_de TEXT NOT NULL, ts TEXT NOT NULL
+);
+CREATE TABLE extracciones (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  protocolo TEXT NOT NULL REFERENCES protocolos(sha256),
+  pauta_id TEXT NOT NULL, version INTEGER NOT NULL,
+  modelo TEXT NOT NULL, instruccion TEXT NOT NULL,
+  corridas INTEGER NOT NULL, acuerdo REAL, ts TEXT NOT NULL
+);
+CREATE TABLE pauta_origen (
+  pauta_id TEXT NOT NULL, version INTEGER NOT NULL, paso_id TEXT NOT NULL,
+  pagina INTEGER NOT NULL, cita TEXT NOT NULL,
+  PRIMARY KEY (pauta_id, version, paso_id)
+);
+CREATE TABLE correcciones (
+  pauta_id TEXT NOT NULL, version INTEGER NOT NULL, paso_id TEXT,
+  campo TEXT NOT NULL, antes TEXT, despues TEXT, por TEXT NOT NULL, ts TEXT NOT NULL
+);
+CREATE TABLE inventario (
+  edge_id TEXT NOT NULL, sensor_id TEXT NOT NULL,
+  valores TEXT NOT NULL, reposo TEXT, que_mide TEXT,
+  PRIMARY KEY (edge_id, sensor_id)
+);</pre>
+    </div>
+  </div>
+
+  <div class="bloque card">
+    <h3>El validador, probado sobre las cinco pautas</h3>
+    <p class="nota">Prototipo de este documento: cuatro reglas en unas cuarenta líneas, corridas sobre las pautas de <code>datos/</code> y el borrador del brazo. No está en el repo. Elige una pauta.</p>
+    <div class="chips" id="val-pautas" role="group" aria-label="Pautas"></div>
+    <div id="val-salida"></div>
+    <p class="nota" id="val-reposo" style="margin:10px 0"></p>
+    <table><thead><tr><th>Regla</th><th>Qué busca</th><th>De dónde sale</th></tr></thead><tbody id="val-reglas"></tbody></table>
+    <p class="honesto"><b>Las tres reglas que encuentran algo en la pauta LOTO son las tres cosas que se vieron al correrla.</b> Las pautas de industria y el borrador del brazo salen limpias, que es lo esperado: pasan su matriz. El borrador del brazo dio <span id="dis-brazo"></span>.</p>
+  </div>
+
+  <div class="bloque card">
+    <h3>Cómo se mide un extractor</h3>
+    <p class="nota">Se compara lo que extrae contra una pauta de referencia escrita y aprobada por una persona. Marca los errores que podría cometer una extracción del protocolo de la correa y mira qué métrica lo nota. Es un ejemplo armado para mostrar cómo se mide; todavía no hay ninguna extracción real que medir.</p>
+    <div class="partes" id="med-errores"></div>
+    <div class="dos" style="margin-top:12px">
+      <table><tbody id="med-tabla"></tbody></table>
+      <div>
+        <div class="resultado" id="med-veredicto" style="margin-top:0"></div>
+        <p class="nota" style="margin-top:10px">Se informa en cuentas, «5 de 6», no en porcentajes: con cinco pautas y unos 35 pasos, un porcentaje aparenta una precisión que no hay. Es como lo informa el paper que originó el ADR-0002: 3 de 12, 5 de 12.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloque dos">
+    <div class="card">
+      <h3>El plan de prueba, en orden</h3>
+      <ol class="plan">
+        <li><b>La referencia.</b> Para cada pauta de <code>datos/</code>, conseguir o escribir el protocolo del que salió, y que dos personas marquen la pauta por separado. Donde no coincidan, ese paso es ambiguo en el protocolo y se anota.</li>
+        <li><b>El validador y la simulación.</b> No usan modelo y sirven desde hoy para las pautas escritas a mano. Son la red de seguridad del extractor, así que van antes que él.</li>
+        <li><b>El inventario de la estación.</b> Sin él, asignar la evidencia es adivinar. Para el demo son tres sensores y una cámara.</li>
+        <li><b>El extractor.</b> Primero sobre las pautas de referencia; después sobre un protocolo que nadie del equipo haya visto.</li>
+        <li><b>La medición.</b> Las siete cuentas de arriba por pauta, más las correcciones y el tiempo de quien aprueba. Un extractor nuevo se compara con el anterior sobre el mismo set.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>Lo que este diseño no resuelve</h3>
+      <p class="nota"><b>No hay protocolos reales en el repo.</b> Las cuatro pautas se escribieron desde las normas, no desde el procedimiento de un cliente. Hasta tener uno, toda medida es sobre textos que escribimos nosotros. <code>Brecha</code>.</p>
+      <p class="nota"><b>Un protocolo no dice qué sensores hay.</b> Qué evidencia cierra cada paso depende de la estación, no del documento. El FLUJO lo deja abierto: quién lo decide, paso por paso.</p>
+      <p class="nota"><b>La pauta es una lista, no un grafo.</b> Dos pasos que se pueden hacer en cualquier orden hoy tienen que ordenarse igual. El grafo de tarea (REFERENCIAS 15) es la generalización, y cambia el contrato.</p>
+      <p class="nota"><b>Los métodos de medición son los habituales, sin respaldo en REFERENCIAS.</b> Alinear pasos, contar correcciones y repetir corridas no salen de un paper del research: son propuesta de este documento.</p>
+    </div>
+  </div>
+  <div class="pie"><button data-ir="requisitos">← 9 · Requerimientos</button><span></span></div>
+</div></section>
+
 <script>
 "use strict";
 // Datos inyectados desde el repo al generar la página: no se escriben a mano.
@@ -750,10 +973,12 @@ const PANTALLAS = [
   ["lectura", "3 · Lectura", "el recorrido"], ["capas", "4 · Capas", "reglas, detector y VLM"],
   ["calificacion", "5 · Calificación", "ok, warning o error"], ["sistema", "6 · Sistema", "software y hardware"],
   ["loto", "7 · Caso LOTO", "paso a paso"],
+  ["celda", "8 · Celda 3D", "el brazo del demo, paso a paso", true], ["requisitos", "9 · Requerimientos", "qué cumple la lógica de hoy", true],
+  ["diseno", "10 · Diseño", "de protocolo a pauta: extraer, guardar, validar y medir", true],
 ];
 const AL_ENTRAR = {};
 let pantallaActual = null;
-$("nav").innerHTML = PANTALLAS.map(([id, t, sub]) => `<button role="tab" data-ir="${id}" aria-selected="false"><b>${t}</b><small>${sub}</small></button>`).join("");
+$("nav").innerHTML = PANTALLAS.map(([id, t, sub, dis], i) => `<button role="tab" data-ir="${id}" class="${dis ? "diseno" : ""}${dis && !PANTALLAS[i - 1][3] ? " primera" : ""}" aria-selected="false" title="${sub}"><b>${t}</b></button>`).join("");
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-ir]");
   if (b) location.hash = b.dataset.ir;
@@ -1392,9 +1617,593 @@ AL_ENTRAR.loto = (esc_, i) => {
   pintarLoto();
 };
 
+
+// ═══ Pantallas de diseño (8 a 10) ═══════════════════════════════════════════
+const DISENO = {"pauta":{"id":"pauta-brazo-01","nombre":"Ajuste de pinza en brazo robótico","version":1,"equipo":"brazo BR-01, celda del demo","pasos":[{"id":"p1","orden":1,"titulo":"Cortar la energía del brazo","instruccion":"Abre el interruptor de los servos y comprueba que el brazo quedó sin energía.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"energia","espera":"cortada"}},{"id":"p2","orden":2,"titulo":"Poner el bloqueo","instruccion":"Pon el candado y la tarjeta en el interruptor.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"bloqueo","espera":"puesto"}},{"id":"p3","orden":3,"titulo":"Entrar a la celda","instruccion":"Con la energía cortada y el bloqueo puesto, acércate al brazo.","tipo_evidencia":"sensor","capa_minima":1,"sensor":{"id":"zona","espera":"ocupada"}},{"id":"p4","orden":4,"titulo":"Ajustar la pinza","instruccion":"Aprieta el tornillo de la pinza hasta que cierre sobre la pieza.","tipo_evidencia":"camara","capa_minima":3,"pregunta_visual":"¿La pinza está cerrada y sostiene la pieza?"},{"id":"p5","orden":5,"titulo":"Salir de la celda","instruccion":"Retira la herramienta y sal de la zona del brazo.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"zona","espera":"libre"}},{"id":"p6","orden":6,"titulo":"Retirar el bloqueo","instruccion":"Con la celda despejada, saca el candado y la tarjeta.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"bloqueo","espera":"retirado"}},{"id":"p7","orden":7,"titulo":"Devolver la energía","instruccion":"Cierra el interruptor de los servos.","tipo_evidencia":"sensor","capa_minima":1,"control_critico":true,"sensor":{"id":"energia","espera":"viva"}},{"id":"p8","orden":8,"titulo":"Probar un ciclo","instruccion":"Mira al brazo tomar y dejar una pieza, y confirma que no la suelta.","tipo_evidencia":"confirmacion","capa_minima":1}]},"regla":[{"zona":"ocupada","energia":"viva"},"PERSONA EN LA ZONA CON ENERGÍA VIVA. Salir de la zona; cortar la energía y poner el bloqueo antes de acercarse.","Celda robotizada: ADR-0010. La norma que la respalda no se buscó (Brecha)"],"tests":{"corridos":244,"resultado":"OK (skipped=1)"},"dist_max":60,"patrones":[{"codigo":"A0","grupo":"A","nombre":"La pauta completa, bien hecha","pregunta":"¿Las reglas dan alguna falsa alarma?","barrera":1},{"codigo":"A1","grupo":"A","nombre":"Lo hace y el sensor lo ve, sin hablar","pregunta":"¿El paso se cierra solo con la lectura?","barrera":1},{"codigo":"A2","grupo":"A","nombre":"El sensor lo ve y después lo dice","pregunta":"¿La declaración tardía se confunde con el paso siguiente?","barrera":1},{"codigo":"A3","grupo":"A","nombre":"Lo dice y después el sensor lo ve","pregunta":"¿Interrumpe por una diferencia de segundos?","barrera":1},{"codigo":"A4","grupo":"A","nombre":"Lo dice y el sensor nunca lo confirma","pregunta":"¿El paso queda en conflicto y a la vista?","barrera":1},{"codigo":"A6","grupo":"A","nombre":"Lo confirma una persona contra el sensor","pregunta":"¿Se le cree sin perder el rastro?","barrera":1},{"codigo":"A5","grupo":"A","nombre":"Dice que hizo el paso siguiente sin hacer este","pregunta":"¿Se detecta que se lo saltó?","barrera":1},{"codigo":"B1","grupo":"B","nombre":"Se salta el paso y hace el siguiente","pregunta":"¿La pauta avanza igual?","barrera":1},{"codigo":"B2","grupo":"B","nombre":"Se salta el paso, hace el siguiente y vuelve a hacerlo","pregunta":"¿Queda registro del orden invertido?","barrera":1},{"codigo":"B3","grupo":"B","nombre":"Se salta el paso y crea la condición de peligro","pregunta":"¿Suena la alerta de seguridad?","barrera":1},{"codigo":"C1","grupo":"C","nombre":"Deshace un control crítico ya verificado","pregunta":"¿Se avisa que el control se perdió?","barrera":1},{"codigo":"C2","grupo":"C","nombre":"Deshace el control y se crea la condición de peligro","pregunta":"¿Suena la alerta de seguridad?","barrera":1},{"codigo":"D1","grupo":"D","nombre":"El sensor repite la misma lectura","pregunta":"¿Se cuenta una sola vez?","barrera":1},{"codigo":"D3","grupo":"D","nombre":"El sensor deja de mandar lecturas","pregunta":"¿Baja la certeza de lo que dice?","barrera":1},{"codigo":"F1","grupo":"F","nombre":"La cámara confirma con confianza alta","pregunta":"¿El paso se cierra sin aviso?","barrera":3},{"codigo":"F2","grupo":"F","nombre":"La cámara confirma con confianza baja","pregunta":"¿Se cierra pero pide que alguien mire?","barrera":3},{"codigo":"F3","grupo":"F","nombre":"La cámara contradice al operario","pregunta":"¿Queda en conflicto sin interrumpir?","barrera":3},{"codigo":"F4","grupo":"F","nombre":"No hay video y el juez dice que sí","pregunta":"¿Se acepta un sí sin cuadro?","barrera":3},{"codigo":"F5","grupo":"F","nombre":"La cámara dice que sí y un sensor marca peligro","pregunta":"¿Un modelo contradice a un sensor?","barrera":3},{"codigo":"G1","grupo":"G","nombre":"Un pico aislado","pregunta":"¿Avisa una vez y se resuelve?","barrera":2},{"codigo":"G2","grupo":"G","nombre":"Un escalón que se sostiene","pregunta":"¿El aviso dura lo que dura la falla?","barrera":2},{"codigo":"G3","grupo":"G","nombre":"Una deriva lenta","pregunta":"¿Se detecta antes del daño?","barrera":2},{"codigo":"G4","grupo":"G","nombre":"Ruido normal, sin falla","pregunta":"¿Da falsas alarmas?","barrera":2},{"codigo":"G5","grupo":"G","nombre":"Un sensor pegado que se mueve apenas","pregunta":"¿Confunde un sensor quieto con una falla?","barrera":2}],"matriz":{"MIN":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"},"ELE":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"},"CON":{"A0":"pasa","A1":"pasa","A2":"pasa","A3":"pasa","A4":"pasa","A6":"pasa","A5":"pasa","B1":"pasa","B2":"pasa","B3":"pasa","C1":"pasa","C2":"pasa","D1":"pasa","D3":"pasa","F1":"pasa","F2":"pasa","F3":"pasa","F4":"pasa","F5":"pasa","G1":"pasa","G2":"pasa","G3":"pasa","G4":"pasa","G5":"pasa"}},"brazo_hoy":[{"patron":"A0","sello":"pasa","no_cumple":{},"cuando":"el operario hace cada paso en orden y lo cierra su evidencia","entonces":"la pauta queda completa sin alertas, sin conflictos y sin interrumpir nunca"},{"patron":"A1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada y el operario no dice nada","entonces":"el paso queda verificado por la capa 1 y la pauta avanza"},{"patron":"A2","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» un momento después","entonces":"la declaración queda registrada y no abre ningún conflicto"},{"patron":"A3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y el sensor llega un momento después","entonces":"el conflicto queda en la bitácora y el paso se verifica al llegar la lectura"},{"patron":"A4","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y energia sigue en viva","entonces":"el paso queda en conflicto, la OT en error y la pauta no avanza"},{"patron":"A6","sello":"pasa","no_cumple":{},"cuando":"un supervisor lo confirma con su motivo (el sensor está dañado)","entonces":"el paso queda verificado por persona, la pauta avanza, la OT queda en warning y el conflicto sigue en la bitácora"},{"patron":"A5","sello":"pasa","no_cumple":{},"cuando":"el operario dice «bloqueo puesto», que es el paso siguiente","entonces":"la palabra se evalúa contra el paso 1, que queda en conflicto"},{"patron":"B1","sello":"pasa","no_cumple":{},"cuando":"llega bloqueo = puesto, que cierra el paso 2","entonces":"la pauta no avanza y entra una alerta de orden invertido"},{"patron":"B2","sello":"pasa","no_cumple":{},"cuando":"el operario hace el paso 2 (bloqueo = puesto) y después el 1","entonces":"la bitácora registra que el orden se invirtió, y la alerta se resuelve al hacer el paso saltado"},{"patron":"B3","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"se da la condición «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"C1","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva","entonces":"entra una alerta de capa 1: el control crítico se perdió, y se resuelve al reponerlo"},{"patron":"C2","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"energia vuelve a viva y se da «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"D1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada tres veces","entonces":"hay un solo veredicto"},{"patron":"D3","sello":"pasa","no_cumple":{},"cuando":"pasan 8 s sin lecturas","entonces":"la calificación baja a warning: el sensor puede haberse caído"},{"patron":"F1","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 90 %","entonces":"el paso se verifica sin avisos"},{"patron":"F2","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 60 %","entonces":"el paso se verifica, la OT queda en warning y no interrumpe"},{"patron":"F3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «pinza ajustada» y el juez responde que no","entonces":"el paso queda en conflicto con warning, sin interrumpir"},{"patron":"F4","sello":"pasa","no_cumple":{},"cuando":"el juez de hoy responde","entonces":"el paso no se verifica: no hubo cuadro que mirar"},{"patron":"F5","sello":"falla","no_cumple":{"alertas_seguridad":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"el juez dice que sí con 95 % y se da «persona en la zona con energía viva»","entonces":"la OT queda en error por la capa 1, aunque la cámara diga que todo está bien"},{"patron":"G1","sello":"pasa","no_cumple":{},"cuando":"llega un pico de 38 °C y después un valor normal","entonces":"entra una alerta de capa 2 una vez, se resuelve y la OT nunca pasa de warning"},{"patron":"G2","sello":"falla","no_cumple":{"anomalias":{"esperado":1,"obtenido":0,"cumple":false},"alertas_abiertas":{"esperado":1,"obtenido":0,"cumple":false},"nivel":{"esperado":"warning","obtenido":"ok","cumple":false}},"cuando":"la señal sube a 25.7 °C y se queda ahí 30 lecturas","entonces":"la alerta sigue abierta mientras la señal no vuelva"},{"patron":"G3","sello":"falla","no_cumple":{"anomalias":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"la señal sube 0.075 °C por lectura durante 40 lecturas","entonces":"entra una alerta de capa 2 antes de que termine la subida"},{"patron":"G4","sello":"pasa","no_cumple":{},"cuando":"llegan 60 lecturas con su ruido normal","entonces":"no entra ninguna alerta"},{"patron":"G5","sello":"pasa","no_cumple":{},"cuando":"llega una que se mueve 0.015 °C","entonces":"avisa que el sensor está pegado, no confunde el movimiento mínimo con una falla, y el aviso se va cuando vuelve a variar"}],"brazo_regla":[{"patron":"A0","sello":"pasa","no_cumple":{},"cuando":"el operario hace cada paso en orden y lo cierra su evidencia","entonces":"la pauta queda completa sin alertas, sin conflictos y sin interrumpir nunca"},{"patron":"A1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada y el operario no dice nada","entonces":"el paso queda verificado por la capa 1 y la pauta avanza"},{"patron":"A2","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» un momento después","entonces":"la declaración queda registrada y no abre ningún conflicto"},{"patron":"A3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y el sensor llega un momento después","entonces":"el conflicto queda en la bitácora y el paso se verifica al llegar la lectura"},{"patron":"A4","sello":"pasa","no_cumple":{},"cuando":"el operario dice «energía cortada» y energia sigue en viva","entonces":"el paso queda en conflicto, la OT en error y la pauta no avanza"},{"patron":"A6","sello":"pasa","no_cumple":{},"cuando":"un supervisor lo confirma con su motivo (el sensor está dañado)","entonces":"el paso queda verificado por persona, la pauta avanza, la OT queda en warning y el conflicto sigue en la bitácora"},{"patron":"A5","sello":"pasa","no_cumple":{},"cuando":"el operario dice «bloqueo puesto», que es el paso siguiente","entonces":"la palabra se evalúa contra el paso 1, que queda en conflicto"},{"patron":"B1","sello":"pasa","no_cumple":{},"cuando":"llega bloqueo = puesto, que cierra el paso 2","entonces":"la pauta no avanza y entra una alerta de orden invertido"},{"patron":"B2","sello":"pasa","no_cumple":{},"cuando":"el operario hace el paso 2 (bloqueo = puesto) y después el 1","entonces":"la bitácora registra que el orden se invirtió, y la alerta se resuelve al hacer el paso saltado"},{"patron":"B3","sello":"pasa","no_cumple":{},"cuando":"se da la condición «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"C1","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva","entonces":"entra una alerta de capa 1: el control crítico se perdió, y se resuelve al reponerlo"},{"patron":"C2","sello":"pasa","no_cumple":{},"cuando":"energia vuelve a viva y se da «persona en la zona con energía viva»","entonces":"entra una alerta de capa 1 que interrumpe"},{"patron":"D1","sello":"pasa","no_cumple":{},"cuando":"llega energia = cortada tres veces","entonces":"hay un solo veredicto"},{"patron":"D3","sello":"pasa","no_cumple":{},"cuando":"pasan 8 s sin lecturas","entonces":"la calificación baja a warning: el sensor puede haberse caído"},{"patron":"F1","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 90 %","entonces":"el paso se verifica sin avisos"},{"patron":"F2","sello":"pasa","no_cumple":{},"cuando":"el juez responde que sí con 60 %","entonces":"el paso se verifica, la OT queda en warning y no interrumpe"},{"patron":"F3","sello":"pasa","no_cumple":{},"cuando":"el operario dice «pinza ajustada» y el juez responde que no","entonces":"el paso queda en conflicto con warning, sin interrumpir"},{"patron":"F4","sello":"pasa","no_cumple":{},"cuando":"el juez de hoy responde","entonces":"el paso no se verifica: no hubo cuadro que mirar"},{"patron":"F5","sello":"pasa","no_cumple":{},"cuando":"el juez dice que sí con 95 % y se da «persona en la zona con energía viva»","entonces":"la OT queda en error por la capa 1, aunque la cámara diga que todo está bien"},{"patron":"G1","sello":"pasa","no_cumple":{},"cuando":"llega un pico de 38 °C y después un valor normal","entonces":"entra una alerta de capa 2 una vez, se resuelve y la OT nunca pasa de warning"},{"patron":"G2","sello":"falla","no_cumple":{"anomalias":{"esperado":1,"obtenido":0,"cumple":false},"alertas_abiertas":{"esperado":1,"obtenido":0,"cumple":false},"nivel":{"esperado":"warning","obtenido":"ok","cumple":false}},"cuando":"la señal sube a 25.7 °C y se queda ahí 30 lecturas","entonces":"la alerta sigue abierta mientras la señal no vuelva"},{"patron":"G3","sello":"falla","no_cumple":{"anomalias":{"esperado":{"min":1},"obtenido":0,"cumple":false}},"cuando":"la señal sube 0.075 °C por lectura durante 40 lecturas","entonces":"entra una alerta de capa 2 antes de que termine la subida"},{"patron":"G4","sello":"pasa","no_cumple":{},"cuando":"llegan 60 lecturas con su ruido normal","entonces":"no entra ninguna alerta"},{"patron":"G5","sello":"pasa","no_cumple":{},"cuando":"llega una que se mueve 0.015 °C","entonces":"avisa que el sensor está pegado, no confunde el movimiento mínimo con una falla, y el aviso se va cuando vuelve a variar"}],"con_regla_pasan":72,"con_regla_total":72,"validador":{"brazo":[],"loto":[{"regla":"V1","paso":"l2","texto":"«Poner el dispositivo de bloqueo» es control crítico y se cierra con camara: si se deshace, ninguna regla avisa"},{"regla":"V1","paso":"l5","texto":"«Retirar la herramienta» es control crítico y se cierra con camara: si se deshace, ninguna regla avisa"},{"regla":"V2","paso":"l3","texto":"«Verificar energía cero: equipo frío» espera equipo = frio, que es el valor de reposo: la alerta de orden salta al llegar a «Poner el dispositivo de bloqueo», antes de que el operario haga nada"}],"correa":[],"celda":[],"excavadora":[]},"reposo":{"brazo":{"energia":"viva","bloqueo":"retirado","zona":"libre"},"loto":{"operario":"ausente","equipo":"frio"},"correa":{"guarda":"cerrada","energia":"cortada","reed_bloqueo":"abierto"},"celda":{"seccionador":"cerrado","candado_mando":"abierto","tension":"presente","tierra":"retirada","puerta_celda":"cerrada"},"excavadora":{"implementos":"levantados","motor":"encendido","palanca_seguridad":"desbloqueada","presion_hidraulica":"con_presion","zona":"libre"}}};   // lo que respondió el código real al probar el borrador del brazo y las tres industrias
+const BRAZO = DISENO.pauta;
+
+// ─── El motor: lo mismo que servicios.recibir_lectura y servicios.declarar, para pautas de estados ───
+// Se comprueba contra el código real con secuencias al azar sobre las cinco pautas (ver el PR).
+function Motor(pauta, peligros) {
+  const pasos = [...pauta.pasos].sort((a, b) => a.orden - b.orden);
+  const eventos = [], sensores = {};
+  let nuevos = [];
+  const agregar = ev => { ev.id = eventos.length + 1; eventos.push(ev); nuevos.push(ev); return ev; };
+  const estados = () => { const e = {}; eventos.forEach(ev => { if (ev.estado && ev.paso_id) e[ev.paso_id] = ev.estado; }); return e; };
+  const actual = (e = estados()) => pasos.find(p => e[p.id] !== "verificado") || null;
+  function activas() {
+    let a = {};
+    eventos.forEach(ev => {
+      const clave = (ev.evidencia || {}).clave;
+      if (ev.tipo === "alerta" && clave) a[clave] = ev;
+      else if (ev.tipo === "alerta_resuelta") a = Object.fromEntries(Object.entries(a).filter(([, e]) => e.id !== ev.evidencia.resuelve));
+    });
+    return a;
+  }
+  const alerta = (detalle, evidencia) => agregar({tipo: "alerta", paso_id: null, estado: "en_conflicto", capa: 1, actor: "sistema", detalle, evidencia});
+  const resolver = (abierta, detalle) => agregar({tipo: "alerta_resuelta", paso_id: null, estado: null, capa: abierta.capa, actor: "sistema", detalle, evidencia: {resuelve: abierta.id, clave: abierta.evidencia.clave}});
+  const peligrosAhora = () => peligros.filter(([cond]) => Object.entries(cond).every(([k, v]) => sensores[k] === v));
+
+  function seguridad(sensor, valor) {
+    const ahora = Object.fromEntries(peligrosAhora().map(([, aviso]) => ["seguridad:" + aviso, aviso]));
+    const abiertas = Object.entries(activas()).filter(([k]) => k.startsWith("seguridad:"));
+    Object.entries(ahora).forEach(([clave, aviso]) => { if (!abiertas.some(([k]) => k === clave)) alerta(aviso, {tipo: "sensor", clave}); });
+    abiertas.forEach(([clave, ab]) => { if (!(clave in ahora)) resolver(ab, `Se normalizó con ${sensor} = ${valor}: ${ab.detalle}`); });
+  }
+  function pasoPorSensor(sensor) {
+    const p = actual();
+    if (!p || p.tipo_evidencia !== "sensor" || p.sensor.id !== sensor || sensores[sensor] !== p.sensor.espera) return;
+    agregar({tipo: "veredicto", paso_id: p.id, estado: "verificado", capa: 1, actor: "sistema", detalle: `${sensor} = ${sensores[sensor]}, que es lo que el paso exige`, evidencia: {tipo: "sensor"}});
+  }
+  function controlesDeshechos() {
+    const e = estados(), a = actual(e);
+    if (!a || pasos.filter(p => p.orden >= a.orden).every(p => p.tipo_evidencia === "confirmacion")) return [];
+    const ultimo = {};
+    pasos.forEach(p => { if (p.sensor && e[p.id] === "verificado") ultimo[p.sensor.id] = p; });
+    return Object.entries(ultimo).filter(([sid, p]) => p.control_critico && sensores[sid] !== undefined && sensores[sid] !== p.sensor.espera);
+  }
+  function controles(sensor, valor) {
+    const ahora = Object.fromEntries(controlesDeshechos().map(([sid, p]) => ["control:" + p.id, [sid, p]]));
+    const abiertas = Object.entries(activas()).filter(([k]) => k.startsWith("control:"));
+    Object.entries(ahora).forEach(([clave, [sid, p]]) => {
+      if (!abiertas.some(([k]) => k === clave)) alerta(`CONTROL PERDIDO: «${p.titulo}» se deshizo (${sid} = ${sensores[sid]}, exige ${p.sensor.espera}).`, {tipo: "control", paso: p.id, sensor: sid, clave});
+    });
+    abiertas.forEach(([clave, ab]) => { if (!(clave in ahora)) resolver(ab, `Control repuesto con ${sensor} = ${valor}: ${ab.detalle}`); });
+  }
+  function orden(sensor, valor) {
+    const e = estados();
+    Object.entries(activas()).forEach(([clave, ab]) => {
+      if (!clave.startsWith("orden:")) return;
+      const ev = ab.evidencia;
+      const motivo = e[ev.pendiente] === "verificado" ? `se hizo el paso saltado (${ev.pendiente})`
+        : sensores[ev.sensor] !== ev.valor ? `se deshizo lo adelantado (${ev.sensor} = ${sensores[ev.sensor]})` : null;
+      if (motivo) resolver(ab, `Orden resuelto: ${motivo}. ${ab.detalle}`);
+    });
+    if (Object.entries(activas()).some(([k, ev]) => k.startsWith("control:") && ev.evidencia.sensor === sensor)) return;
+    const a = actual(e);
+    if (!a || !a.control_critico) return;
+    const ad = pasos.find(p => p.sensor && p.sensor.id === sensor && e[p.id] !== "verificado");
+    if (!ad || ad.orden <= a.orden || ad.sensor.espera !== valor) return;
+    const clave = "orden:" + ad.id;
+    if (!(clave in activas())) alerta(`ORDEN INVERTIDO: «${ad.titulo}» (${sensor} = ${valor}) antes de «${a.titulo}».`, {tipo: "orden", adelantado: ad.id, pendiente: a.id, sensor, valor, clave});
+  }
+  function calificarEvento(ev) {
+    if (ev.tipo === "alerta_resuelta") return {nivel: "ok", certeza: 1, capa: ev.capa, motivos: [ev.detalle]};
+    if (ev.tipo !== "veredicto" && ev.tipo !== "alerta") return null;
+    if (ev.capa === 1) return {nivel: ev.tipo === "alerta" || ev.estado === "en_conflicto" ? "error" : "ok", certeza: 1, capa: 1, motivos: [ev.detalle]};
+    if (ev.capa === 3) {
+      const c = ev.evidencia.confianza;
+      if (ev.estado === "en_conflicto") return {nivel: "warning", certeza: c, capa: 3, motivos: [ev.detalle, "se muestra, no interrumpe"]};
+      if (ev.estado === "verificado" && c < K.CONFIANZA_CAMARA_MIN) return {nivel: "warning", certeza: c, capa: 3, motivos: [ev.detalle, `confianza bajo ${Math.round(K.CONFIANZA_CAMARA_MIN * 100)}%: conviene que alguien mire`]};
+      return {nivel: "ok", certeza: c, capa: 3, motivos: [ev.detalle]};
+    }
+    return {nivel: "ok", certeza: 1, capa: null, motivos: [ev.detalle, "lo cerró una persona, no un sensor"]};
+  }
+  return {
+    eventos, sensores, pasos, estados, actual, activas, calificarEvento,
+    lectura(sensor, valor) {
+      nuevos = []; sensores[sensor] = valor;
+      seguridad(sensor, valor); pasoPorSensor(sensor); controles(sensor, valor); orden(sensor, valor);
+      return nuevos;
+    },
+    declarar(texto, si, confianza) {
+      nuevos = [];
+      const p = actual();
+      if (!p) return nuevos;
+      agregar({tipo: "declaracion", paso_id: p.id, estado: null, capa: null, actor: "operario:A", detalle: `declara sobre «${p.titulo}»`, declarado: texto});
+      let v;
+      if (p.tipo_evidencia === "sensor") {
+        const leido = sensores[p.sensor.id];
+        v = leido === undefined ? ["no_verificado", `sin lectura de ${p.sensor.id}`]
+          : leido === p.sensor.espera ? ["verificado", `${p.sensor.id} = ${leido}, que es lo que el paso exige`]
+          : ["en_conflicto", `el operario declaró «${texto}» y ${p.sensor.id} = ${leido}, se esperaba ${p.sensor.espera}`];
+        agregar({tipo: "veredicto", paso_id: p.id, estado: v[0], capa: 1, actor: "sistema", detalle: v[1], evidencia: {tipo: "sensor"}});
+      } else if (p.tipo_evidencia === "camara") {
+        const pct = Math.round(confianza * 100) + "%";
+        v = si ? ["verificado", `la cámara responde que sí (${pct})`] : ["en_conflicto", `el operario declaró «${texto}» y la cámara responde que no (${pct})`];
+        agregar({tipo: "veredicto", paso_id: p.id, estado: v[0], capa: 3, actor: "sistema", detalle: v[1], evidencia: {tipo: "camara", confianza}});
+      } else {
+        agregar({tipo: "veredicto", paso_id: p.id, estado: "verificado", capa: null, actor: "sistema", detalle: `lo cerró una persona declarando «${texto}»`, evidencia: null});
+      }
+      return nuevos;
+    },
+    calificacion() {
+      const ultimo = {};
+      eventos.forEach(ev => { if (ev.tipo === "veredicto" && ev.paso_id) ultimo[ev.paso_id] = ev; });
+      const partes = Object.values(ultimo).map(calificarEvento)
+        .concat(peligrosAhora().map(([, aviso]) => ({nivel: "error", certeza: 1, capa: 1, motivos: [aviso]})))
+        .concat(Object.entries(activas()).filter(([k]) => !k.startsWith("seguridad:")).map(([, ev]) => calificarEvento(ev)));
+      return {...peor(partes), avisos: avisosDe(partes)};
+    },
+  };
+}
+
+// ─── 8 · La celda en 3D: cajas y prismas en un canvas, sin librerías ─────────
+const m4 = {
+  mul(a, b) { const o = new Array(16); for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) o[r * 4 + c] = a[r * 4] * b[c] + a[r * 4 + 1] * b[4 + c] + a[r * 4 + 2] * b[8 + c] + a[r * 4 + 3] * b[12 + c]; return o; },
+  t: (x, y, z) => [1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, 0, 0, 0, 1],
+  s: k => [k, 0, 0, 0, 0, k, 0, 0, 0, 0, k, 0, 0, 0, 0, 1],
+  ry: a => { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, 0, 0, 0, 1]; },
+  rz: a => { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, 0, s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; },
+  rx: a => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0, 1]; },
+  ap: (m, p) => [m[0] * p[0] + m[1] * p[1] + m[2] * p[2] + m[3], m[4] * p[0] + m[5] * p[1] + m[6] * p[2] + m[7], m[8] * p[0] + m[9] * p[1] + m[10] * p[2] + m[11]],
+  de: (...ms) => ms.reduce((a, b) => m4.mul(a, b)),
+};
+const v3 = {
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+};
+function caja(w, h, d) {   // apoyada en y = 0, centrada en x y z
+  const x = w / 2, z = d / 2;
+  return {v: [[-x, 0, -z], [x, 0, -z], [x, h, -z], [-x, h, -z], [-x, 0, z], [x, 0, z], [x, h, z], [-x, h, z]],
+    f: [[0, 1, 2, 3], [4, 5, 6, 7], [0, 4, 7, 3], [1, 5, 6, 2], [3, 2, 6, 7], [0, 1, 5, 4]]};
+}
+function prisma(r, h, n = 14) {
+  const v = [], f = [];
+  for (let i = 0; i < n; i++) { const a = i / n * 2 * Math.PI; v.push([r * Math.cos(a), 0, r * Math.sin(a)]); }
+  for (let i = 0; i < n; i++) v.push([v[i][0], h, v[i][2]]);
+  for (let i = 0; i < n; i++) f.push([i, (i + 1) % n, n + (i + 1) % n, n + i]);
+  f.push([...Array(n).keys()], [...Array(n).keys()].map(i => n + i));
+  return {v, f};
+}
+const COL = {blanco: [244, 244, 238], servo: [44, 44, 56], mesa: [128, 140, 158], piso: [246, 247, 249], pcb: [38, 92, 150], plata: [196, 200, 206],
+  piel: [224, 168, 120], azul: [47, 95, 158], bandeja: [242, 200, 60], pieza: [200, 70, 50], negro: [30, 34, 40], oro: [214, 170, 60], verde: [63, 191, 133],
+  gris: [150, 158, 170], rojo: [220, 70, 60], fantasma: [150, 158, 170]};
+
+const celda = {
+  az: -0.62, el: 0.4, dist: 142, objetivo: [8, 21, 0], fase: 0.25, sel: "us", poligonos: [],
+  ot: null, energia: "viva", bloqueo: "retirado", distOperario: 100, pinza: "suelta", pieza: "bandeja",
+  regla: true, corte: true, cortePendiente: false, cortadoPorEsp: false, guion: 0, bitacora: [],
+};
+const zonaDe = () => celda.distOperario < DISENO.dist_max ? "ocupada" : "libre";
+
+function escenaBrazo() {
+  const o = [], S = celda, viva = S.energia === "viva";
+  const pon = (id, malla, M, c, fantasma) => o.push({id, malla, M, c, fantasma});
+  // mesa y celda
+  pon("tablero", caja(190, 1.2, 96), m4.t(34, -1.2, 0), COL.mesa);
+  // brazo
+  const giro = 0.9 * Math.cos(2 * Math.PI * S.fase), baja = Math.abs(Math.cos(2 * Math.PI * S.fase));
+  const a1 = -(0.34 + 0.22 * baja), a2 = -(1.1 + 0.42 * baja);
+  const lleva = S.fase < 0.5, falla = S.pinza === "suelta";
+  const abre = !viva ? 1.5 : falla ? 1.5 : (lleva ? 0.7 : 1.7);
+  const E = m4.s(1.5);   // el brazo, a una escala que se vea
+  pon("brazo", prisma(8.5, 1.6), E, COL.blanco);
+  const Mcol = m4.de(E, m4.t(0, 1.6, 0), m4.ry(giro));
+  pon("brazo", caja(5.4, 7, 5.4), Mcol, COL.blanco);
+  pon("brazo", caja(2.6, 2.6, 6.2), m4.de(Mcol, m4.t(0, 5.6, 0)), COL.servo);
+  const M1 = m4.de(Mcol, m4.t(0, 7, 0), m4.rz(a1));
+  pon("brazo", caja(3, 13, 3.6), M1, COL.blanco);
+  pon("brazo", caja(2.6, 2.6, 5.6), m4.de(M1, m4.t(0, 11.4, 0)), COL.servo);
+  const M2 = m4.de(M1, m4.t(0, 13, 0), m4.rz(a2));
+  pon("brazo", caja(2.6, 12, 3.2), M2, COL.blanco);
+  const Mg = m4.de(M2, m4.t(0, 12, 0));
+  pon("brazo", caja(3.6, 2.6, 5), Mg, COL.blanco);
+  pon("brazo", caja(2.4, 2.4, 2.4), m4.de(Mg, m4.t(-2.6, 0.2, 0)), COL.servo);
+  pon("brazo", caja(1, 5.4, 1.1), m4.de(Mg, m4.t(0, 2.6, abre)), COL.blanco);
+  pon("brazo", caja(1, 5.4, 1.1), m4.de(Mg, m4.t(0, 2.6, -abre)), COL.blanco);
+  const punta = m4.ap(Mg, [0, 6.4, 0]);
+  // bandejas donde toma y deja, y la pieza
+  const R = 23.2, zA = R * Math.sin(-0.9), xA = R * Math.cos(0.9);
+  pon("util", caja(9, 0.6, 9), m4.t(xA, 0, -zA), COL.bandeja);
+  pon("util", caja(9, 0.6, 9), m4.t(xA, 0, zA), COL.bandeja);
+  const pieza = S.pieza === "suelo" ? m4.de(m4.t(19, 0, 3), m4.ry(0.5)) : (viva && lleva && !falla ? m4.t(punta[0], punta[1] - 3.4, punta[2]) : m4.t(xA, 0.6, zA));
+  pon("util", caja(3.4, 3.4, 3.4), pieza, COL.pieza);
+  // la caja de la celda: no está construida
+  [[-24, -24], [24, -24], [-24, 24], [24, 24]].forEach(([x, z]) => pon("celda", caja(1, 46, 1), m4.t(x, 0, z), COL.fantasma, true));
+  pon("celda", caja(49, 1, 1), m4.t(0, 46, -24), COL.fantasma, true); pon("celda", caja(49, 1, 1), m4.t(0, 46, 24), COL.fantasma, true);
+  pon("celda", caja(1, 1, 49), m4.t(-24, 46, 0), COL.fantasma, true); pon("celda", caja(1, 1, 49), m4.t(24, 46, 0), COL.fantasma, true);
+  pon("celda", caja(1, 46, 49), m4.t(-24, 0, 0), COL.fantasma, true);   // la pared del fondo
+  // ultrasonido en el costado de la entrada, mirando hacia afuera
+  const Mu = m4.t(24.6, 9, -19);
+  pon("us", caja(0.5, 2.6, 5.4), Mu, COL.pcb);
+  pon("us", prisma(1.05, 1.5, 10), m4.de(Mu, m4.t(0.25, 1.3, -1.4), m4.rz(-Math.PI / 2)), COL.plata);
+  pon("us", prisma(1.05, 1.5, 10), m4.de(Mu, m4.t(0.25, 1.3, 1.4), m4.rz(-Math.PI / 2)), COL.plata);
+  pon("us", caja(0.6, 9, 0.6), m4.t(24.6, 0, -19), COL.gris);
+  // relé con el bloqueo: falta el relé; el pulsador existe sin montar
+  const rx = -40, rz = -8;
+  pon("rele", caja(9, 5, 7), m4.t(rx, 0, rz), COL.fantasma, true);
+  pon("rele", caja(2, 1, 2), m4.t(rx - 2.6, 5, rz), viva ? COL.verde : COL.negro);
+  pon("puls", caja(1.6, 1.1, 1.6), m4.t(rx + 2.2, 5, rz), COL.negro);
+  if (S.bloqueo === "puesto") {
+    pon("puls", caja(4.2, 3.8, 1.8), m4.t(rx + 2.2, 6.1, rz), COL.oro);
+    pon("puls", caja(0.6, 2.8, 0.6), m4.t(rx + 0.9, 9.9, rz), COL.plata); pon("puls", caja(0.6, 2.8, 0.6), m4.t(rx + 3.5, 9.9, rz), COL.plata);
+    pon("puls", caja(3.2, 0.6, 0.6), m4.t(rx + 2.2, 12.7, rz), COL.plata);
+  }
+  // ESP32 sobre la protoboard y DHT22
+  pon("esp", caja(17, 1, 5.6), m4.t(-40, 0, -32), COL.blanco);
+  pon("esp", caja(5.2, 0.7, 2.7), m4.t(-43, 1, -32), COL.negro);
+  pon("esp", caja(0.5, 0.4, 0.5), m4.t(-41, 1.7, -31.3), COL.rojo);
+  pon("dht", caja(1.6, 0.3, 3.6), m4.t(-28, 0, -34), COL.negro);
+  pon("dht", caja(1.6, 0.9, 2.2), m4.t(-28, 0.3, -33.5), COL.blanco);
+  // cámara cenital: el celular sobre un soporte
+  if (S.el < 1.2) {   // desde arriba se mira por la cámara: no se dibuja a sí misma
+    pon("cam", caja(0.8, 60, 0.8), m4.t(-27, 0, -27), COL.gris);
+    pon("cam", caja(27, 0.8, 0.8), m4.t(-13.5, 60, -27), COL.gris); pon("cam", caja(0.8, 0.8, 27), m4.t(0, 60, -13.5), COL.gris);
+    pon("cam", caja(8, 0.9, 15.5), m4.t(0, 59, 0), COL.negro);
+  }
+  // el operario: antebrazo y mano que entran por el costado abierto
+  const x0 = 24 + S.distOperario;
+  pon("operario", caja(34, 4.6, 5.4), m4.t(x0 + 22, 8, 2), COL.azul);
+  pon("operario", caja(6.5, 2, 6), m4.t(x0 + 2, 9.4, 2), COL.piel);
+  pon("operario", caja(3.6, 1.1, 1.3), m4.t(x0 - 2.6, 10, 3.6), COL.piel); pon("operario", caja(3.6, 1.1, 1.3), m4.t(x0 - 2.8, 10, 2), COL.piel);
+  pon("operario", caja(3.6, 1.1, 1.3), m4.t(x0 - 2.6, 10, 0.4), COL.piel);
+  return o;
+}
+const ROTULOS = {brazo: [[-5, 41, 0], "Brazo"], us: [[24.6, 15, -19], "Ultrasonido · zona"], rele: [[-47, 9, -4], "Relé · energia"], puls: [[-40, 24, -8], "Pulsador · bloqueo"],
+  esp: [[-44, 6, -32], "ESP32"], dht: [[-20, 6, -40], "DHT22"], cam: [[0, 64, 0], "Cámara cenital"], celda: [[24, 49, 24], "Celda"], operario: null};
+
+function pintarCelda3d() {
+  const cv = $("c3d"); if (!cv || !cv.clientWidth) return;
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const S = celda, T0 = S.objetivo;
+  const cam = [T0[0] + S.dist * Math.cos(S.el) * Math.sin(S.az), T0[1] + S.dist * Math.sin(S.el), T0[2] + S.dist * Math.cos(S.el) * Math.cos(S.az)];
+  const fwd = v3.norm(v3.sub(T0, cam)), der = v3.norm(v3.cross(fwd, [0, 1, 0])), arr = v3.cross(der, fwd), f = H * 1.25;
+  const proy = p => { const d = v3.sub(p, cam), z = v3.dot(d, fwd); return z < 2 ? null : [W / 2 + f * v3.dot(d, der) / z, H / 2 - f * v3.dot(d, arr) / z, z]; };
+  const fondo = g.createLinearGradient(0, 0, 0, H); fondo.addColorStop(0, "#1b2634"); fondo.addColorStop(1, "#111822");
+  g.fillStyle = fondo; g.fillRect(0, 0, W, H);
+  const luz = v3.norm([0.35, 0.85, 0.4]), caras = [];
+  escenaBrazo().forEach(o => {
+    const vs = o.malla.v.map(p => m4.ap(o.M, p)), centro = vs.reduce((a, p) => [a[0] + p[0], a[1] + p[1], a[2] + p[2]], [0, 0, 0]).map(x => x / vs.length);
+    o.malla.f.forEach(idx => {
+      const pts = idx.map(i => vs[i]), c = pts.reduce((a, p) => [a[0] + p[0], a[1] + p[1], a[2] + p[2]], [0, 0, 0]).map(x => x / pts.length);
+      let n = v3.norm(v3.cross(v3.sub(pts[1], pts[0]), v3.sub(pts[2], pts[0])));
+      if (v3.dot(n, v3.sub(c, centro)) < 0) n = n.map(x => -x);
+      if (!o.fantasma && v3.dot(n, v3.sub(cam, c)) <= 0) return;
+      const p2 = pts.map(proy); if (p2.some(p => !p)) return;
+      const k = 0.5 + 0.5 * Math.max(0, v3.dot(n, luz));
+      caras.push({id: o.id, p2, z: p2.reduce((a, p) => a + p[2], 0) / p2.length, color: o.c.map(x => Math.round(x * k)), fantasma: o.fantasma});
+    });
+  });
+  // la zona que vigila el ultrasonido, pintada sobre la mesa
+  const ocupada = zonaDe() === "ocupada", lim = 24 + DISENO.dist_max;
+  const zona = [[24, 0.05, -22], [lim, 0.05, -34], [lim, 0.05, 34], [24, 0.05, 22]].map(proy);
+  caras.sort((a, b) => (b.id === "tablero") - (a.id === "tablero") || b.z - a.z);
+  const trazo = (p2, relleno, borde, dash) => { g.beginPath(); p2.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); if (relleno) { g.fillStyle = relleno; g.fill(); } if (borde) { g.setLineDash(dash || []); g.strokeStyle = borde; g.stroke(); g.setLineDash([]); } };
+  S.poligonos = [];
+  let zonaPintada = false;
+  const pintarZona = () => { if (zonaPintada || zona.some(p => !p)) return; zonaPintada = true; g.lineWidth = 2; trazo(zona, ocupada ? "rgba(240,101,90,.34)" : "rgba(63,191,133,.2)", ocupada ? "#f0655a" : "#3fbf85", [7, 5]); };
+  caras.forEach(c => {
+    if (c.id !== "tablero") pintarZona();   // la zona va justo encima del tablero
+    g.lineWidth = c.id === S.sel && !c.fantasma ? 1.6 : 1;
+    if (c.fantasma) trazo(c.p2, c.id === S.sel ? "rgba(255,217,122,.2)" : "rgba(200,208,222,.13)", c.id === S.sel ? "rgba(255,217,122,.9)" : "rgba(214,222,234,.5)");
+    else trazo(c.p2, `rgb(${c.color})`, c.id === S.sel ? "#ffb300" : `rgba(0,0,0,.25)`);
+    S.poligonos.push(c);
+  });
+  pintarZona();
+  // el campo de la cámara cenital
+  g.lineWidth = 1; g.setLineDash([5, 6]); g.strokeStyle = "rgba(127,166,221,.55)";
+  const lente = S.el < 1.2 ? proy([0, 59, 0]) : null;
+  [[-22, 0, -22], [22, 0, -22], [22, 0, 22], [-22, 0, 22]].forEach(p => { const q = proy(p); if (q && lente) { g.beginPath(); g.moveTo(lente[0], lente[1]); g.lineTo(q[0], q[1]); g.stroke(); } });
+  g.setLineDash([]);
+  // rótulos
+  g.font = "600 13px Inter, -apple-system, sans-serif"; g.textBaseline = "middle";
+  const rot = (p3, texto, color) => { const p = proy(p3); if (!p) return; const w = g.measureText(texto).width + 14; g.fillStyle = color || "rgba(20,28,38,.86)"; g.beginPath(); g.roundRect(p[0] - w / 2, p[1] - 11, w, 22, 7); g.fill(); g.fillStyle = "#fff"; g.textAlign = "center"; g.fillText(texto, p[0], p[1] + 0.5); };
+  Object.entries(ROTULOS).forEach(([id, r]) => { if (r && !(id === "cam" && S.el >= 1.2)) rot(r[0], r[1], id === S.sel ? "rgba(154,100,0,.95)" : null); });
+  rot([24 + DISENO.dist_max * 0.55, 1, 38], `zona: ${DISENO.dist_max} cm`, ocupada ? "rgba(180,35,24,.92)" : "rgba(47,125,91,.92)");
+  rot([24 + S.distOperario + 20, 16, 2], `operario a ${Math.round(S.distOperario)} cm`, ocupada ? "rgba(180,35,24,.92)" : null);
+  if (S.cortadoPorEsp) rot([8, 50, 0], "el ESP32 cortó los servos", "rgba(180,35,24,.95)");
+}
+function tocarCelda(e) {
+  const r = $("c3d").getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const dentro = p2 => { let d = false; for (let i = 0, j = p2.length - 1; i < p2.length; j = i++) if ((p2[i][1] > y) !== (p2[j][1] > y) && x < (p2[j][0] - p2[i][0]) * (y - p2[i][1]) / (p2[j][1] - p2[i][1]) + p2[i][0]) d = !d; return d; };
+  for (const fantasma of [false, true])   // primero lo sólido: los postes punteados de la celda no tapan lo que hay detrás
+    for (let i = celda.poligonos.length - 1; i >= 0; i--) { const c = celda.poligonos[i]; if (!!c.fantasma === fantasma && !["tablero", "util"].includes(c.id) && dentro(c.p2)) return c.id; }
+  return null;
+}
+
+// qué es cada pieza, qué manda y en qué va (el estado es el de la tabla del FLUJO)
+const PIEZAS = {
+  brazo: ["El brazo", "Impreso en 3D, con servomotores y pinza. Es la máquina: toma una pieza de una bandeja y la deja en la otra, en ciclo. Mientras tiene energía se mueve; al cortarla queda quieto.", "Existe", null],
+  us: ["Ultrasonido en la entrada", `Mide la distancia a lo que se acerca por el costado abierto de la celda. El edge la vuelve estado, con el mismo filtro que hoy usa para <code>operario</code>: bajo ${DISENO.dist_max} cm en dos lecturas seguidas, la zona está ocupada.`, "Existe. Hoy <code>edge.py</code> manda ese estado con el nombre <code>operario</code>; el nombre <code>zona</code> es de este borrador", "zona"],
+  rele: ["Relé en la alimentación de los servos", "Corta la energía del brazo, y su estado es el sensor de energía. Es la pieza que hace que el corte se cierre con un sensor y no con la cámara.", "Falta", "energia"],
+  puls: ["Pulsador en el bloqueo", "Marca que el candado está puesto en el interruptor.", "El pulsador existe; falta montarlo", "bloqueo"],
+  esp: ["ESP32", "Lee los sensores y los manda al edge por serial. En el diseño del ADR-0010 además actúa: si la zona está ocupada con la energía viva, abre el relé por su cuenta y después lo informa.", "Existe; falta que actúe. El firmware de hoy solo lee", null],
+  dht: ["DHT22", "Temperatura y humedad. No cierra ningún paso de esta pauta: su número va a la capa 2, que lo compara con su historia.", "Existe y el firmware lo lee", null],
+  cam: ["Cámara cenital", "El celular sobre la celda. Confirma los pasos que se ven, como el ajuste de la pinza. Desde arriba se cubren más fases que de frente (REFERENCIAS 9).", "Existe; falta que el detector reconozca la pinza y la herramienta, así que hoy ese paso lo cierra la capa 3", "camara"],
+  celda: ["La caja de la celda", "Simula la celda de trabajo del brazo y deja un solo costado abierto, que es el que vigila el ultrasonido.", "Falta", null],
+  operario: ["El operario", "Mueve el control de distancia o arrastra su mano hacia la celda. Lo que haga se evalúa contra el paso en curso.", "—", null],
+};
+function pintarPieza() {
+  const [t, que, estado, sensor] = PIEZAS[celda.sel] || PIEZAS.brazo;
+  const cierra = sensor === "camara" ? BRAZO.pasos.filter(p => p.tipo_evidencia === "camara") : BRAZO.pasos.filter(p => p.sensor && p.sensor.id === sensor);
+  $("celda-pieza").innerHTML = `<h3>${t}</h3><p class="nota">${que}</p><p class="nota"><b>Estado:</b> ${estado}.</p>`
+    + (sensor && sensor !== "camara" ? `<p class="nota"><b>Lo que manda:</b> <code>${sensor}</code> = ${[...new Set(cierra.map(p => p.sensor.espera))].map(v => `<code>${v}</code>`).join(" o ")}.</p>` : "")
+    + (cierra.length ? `<p class="nota"><b>Los pasos que cierra:</b> ${cierra.map(p => `${p.orden}. ${esc(p.titulo)}${p.sensor ? ` (<code>${p.sensor.id} = ${p.sensor.espera}</code>)` : ""}`).join(" · ")}.</p>` : "");
+}
+
+// el ciclo: una vez por segundo el edge manda sus tres estados; el ESP32, si corresponde, corta primero
+function tic() {
+  const S = celda;
+  if (S.cortePendiente) { S.cortePendiente = false; if (S.energia === "viva") { S.energia = "cortada"; S.cortadoPorEsp = true; } }
+  if (S.ot) [["energia", S.energia], ["bloqueo", S.bloqueo], ["zona", zonaDe()]].forEach(([k, v]) => S.ot.lectura(k, v).forEach(ev => S.bitacora.push(ev)));
+  if (S.corte && zonaDe() === "ocupada" && S.energia === "viva") S.cortePendiente = true;
+  pintarCelda();
+}
+function abrirOtCelda() {
+  celda.ot = Motor(BRAZO, celda.regla ? [...PELIGROS, DISENO.regla] : PELIGROS);
+  celda.bitacora = [{id: 0, tipo: "ot_abierta", paso_id: null, estado: null, capa: null, actor: "supervisor:X", detalle: `OT abierta desde ${BRAZO.nombre} v${BRAZO.version} sobre ${BRAZO.equipo}`}];
+}
+function declararCelda(texto, si) { if (celda.ot) celda.ot.declarar(texto, si, K.CONF_FORZADA).forEach(ev => celda.bitacora.push(ev)); pintarCelda(); }
+function reiniciarCelda() { Object.assign(celda, {ot: null, energia: "viva", bloqueo: "retirado", distOperario: 100, pinza: "ajustada", pieza: "bandeja", cortePendiente: false, cortadoPorEsp: false, guion: 0, bitacora: []}); pintarCelda(); }
+const GUION = [
+  ["El brazo trabaja", "Toma la pieza de una bandeja y la deja en la otra. Tiene energía, nadie está cerca y todavía no hay ninguna OT.", () => reiniciarCelda()],
+  ["Falla: suelta la pieza, y se abre la OT", "La pinza quedó floja. Se abre la OT desde la pauta del brazo y el edge manda el estado de reposo: energía viva, bloqueo retirado y zona libre. Ninguna de esas lecturas adelanta un paso, así que no hay ninguna alerta.", () => { celda.pinza = "suelta"; celda.pieza = "suelo"; abrirOtCelda(); tic(); }],
+  ["El operario se salta el corte y se acerca", "Entra a la zona con el brazo energizado. El paso en curso, cortar la energía, es un control crítico, y llega la lectura que cierra «Entrar a la celda»: la capa 1 lo lee como orden invertido. Con la regla nueva entra además la alerta de persona en la zona con energía viva.", () => { celda.distOperario = 26; tic(); }],
+  ["Se corta la energía", "El ESP32 abre el relé por su cuenta, sin esperar al servidor, y después lo informa. Esa lectura cierra el paso 1 y resuelve las alertas. Como el operario sigue dentro y falta el bloqueo, la capa 1 abre otra alerta de orden.", () => { celda.cortePendiente = false; if (celda.energia === "viva") { celda.energia = "cortada"; celda.cortadoPorEsp = celda.corte; } tic(); }],
+  ["Pone el bloqueo", "El pulsador marca el candado puesto: se cierra el paso 2 y la alerta de orden se resuelve. La misma tanda de lecturas trae la zona ocupada, que ahora sí es el paso en curso, y lo cierra.", () => { celda.bloqueo = "puesto"; celda.cortadoPorEsp = false; tic(); }],
+  ["Ajusta la pinza y la cámara lo confirma", "El paso es de cámara y el detector no conoce la pinza, así que lo cierra la capa 3: el operario declara y el juez responde la pregunta visual sobre el cuadro de la cámara cenital.", () => { celda.pinza = "ajustada"; declararCelda("pinza ajustada", true); }],
+  ["Sale de la celda", "La zona vuelve a estar libre y cierra el paso 5, que es control crítico: nadie adentro antes de retirar el bloqueo.", () => { celda.distOperario = 100; tic(); }],
+  ["Retira el bloqueo", "El pulsador marca el candado retirado. Es el paso de la pauta que deshace ese control a propósito, así que no cuenta como control perdido.", () => { celda.bloqueo = "retirado"; tic(); }],
+  ["Devuelve la energía", "El relé cierra y el brazo vuelve a moverse. La reposición fue en el orden inverso al de la puesta: salir, bloqueo, energía.", () => { celda.energia = "viva"; celda.pieza = "bandeja"; tic(); }],
+  ["Prueba un ciclo y lo confirma", "El último paso lo cierra la palabra del operario, y el evento deja dicho que fue una persona. La pauta queda completa.", () => declararCelda("el brazo completó un ciclo", true)],
+  ["Con el brazo trabajando, alguien vuelve a entrar", "Ya no hay ningún paso pendiente, así que orden invertido y control deshecho no tienen qué mirar. Solo una regla de seguridad, que no depende del paso en curso, puede avisar aquí. Apaga la regla nueva y repite el guion para ver la diferencia.", () => { celda.distOperario = 26; tic(); }],
+  ["El ESP32 corta otra vez", "Con el corte local el brazo se detiene igual, aunque el servidor no tenga la regla o no haya red.", () => { celda.cortePendiente = false; if (celda.corte && celda.energia === "viva") { celda.energia = "cortada"; celda.cortadoPorEsp = true; } tic(); }],
+];
+function pintarCelda() {
+  const S = celda, m = S.ot, c = m ? m.calificacion() : null, e = m ? m.estados() : {}, act = m ? m.actual() : null;
+  $("celda-dist").value = S.distOperario; $("celda-dist-o").textContent = `${Math.round(S.distOperario)} cm · zona ${zonaDe()}`;
+  $("celda-energia").textContent = S.energia === "viva" ? "Cortar la energía" : "Devolver la energía";
+  $("celda-bloqueo").textContent = S.bloqueo === "puesto" ? "Retirar el bloqueo" : "Poner el bloqueo";
+  $("celda-estado").innerHTML = `<span class="badge ${S.energia === "viva" ? "warning" : "gris"}">energia = ${S.energia}</span> <span class="badge ${S.bloqueo === "puesto" ? "ok" : "gris"}">bloqueo = ${S.bloqueo}</span> <span class="badge ${zonaDe() === "ocupada" ? "error" : "gris"}">zona = ${zonaDe()}</span>`;
+  $("celda-regla").checked = S.regla; $("celda-corte").checked = S.corte;
+  const [gt, gx] = GUION[S.guion];
+  $("celda-guion-t").textContent = `${S.guion + 1} de ${GUION.length} · ${gt}`; $("celda-guion-x").textContent = gx;
+  $("celda-guion-atras").disabled = S.guion === 0; $("celda-guion-sigue").disabled = S.guion === GUION.length - 1;
+  $("celda-ot").textContent = m ? "OT ot-brazo · pauta del brazo v1 (borrador)" : "Sin OT: lo que mande el edge no entra a ninguna bitácora";
+  $("celda-nivel").className = "badge " + (c ? c.nivel : "gris"); $("celda-nivel").textContent = c ? c.nivel : "sin OT";
+  const cerro = {}; S.bitacora.forEach(ev => { if (ev.paso_id && ev.estado) cerro[ev.paso_id] = ev; });
+  $("celda-pasos").innerHTML = BRAZO.pasos.map(p => {
+    const est = e[p.id] || "no_verificado", ev = cerro[p.id], cap = ev ? (ev.capa ? "capa " + ev.capa : "persona") : (p.sensor ? `${p.sensor.id} = ${p.sensor.espera}` : p.tipo_evidencia);
+    return `<li class="${m ? est : ""} ${act && act.id === p.id ? "actual" : ""} ${p.control_critico ? "critico" : ""}"><span class="num">${p.orden}</span><span class="tit">${esc(p.titulo)}</span><span class="cap">${cap}</span></li>`;
+  }).join("");
+  $("celda-avisos").innerHTML = !c ? "" : c.avisos.length ? c.avisos.map(a => `<div class="aviso ${a.nivel}"><b>${a.nivel.toUpperCase()}</b> · ${a.capa ? "capa " + a.capa : "persona"} · certeza ${corto(a.certeza)}<small>${a.motivos.map(esc).join(" · ")}</small></div>`).join("") : `<div class="sin">${act ? "Sin avisos activos." : "Pauta completa, sin avisos."}</div>`;
+  $("celda-bitacora").innerHTML = S.bitacora.map(ev => {
+    const cal = m && ev.id ? m.calificarEvento(ev) : null;
+    return `<li class="${cal ? cal.nivel : ""}"><span class="id">${ev.id + 1}</span><span class="tipo">${ev.tipo}</span>${ev.paso_id ? " " + ev.paso_id : ""}${ev.estado ? " · " + ev.estado : ""}${cal ? ` <span class="badge ${cal.nivel}">${cal.nivel}</span>` : ""}<br>${esc(ev.detalle)}<small>${ev.capa ? "capa " + ev.capa + " · " : ""}${ev.actor}</small></li>`;
+  }).join("") || "<li>Todavía no hay OT. Avanza el guion o provoca la falla.</li>";
+  if (S.bitacora.length !== S.largoPintado) { S.largoPintado = S.bitacora.length; $("celda-bitacora").scrollTop = $("celda-bitacora").scrollHeight; }
+  pintarPieza(); pintarCelda3d();
+  document.body.dataset.celda = [S.guion, c ? c.nivel : "sin-ot", act ? act.id : (m ? "completa" : "-"), S.energia, S.bloqueo, zonaDe(), S.bitacora.length].join(":");
+}
+(function prepararCelda() {
+  const cv = $("c3d"); let arrastra = null, movido = false;
+  cv.addEventListener("pointerdown", e => { arrastra = [e.clientX, e.clientY, celda.az, celda.el]; movido = false; try { cv.setPointerCapture(e.pointerId); } catch (_) { /* un puntero sintético no se captura */ } });
+  cv.addEventListener("pointermove", e => { if (!arrastra) return; const dx = e.clientX - arrastra[0], dy = e.clientY - arrastra[1]; if (Math.abs(dx) + Math.abs(dy) > 4) movido = true; celda.az = arrastra[2] - dx * 0.008; celda.el = Math.min(1.5, Math.max(0.06, arrastra[3] + dy * 0.008)); pintarCelda3d(); });
+  cv.addEventListener("pointerup", e => { if (!movido) { const id = tocarCelda(e); if (id) { celda.sel = id; pintarCelda(); } } arrastra = null; });
+  const VISTAS = {general: [-0.62, 0.4, 142, [8, 21, 0]], arriba: [0, 1.5, 150, [14, 0, 0]], entrada: [1.2, 0.26, 150, [4, 16, 0]], cerca: [-0.5, 0.34, 84, [2, 18, 0]]};
+  $("celda-vistas").addEventListener("click", e => { const b = e.target.closest("[data-vista]"); if (!b) return; [celda.az, celda.el, celda.dist, celda.objetivo] = VISTAS[b.dataset.vista]; $("celda-zoom").value = celda.dist; pintarCelda(); });
+  $("celda-zoom").addEventListener("input", e => { celda.dist = +e.target.value; pintarCelda3d(); });
+  $("celda-dist").addEventListener("input", e => { celda.distOperario = +e.target.value; celda.cortadoPorEsp = false; tic(); });
+  $("celda-energia").addEventListener("click", () => { celda.energia = celda.energia === "viva" ? "cortada" : "viva"; celda.cortadoPorEsp = false; celda.cortePendiente = false; tic(); });
+  $("celda-bloqueo").addEventListener("click", () => { celda.bloqueo = celda.bloqueo === "puesto" ? "retirado" : "puesto"; tic(); });
+  $("celda-falla").addEventListener("click", () => { celda.pinza = "suelta"; celda.pieza = "suelo"; if (!celda.ot) abrirOtCelda(); tic(); });
+  $("celda-ajustar").addEventListener("click", () => { celda.pinza = "ajustada"; declararCelda("pinza ajustada", true); });
+  $("celda-mal").addEventListener("click", () => declararCelda("pinza ajustada", false));
+  $("celda-probar").addEventListener("click", () => declararCelda("el brazo completó un ciclo", true));
+  $("celda-regla").addEventListener("change", e => { celda.regla = e.target.checked; const g = celda.guion; reiniciarCelda(); for (let i = 1; i <= g; i++) { celda.guion = i; GUION[i][2](); } pintarCelda(); });
+  $("celda-corte").addEventListener("change", e => { celda.corte = e.target.checked; celda.cortePendiente = false; pintarCelda(); });
+  $("celda-guion-sigue").addEventListener("click", () => { if (celda.guion < GUION.length - 1) { celda.guion++; GUION[celda.guion][2](); pintarCelda(); } });
+  $("celda-guion-atras").addEventListener("click", () => { const g = celda.guion - 1; reiniciarCelda(); for (let i = 1; i <= g; i++) { celda.guion = i; GUION[i][2](); } pintarCelda(); });
+  $("celda-guion-cero").addEventListener("click", reiniciarCelda);
+  let antes = 0, acumulado = 0;
+  (function cuadro(t) {
+    if (pantallaActual === "celda" && !RAPIDO) {
+      const dt = Math.min(0.1, (t - antes) / 1000 || 0);
+      if (celda.energia === "viva") celda.fase = (celda.fase + dt / 7) % 1;
+      acumulado += dt; if (acumulado >= 1) { acumulado = 0; tic(); } else pintarCelda3d();
+    }
+    antes = t; requestAnimationFrame(cuadro);
+  })(0);
+  window.addEventListener("resize", () => { if (pantallaActual === "celda") pintarCelda3d(); });
+})();
+AL_ENTRAR.celda = paso => { const n = parseInt(paso, 10); if (n > 0 && n < GUION.length && celda.guion === 0) for (let i = 1; i <= n; i++) { celda.guion = i; GUION[i][2](); } pintarCelda(); };
+
+// ─── 9 · Requerimientos contra evidencia ────────────────────────────────────
+const brazoPasa = k => DISENO[k].filter(c => c.sello === "pasa").length;
+const REQ = [
+  ["RF", "Convertir el protocolo del cliente en una pauta comprobable", "CONTEXTO, el flujo; ADR-0006", "falta", "<code>protocolos.extraer_pasos</code> es un stub y las pautas se escriben a mano. El diseño está en la pantalla 10."],
+  ["RF", "Una persona aprueba la pauta, y cada cambio es una versión nueva", "ADR-0003; PRD de servicios, CA8 y CA9", "cumple", "<code>catalogo.crear_pauta</code> y <code>aprobar_pauta</code>, con sus tests. Se prueba en la pantalla 1."],
+  ["RF", "La OT nace de una pauta aprobada y guarda qué versión ejecuta", "ADR-0006; CA8", "cumple", "<code>catalogo.abrir_ot</code>. Pantalla 2."],
+  ["RF", "La OT se abre sola con un disparo (calendario, pedido o falla) y una persona la confirma", "ADR-0006; guion del demo en el FLUJO", "falta", "Hoy se abre a mano con <code>POST /ot/{id}/abrir</code>. Detectar que el brazo falló es <code>Brecha</code> en el ADR-0010."],
+  ["RF", "Lo que manda un edge entra a una sola OT, o a ninguna", "PRD de servicios, O1; CA1 y CA2", "cumple", "La sesión. Pantalla 2."],
+  ["RF", "Cada paso se cierra con su evidencia y en el orden de la pauta", "LOGICA; ADR-0002 y ADR-0004; CA3, CA4 y CA13", "cumple", "Patrones A y F de la matriz, en las tres industrias y en el borrador del brazo."],
+  ["RF", "Interrumpe cuando se salta un control crítico, cuando se deshace o cuando hay un peligro", "LOGICA; REFERENCIAS 40, 44, 47, 48 y 52", "parcial", "Cumple en minería, eléctrica y construcción. En el brazo, el orden y el control ya responden con el borrador de pauta; la regla de persona en la zona con energía viva no está en <code>reglas.py</code>."],
+  ["RF", "Una persona puede cerrar un paso contra la evidencia, con rastro", "LOGICA; CA16", "cumple", "<code>servicios.confirmar_por_persona</code>. Patrón A6 y escenario del caso LOTO."],
+  ["RF", "La bitácora solo agrega filas, cada una con su evidencia", "LOGICA; CA10", "cumple", "Sobre <code>eventos</code> no hay <code>UPDATE</code> ni <code>DELETE</code>."],
+  ["RF", "Cada evento y cada OT llevan su calificación, con certeza y motivos", "ADR-0007; PRD de servicios, O3", "cumple", "<code>scoring.py</code>. Pantalla 5."],
+  ["RF", "La pantalla lo recibe todo al instante y recupera lo perdido al reconectar", "PRD de servicios, O2; CA6 y CA7", "cumple", "<code>bus.py</code> y <code>WS /ot/{id}/stream</code>."],
+  ["RF", "El operario recibe el aviso por voz en el momento", "CONTEXTO; guion del demo", "falta", "No está en <code>main</code>. Según el SEGUIMIENTO, la voz vive en la rama <code>feat/front-y-servicios</code>."],
+  ["RF", "El turno siguiente retoma desde el último paso verificado y puede preguntar", "CONTEXTO; LOGICA, relevo de turno", "parcial", "El estado se lee de la bitácora y el traspaso se firma. El resumen y las preguntas son stubs sin modelo."],
+  ["RF", "Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta", "CONTEXTO; LOGICA; REFERENCIAS 33", "parcial", "<code>reglas.propuesta_de_mejora</code> las agrupa por paso desde dos OT. Aprobar la propuesta y crear la versión sigue siendo a mano."],
+  ["RF", "El equipo se detiene por su cuenta cuando alguien entra con la energía viva", "ADR-0010", "falta", "Pide el relé y que el firmware actúe. Está simulado en la pantalla 8."],
+  ["RNF", "Un modelo nunca contradice a un sensor, y solo la capa 1 interrumpe", "ADR-0004; LOGICA", "cumple", "Por construcción en <code>scoring.py</code>, y el patrón F5 lo comprueba en cada caso."],
+  ["RNF", "El corte de seguridad no depende de la red ni del servidor", "ADR-0010", "falta", "Es la razón del corte local en el ESP32. Sin construir."],
+  ["RNF", "El mismo contrato sirve a cualquier flujo operacional", "ADR-0009; ADR-0005", "parcial", "Cuatro pautas de <code>datos/</code> y el borrador del brazo corren con el mismo código, sin tocar <code>contratos.py</code>. Todas son de mantenimiento: otro tipo de flujo es <code>Brecha</code>."],
+  ["RNF", "Cada estación queda aislada de las demás", "PRD de servicios, riesgos; ADR-0007", "falta", "La tabla <code>sensores</code> es global: dos estaciones con el mismo <code>sensor_id</code> se pisan, y una regla de peligro de una industria puede dispararse con sensores de otra."],
+  ["RNF", "Tasa de falsas alarmas conocida", "CONTEXTO, qué falta; ADR-0002 y ADR-0004", "sin medir", "El eval de capa 3 tiene 24 escenas y ninguna imagen. La capa 2 se calibró con un solo ESP32."],
+  ["RNF", "Latencia del aviso de punta a punta conocida", "LOGICA y ADR-0004, pendientes", "sin medir", "<code>Brecha</code>. También falta medir cuánto tarda el ESP32 en abrir el relé."],
+  ["RNF", "Lo que pasó se puede auditar: quién, cuándo, con qué evidencia y con qué versión de la pauta", "ADR-0003; LOGICA", "parcial", "La bitácora, la versión y el cuadro de evidencia están. Qué exige una auditoría y cuánto se guarda es <code>Brecha</code>."],
+  ["RNF", "Sobrevive a un reinicio y a un corte de conexión", "ADR-0007", "parcial", "La bitácora y las alertas activas sobreviven; el edge reintenta. Qué pasa sin conectividad en terreno es <code>Brecha</code>."],
+  ["RNF", "Funciona sin tocar el control del equipo", "CONTEXTO, plug and play", "cumple", "Sensores propios y la cámara. El relé del ADR-0010 se presenta como integración opcional."],
+  ["RNF", "El gasto de una API pública está acotado", "SEGUIMIENTO, servicios", "cumple", "Tope de llamadas al juez por proceso y de edges con video."],
+  ["RNF", "Solo quien debe puede operar", "PRD de servicios, riesgos", "parcial", "La clave del equipo protege mover un edge. El resto de la API es pública."],
+  ["RNF", "Cada criterio se puede correr contra un servidor vivo", "PRD de servicios, O8; ADR-0008", "cumple", `<code>/casos</code>, la matriz en una caja aislada y ${DISENO.tests.corridos} tests.`],
+];
+const ESTADO_REQ = {cumple: "ok", parcial: "warning", falta: "error", "sin medir": "gris"};
+let reqFiltro = "todos";
+function pintarRequisitos() {
+  const cuenta = e => REQ.filter(r => r[3] === e).length;
+  $("req-filtros").innerHTML = [["todos", `Todos · ${REQ.length}`], ...Object.keys(ESTADO_REQ).map(e => [e, `${e} · ${cuenta(e)}`])].map(([id, t]) => `<button data-req="${id}" aria-pressed="${reqFiltro === id}">${t}</button>`).join("");
+  $("req-tabla").innerHTML = REQ.filter(r => reqFiltro === "todos" || r[3] === reqFiltro).map(([tipo, que, fuente, estado, evidencia]) =>
+    `<tr><td><span class="ev ${tipo === "RF" ? "c1" : "c3"}">${tipo === "RF" ? "funcional" : "no funcional"}</span></td><td><b>${que}</b></td><td class="nota">${fuente}</td><td><span class="badge ${ESTADO_REQ[estado]}">${estado}</span></td><td class="nota">${evidencia}</td></tr>`).join("");
+  document.body.dataset.requisitos = `${reqFiltro}:${$("req-tabla").children.length}`;
+}
+$("req-filtros").addEventListener("click", e => { const b = e.target.closest("[data-req]"); if (b) { reqFiltro = b.dataset.req; pintarRequisitos(); } });
+let matrizSel = "B3";
+function pintarMatriz() {
+  const cols = [["MIN", "Minería"], ["ELE", "Eléctrica"], ["CON", "Construcción"]];
+  const sello = s => `<span class="celda-m ${s}">${s === "pasa" ? "pasa" : "no pasa"}</span>`;
+  const hoy = Object.fromEntries(DISENO.brazo_hoy.map(c => [c.patron, c])), regla = Object.fromEntries(DISENO.brazo_regla.map(c => [c.patron, c]));
+  $("matriz").innerHTML = `<thead><tr><th>Patrón de ejecución</th><th>Capa</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}<th>Brazo, con el código de hoy</th><th>Brazo, con la regla nueva</th></tr></thead><tbody>`
+    + DISENO.patrones.map(p => `<tr data-patron="${p.codigo}" class="${p.codigo === matrizSel ? "sel" : ""}"><td><b>${p.codigo}</b> ${esc(p.nombre)}</td><td>${p.barrera}</td>${cols.map(c => `<td>${sello(DISENO.matriz[c[0]][p.codigo])}</td>`).join("")}<td>${sello(hoy[p.codigo].sello)}</td><td>${sello(regla[p.codigo].sello)}</td></tr>`).join("") + "</tbody>";
+  const p = DISENO.patrones.find(x => x.codigo === matrizSel), h = hoy[matrizSel], r = regla[matrizSel];
+  const falta = c => Object.entries(c.no_cumple).map(([k, v]) => `<code>${k}</code>: se esperaba ${esc(JSON.stringify(v.esperado))} y se obtuvo ${esc(JSON.stringify(v.obtenido))}`).join("; ");
+  $("matriz-detalle").className = "resultado " + (r.sello === "pasa" ? (h.sello === "pasa" ? "ok" : "warning") : "error");
+  $("matriz-detalle").innerHTML = `<b class="gr">${p.codigo} · ${esc(p.nombre)}</b> · capa ${p.barrera} · ${esc(p.pregunta)}<br>En el brazo: cuando ${esc(h.cuando)}, entonces ${esc(h.entonces)}.`
+    + (h.sello !== "pasa" ? `<br><b>Con el código de hoy no pasa.</b> ${falta(h)}.` : "<br>Con el código de hoy pasa.")
+    + (h.sello !== "pasa" && r.sello === "pasa" ? " Con la regla nueva pasa." : "") + (r.sello !== "pasa" ? ` <b>Con la regla nueva tampoco.</b> ${NOTA_PATRON[p.grupo] || ""}` : "");
+  document.body.dataset.matriz = `${matrizSel}:${h.sello}:${r.sello}`;
+}
+const NOTA_PATRON = {G: "Es la capa 2 sobre una señal de temperatura supuesta para este borrador (24,5 °C con 0,15 °C de ruido): el piso del 2 % de la mediana vale 0,49 °C y deja pasar un escalón de 1,2 °C y una deriva lenta."};
+$("matriz").addEventListener("click", e => { const tr = e.target.closest("[data-patron]"); if (tr) { matrizSel = tr.dataset.patron; pintarMatriz(); } });
+
+// ─── 10 · Diseño: de protocolo a pauta ──────────────────────────────────────
+const ETAPAS = [
+  ["recibir", "1 · Recibir", "el protocolo, con su huella", "Entra el PDF del cliente tal como lo tiene. Se guarda el archivo con su huella SHA-256 y su texto por página.",
+    "Sin modelo. La huella ata cada pauta al documento exacto del que salió: si el cliente manda una versión nueva del procedimiento, es otro protocolo.",
+    "El archivo se recupera intacto por su huella, y el mismo PDF subido dos veces no se duplica.", "Nada todavía: es la base de la trazabilidad.",
+    "ADR-0003 (cada OT guarda qué versión ejecutó); REFERENCIAS 7 reconoce que sus cambios se auditan, pero no se versionan ni se revierten."],
+  ["extraer", "2 · Extraer", "los pasos, cada uno con su cita", "Un modelo lee el documento entero y devuelve los pasos en orden, con la salida obligada a un esquema, igual que hoy lo hace el juez de cámara. Cada paso trae la cita literal y la página de donde salió.",
+    "El documento completo cabe en el contexto, así que no hay recuperación ni base vectorial: es el mismo criterio que <code>cerebro.py</code> fija para el relevo. Se corre varias veces y lo que cambia entre corridas se marca como duda para quien aprueba.",
+    "La cita de cada paso tiene que existir, letra por letra, en la página que dice. Un paso sin cita encontrada no pasa a la etapa siguiente.", "Cobertura y precisión de pasos contra la pauta de referencia; fracción de pasos con cita encontrada; acuerdo entre corridas.",
+    "REFERENCIAS 27 y 28 generan procedimientos de diagnóstico desde manuales y desde el FMEA con modelos de lenguaje; 6 trae un esquema y un benchmark para extraer información de textos de mantenimiento; 9 midió que un VLM solo describe 54,6 % de las fases y 68 % con la pauta en la mano: alcanza para un borrador. De 27, 28 y 6 solo se leyó el resumen."],
+  ["evidencia", "3 · Asignar la evidencia", "contra lo que la estación tiene", "Para cada paso se decide qué lo cierra: un sensor con su valor, la cámara con su pregunta, o la confirmación de una persona. El modelo solo puede elegir sensores y clases del inventario de la estación.",
+    "El inventario es una lista corta: cada sensor con sus valores posibles y su valor de reposo, y las clases que el detector conoce. Lo que no tiene sensor ni clase cae en cámara con pregunta visual sobre el estado final visible, o en confirmación. Los pasos que aíslan energía se proponen como control crítico.",
+    "Ningún paso puede nombrar un sensor, un valor o una clase que no esté en el inventario: eso se comprueba sin modelo.", "Evidencia correcta por paso; sensor y valor exactos; controles críticos recuperados, que es el error que más cuesta.",
+    "ADR-0004 (cada paso declara cómo se comprueba); REFERENCIAS 18 valida cada paso por su estado final; 40 pide identificar y verificar los controles críticos; el FLUJO deja como <code>Brecha</code> quién decide la evidencia de cada paso."],
+  ["validar", "4 · Validar", "sin modelo, contra reglas", "La pauta candidata pasa por el contrato que ya existe y por un validador nuevo que busca los defectos que una pauta bien formada puede tener igual.",
+    "Reglas deterministas. Las cuatro de abajo salieron de correr las pautas reales contra el código, y están probadas en este documento sobre las cinco pautas.",
+    "Cada regla tiene una pauta que la rompe y una que no. El validador corrido sobre las pautas de <code>datos/</code> no puede marcar las tres de industria, que pasan su matriz completa.", "Hallazgos por pauta; cuántos llegaron a la persona que aprueba y cuántos corrigió.",
+    "REFERENCIAS 25 pone un verificador determinista entre el modelo y la respuesta; 33 muestra que muchas desviaciones nacen de pautas mal hechas; 48 y 50 fijan que la reposición va en orden inverso, que es lo que el validador comprueba."],
+  ["simular", "5 · Simular", "los 24 patrones, antes de aprobar", "La pauta candidata corre en la caja aislada que ya existe, contra los mismos patrones con que se prueban las tres industrias: bien hecha, con un paso saltado, con un control deshecho, con la cámara en contra.",
+    "Es <code>app/escenarios.py</code> tal cual, con la pauta nueva como una industria más. Lo que hace falta declarar por pauta es poco: sus dos primeros controles, cómo se llega al paso de cámara y su condición de peligro.",
+    "La pauta bien hecha termina sin ninguna alerta, y cada control crítico saltado o deshecho abre la suya. Así se probó el borrador del brazo en la pantalla 9.", "Patrones que pasan sobre 24, y cuáles no.",
+    "ADR-0008 (escenarios en una caja aislada); PRD de escenarios por industria."],
+  ["aprobar", "6 · Aprobar", "una persona, con las dudas a la vista", "La persona que aprueba ve cada paso junto a su cita, las dudas del modelo, los hallazgos del validador y el resultado de la simulación. Corrige lo que haga falta y aprueba. Cada corrección queda guardada.",
+    "Es la aprobación que ya existe, con una entrada mejor. Las correcciones son el dato más valioso del sistema: dicen dónde se equivoca el extractor con un cliente real.",
+    "Sin aprobación no hay OT: eso ya lo garantiza <code>catalogo.abrir_ot</code>.", "Correcciones por paso y tiempo hasta aprobar, comparado con escribir la pauta a mano.",
+    "ADR-0003 (una persona aprueba); REFERENCIAS 2 (el sistema sugiere, el técnico confirma) y 8 (con sugerencias y confirmación humana el etiquetado tomó 88 % menos tiempo, con menos exactitud que un experto)."],
+];
+let etapaSel = "extraer";
+function pintarEtapas() {
+  $("dis-etapas").innerHTML = ETAPAS.map(([id, t, sub], i) => `${i ? '<div class="fl">→</div>' : ""}<button class="eslabon stubito" data-etapa="${id}" aria-pressed="${id === etapaSel}"><b>${t}</b><small>${sub}</small></button>`).join("");
+  const [, t, , que, como, prueba, mide, fuente] = ETAPAS.find(e => e[0] === etapaSel);
+  $("dis-etapa").innerHTML = `<h3>${t}</h3><p>${que}</p><div class="dos"><div><h4>Cómo</h4><p class="nota">${como}</p><h4>Cómo se prueba</h4><p class="nota">${prueba}</p></div><div><h4>Qué se mide</h4><p class="nota">${mide}</p><h4>De dónde sale</h4><p class="nota">${fuente}</p></div></div>`;
+  document.body.dataset.etapa = etapaSel;
+}
+$("dis-etapas").addEventListener("click", e => { const b = e.target.closest("[data-etapa]"); if (b) { etapaSel = b.dataset.etapa; pintarEtapas(); } });
+
+const REGLAS_V = {
+  V1: ["Control crítico que se cierra con la cámara", "«Control crítico deshecho» solo vigila pasos con sensor. Un control que se cierra con la cámara se puede deshacer sin aviso.", "Es el hueco de la pauta LOTO, y la razón del ADR-0010."],
+  V2: ["Un paso espera el valor de reposo de su sensor", "Si la lectura que cierra un paso posterior ya llega en reposo, la alerta de orden salta sola al abrir la OT.", "Corrido contra el código con la pauta LOTO: salta en el mismo lote en que el operario llega."],
+  V3: ["La reposición no va en orden inverso", "Lo que se pone en un orden se retira en el orden contrario.", "REFERENCIAS 48 (RD 614/2001) y 50 (29 CFR 1910.269)."],
+  V4: ["<code>capa_minima</code> no coincide con lo que cierra el paso", "El campo se guarda y nadie lo lee: el validador es quien puede darle sentido.", "Pantalla 1."],
+};
+let valSel = "loto";
+const NOMBRE_VAL = {brazo: "Brazo (borrador)", loto: "LOTO de escritorio", correa: "Correa CT-01", celda: "Celda MT-07", excavadora: "Excavadora EX-12"};
+function pintarValidador() {
+  $("val-pautas").innerHTML = Object.keys(DISENO.validador).map(k => `<button data-val="${k}" aria-pressed="${k === valSel}">${NOMBRE_VAL[k]}<small>${DISENO.validador[k].length ? DISENO.validador[k].length + " hallazgos" : "sin hallazgos"}</small></button>`).join("");
+  const h = DISENO.validador[valSel];
+  $("val-salida").innerHTML = h.length ? h.map(x => `<div class="alerta warn"><b>${x.regla} · ${REGLAS_V[x.regla][0]}</b> · paso ${x.paso}<small>${esc(x.texto)}</small></div>`).join("")
+    : '<div class="alerta ok">Ninguna de las cuatro reglas marca esta pauta.</div>';
+  $("val-reposo").innerHTML = "Valor de reposo declarado para esta pauta: " + Object.entries(DISENO.reposo[valSel]).map(([k, v]) => `<code>${k} = ${v}</code>`).join(" ");
+  document.body.dataset.validador = `${valSel}:${h.length}`;
+}
+$("val-pautas").addEventListener("click", e => { const b = e.target.closest("[data-val]"); if (b) { valSel = b.dataset.val; pintarValidador(); } });
+$("val-reglas").innerHTML = Object.entries(REGLAS_V).map(([k, [t, que, fuente]]) => `<tr><td><b>${k}</b></td><td><b>${t}.</b> ${que}</td><td class="nota">${fuente}</td></tr>`).join("");
+
+// cómo se mide un extractor: una pauta de referencia y los errores típicos de una extracción
+const ERRORES = [
+  ["omite", "Se le pasa un paso", "no trae «Reinstalar la guarda», que es control crítico"],
+  ["inventa", "Inventa un paso", "agrega «Limpiar la zona», que el protocolo no dice"],
+  ["orden", "Cambia el orden", "pone «Retirar la guarda» antes de «Cortar la energía y bloquear»"],
+  ["evidencia", "Elige mal la evidencia", "deja «Retirar la guarda» como cámara, habiendo sensor"],
+  ["critico", "No marca un control crítico", "«Retirar el bloqueo y energizar» sale sin la marca"],
+  ["sensor", "Amarra el sensor equivocado", "«Cortar la energía y bloquear» queda con el sensor de la guarda"],
+];
+const errPuestos = new Set(["omite", "evidencia"]);
+function medirExtraccion() {
+  const oro = PAUTAS.correa.pasos, E = errPuestos;
+  let cand = oro.map(p => JSON.parse(JSON.stringify(p)));
+  if (E.has("evidencia")) Object.assign(cand[1], {tipo_evidencia: "camara", sensor: null, pregunta_visual: "¿La guarda está retirada?"});
+  if (E.has("critico")) cand[4].control_critico = false;
+  if (E.has("sensor")) cand[0].sensor = {id: "guarda", espera: "cerrada"};
+  if (E.has("omite")) cand = cand.filter(p => p.id !== "p4");
+  if (E.has("orden")) [cand[0], cand[1]] = [cand[1], cand[0]];
+  if (E.has("inventa")) cand.splice(Math.min(3, cand.length), 0, {id: "x1", titulo: "Limpiar la zona", tipo_evidencia: "confirmacion", control_critico: false});
+  const porId = Object.fromEntries(oro.map(p => [p.id, p])), alineados = cand.filter(p => porId[p.id]);
+  const orden = alineados.map(p => porId[p.id].orden);
+  let pares = 0, bien = 0;
+  for (let i = 0; i < orden.length; i++) for (let j = i + 1; j < orden.length; j++) { pares++; if (orden[i] < orden[j]) bien++; }
+  const igual = (a, b) => JSON.stringify(a || null) === JSON.stringify(b || null);
+  const evid = alineados.filter(p => p.tipo_evidencia === porId[p.id].tipo_evidencia).length;
+  const sens = alineados.filter(p => porId[p.id].sensor).filter(p => igual(p.sensor, porId[p.id].sensor)).length, conSensor = oro.filter(p => p.sensor).length;
+  const criticos = oro.filter(p => p.control_critico), critOk = criticos.filter(p => alineados.some(q => q.id === p.id && q.control_critico)).length;
+  const ediciones = (oro.length - alineados.length) + (cand.length - alineados.length) + (pares - bien)
+    + alineados.filter(p => p.tipo_evidencia !== porId[p.id].tipo_evidencia).length
+    + alineados.filter(p => p.tipo_evidencia === porId[p.id].tipo_evidencia && !igual(p.sensor, porId[p.id].sensor)).length
+    + alineados.filter(p => !!p.control_critico !== !!porId[p.id].control_critico).length;
+  return {cand, oro, alineados: alineados.length, pares, bien, evid, sens, conSensor, criticos: criticos.length, critOk, ediciones};
+}
+function pintarMedicion() {
+  $("med-errores").innerHTML = ERRORES.map(([id, t, que]) => `<label class="parte ${errPuestos.has(id) ? "puesta" : ""}"><input type="checkbox" data-err="${id}" ${errPuestos.has(id) ? "checked" : ""}><span>${t}<small>${que}</small></span></label>`).join("");
+  const m = medirExtraccion(), fr = (a, b) => `<b>${a} de ${b}</b>`;
+  $("med-tabla").innerHTML = [
+    ["Cobertura", fr(m.alineados, m.oro.length), "pasos de la referencia que la extracción trae"],
+    ["Precisión", fr(m.alineados, m.cand.length), "pasos extraídos que existen en la referencia"],
+    ["Orden", m.pares ? fr(m.bien, m.pares) : "—", "pares de pasos que quedaron en el orden correcto"],
+    ["Evidencia", fr(m.evid, m.alineados), "pasos con el tipo de evidencia correcto"],
+    ["Sensor y valor", fr(m.sens, m.conSensor), "pasos de sensor con el sensor y el valor exactos"],
+    ["Controles críticos", fr(m.critOk, m.criticos), "controles críticos que llegaron marcados"],
+    ["Correcciones", `<b>${m.ediciones}</b>`, "cambios que la persona tendría que hacer para dejarla igual a la referencia"],
+  ].map(([k, v, que]) => `<tr><td><b>${k}</b></td><td>${v}</td><td class="nota">${que}</td></tr>`).join("");
+  const pierde = m.critOk < m.criticos;
+  $("med-veredicto").className = "resultado " + (pierde ? "error" : m.ediciones ? "warning" : "ok");
+  $("med-veredicto").innerHTML = pierde ? `<b class="gr">No se aprueba esta versión del extractor.</b> Pierde ${m.criticos - m.critOk} de ${m.criticos} controles críticos. Es la regla propuesta: un extractor que deja caer un control crítico de la referencia no sale, aunque el resto esté perfecto.`
+    : m.ediciones ? `<b class="gr">Sirve como borrador.</b> No pierde controles críticos y deja ${m.ediciones} correcciones a la persona que aprueba.` : `<b class="gr">Igual a la referencia.</b> Sin correcciones.`;
+  document.body.dataset.medicion = [m.alineados, m.cand.length, m.bien, m.pares, m.evid, m.sens, m.critOk, m.ediciones].join(":");
+}
+$("med-errores").addEventListener("change", e => { const id = e.target.dataset.err; if (!id) return; e.target.checked ? errPuestos.add(id) : errPuestos.delete(id); pintarMedicion(); });
+
+// números de la pantalla 9, sacados de las corridas
+$("req-numeros").innerHTML = [
+  [DISENO.tests.corridos, "tests del repo", DISENO.tests.resultado.startsWith("OK") ? "todos en verde" : DISENO.tests.resultado],
+  [`${Object.values(DISENO.matriz).reduce((a, m) => a + Object.values(m).filter(s => s === "pasa").length, 0)} de ${Object.values(DISENO.matriz).reduce((a, m) => a + Object.keys(m).length, 0)}`, "escenarios", "minería, eléctrica y construcción"],
+  [`${brazoPasa("brazo_hoy")} de ${DISENO.brazo_hoy.length}`, "patrones en el brazo", "con el código de hoy"],
+  [`${brazoPasa("brazo_regla")} de ${DISENO.brazo_regla.length}`, "patrones en el brazo", "con la regla nueva"],
+  [`${DISENO.con_regla_pasan} de ${DISENO.con_regla_total}`, "escenarios de las tres industrias", "siguen pasando con la regla nueva"],
+].map(([n, t, sub]) => `<div class="numero" style="--tono:var(--stub)"><b>${n}</b><span>${t}</span><span>${sub}</span></div>`).join("");
+$("dis-brazo").textContent = `${brazoPasa("brazo_hoy")} de ${DISENO.brazo_hoy.length} patrones con el código de hoy y ${brazoPasa("brazo_regla")} de ${DISENO.brazo_regla.length} con la regla nueva`;
+$("celda-pauta-n").textContent = BRAZO.pasos.length;
+$("celda-regla-t").textContent = DISENO.regla[1];
 // ─── Arranque ───────────────────────────────────────────────────────────────
 reiniciarCat(); pintarCat(); pintarPauta(); pintarSi(0); dibujarRecorrido(); pintarSeguridad(); pintarCapa2(); pintarDet(true);
 pintarC3("sinkey"); pintarFrescura(); pintarCalificacion(); pintarSistema(); pintarLoto();
+pintarRequisitos(); pintarMatriz(); pintarEtapas(); pintarValidador(); pintarMedicion(); pintarCelda();
 navegar();
 document.body.dataset.listo = "1";
 </script>
