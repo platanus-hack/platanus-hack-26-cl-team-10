@@ -4,6 +4,7 @@
 import type {
   Calificacion,
   CalificacionOt,
+  Deteccion,
   EstadoGeneral,
   EstadoOt,
   Evento,
@@ -279,6 +280,13 @@ export class Mundo {
     for (const ot of this.ots.values()) {
       if (!ot.sesion) continue
       this.publicar(ot.id, { tipo: 'lectura', edge_id: ot.sesion.edge_id, sensor_id: sensorId, valor, ts: new Date().toISOString() })
+    }
+  }
+
+  /** Lo que la cámara de una estación reconoce ahora, como el mensaje `detecciones` del stream. */
+  ver(edgeId: string, objetos: Deteccion[]): void {
+    for (const ot of this.ots.values()) {
+      if (ot.sesion?.edge_id === edgeId) this.publicar(ot.id, { tipo: 'detecciones', edge_id: edgeId, ts: Date.now() / 1000, objetos })
     }
   }
 

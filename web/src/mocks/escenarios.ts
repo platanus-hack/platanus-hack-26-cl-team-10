@@ -296,7 +296,7 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
   }),
 
   // Para el supervisor: Ana y Bruno ejecutan a la vez, cada uno en su estación, y en la de Bruno
-  // la cámara duda del candado. Su tarjeta se enciende en amarillo. /supervisor?escenario=atencion
+  // la cámara duda del rodillo. Su tarjeta se enciende en amarillo. /supervisor?escenario=atencion
   atencion: como({
     preparar(m) {
       otsBase(m)
@@ -306,10 +306,18 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
       const [a, b] = m.pauta.pasos
       cerrarYa(m, 'ot-13', a)
       cerrarYa(m, 'ot-13', b)
-      m.agregar('ot-13', {
-        tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto en el tablero.',
-        evidencia: { tipo: 'camara', clave: 'camara:candado' },
-      })
+      veredicto(m, 'ot-13', m.pauta.pasos[2], 'en_conflicto', 2, 'La cámara no ve el rodillo nuevo en su lugar.', { tipo: 'camara' })
+    },
+    // La cámara de Bruno reconoce cosas todo el rato: una con certeza y otra dudosa.
+    alIniciar(m, t) {
+      const mirar = () => {
+        m.ver('edge-1', [
+          { clase: 'soda can', conf: 0.91, caja: [0.36, 0.42, 0.6, 0.78] },
+          { clase: 'person', conf: 0.62, caja: [0.62, 0.12, 0.93, 0.9] },
+        ])
+        t(500, mirar)
+      }
+      t(500, mirar)
     },
   }),
 

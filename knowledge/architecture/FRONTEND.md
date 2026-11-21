@@ -154,7 +154,15 @@ export const tema = createTheme({
 
 **Incidentes.** Una OT abierta en «Detente» es un incidente. Arriba de la lista aparece una barra roja con cada uno (OT, operador y el motivo más grave) y «Ver en vivo». Cuando aparece uno nuevo suena una campana corta (Web Audio, sin archivos); los que ya estaban al entrar no suenan. El supervisor solo mira: no confirma ni detiene nada.
 
-**Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde la tarjeta de la OT, desde su id o desde «Ver». Arriba, las alertas abiertas en rojo, con «Ver en la bitácora». A un lado, la cámara de la estación (`GET /edge/{edge}/video.mjpg`, el video que el edge manda al servidor) y los sensores, con el que espera el paso en curso marcado; si la OT no corre en una estación, lo dice. Al otro, los pasos y la bitácora completa, lo último arriba. Todo llega por el mismo WebSocket de la OT que usa la ejecución, pero esta vista no abre sesión ni declara: mirar no cambia la bitácora.
+**Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde la tarjeta de la OT, desde su id o desde «Ver». Trabaja como el monitor de Jona, pero en claro como el resto de la app.
+
+- **Arriba,** quién la ejecuta, con su nombre en grande, y en qué estación corre y desde cuándo. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora».
+- **Cámara.** El video de la estación (`GET /edge/{edge}/video.mjpg`, el que el edge manda al servidor). Encima va lo que la cámara reconoce, en cajas: blancas si está segura (80 % o más) y amarillas si duda; se borran si pasa 1 s sin detecciones. También el paso en curso, y el marco toma el color de la verificación. Si la OT no corre en una estación, lo dice.
+- **Verificación.** Por qué la OT dice «Atención» o «Detente»: cada aviso activo de `calificacion.avisos`, quién lo dice (el sensor o la cámara) y con cuánta certeza. Es lo que explica una tarjeta encendida de la lista.
+- **Sensores,** con el que espera el paso en curso marcado, y **pasos.** Un paso en conflicto va en rojo solo si lo dice el sensor; la duda de la cámara va en amarillo.
+- **Bitácora** completa, abajo y a todo el ancho, lo último arriba.
+
+Todo llega por el mismo WebSocket de la OT que usa la ejecución, pero esta vista no abre sesión ni declara: mirar no cambia la bitácora.
 
 **Supervisor.** Ve todas las OT con su estado general, su operador y su avance. Asigna las que no tienen operador y reasigna las entregadas. Reasignar es P0: sin eso no hay relevo.
 

@@ -11,6 +11,9 @@ import { conectarStream } from '../ejecucion/stream'
 
 export type Acceso = 'verificando' | 'ok' | 'denegado'
 
+/** Sin detecciones nuevas en este tiempo, lo que se veía es viejo y se borra (como en el monitor). */
+export const VISTAS_VIVEN_MS = 1000
+
 export function useOtEnVivo(otId: string) {
   const [s, dispatch] = useReducer(reducir, inicial)
   const [acceso, setAcceso] = useState<Acceso>('verificando')
@@ -19,6 +22,7 @@ export function useOtEnVivo(otId: string) {
   const [sesion, setSesion] = useState<Sesion | null>(null)
   const [sensores, setSensores] = useState<Record<string, string>>({})
   const [vistas, setVistas] = useState<Deteccion[]>([])
+  const borrarVistas = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const actual = useRef(s)
   useEffect(() => {
@@ -66,7 +70,7 @@ export function useOtEnVivo(otId: string) {
 
   useEffect(() => {
     if (acceso !== 'ok') return
-    return conectarStream(
+    const cerrar = conectarStream(
       (desde) => urlStream(config.API_URL, otId, desde),
       () => actual.current.ultimoId,
       {
@@ -93,12 +97,18 @@ export function useOtEnVivo(otId: string) {
               break
             case 'detecciones':
               setVistas(m.objetos)
+              clearTimeout(borrarVistas.current)
+              borrarVistas.current = setTimeout(() => setVistas([]), VISTAS_VIVEN_MS)
               break
           }
         },
         conexion: (conexion) => dispatch({ tipo: 'conexion', conexion }),
       },
     )
+    return () => {
+      cerrar()
+      clearTimeout(borrarVistas.current)
+    }
   }, [acceso, otId, refrescarEstado, leerDetalle])
 
   return { s, acceso, detalle, pauta, sesion, sensores, vistas }

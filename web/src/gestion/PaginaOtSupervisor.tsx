@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Center, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, ThemeIcon, Title } from '@mantine/core'
+import { alpha, Badge, Box, Button, Center, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, ThemeIcon, Title } from '@mantine/core'
 import {
   IconAlertTriangle,
   IconArrowLeft,
@@ -6,12 +6,13 @@ import {
   IconCircleDashed,
   IconHandStop,
   IconPointFilled,
+  IconUser,
   IconVideoOff,
   IconX,
 } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import type { EstadoOt, Evento, Pauta, PasoEstado } from '../api/tipos'
+import type { Calificacion, CalificacionOt, Deteccion, EstadoOt, Evento, Nivel, Pauta, PasoEstado } from '../api/tipos'
 import { config } from '../config'
 import { queDice, tituloDe } from '../ejecucion/alertas'
 import { FranjaSinConexion } from '../ejecucion/Avisos'
@@ -23,6 +24,7 @@ import { Encabezado, EstadoBadge, Pagina, VerificacionBadge } from './ui'
 import { useOtEnVivo } from './useOtEnVivo'
 
 const hora = (ts: string) => new Date(ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+const horaCorta = (ts: string) => new Date(ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })
 
 /** /supervisor/ot/:id — una OT en vivo para el supervisor: cámara, sensores, pasos y bitácora. Solo mira. */
 export function PaginaOtSupervisor() {
@@ -75,11 +77,75 @@ function Incidentes({ alertas, ot, onVer }: { alertas: Evento[]; ot: EstadoOt | 
   )
 }
 
-/** El video que la estación manda al servidor (`/edge/{id}/video.mjpg`), si la OT corre en una. */
-function Camara({ edgeId, vistas }: { edgeId: string | null; vistas: { clase: string; conf: number }[] }) {
-  const [fallo, setFallo] = useState(false)
+// En la estación del demo los polines son latas: el detector las llama «soda can».
+const NOMBRE_CLASE: Record<string, string> = { 'soda can': 'polín', 'red soda can': 'polín' }
+const rotuloDe = (v: Deteccion) => `${NOMBRE_CLASE[v.clase] ?? v.clase} ${Math.round(v.conf * 100)} %`
+const enPorciento = (x: number) => `${+(x * 100).toFixed(2)}%`
+/** Desde esta certeza la cámara está segura; bajo ella, la caja va en amarillo. */
+const CERTEZA_SEGURA = 0.8
+
+/** Lo que la cámara reconoce, dibujado sobre el video. Las cajas vienen de 0 a 1 respecto del cuadro. */
+function Cajas({ vistas }: { vistas: Deteccion[] }) {
   return (
-    <Paper withBorder radius="md" p="md">
+    <Box pos="absolute" inset={0} aria-hidden style={{ pointerEvents: 'none' }}>
+      {vistas.map((v, i) => {
+        if (v.caja?.length !== 4) return null
+        const [x1, y1, x2, y2] = v.caja
+        const seguro = v.conf >= CERTEZA_SEGURA
+        const color = seguro ? 'var(--mantine-color-white)' : 'var(--mantine-color-precaucion-6)'
+        return (
+          <div
+            key={i}
+            data-seguro={seguro}
+            style={{ position: 'absolute', left: enPorciento(x1), top: enPorciento(y1), width: enPorciento(x2 - x1), height: enPorciento(y2 - y1), border: `2px solid ${color}`, boxSizing: 'border-box' }}
+          >
+            <Text
+              span
+              size="xs"
+              fw={800}
+              c="dark"
+              px={6}
+              pos="absolute"
+              left={-2}
+              // Pegada al borde de arriba del video, la etiqueta va por dentro para que no se corte.
+              {...(y1 < 0.08 ? { top: -2 } : { bottom: '100%' })}
+              style={{ background: color, whiteSpace: 'nowrap' }}
+            >
+              {rotuloDe(v)}
+            </Text>
+          </div>
+        )
+      })}
+    </Box>
+  )
+}
+
+/** En qué paso va, sobre el video: quien mira la cámara sabe qué debería estar viendo. */
+function PasoSobreElVideo({ ot }: { ot: EstadoOt }) {
+  const total = ot.pasos.length
+  const actual = ot.pasos.find((p) => p.id === ot.paso_actual)
+  return (
+    <Box pos="absolute" left={0} right={0} bottom={0} px="sm" pb="xs" pt={40} c="white" style={{ background: `linear-gradient(transparent, ${alpha('var(--mantine-color-black)', 0.85)})`, pointerEvents: 'none' }}>
+      <Text size="xs" fw={700}>
+        {actual ? `Paso ${actual.orden} de ${total}` : 'Pauta completa'}
+      </Text>
+      <Text fw={800} lh={1.25}>
+        {actual ? actual.titulo : `${total} de ${total} pasos verificados`}
+      </Text>
+    </Box>
+  )
+}
+
+/**
+ * El video que la estación manda al servidor (`/edge/{id}/video.mjpg`), si la OT corre en una.
+ * Encima van lo que la cámara reconoce y el paso en curso; el marco toma el color de la verificación.
+ */
+function Camara({ edgeId, vistas, ot, nivel }: { edgeId: string | null; vistas: Deteccion[]; ot: EstadoOt; nivel: Nivel | null }) {
+  const [video, setVideo] = useState<'esperando' | 'viendo' | 'fallo'>('esperando')
+  const viendo = video === 'viendo'
+  const marco = nivel === 'error' ? 'var(--mantine-color-peligro-6)' : nivel === 'warning' ? 'var(--mantine-color-precaucion-6)' : 'transparent'
+  return (
+    <Paper component="section" aria-label="Cámara de la estación" withBorder radius="md" p="md">
       <Stack gap="sm">
         <Group justify="space-between">
           <Title order={3} size="h4">
@@ -91,32 +157,84 @@ function Camara({ edgeId, vistas }: { edgeId: string | null; vistas: { clase: st
             </Badge>
           )}
         </Group>
-        <Box pos="relative" bg="dark.7" style={{ aspectRatio: '4 / 3', borderRadius: 'var(--mantine-radius-sm)', overflow: 'hidden' }}>
-          <Center pos="absolute" inset={0} p="md">
-            <Stack align="center" gap={4}>
-              <IconVideoOff size={32} color="var(--mantine-color-gray-5)" />
-              <Text c="gray.4" ta="center" size="sm">
-                {!edgeId
-                  ? 'Esta OT no está corriendo en una estación ahora. No hay video en vivo.'
-                  : fallo
-                    ? `No llega el video de ${edgeId}.`
-                    : `Esperando el video de ${edgeId}…`}
-              </Text>
-            </Stack>
-          </Center>
-          {edgeId && !fallo && (
+        {/* Sin video el recuadro guarda su lugar en 4:3; con video, el cuadro manda y las cajas calzan justo. */}
+        <Box pos="relative" bg="dark.7" style={{ aspectRatio: viendo ? undefined : '4 / 3', border: `4px solid ${marco}`, borderRadius: 'var(--mantine-radius-sm)', overflow: 'hidden' }}>
+          {!viendo && (
+            <Center pos="absolute" inset={0} p="md">
+              <Stack align="center" gap={4}>
+                <IconVideoOff size={32} color="var(--mantine-color-gray-5)" />
+                <Text c="gray.4" ta="center" size="sm">
+                  {!edgeId
+                    ? 'Esta OT no está corriendo en una estación ahora. No hay video en vivo.'
+                    : video === 'fallo'
+                      ? `No llega el video de ${edgeId}.`
+                      : `Esperando el video de ${edgeId}…`}
+                </Text>
+              </Stack>
+            </Center>
+          )}
+          {edgeId && video !== 'fallo' && (
             <img
               src={`${config.API_URL}/edge/${encodeURIComponent(edgeId)}/video.mjpg`}
               alt={`Video en vivo de ${edgeId}`}
-              onError={() => setFallo(true)}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+              onLoad={() => setVideo('viendo')}
+              onError={() => setVideo('fallo')}
+              style={{ display: 'block', width: '100%', height: 'auto' }}
             />
           )}
+          {edgeId && <Cajas vistas={vistas} />}
+          {edgeId && <PasoSobreElVideo ot={ot} />}
         </Box>
         {edgeId && (
           <Text size="sm" c="roca.7">
-            {vistas.length ? `La cámara ve: ${vistas.map((v) => `${v.clase} (${Math.round(v.conf * 100)}%)`).join(', ')}` : 'La cámara no reconoce nada ahora.'}
+            {vistas.length ? `La cámara ve: ${vistas.map(rotuloDe).join(', ')}` : 'La cámara no reconoce nada ahora.'}
           </Text>
+        )}
+      </Stack>
+    </Paper>
+  )
+}
+
+const QUIEN_LO_DICE: Record<number, string> = { 1: 'el sensor', 2: 'la cámara', 3: 'la cámara' }
+const certezaDe = (c: Calificacion) => `${Math.round(c.certeza * 100)} % de certeza`
+
+/** Por qué la OT dice «Atención» o «Detente»: cada aviso activo, quién lo dice y con cuánta certeza. */
+function Verificacion({ calificacion }: { calificacion: CalificacionOt | null }) {
+  return (
+    <Paper component="section" aria-label="Verificación" withBorder radius="md" p="md">
+      <Stack gap="sm">
+        <Group justify="space-between">
+          <Title order={3} size="h4">
+            Verificación
+          </Title>
+          {/* Con avisos, cada uno trae su certeza; sin ellos, esta es la de «todo bien». */}
+          {calificacion && calificacion.avisos.length === 0 && (
+            <Text size="sm" c="roca.7" fw={600}>
+              {certezaDe(calificacion)}
+            </Text>
+          )}
+        </Group>
+        {!calificacion || calificacion.avisos.length === 0 ? (
+          <Text size="sm" c="roca.7">
+            Sin avisos activos.
+          </Text>
+        ) : (
+          <Stack gap={6} component="ul" style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Avisos activos">
+            {calificacion.avisos.map((a, i) => {
+              const color = a.nivel === 'error' ? 'peligro' : 'precaucion'
+              const quien = a.capa ? QUIEN_LO_DICE[a.capa] : null
+              return (
+                <Box key={i} component="li" p="xs" bg={`${color}.0`} style={{ borderLeft: `4px solid var(--mantine-color-${color}-6)`, borderRadius: 'var(--mantine-radius-sm)' }}>
+                  <Text size="sm" fw={700}>
+                    {a.motivos.join(' · ')}
+                  </Text>
+                  <Text size="xs" c="roca.7">
+                    {quien ? `Lo dice ${quien}, con ${certezaDe(a)}` : `Con ${certezaDe(a)}`}
+                  </Text>
+                </Box>
+              )
+            })}
+          </Stack>
         )}
       </Stack>
     </Paper>
@@ -197,10 +315,15 @@ function IconoPaso({ paso, actual }: { paso: PasoEstado; actual: boolean }) {
         <IconCheck size={16} />
       </ThemeIcon>
     )
+  // Rojo solo si lo dice el sensor (capa 1); la duda de la cámara es amarilla, como en la lista.
   if (paso.estado === 'en_conflicto')
-    return (
+    return paso.capa === 1 ? (
       <ThemeIcon size={26} radius="xl" color="peligro">
         <IconHandStop size={16} />
+      </ThemeIcon>
+    ) : (
+      <ThemeIcon size={26} radius="xl" color="precaucion">
+        <IconAlertTriangle size={16} />
       </ThemeIcon>
     )
   return (
@@ -404,8 +527,21 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
                 <Text fw={600}>{nombre}</Text>
                 <Text size="sm" c="roca.6">
                   {ot ? `Equipo ${ot.equipo}` : ''}
-                  {v.detalle?.operador ? `. Operador: ${nombreDe(v.detalle.operador)}` : v.detalle ? '. Sin operador' : ''}
                 </Text>
+                {/* Quién la ejecuta y dónde: lo primero que el supervisor quiere saber de una OT. */}
+                {v.detalle && (
+                  <Group gap={6} mt={6} wrap="nowrap" role="group" aria-label="Operador">
+                    <IconUser size={22} aria-hidden style={{ flexShrink: 0 }} />
+                    <Text size="lg" fw={800} fs={v.detalle.operador ? undefined : 'italic'} c={v.detalle.operador ? undefined : 'roca.6'}>
+                      {v.detalle.operador ? nombreDe(v.detalle.operador) : 'Sin operador'}
+                    </Text>
+                  </Group>
+                )}
+                {enEstacion && v.sesion && (
+                  <Text size="sm" c="roca.7">
+                    En la estación {enEstacion} desde las {horaCorta(v.sesion.desde)}
+                  </Text>
+                )}
               </Stack>
               <EnVivo conexion={s.conexion} />
             </Group>
@@ -421,16 +557,20 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
               </Stack>
             </Center>
           ) : (
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" style={{ alignItems: 'start' }}>
-              <Stack gap="lg">
-                <Camara edgeId={enEstacion} vistas={v.vistas} />
-                {enEstacion && <Sensores sensores={v.sensores} ot={ot} pauta={v.pauta} />}
-              </Stack>
-              <Stack gap="lg">
-                <Pasos ot={ot} bitacora={s.bitacora} />
-                <Bitacora bitacora={s.bitacora} ot={ot} abiertas={abiertas} elegido={elegido} />
-              </Stack>
-            </SimpleGrid>
+            <>
+              {/* Como el monitor: a un lado lo que se ve y cómo va; al otro, sensores y pasos; abajo, todo lo que pasó. */}
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" style={{ alignItems: 'start' }}>
+                <Stack gap="lg">
+                  <Camara edgeId={enEstacion} vistas={v.vistas} ot={ot} nivel={calificacion?.nivel ?? null} />
+                  <Verificacion calificacion={calificacion} />
+                </Stack>
+                <Stack gap="lg">
+                  {enEstacion && <Sensores sensores={v.sensores} ot={ot} pauta={v.pauta} />}
+                  <Pasos ot={ot} bitacora={s.bitacora} />
+                </Stack>
+              </SimpleGrid>
+              <Bitacora bitacora={s.bitacora} ot={ot} abiertas={abiertas} elegido={elegido} />
+            </>
           )}
         </Stack>
       </Pagina>

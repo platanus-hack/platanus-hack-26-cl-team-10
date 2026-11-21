@@ -299,7 +299,7 @@ describe('supervisor dashboard', () => {
   it('puts the OTs running now on top, the one that warns first', async () => {
     m.abrirSesion('ot-12', 'edge-2', 'operario:1')
     m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
-    m.agregar('ot-13', { tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto.', evidencia: { tipo: 'camara', clave: 'camara:candado' } })
+    m.agregar('ot-13', { tipo: 'veredicto', actor: 'sistema', paso_id: m.pauta.pasos[0].id, estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto.', evidencia: { tipo: 'camara' } })
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const enEjecucion = await screen.findByRole('region', { name: 'En ejecución' })
@@ -317,7 +317,7 @@ describe('supervisor dashboard', () => {
 
   it('a warning from the station lights up its card and says why, without raising the red bar', async () => {
     m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
-    m.agregar('ot-13', { tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto.', evidencia: { tipo: 'camara', clave: 'camara:candado' } })
+    m.agregar('ot-13', { tipo: 'veredicto', actor: 'sistema', paso_id: m.pauta.pasos[0].id, estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto.', evidencia: { tipo: 'camara' } })
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const ot13 = await tarjeta('ot-13')
