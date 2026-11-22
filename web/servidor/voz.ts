@@ -11,8 +11,11 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export const MODELO = 'eleven_flash_v2_5'
-/** «George», la de tts.py; se cambia con ELEVENLABS_VOICE_ID. */
-export const VOZ_POR_DEFECTO = 'JBFqnCBsd6RMkjVDRZzb'
+/**
+ * «Catalina - Chilean Spanish», de la biblioteca de ElevenLabs: acento chileno, conversacional y
+ * clara, para que el aviso suene como alguien de la faena. Se cambia con ELEVENLABS_VOICE_ID.
+ */
+export const VOZ_POR_DEFECTO = '6Gr4AVmTax1pMJO0lHRK'
 export const MAX_TEXTO = 300
 /** La URL no tiene autenticación: sin tope, cualquiera gasta los créditos pidiendo textos al azar. */
 export const MAX_GENERACIONES = 200
