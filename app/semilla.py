@@ -31,9 +31,9 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from app import acceso, catalogo, db, protocolos
+from app import acceso, catalogo, cerebro, db, protocolos
 from app.bus import Bus
-from app.contratos import TipoEvidencia
+from app.contratos import Evento, TipoEvento, TipoEvidencia
 from app.servicios import Servicios
 from app.video import Cuadro, Video
 
@@ -110,6 +110,11 @@ def _ejecutar(s: Servicios, d: dict, pauta) -> None:
             s.declarar(d["ot"], operador, f"listo: {paso.titulo.lower()}")
         observaciones(paso.orden)
     lecturas(hasta + 1)
+    if d.get("entregar"):  # cambio de turno: la OT queda sin operador y con lo hecho hasta acá, como /relevo/entregar
+        evs = db.eventos(s.cx, d["ot"])
+        s.agregar(Evento(ot_id=d["ot"], tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(), actor=operador,
+                         detalle=cerebro.resumen_determinista(cerebro.estado_de_ot(pauta, evs), evs),
+                         evidencia={"redactado_por": "codigo"}))
     s.terminar_sesion(EDGE)
 
 

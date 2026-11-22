@@ -1,0 +1,59 @@
+{
+  "id": "pauta-polin-corto",
+  "nombre": "Cambio de polín en la cinta · protocolo corto",
+  "version": 1,
+  "equipo": "cinta a escala (ESP32: motor con botón y distancia; cámara)",
+  "pasos": [
+    {
+      "id": "c1",
+      "orden": 1,
+      "titulo": "Apagar el sistema",
+      "instruccion": "Aprieta el botón para detener el motor de la cinta.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "sensor": {
+        "id": "energia",
+        "espera": "cortada"
+      }
+    },
+    {
+      "id": "c2",
+      "orden": 2,
+      "titulo": "Retirar el polín rojo",
+      "instruccion": "Saca el polín rojo, que es el que falló. En el demo los polines son latas: la cámara cierra el paso cuando deja de ver la roja.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 2,
+      "pregunta_visual": "¿Ya no se ve ninguna lata de bebida de cuerpo rojo?",
+      "deteccion": {
+        "clase": "red soda can",
+        "presente": false
+      }
+    },
+    {
+      "id": "c3",
+      "orden": 3,
+      "titulo": "Poner el polín verde",
+      "instruccion": "Pon el polín verde en el lugar donde estaba el rojo.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 2,
+      "pregunta_visual": "¿Se ve una lata de bebida de cuerpo verde en la cinta?",
+      "deteccion": {
+        "clase": "green soda can",
+        "presente": true
+      }
+    },
+    {
+      "id": "c4",
+      "orden": 4,
+      "titulo": "Encender el sistema",
+      "instruccion": "Aprieta el botón para encender el motor de la cinta.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": {
+        "id": "energia",
+        "espera": "viva"
+      }
+    }
+  ]
+}

@@ -177,9 +177,10 @@ class LasMetricas(Base):
         self.assertEqual(m["pasos"]["verificados"], sum(m["pasos"]["por_evidencia"].values()))
         self.assertEqual(m["desviaciones"]["total"], sum(m["desviaciones"]["por_clase"].values()))
         self.assertEqual(m["observaciones"]["total"], 4)
-        # 1 por desviaciones y 4 de conformidad: el rodillo junta aislar y bloquear y no comprueba energía cero, a la LOTO
-        # del escritorio le falta apagar el motor y a la de la estación, el candado (ADR-0016)
-        self.assertEqual(m["mejoras"]["abierta"], 5)
+        # 2 por desviaciones (acercarse antes del candado, y encender la cinta sin alejarse) y 4 de conformidad: el rodillo
+        # junta aislar y bloquear y no comprueba energía cero, a la LOTO del escritorio le falta apagar el motor y a la
+        # de la estación, el candado (ADR-0016)
+        self.assertEqual(m["mejoras"]["abierta"], 6)
         self.assertGreater(m["desviaciones"]["por_clase"]["seguridad"], 0)
 
     def test_un_paso_confirmado_por_persona_cuenta_como_desviacion_y_la_ot_deja_de_estar_limpia(self):
@@ -309,3 +310,83 @@ class LaEscaladaQuedaFirme(Base):
         despues = next(p for p in self.c.get("/cliente/mejoras", headers=self.carla).json() if p["id"] == pid)
         self.assertTrue(despues["escalar"])
         self.assertIn("la pauta no es la causa", despues["sugerencia"])
+
+
+class ElCambioDePolinConElProtocoloCorto(Base):
+    """El recorrido del demo (datos/pauta-polin-corto.json): la OT llega entregada después de «Apagar el sistema»; quien
+    recibe el turno saca el polín rojo, pone el verde y enciende sin alejarse. La pauta no pide alejarse: lo propone
+    Factum, cuando la alerta de esta OT se suma a las de las tres OT anteriores de la semilla."""
+
+    OT, EDGE, PROPUESTA = "ot-1022", "edge-corto", "pauta-polin-corto:v1:c4"
+    CAMBIO = "Agrega «Alejarte del equipo» antes de «Encender el sistema»"
+
+    def leer(self, sensor, valor):
+        r = self.c.post(f"/edge/{self.EDGE}/lecturas", json=[{"sensor_id": sensor, "valor": valor}]).json()[0]
+        return [e["detalle"] for e in r["eventos"] if e["tipo"] == "alerta"]
+
+    def ver(self, *clases):
+        from app import api
+        from app.servicios import DETECCIONES_MIN
+
+        s = api.servicios
+        s.video._detecciones[self.EDGE].clear()
+        for _ in range(DETECCIONES_MIN):
+            s._ultimo_juicio.clear()
+            s.recibir_detecciones(self.EDGE, {"clases": ["soda can", "red soda can", "green soda can"], "objetos": [
+                {"clase": c, "conf": 0.9, "caja": [0, 0, 1, 1]} for c in clases]})
+
+    def paso(self):
+        return self.c.get(f"/ot/{self.OT}").json()["paso_actual"]
+
+    def resumen(self):
+        return [r for r in self.c.get("/cliente/mejoras/resumen", headers=self.carla).json() if r["pauta"] == "pauta-polin-corto"]
+
+    def test_recibe_el_turno_enciende_sin_alejarse_y_factum_propone_el_paso_que_falta(self):
+        ot = next(o for o in self.c.get("/cliente/ots", headers=self.carla).json() if o["ot"] == self.OT)
+        self.assertEqual((ot["estado_general"], ot["cerrados"], ot["operador"]), ("entregada", 1, None))
+        # la historia ya juntó tres OT con la alerta, pero con cuatro en la versión todavía puede ser azar: no se avisó
+        self.assertEqual(self.resumen(), [])
+
+        self.assertEqual(self.c.post(f"/cliente/ots/{self.OT}/relevo/recibir", headers=self.ana).status_code, 200)
+        self.assertEqual(self.c.post(f"/cliente/ots/{self.OT}/sesion", json={"edge_id": self.EDGE}, headers=self.ana).status_code, 200)
+        self.assertEqual(self.leer("energia", "cortada") + self.leer("operario", "presente"), [])
+        self.assertEqual(self.paso(), "c2")
+        self.ver("red soda can", "soda can")
+        self.assertEqual(self.paso(), "c2")  # el rojo sigue en la cinta
+        self.ver("soda can")
+        self.assertEqual(self.paso(), "c3")
+        self.ver("soda can", "green soda can")
+        self.assertEqual(self.paso(), "c4")
+
+        [alerta] = self.leer("energia", "viva")  # enciende con la mano todavía en la cinta
+        self.assertTrue(alerta.startswith("PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO. Alejarse"), alerta)
+        self.assertEqual(self.paso(), "c4")  # y «Encender» no se cierra
+        self.assertEqual(self.leer("energia", "viva"), [])
+        self.assertEqual(self.paso(), "c4")
+        self.leer("operario", "ausente")
+        self.leer("energia", "viva")  # el edge repite la lectura del motor: ahora sí
+        self.assertIsNone(self.paso())
+
+        p = next(m for m in self.c.get("/cliente/mejoras", headers=self.carla).json() if m["id"] == self.PROPUESTA)
+        self.assertEqual((p["detectada"]["ot"], p["ots_con_senal"], p["aplicable"]), (self.OT, 4, True))
+        [r] = self.resumen()
+        self.assertEqual([c["que"] for c in r["cambios"]], [self.CAMBIO])
+        reporte = self.c.get(f"/cliente/ots/{self.OT}/reporte?formato=markdown", headers=self.carla).text
+        self.assertIn(f"**{self.CAMBIO}**", reporte)
+        self.assertIn("## Relevos", reporte)
+
+        v = self.c.post("/cliente/pautas/pauta-polin-corto/mejoras/aplicar", headers=self.carla).json()["version"]
+        self.assertEqual((v["version"], v["comprobacion"]["valida"]), (2, True))
+        from app import api
+        pasos = db.leer_pauta(api.cx, "pauta-polin-corto", 2).en_orden
+        self.assertEqual([(s.id, s.titulo) for s in pasos[3:]], [("c4", "Alejarte del equipo"), ("c5", "Encender el sistema")])
+        self.assertEqual((pasos[3].sensor.id, pasos[3].sensor.espera, pasos[3].control_critico), ("operario", "ausente", True))
+
+    def test_con_la_pauta_que_ya_pide_alejarse_la_propuesta_sigue_reescribiendo_el_paso(self):
+        from app import api, sugerencias
+
+        # La versión vigente: la pauta de la estación se sigue versionando y este caso no depende de cuál sea.
+        version = db.leer_pauta(api.cx, "pauta-polin-estacion").version
+        p = {"id": "x", "tipo": "desviacion", "pauta": "pauta-polin-estacion", "version": version, "paso": "e7", "ots": [],
+             "senales": {"seguridad": 2}, "aplicable": True, "por_que_no": None}
+        self.assertEqual([c["tipo"] for c in sugerencias.borrador(api.cx, p)["cambios"]], ["reescribe"])
