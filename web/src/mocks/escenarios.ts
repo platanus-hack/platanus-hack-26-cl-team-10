@@ -328,8 +328,8 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
   }),
 
   // El demo sin la estación: la OT de Ana ya se ejecutó, con un desvío de orden que corrigió. La de
-  // Bruno corre ahora y a los 6 s se desvía en el mismo paso: es la segunda, y la propuesta de mejora
-  // nace mientras el supervisor mira. Después se corrige y termina sola. /supervisor/ot/ot-13?escenario=mejora
+  // Bruno corre ahora y a los 6 s se desvía en el mismo paso: es la segunda. Después se corrige y
+  // termina sola, y al completarse el supervisor ve la propuesta de mejora. /supervisor/ot/ot-13?escenario=mejora
   mejora: como({
     preparar(m) {
       otsBase(m)

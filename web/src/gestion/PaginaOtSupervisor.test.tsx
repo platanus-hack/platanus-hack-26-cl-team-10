@@ -183,35 +183,50 @@ it('an OT of another company, or that does not exist, says so', async () => {
   expect(screen.getByRole('link', { name: 'Todas las OT' })).toHaveAttribute('href', '/supervisor')
 })
 
+/** Cierra todos los pasos que faltan: los de sensor y detección con su evidencia, el resto con la cámara. */
+function terminar(otId: string) {
+  for (const paso of PAUTA_DEMO.pasos) {
+    if (m.estado(otId).pasos.find((p) => p.id === paso.id)?.estado === 'verificado') continue
+    if (paso.sensor || paso.deteccion) cerrarSolo(m, otId, paso)
+    else m.agregar(otId, { tipo: 'veredicto', actor: 'sistema', paso_id: paso.id, estado: 'verificado', capa: 3, detalle: 'la cámara responde que sí', evidencia: { tipo: 'camara', respuesta: true, confianza: 0.9 } })
+  }
+}
+
 describe('lo que la OT deja para mejorar la pauta', () => {
   const { pendiente, adelantado } = salto(PAUTA_DEMO)!
   const propuesta = () => screen.findByRole('status', { name: 'Propuesta de mejora' })
 
-  it('when this OT is the second to deviate at the same step, the proposal shows up on its own', async () => {
+  it('the proposal waits for the OT to finish: while it runs only the alert shows, and at the end it appears on its own', async () => {
     abrir('ot-13', 'feliz', () => {
       // Otra OT ya se desvió ahí, y se corrigió.
       m.saltar('ot-12', pendiente, adelantado)
       cerrarSolo(m, 'ot-12', pendiente)
     })
     expect(await screen.findByText('En vivo')).toBeInTheDocument()
+
+    // Esta es la segunda que se desvía en el mismo paso: el servidor ya cuenta la propuesta.
+    m.saltar('ot-13', pendiente, adelantado)
+    expect(await screen.findByRole('alert', { name: 'Alertas abiertas' })).toBeInTheDocument()
+    await new Promise((listo) => setTimeout(listo, 150))
     expect(screen.queryByRole('status', { name: 'Propuesta de mejora' })).not.toBeInTheDocument()
 
-    m.saltar('ot-13', pendiente, adelantado)
-
+    terminar('ot-13')
     const aviso = await propuesta()
-    expect(within(aviso).getByText('Nació una propuesta para mejorar la pauta')).toBeInTheDocument()
+    expect(within(aviso).getByText('Con esta OT nació una propuesta para mejorar la pauta')).toBeInTheDocument()
     expect(within(aviso).getByText(`«${adelantado.titulo}» se desvió en 2 de 3 OT de la versión ${PAUTA_DEMO.version}.`)).toBeInTheDocument()
     const id = `${PAUTA_DEMO.id}:v${PAUTA_DEMO.version}:${adelantado.id}`
     expect(within(aviso).getByRole('link', { name: 'Revisar la propuesta' })).toHaveAttribute('href', `/supervisor/mejoras#${encodeURIComponent(id)}`)
   })
 
-  it('an OT that did not deviate at that step does not show the proposal of the others', async () => {
+  it('an OT that finished with no deviation at that step does not show the proposal of the others', async () => {
     abrir('ot-14', 'feliz', () => {
       m.saltar('ot-12', pendiente, adelantado)
       m.saltar('ot-13', pendiente, adelantado)
     })
     expect(await screen.findByText('En vivo')).toBeInTheDocument()
-    await waitFor(() => expect(m.eventos('ot-14').length).toBe(1))
+    terminar('ot-14')
+    expect(await screen.findByRole('button', { name: 'Ver el reporte' })).toBeInTheDocument()
+    await new Promise((listo) => setTimeout(listo, 150))
     expect(screen.queryByRole('status', { name: 'Propuesta de mejora' })).not.toBeInTheDocument()
   })
 })
@@ -263,10 +278,7 @@ describe('el reporte de la OT', () => {
     const user = userEvent.setup()
     abrir('ot-13', 'incidente')
     expect(await screen.findByRole('region', { name: 'Cámara de la estación' })).toBeInTheDocument()
-    for (const paso of PAUTA_DEMO.pasos) cerrarSolo(m, 'ot-13', paso)
-    for (const paso of PAUTA_DEMO.pasos.filter((p) => !p.sensor && !p.deteccion)) {
-      m.agregar('ot-13', { tipo: 'veredicto', actor: 'sistema', paso_id: paso.id, estado: 'verificado', capa: 3, detalle: 'la cámara responde que sí', evidencia: { tipo: 'camara', respuesta: true, confianza: 0.9 } })
-    }
+    terminar('ot-13')
     await user.click(await screen.findByRole('button', { name: 'Ver el reporte' }))
     expect(await reporte()).toBeInTheDocument()
   })

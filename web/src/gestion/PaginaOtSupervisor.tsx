@@ -506,8 +506,9 @@ function Bitacora({ bitacora, ot, abiertas, elegido }: { bitacora: Evento[]; ot:
 }
 
 /**
- * Las propuestas de mejora que esta OT alimenta. Una nace sola cuando esta OT es la segunda en
- * desviarse en el mismo paso: se ve aquí en el momento, sin recargar.
+ * Las propuestas de mejora que esta OT alimenta, que se muestran cuando la OT termina: mientras
+ * corre, lo que importa es la alerta. Si esta OT fue la segunda en desviarse en el mismo paso,
+ * la propuesta nació con ella y aparece sola al completarse, sin recargar.
  */
 function PropuestasDeMejora({ propuestas, nuevas }: { propuestas: Mejora[]; nuevas: ReadonlySet<string> }) {
   if (propuestas.length === 0) return null
@@ -520,7 +521,7 @@ function PropuestasDeMejora({ propuestas, nuevas }: { propuestas: Mejora[]; nuev
               <IconBulb size={28} color="var(--mantine-color-accion-7)" style={{ flexShrink: 0 }} />
               <Stack gap={2}>
                 <Text fw={900} size="lg">
-                  {nuevas.has(p.id) ? 'Nació una propuesta para mejorar la pauta' : 'Esta OT alimenta una propuesta para mejorar la pauta'}
+                  {nuevas.has(p.id) ? 'Con esta OT nació una propuesta para mejorar la pauta' : 'Esta OT alimenta una propuesta para mejorar la pauta'}
                 </Text>
                 <Text fw={600}>
                   «{p.titulo}» se desvió en {p.ots_con_senal} de {p.ejecuciones} OT de la versión {p.version}.
@@ -588,9 +589,10 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
   const abiertas = new Set(s.alertas.map((a) => a.id))
   // Una OT que ya estaba completa al abrirla no tiene nada en vivo: se abre en su reporte.
   const vista: Vista = elegida ?? (v.detalle?.completa ? 'reporte' : 'vivo')
-  const propuestas = (mejoras ?? []).filter(
-    (p) => p.estado === 'abierta' && p.pauta === v.detalle?.pauta && p.version === v.detalle.version && conSenal.has(p.paso),
-  )
+  // La propuesta es parte del cierre: no se muestra hasta que la OT termina, aunque el servidor ya la cuente.
+  const propuestas = ot?.completa
+    ? (mejoras ?? []).filter((p) => p.estado === 'abierta' && p.pauta === v.detalle?.pauta && p.version === v.detalle.version && conSenal.has(p.paso))
+    : []
 
   return (
     <>
