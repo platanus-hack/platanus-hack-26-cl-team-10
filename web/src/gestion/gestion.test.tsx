@@ -21,6 +21,7 @@ import { Inicio } from './Inicio'
 import { PaginaLogin } from './PaginaLogin'
 import { PaginaOperador } from './PaginaOperador'
 import { campana } from './campana'
+import { PaginaHoy } from './PaginaHoy'
 import { PaginaProtocolos } from './PaginaProtocolos'
 import { PaginaSupervisor } from './PaginaSupervisor'
 
@@ -56,6 +57,7 @@ function abrir(ruta: string) {
           <Route path="/supervisor" element={<RequiereRol rol="supervisor"><PaginaSupervisor /></RequiereRol>} />
           <Route path="/supervisor/ot/:id" element={<RequiereRol rol="supervisor"><VistaEnVivo /></RequiereRol>} />
           <Route path="/supervisor/protocolos" element={<RequiereRol rol="supervisor"><PaginaProtocolos /></RequiereRol>} />
+          <Route path="/supervisor/hoy" element={<RequiereRol rol="supervisor"><PaginaHoy /></RequiereRol>} />
           <Route path="/operador" element={<RequiereRol rol="operador"><PaginaOperador /></RequiereRol>} />
           <Route path="/ot/:id" element={<RequiereRol rol="operador"><Ejecucion /></RequiereRol>} />
           <Route path="*" element={<Inicio />} />
@@ -66,7 +68,7 @@ function abrir(ruta: string) {
 }
 
 /** La fila de una OT en la tabla del supervisor, o su tarjeta en la lista del operario. */
-const tarjeta = async (ot: string) => (await screen.findByText(ot.toUpperCase())).closest<HTMLElement>('tr, .mantine-Card-root')!
+const tarjeta = async (ot: string) => (await screen.findByText(ot.toUpperCase())).closest<HTMLElement>('tr, li, .mantine-Card-root')!
 
 /** Asigna desde el selector de la fila, como lo haría el supervisor: abre, elige el nombre. */
 async function asignar(ot: string, nombre: string, verbo = 'Asignar') {
@@ -145,16 +147,16 @@ describe('login and routes', () => {
     try {
       abrir('/login')
       await userEvent.click(screen.getByRole('button', { name: 'Entrar como Carla Muñoz' }))
-      expect(await screen.findByRole('heading', { name: 'Órdenes de trabajo' })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: 'Hoy' })).toBeInTheDocument()
     } finally {
       config.MOCK = antes
     }
   })
 
-  it('sends a signed-in supervisor from the login to supervision', async () => {
+  it('sends a signed-in supervisor from the login to «Hoy»', async () => {
     entrarComo(SUPERVISORA)
     abrir('/login')
-    expect(await screen.findByRole('heading', { name: 'Órdenes de trabajo' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Hoy' })).toBeInTheDocument()
   })
 
   it('keeps an operator out of supervision', async () => {
@@ -436,7 +438,7 @@ describe('supervisor dashboard', () => {
     const sonar = vi.spyOn(campana, 'sonar').mockImplementation(() => {})
     m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
     entrarComo(SUPERVISORA)
-    abrir('/supervisor')
+    abrir('/supervisor/hoy')
     await tarjeta('ot-13')
     expect(screen.queryByRole('alert', { name: 'Incidentes en curso' })).toBeNull()
 
@@ -466,7 +468,7 @@ describe('supervisor dashboard', () => {
     m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
     m.agregar('ot-13', { tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1, detalle: 'GUARDA ABIERTA.', evidencia: { tipo: 'sensor', clave: 'seguridad:g' } })
     entrarComo(SUPERVISORA)
-    abrir('/supervisor')
+    abrir('/supervisor/hoy')
     expect(await screen.findByRole('alert', { name: 'Incidentes en curso' })).toBeInTheDocument()
     expect(sonar).not.toHaveBeenCalled()
   })
@@ -498,6 +500,9 @@ it('the demo handover: Carla assigns, Ana sees it, hands over, Bruno takes it', 
   await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
 
   await entrarConFormulario(SUPERVISORA)
+  // Entra a «Hoy»; reasignar se hace en la lista de OT, a la que se llega por el menú del logo.
+  await userEvent.click(await screen.findByRole('button', { name: 'Abrir el menú' }))
+  await userEvent.click(screen.getByRole('link', { name: 'Órdenes de trabajo' }))
   await asignar('ot-14', 'Bruno Díaz', 'Reasignar')
   await waitFor(() => expect(m.operador('ot-14')).toBe('operario:2'))
   await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
@@ -505,6 +510,21 @@ it('the demo handover: Carla assigns, Ana sees it, hands over, Bruno takes it', 
   await entrarConFormulario(BRUNO)
   await userEvent.click(within(await tarjeta('ot-14')).getByRole('button', { name: /Comenzar|Continuar/ }))
   expect(await screen.findByText('ejecución de ot-14')).toBeInTheDocument()
+})
+
+describe('today', () => {
+  it('«Hoy» shows the day in numbers, what runs now with its step, and how the day went', async () => {
+    m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor/hoy')
+    const ahora = await screen.findByRole('region', { name: 'En curso ahora' })
+    expect(await within(ahora).findByText('OT-13')).toBeInTheDocument()
+    expect(within(ahora).getByText('Bruno Díaz')).toBeInTheDocument()
+    expect(await screen.findByLabelText('En curso: 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('Por asignar: 1')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'El día' })).getByText(/desviaci/)).toBeInTheDocument()
+    expect(within(ahora).getByRole('link', { name: 'Ver todas las OT' })).toHaveAttribute('href', '/supervisor')
+  })
 })
 
 describe('protocols', () => {
@@ -537,8 +557,8 @@ describe('Factum recommendations on the supervisor screen', () => {
     const sonar = vi.spyOn(campana, 'sonar').mockImplementation(() => {})
     m.mejoras = [recomendacion(false)]
     entrarComo(SUPERVISORA)
-    abrir('/supervisor')
-    await tarjeta('ot-13')
+    abrir('/supervisor/hoy')
+    await screen.findByRole('region', { name: 'En curso ahora' })
     expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull()
 
     m.mejoras = [recomendacion(true)]
@@ -564,7 +584,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     }
     m.mejoras = [conformidad, recomendacion(true)]
     entrarComo(SUPERVISORA)
-    abrir('/supervisor')
+    abrir('/supervisor/hoy')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
     await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     expect(within(zona).getAllByRole('button', { name: /Aplicar/ })).toHaveLength(1)
@@ -580,7 +600,7 @@ describe('Factum recommendations on the supervisor screen', () => {
   it('what Factum will not change says why not, and is acknowledged instead of applied', async () => {
     m.mejoras = [{ ...recomendacion(true), aplicable: false, por_que_no: 'La evidencia no vio el paso y lo confirmó una persona: se revisa el sensor.' }]
     entrarComo(SUPERVISORA)
-    abrir('/supervisor')
+    abrir('/supervisor/hoy')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
     await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     expect(within(zona).getByText(/^No cambia: «/)).toBeInTheDocument()
@@ -593,7 +613,7 @@ describe('Factum recommendations on the supervisor screen', () => {
   it('«Ahora no» hides it until the next visit', async () => {
     m.mejoras = [recomendacion(true)]
     entrarComo(SUPERVISORA)
-    abrir('/supervisor')
+    abrir('/supervisor/hoy')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
     await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     await userEvent.click(within(zona).getByRole('button', { name: 'Ahora no' }))
@@ -605,7 +625,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     const sonar = vi.spyOn(campana, 'sonar').mockImplementation(() => {})
     m.mejoras = [recomendacion(true)]
     entrarComo(SUPERVISORA)
-    abrir('/supervisor')
+    abrir('/supervisor/hoy')
     expect(await screen.findByRole('region', { name: 'Recomendaciones de Factum' })).toBeInTheDocument()
     expect(sonar).not.toHaveBeenCalled()
   })

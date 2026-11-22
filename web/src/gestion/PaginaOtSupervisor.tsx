@@ -534,7 +534,7 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
   if (v.acceso === 'denegado' || s.conexion === 'no_existe') {
     return (
       <>
-        <Encabezado usuario={usuario} seccion="Supervisión" />
+        <Encabezado usuario={usuario} seccion="Órdenes de trabajo" />
         <Pagina>
           <Stack gap="md" align="flex-start">
             {volver}
@@ -564,7 +564,7 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
 
   return (
     <>
-      <Encabezado usuario={usuario} seccion="Supervisión" />
+      <Encabezado usuario={usuario} seccion="Órdenes de trabajo" />
       {s.conexion === 'reconectando' && <FranjaSinConexion />}
       <Pagina>
         <Stack gap="lg" className={estilos.vista} data-nivel={calificacion?.nivel ?? 'ok'}>
