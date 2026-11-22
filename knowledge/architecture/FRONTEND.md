@@ -82,7 +82,8 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 - **Sin naranjo.** Queda entre el rojo y el amarillo y confunde los dos avisos.
 - **La marca no dice estados.** El lima y la tinta del logo viven solo en la banda de arriba y en el login (ver «Marca»); nada de lo que avisa los usa.
 - **El color nunca va solo.** Siempre va con un ícono y un texto: con sol, con guantes o con daltonismo rojo-verde, el color no alcanza.
-- **Fondo claro.** Se lee mejor bajo el sol y en el proyector del escenario.
+- **Fondo claro para el operario, oscuro para el supervisor.** Lo del operario y el login van en claro, que se lee mejor bajo el sol. Lo del supervisor (`/supervisor…`) se proyecta, y va en oscuro como las láminas y el monitor. Lo decide la ruta, en `App.tsx`; ninguna pantalla sabe en qué esquema está.
+- **En oscuro los colores de seguridad no cambian.** El tono 6 de cada color es el mismo. Cambian solo los extremos: el fondo teñido (tono 0) pasa a oscuro y los textos de color (tonos 7 a 9), a claros. Está en `variablesDelTema`, en `tema.ts`, con la razón de cada excepción (Mantine usa los tonos 0 y 7 por dentro).
 - **La alerta de capa 1 se ve como una tarjeta de bloqueo:** una franja roja arriba con «Peligro» en blanco, y el cuerpo blanco con el texto en grafito.
 
 | Token | Hex | Uso |
@@ -107,7 +108,7 @@ El amarillo de seguridad no se lee como texto sobre blanco (1,5:1): va siempre d
 El logo es `project-logo.png`: una cruz lima y «Factum» en matriz de puntos, sobre tinta. Es el mismo del monitor de Jona.
 
 - **`<Marca>`** (`web/src/Marca.tsx`) lo dibuja en SVG, calcado del PNG punto por punto: no depende de que cargue una letra. La cruz y el nombre van siempre juntos; la cruz sola en una barra se lee como un botón de «agregar».
-- **Vive sobre tinta, y solo arriba.** La banda de arriba (`Encabezado` y `BarraOt`) y el panel del login son tinta; todo lo de trabajo sigue en fondo claro. `SOBRE_TINTA` en `tema.ts` trae el fondo, el texto y el foco del teclado en lima, porque el azul no se ve sobre tinta.
+- **Vive sobre tinta, y solo arriba.** La banda de arriba (`Encabezado` y `BarraOt`) y el panel del login son tinta. Lo de trabajo va debajo: en claro para el operario y en oscuro para el supervisor, donde una línea separa la banda. `SOBRE_TINTA` en `tema.ts` trae el fondo, el texto y el foco del teclado en lima, porque el azul no se ve sobre tinta.
 - **La letra** es Bitcount Prop Single, servida por el front (`@fontsource-variable/bitcount-prop-single`). Se usa solo en la frase del login: «Cada paso verificado queda como un hecho.»
 - **El favicon** (`web/public/favicon.svg`) es la cruz lima sobre tinta, con el trazo más grueso que en el logo para que se lea a 16 px.
 
@@ -154,7 +155,7 @@ export const tema = createTheme({
 
 **Incidentes.** Una OT abierta en «Detente» es un incidente. Arriba de la lista aparece una barra roja con cada uno (OT, operador y el motivo más grave) y «Ver en vivo». Cuando aparece uno nuevo suena una campana corta (Web Audio, sin archivos); los que ya estaban al entrar no suenan. El supervisor solo mira: no confirma ni detiene nada.
 
-**Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde la tarjeta de la OT, desde su id o desde «Ver». Trabaja como el monitor de Jona, pero en claro como el resto de la app.
+**Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde la tarjeta de la OT, desde su id o desde «Ver». Trabaja como el monitor de Jona y, como todo lo del supervisor, va en oscuro.
 
 - **Arriba,** quién la ejecuta, con su nombre en grande, y en qué estación corre y desde cuándo. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora».
 - **Cámara.** El video de la estación (`GET /edge/{edge}/video.mjpg`, el que el edge manda al servidor). Encima va lo que la cámara reconoce, en cajas: blancas si está segura (80 % o más) y amarillas si duda; se borran si pasa 1 s sin detecciones. También el paso en curso, y el marco toma el color de la verificación. Si la OT no corre en una estación, lo dice.
@@ -164,6 +165,14 @@ export const tema = createTheme({
 - **Bitácora** completa, abajo y a todo el ancho, lo último arriba.
 
 Todo llega por el mismo WebSocket de la OT que usa la ejecución, pero esta vista no abre sesión ni declara: mirar no cambia la bitácora.
+
+**La propuesta, al terminar la OT.** El servidor calcula las propuestas de mejora al leer la bitácora ([ADR-0014](../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)): una nace cuando el mismo paso de la misma versión tiene señales en dos OT. La vista vuelve a pedir `GET /cliente/mejoras` con cada evento del stream, pero no muestra nada mientras la OT corre: ahí lo que importa es la alerta. Cuando la OT se completa aparecen, bajo las alertas, las propuestas abiertas de esa pauta y versión en las que esta OT dio señales, con «Revisar la propuesta». Dice «Con esta OT nació una propuesta» si no existía al abrir la pantalla. Qué cuenta como señal está en `api/mejoras.ts`, igual que en `app/mejora.py`: una alerta de seguridad no cuenta, porque habla de un peligro y no de un paso.
+
+Esa espera la pone la pantalla, no el servidor: `app/mejora.py` cuenta también las OT en ejecución, así que la página de mejoras puede mostrar la propuesta antes de que la OT termine. `Brecha`.
+
+**Reporte de la OT.** El selector «Ejecución / Reporte» cambia la vista en vivo por el reporte que arma el servidor desde la bitácora (`GET /cliente/ots/{id}/reporte`): cuántos pasos se verificaron, qué cerró cada uno (el sensor con su lectura, la cámara con su certeza, una persona contra la evidencia, o la palabra del operario), a qué hora y cuánto tardó; las desviaciones, con lo que tardaron en corregirse; y lo que observó el operario. Una OT que ya estaba completa se abre en su reporte. Si se completa mientras se mira, aparece «Ver el reporte». Sirve también para una OT en curso: se vuelve a pedir con cada evento.
+
+**Mejoras (`/supervisor/mejoras`).** La segunda sección del supervisor, en la barra. Arriba, cuatro números de `GET /cliente/metricas`: OT completas, cuántas sin desviaciones, qué parte de los pasos se cerró con sensor o cámara y cuántas propuestas esperan revisión. Debajo, las propuestas: el paso, en cuántas OT dio señales, qué señales, qué revisar y lo que observaron los operarios. Nunca nombra a una persona. «Aceptar» es un toque; «Descartar» pide antes el motivo (`POST /cliente/mejoras/{id}/revision`); después se puede cambiar la decisión. Se recarga cada 3 s, y una propuesta que nace con la página abierta entra sola, marcada «Nueva».
 
 **Supervisor.** Ve todas las OT con su estado general, su operador y su avance. Asigna las que no tienen operador y reasigna las entregadas. Reasignar es P0: sin eso no hay relevo.
 
@@ -370,6 +379,7 @@ Ejecución (Dani). Todos sirven para las dos pautas del repo: la correa (por def
 | Relevo | `relevo` | OT en 3/6 con un paso confirmado por Ana; Bruno entra y la termina |
 | Incidente | `incidente` | Para el supervisor: la OT de Bruno va en la estación y a los 8 s se abre la guarda con la energía viva. Barra roja, campana y vista en vivo. `/supervisor?escenario=incidente&como=supervisor:oculta` |
 | Atención | `atencion` | Para el supervisor: Ana y Bruno ejecutan a la vez, cada uno en su estación, y en la de Bruno la cámara duda del rodillo, reconoce cosas y la estación lee temperatura y distancia. Su tarjeta va primero y encendida en amarillo; su vista en vivo muestra las cajas sobre el video y las fichas de los sensores. `/supervisor?escenario=atencion&como=supervisor:oculta` |
+| Mejora | `mejora` | El demo sin la estación: la OT de Ana ya se ejecutó, con un desvío de orden que corrigió. La de Bruno corre ahora y a los 6 s se desvía en el mismo paso: es la segunda. Después se corrige y termina sola: al completarse aparecen la propuesta y «Ver el reporte». `/supervisor/ot/ot-13?escenario=mejora&como=supervisor:oculta` |
 | Estación ocupada | `estacion-ocupada` | `edge-1` ejecuta la OT de Bruno cuando Ana abre la suya: el aviso dice de quién es y «Tomar la estación» se la quita. `/ot/ot-12?escenario=estacion-ocupada&como=operario:1` |
 | API caída | `api-caida` | Errores y timeouts con el operario a mitad de un paso |
 | Ya completa | `completa` | La OT está terminada cuando el operario la abre |

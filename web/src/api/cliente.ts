@@ -4,14 +4,18 @@ import { config } from '../config'
 import { cerrarSesion, tokenDeSesion } from '../sesion/sesion'
 import type {
   Companero,
+  DecisionMejora,
   Entrada,
   EstadoOt,
+  Mejora,
+  Metricas,
   OtDetalle,
   OtPedida,
   OtResumen,
   Pauta,
   PautaResumen,
   Persona,
+  ReporteOt,
   RespuestaConfirmar,
   RespuestaDeclarar,
   Sesion,
@@ -76,6 +80,14 @@ export type Cliente = {
   recibirTurno(otId: string, actor: string): Promise<{ firmado_por: string }>
   /** Asigna o reasigna el operador de la OT. Quién asigna lo sabe la API por el token. */
   asignar(otId: string, operador: string): Promise<OtResumen>
+  /** Lo que pasó en la OT, armado por el servidor desde la bitácora: nadie lo escribe. */
+  leerReporte(otId: string): Promise<ReporteOt>
+  /** Las propuestas para mejorar las pautas de la empresa. Solo supervisor. */
+  listarMejoras(): Promise<Mejora[]>
+  /** El supervisor acepta o descarta una propuesta. Descartar pide una nota (409 sin ella). */
+  revisarMejora(propuestaId: string, decision: DecisionMejora, nota?: string): Promise<Mejora>
+  /** La foto de la empresa: cumplimiento, evidencia y desviaciones. Solo supervisor. */
+  leerMetricas(): Promise<Metricas>
 }
 
 /** De dónde sale el token y qué hacer cuando la API deja de reconocerlo. */
@@ -153,6 +165,10 @@ export function crearCliente(
     entregarTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/entregar?actor=${encodeURIComponent(actor)}`),
     recibirTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/recibir?actor=${encodeURIComponent(actor)}`),
     asignar: (id, operador) => pedir('POST', `${otCliente(id)}/asignar`, { operador }),
+    leerReporte: (id) => pedir('GET', `${otCliente(id)}/reporte`),
+    listarMejoras: () => pedir('GET', '/cliente/mejoras'),
+    revisarMejora: (id, decision, nota = '') => pedir('POST', `/cliente/mejoras/${encodeURIComponent(id)}/revision`, { decision, nota }),
+    leerMetricas: () => pedir('GET', '/cliente/metricas'),
   }
 }
 

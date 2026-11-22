@@ -1,7 +1,8 @@
-import { alpha, Badge, Box, Button, Center, Group, Loader, Paper, ScrollArea, SimpleGrid, Stack, Text, ThemeIcon, Title } from '@mantine/core'
+import { alpha, Badge, Box, Button, Center, Group, Loader, Paper, ScrollArea, SegmentedControl, SimpleGrid, Stack, Text, ThemeIcon, Title } from '@mantine/core'
 import {
   IconAlertTriangle,
   IconArrowLeft,
+  IconBulb,
   IconCheck,
   IconCircleDashed,
   IconHandStop,
@@ -10,9 +11,10 @@ import {
   IconVideoOff,
   IconX,
 } from '@tabler/icons-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import type { Calificacion, CalificacionOt, Deteccion, EstadoOt, Evento, Nivel, Pauta, PasoEstado } from '../api/tipos'
+import { senalesDe } from '../api/mejoras'
+import type { Calificacion, CalificacionOt, Deteccion, EstadoOt, Evento, Mejora, Nivel, Pauta, PasoEstado } from '../api/tipos'
 import { config } from '../config'
 import { queDice, tituloDe } from '../ejecucion/alertas'
 import { FranjaSinConexion } from '../ejecucion/Avisos'
@@ -20,7 +22,10 @@ import { cerradoPor, type Conexion } from '../ejecucion/estado'
 import { useSesion } from '../sesion/sesion'
 import { useNombres, type Usuario } from '../sesion/usuarios'
 import { estadoDe } from './estados'
+import { Reporte } from './Reporte'
+import { NOMBRE_CLASE, NOMBRE_SENSOR, UNIDAD } from './sensores'
 import { Encabezado, EstadoBadge, Pagina, VerificacionBadge } from './ui'
+import { useMejoras } from './useMejoras'
 import { useOtEnVivo, type Lectura } from './useOtEnVivo'
 
 const hora = (ts: string) => new Date(ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
@@ -77,8 +82,6 @@ function Incidentes({ alertas, ot, onVer }: { alertas: Evento[]; ot: EstadoOt | 
   )
 }
 
-// En la estación del demo los polines son latas: el detector las llama «soda can».
-const NOMBRE_CLASE: Record<string, string> = { 'soda can': 'polín', 'red soda can': 'polín' }
 const rotuloDe = (v: Deteccion) => `${NOMBRE_CLASE[v.clase] ?? v.clase} ${Math.round(v.conf * 100)} %`
 const enPorciento = (x: number) => `${+(x * 100).toFixed(2)}%`
 /** Desde esta certeza la cámara está segura; bajo ella, la caja va en amarillo. */
@@ -103,7 +106,7 @@ function Cajas({ vistas }: { vistas: Deteccion[] }) {
               span
               size="xs"
               fw={800}
-              c="dark"
+              c="black"
               px={6}
               pos="absolute"
               left={-2}
@@ -241,24 +244,6 @@ function Verificacion({ calificacion }: { calificacion: CalificacionOt | null })
   )
 }
 
-const NOMBRE_SENSOR: Record<string, string> = {
-  energia: 'Energía',
-  motor: 'Motor',
-  guarda: 'Guarda',
-  bloqueo: 'Bloqueo',
-  reed_bloqueo: 'Candado',
-  operario: 'Persona junto a la máquina',
-  equipo: 'Equipo',
-  temp_c: 'Temperatura',
-  hum_pct: 'Humedad',
-  dist_cm: 'Distancia',
-  tierra: 'Puesta a tierra',
-  tension: 'Tensión',
-  seccionador: 'Seccionador',
-  zona: 'Zona',
-  implementos: 'Implementos',
-}
-const UNIDAD: Record<string, string> = { temp_c: '°C', hum_pct: '%', dist_cm: 'cm' }
 
 /** Hacia dónde va un sensor numérico: sus últimas lecturas, de la más vieja a la más nueva. */
 function Tendencia({ serie, nombre }: { serie: number[]; nombre: string }) {
@@ -449,6 +434,8 @@ function etiquetaDe(ev: Evento): string {
       return 'Turno recibido'
     case 'propuesta_pauta':
       return 'Propuesta de pauta'
+    case 'observacion':
+      return 'Observación del operario'
   }
 }
 
@@ -487,7 +474,7 @@ function Bitacora({ bitacora, ot, abiertas, elegido }: { bitacora: Evento[]; ot:
                   component="li"
                   id={`bitacora-${ev.id}`}
                   p="xs"
-                  bg={elegido === ev.id ? 'peligro.1' : abierta ? 'peligro.0' : undefined}
+                  bg={elegido === ev.id || abierta ? 'peligro.0' : undefined}
                   style={{
                     borderLeft: `4px solid var(--mantine-color-${color}-6)`,
                     borderRadius: 'var(--mantine-radius-sm)',
@@ -518,11 +505,56 @@ function Bitacora({ bitacora, ot, abiertas, elegido }: { bitacora: Evento[]; ot:
   )
 }
 
+/**
+ * Las propuestas de mejora que esta OT alimenta, que se muestran cuando la OT termina: mientras
+ * corre, lo que importa es la alerta. Si esta OT fue la segunda en desviarse en el mismo paso,
+ * la propuesta nació con ella y aparece sola al completarse, sin recargar.
+ */
+function PropuestasDeMejora({ propuestas, nuevas }: { propuestas: Mejora[]; nuevas: ReadonlySet<string> }) {
+  if (propuestas.length === 0) return null
+  return (
+    <Stack gap="sm" role="status" aria-label="Propuesta de mejora">
+      {propuestas.map((p) => (
+        <Paper key={p.id} withBorder radius="md" p="md" bg="accion.0" style={{ borderLeft: '6px solid var(--mantine-color-accion-6)' }}>
+          <Group justify="space-between" wrap="nowrap" align="flex-start" gap="md">
+            <Group gap="sm" wrap="nowrap" align="flex-start">
+              <IconBulb size={28} color="var(--mantine-color-accion-7)" style={{ flexShrink: 0 }} />
+              <Stack gap={2}>
+                <Text fw={900} size="lg">
+                  {nuevas.has(p.id) ? 'Con esta OT nació una propuesta para mejorar la pauta' : 'Esta OT alimenta una propuesta para mejorar la pauta'}
+                </Text>
+                <Text fw={600}>
+                  «{p.titulo}» se desvió en {p.ots_con_senal} de {p.ejecuciones} OT de la versión {p.version}.
+                </Text>
+                <Text size="sm">{p.sugerencia}</Text>
+              </Stack>
+            </Group>
+            <Button component={Link} to={`/supervisor/mejoras#${encodeURIComponent(p.id)}`} style={{ flexShrink: 0 }}>
+              Revisar la propuesta
+            </Button>
+          </Group>
+        </Paper>
+      ))}
+    </Stack>
+  )
+}
+
+type Vista = 'vivo' | 'reporte'
+
 function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
   const nombreDe = useNombres()
   const v = useOtEnVivo(otId)
   const { s } = v
   const [elegido, setElegido] = useState<number | null>(null)
+  const [elegida, setElegida] = useState<Vista | null>(null)
+  const { mejoras, nuevas, recargar: recargarMejoras } = useMejoras()
+
+  // Cada evento puede hacer nacer una propuesta: se pregunta en el momento, sin esperar la recarga.
+  const eventos = s.bitacora.length
+  useEffect(() => {
+    void Promise.resolve().then(recargarMejoras)
+  }, [eventos, recargarMejoras])
+  const conSenal = useMemo(() => senalesDe(s.bitacora), [s.bitacora])
 
   useEffect(() => {
     if (elegido === null) return
@@ -530,8 +562,8 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
   }, [elegido])
 
   const volver = (
-    <Button component={Link} to="/supervisor" variant="subtle" color="dark" px={0} w="fit-content" leftSection={<IconArrowLeft size={18} />}>
-      Supervisión
+    <Button component={Link} to="/supervisor" variant="subtle" px={0} w="fit-content" leftSection={<IconArrowLeft size={18} />}>
+      Todas las OT
     </Button>
   )
 
@@ -555,6 +587,12 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
   const nombre = v.pauta ? `${v.pauta.nombre} v${v.pauta.version}` : (ot?.pauta ?? '')
   const enEstacion = v.sesion && v.sesion.ot_id === otId ? v.sesion.edge_id : null
   const abiertas = new Set(s.alertas.map((a) => a.id))
+  // Una OT que ya estaba completa al abrirla no tiene nada en vivo: se abre en su reporte.
+  const vista: Vista = elegida ?? (v.detalle?.completa ? 'reporte' : 'vivo')
+  // La propuesta es parte del cierre: no se muestra hasta que la OT termina, aunque el servidor ya la cuente.
+  const propuestas = ot?.completa
+    ? (mejoras ?? []).filter((p) => p.estado === 'abierta' && p.pauta === v.detalle?.pauta && p.version === v.detalle.version && conSenal.has(p.paso))
+    : []
 
   return (
     <>
@@ -568,7 +606,7 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
               <Stack gap={4}>
                 <Group gap="sm">
                   <Title order={2}>{otId.toUpperCase()}</Title>
-                  {v.detalle && <EstadoBadge estado={estadoDe(v.detalle)} />}
+                  {v.detalle && <EstadoBadge estado={ot?.completa ? 'completa' : estadoDe(v.detalle)} />}
                   {calificacion && <VerificacionBadge nivel={calificacion.nivel} />}
                 </Group>
                 <Text fw={600}>{nombre}</Text>
@@ -590,11 +628,46 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
                   </Text>
                 )}
               </Stack>
-              <EnVivo conexion={s.conexion} />
+              <Stack gap="xs" align="flex-end">
+                <EnVivo conexion={s.conexion} />
+                <SegmentedControl
+                  aria-label="Qué ver de la OT"
+                  value={vista}
+                  onChange={(valor) => setElegida(valor as Vista)}
+                  data={[
+                    { value: 'vivo', label: 'Ejecución' },
+                    { value: 'reporte', label: 'Reporte' },
+                  ]}
+                />
+              </Stack>
             </Group>
           </Stack>
 
-          <Incidentes alertas={s.alertas} ot={ot} onVer={setElegido} />
+          <Incidentes
+            alertas={s.alertas}
+            ot={ot}
+            onVer={(id) => {
+              setElegida('vivo')
+              setElegido(id)
+            }}
+          />
+          {/* Primero que la OT terminó, después lo que dejó para la pauta. */}
+          {ot?.completa && vista === 'vivo' && (
+            <Paper withBorder radius="md" p="md" bg="verificado.0" style={{ borderLeft: '6px solid var(--mantine-color-verificado-6)' }}>
+              <Group justify="space-between" wrap="nowrap" gap="md">
+                <Group gap="sm" wrap="nowrap">
+                  <IconCheck size={28} color="var(--mantine-color-verificado-7)" style={{ flexShrink: 0 }} />
+                  <Text fw={800} size="lg">
+                    OT completa: los {ot.pasos.length} pasos quedaron verificados.
+                  </Text>
+                </Group>
+                <Button color="verificado" onClick={() => setElegida('reporte')} style={{ flexShrink: 0 }}>
+                  Ver el reporte
+                </Button>
+              </Group>
+            </Paper>
+          )}
+          <PropuestasDeMejora propuestas={propuestas} nuevas={nuevas} />
 
           {!ot ? (
             <Center py="xl">
@@ -603,6 +676,8 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
                 <Text c="roca.6">Conectando con la OT…</Text>
               </Stack>
             </Center>
+          ) : vista === 'reporte' ? (
+            <Reporte otId={otId} alDia={eventos} />
           ) : (
             <>
               {/* Como el monitor: a un lado lo que se ve y cómo va; al otro, sensores y pasos; abajo, todo lo que pasó. */}
