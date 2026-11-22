@@ -51,6 +51,13 @@ def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
     """
     from app import catalogo, db  # acá adentro: catalogo y db no dependen de este módulo
 
+    semilla = json.loads(SEMILLA.read_text(encoding="utf-8"))
+    # Los controles de un protocolo que ya está se ponen al día antes de aprobar las pautas: la versión que saca el paso
+    # de un control que el protocolo ya no tiene no pierde nada, y aprobar_pauta la compara con los controles de ahora.
+    for d in semilla:
+        if (d.get("controles") and cx.execute("SELECT 1 FROM protocolos WHERE id = ?", (d["id"],)).fetchone()
+                and catalogo.leer_protocolo(cx, d["id"])["controles"] != catalogo._controles_validos(d["controles"])):
+            catalogo.fijar_controles(cx, d["id"], d["controles"], actor)
     pautas = []
     for ruta in sorted(DATOS.glob("pauta-*.json")):
         pauta = desde_json(ruta)
@@ -64,12 +71,10 @@ def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
             catalogo.aprobar_pauta(cx, pauta.id, pauta.version, "supervisor:demo")
         pautas.append(pauta.id)
     protocolos = []
-    for d in json.loads(SEMILLA.read_text(encoding="utf-8")):
+    for d in semilla:
         if not cx.execute("SELECT 1 FROM protocolos WHERE id = ?", (d["id"],)).fetchone():
             texto = (DATOS / d["documento"]).read_text(encoding="utf-8")
             catalogo.crear_protocolo(cx, {**d, "texto": texto, "pautas": []}, actor)
-        elif d.get("controles") and catalogo.leer_protocolo(cx, d["id"])["controles"] != catalogo._controles_validos(d["controles"]):
-            catalogo.fijar_controles(cx, d["id"], d["controles"], actor)
         for pauta_id in d["pautas"]:
             catalogo.atribuir(cx, pauta_id, d["id"], actor)
         for pauta_id in d.get("propias", []):  # el protocolo dueño de cada pauta de la biblioteca (ADR-0018)
@@ -78,7 +83,7 @@ def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
         protocolos.append(d["id"])
     # Entre un protocolo y una pauta de datos/, la atribución es la de datos/protocolos.json: la que se sacó de
     # ahí se saca también de la base. Va después de atribuir, para que ninguna pauta quede un momento sin protocolo.
-    for d in json.loads(SEMILLA.read_text(encoding="utf-8")):
+    for d in semilla:
         for p in catalogo.pautas_de(cx, d["id"]):
             if p["id"] in pautas and p["id"] not in d["pautas"]:
                 catalogo.quitar_atribucion(cx, p["id"], d["id"])

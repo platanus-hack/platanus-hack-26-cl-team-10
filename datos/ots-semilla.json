@@ -11,13 +11,10 @@
     {"ot": "ot-1001", "pauta": "pauta-polin-demo", "hace_dias": 6, "operador": "operario:1", "cerrar": "todos",
      "intercalar": [
        {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["operario", "ausente"],
-         ["temp_c", "24.0"], ["temp_c", "24.2"], ["temp_c", "23.9"], ["temp_c", "24.1"], ["temp_c", "24.3"], ["temp_c", "23.8"], ["temp_c", "24.1"], ["temp_c", "24.0"], ["temp_c", "24.2"], ["temp_c", "23.9"], ["temp_c", "38.6"],
-         ["operario", "presente"], ["operario", "ausente"]]},
-       {"antes_del_paso": 6, "lecturas": [["temp_c", "24.6"]]}]},
+         ["operario", "presente"], ["operario", "ausente"]]}]},
     {"ot": "ot-1002", "pauta": "pauta-polin-demo", "hace_dias": 0, "operador": "operario:2", "cerrar": 3,
      "intercalar": [
-       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["operario", "ausente"],
-         ["temp_c", "24.1"], ["temp_c", "24.0"], ["temp_c", "24.3"], ["temp_c", "23.9"], ["temp_c", "24.2"], ["temp_c", "24.0"], ["temp_c", "24.1"], ["temp_c", "23.8"], ["temp_c", "24.2"], ["temp_c", "24.0"], ["temp_c", "39.4"]]}],
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["bloqueo", "retirado"], ["operario", "ausente"]]}],
      "observaciones": [
        {"despues_del_paso": 3, "paso": "p3", "categoria": "pauta", "texto": "Desde el tablero la correa queda a dos pasos: es fácil acercarse antes de tener el candado puesto. Conviene que el punto de bloqueo quede junto al tablero."}]},
     {"ot": "ot-1003", "pauta": "pauta-polin-ct-01", "hace_dias": 5, "operador": "operario:1", "cerrar": "todos",
@@ -51,8 +48,8 @@
     {"ot": "ot-1015", "pauta": "pauta-loto-escritorio", "hace_dias": 0, "operador": "operario:2", "cerrar": 0},
     {"ot": "ot-1016", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:1", "cerrar": "todos",
      "intercalar": [
-       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["operario", "ausente"], ["equipo", "caliente"]]},
-       {"antes_del_paso": 6, "lecturas": [["operario", "ausente"]]}]},
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["operario", "ausente"]]},
+       {"antes_del_paso": 5, "lecturas": [["operario", "ausente"]]}]},
     {"ot": "ot-1017", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:1", "cerrar": 0},
     {"ot": "ot-1018", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:2", "cerrar": 0},
     {"ot": "ot-1019", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:1", "cerrar": 0},

@@ -293,10 +293,8 @@ class AislarBloquearYComprobar(Base):
 
 
     def demo(self):
-        self.abrir("pauta-polin-demo.json", ["temp_c", "energia", "bloqueo", "operario"],
-                   {"temp_c": "24.0", "energia": "viva", "bloqueo": "retirado", "operario": "ausente"})
-        for t in ("24.0", "24.2", "23.9", "24.1", "24.3", "23.8", "24.1", "24.0", "24.2", "23.9"):
-            self.leer(temp_c=t)
+        self.abrir("pauta-polin-demo.json", ["energia", "bloqueo", "operario"],
+                   {"energia": "viva", "bloqueo": "retirado", "operario": "ausente"})
 
     def test_demo_acercarse_con_el_motor_encendido_avisa_siempre(self):
         self.demo()
@@ -305,14 +303,6 @@ class AislarBloquearYComprobar(Base):
         self.assertTrue(any(a.startswith("ORDEN INVERTIDO: «Acercarte a la correa»") for a in alertas), alertas)
         self.assertEqual(self.s.calificacion("ot-1")["nivel"], "error")
         self.leer(operario="ausente")
-        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
-
-    def test_demo_el_polin_caliente_avisa_sin_detener_y_se_calma_con_el_nuevo(self):
-        self.demo()
-        alertas = self.leer(temp_c="41.0")
-        self.assertTrue(any(a.startswith("Temperatura 41 °C fuera de lo normal: lo habitual es") for a in alertas), alertas)
-        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "warning")
-        self.leer(temp_c="24.4")
         self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
 
     def test_demo_en_su_orden_se_completa_sin_avisos(self):
@@ -324,10 +314,9 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual(alertas, [])
         self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 8))
 
-    def estacion(self, equipo="caliente"):
+    def estacion(self):
         """La estación física: lo que manda edge/edge.py (energia sale del motor del ESP32)."""
-        self.abrir("pauta-polin-estacion.json", ["energia", "operario", "equipo"],
-                   {"energia": "viva", "operario": "ausente", "equipo": equipo})
+        self.abrir("pauta-polin-estacion.json", ["energia", "operario"], {"energia": "viva", "operario": "ausente"})
         return self.leer()
 
     def test_estacion_acercarse_sin_apagar_el_motor_avisa(self):
@@ -349,47 +338,40 @@ class AislarBloquearYComprobar(Base):
 
     def test_estacion_en_su_orden_se_completa_sin_avisos_ni_declarar(self):
         alertas = self.estacion() + self.leer(energia="cortada") + self.leer(operario="presente")
-        self.assertEqual(self.cerrados(), 2)  # con el equipo caliente no pasa de «esperar»
-        alertas += self.leer(equipo="frio")
+        self.assertEqual(self.cerrados(), 2)
         self.ver(("soda can", 0.9))
-        self.assertEqual(self.cerrados(), 3)  # un polín que no es rojo no es el que falló
+        self.assertEqual(self.cerrados(), 2)  # un polín que no es rojo no es el que falló
         self.ver(("red soda can", 0.9))
-        self.assertEqual(self.cerrados(), 4)
+        self.assertEqual(self.cerrados(), 3)
         self.ver(("red soda can", 0.9), ("soda can", 0.9))
-        self.assertEqual(self.cerrados(), 4)  # el rojo sigue a la vista: no se ha sacado
+        self.assertEqual(self.cerrados(), 3)  # el rojo sigue a la vista: no se ha sacado
         self.ver(("soda can", 0.9))
-        self.assertEqual(self.cerrados(), 5)
+        self.assertEqual(self.cerrados(), 4)
         alertas += self.leer(operario="ausente") + self.leer(energia="viva")
         self.assertEqual((alertas, self.juez), ([], []))  # sin avisos y sin preguntarle al VLM
-        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 7))
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 6))
 
     def test_estacion_encender_el_motor_sin_alejarse_avisa_y_no_cierra(self):
-        self.estacion(equipo="frio"), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")
         self.ver(("red soda can", 0.9))
         self.ver(("soda can", 0.9))
-        self.assertEqual(self.cerrados(), 5)
+        self.assertEqual(self.cerrados(), 4)
         alertas = self.leer(energia="viva")  # junto a la cinta
         self.assertTrue(any(a.startswith("PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO") for a in alertas), alertas)
-        self.assertEqual(self.cerrados(), 5)
+        self.assertEqual(self.cerrados(), 4)
 
     def test_estacion_no_ver_el_polin_rojo_no_cuenta_si_nunca_se_vio(self):
-        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")
         self.ver(("soda can", 0.9))
         self.ver()
-        self.assertEqual(self.cerrados(), 3)
+        self.assertEqual(self.cerrados(), 2)
 
     def test_estacion_si_el_detector_duda_el_operario_declara_y_responde_el_vlm(self):
-        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")
         self.ver(("red soda can", 0.6))
-        self.assertEqual(self.cerrados(), 3)
+        self.assertEqual(self.cerrados(), 2)
         self.declarar("este es el polín rojo")
-        self.assertEqual((self.cerrados(), len(self.juez)), (4, 1))
-
-    def test_estacion_con_el_equipo_ya_frio_no_avisa_al_empezar(self):
-        # «Apagar el motor» no lleva control_critico porque, con el paso actual crítico, la lectura repetida
-        # de «equipo = frio» sonaba ORDEN INVERTIDO. Desde el 2026-11-21 el orden solo mira lecturas que
-        # cambian (tests/test_orden_en_reposo.py): marcarlo crítico ya es decisión de la pauta, no del código.
-        self.assertEqual(self.estacion(equipo="frio"), [])
+        self.assertEqual((self.cerrados(), len(self.juez)), (3, 1))
 
     def test_botella_poner_y_abrir_completa_la_ot(self):
         self.abrir("pauta-botella.json", [], {})
@@ -435,7 +417,8 @@ class LaSemillaDeLosCasos(Base):
     def test_una_atribucion_que_se_saco_de_datos_se_saca_de_la_base_al_repetir(self):
         protocolos.cargar_semilla(self.cx)
         catalogo.atribuir(self.cx, "pauta-loto-escritorio", "prot-aislamiento-01", "equipo:factum")  # la de antes
-        catalogo.crear_pauta(self.cx, {**json.loads((DATOS / "pauta-loto.json").read_text(encoding="utf-8")), "id": "pauta-de-un-cliente"})
+        catalogo.crear_pauta(self.cx, {**json.loads((DATOS / "pauta-loto.json").read_text(encoding="utf-8")), "id": "pauta-de-un-cliente",
+                                        "version": 1})
         catalogo.atribuir(self.cx, "pauta-de-un-cliente", "prot-aislamiento-01", "equipo:factum")  # no es de datos/
         protocolos.cargar_semilla(self.cx)
         de_aislamiento = {p["id"] for p in catalogo.pautas_de(self.cx, "prot-aislamiento-01")}
@@ -487,7 +470,6 @@ class LasOtDeEjemplo(Base):
     def test_la_calificacion_de_cada_una_es_la_que_da_el_sistema(self):
         nivel = {o: self.s.calificacion(o)["nivel"] for o in self.ots}
         self.assertEqual(nivel["ot-1004"], "error")    # sacó el candado antes de tiempo
-        self.assertEqual(nivel["ot-1002"], "warning")  # el polín sigue caliente
         self.assertEqual(nivel["ot-1006"], "warning")  # la cámara respondió con 62 %
         self.assertEqual(nivel["ot-1001"], "ok")       # tuvo avisos, y se resolvieron
 

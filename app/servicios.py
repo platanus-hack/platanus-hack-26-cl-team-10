@@ -3,7 +3,7 @@ revisarlo con las capas, sostener sus avisos mientras duren y repartirlo a la UI
 
 El edge no sabe de OT: manda lecturas y video de su estación. La OT la elige el
 operario en la interfaz, y al empezar abre una sesión que une su OT con ese edge.
-Desde ahí cada lectura se atribuye a esa OT y solo a esa.
+Desde ahí cada lectura se atribuye a esa OT y solo a esa. Las de IGNORADOS no entran.
 
 Por cada lectura atribuida:
 1. Se guarda el último valor del sensor (db.sensores).
@@ -18,8 +18,7 @@ Por cada lectura atribuida:
    capa 1, que se resuelve cuando se hace el paso saltado o se deshace lo adelantado.
 6. Capa 2: si el valor es numérico, se califica contra su historia normal. La
    anomalía abre una alerta y la vuelta a lo normal la resuelve; diez lecturas
-   idénticas seguidas abren el aviso de sensor pegado (salvo en los sensores lentos
-   del edge, SIN_PEGADO, donde repetir el valor es lo normal).
+   idénticas seguidas abren el aviso de sensor pegado.
    La distancia del edge no se compara con su historia (SIN_ANOMALIA): cambia cada
    vez que alguien se mueve, y lo que importa de ella ya llega como `operario`.
 7. Todo lo nuevo, la calificación vigente y los avisos activos salen por el bus.
@@ -66,14 +65,14 @@ _hilo = threading.local()
 HISTORIA_MAX = 300
 SEQ_RECORDADOS = 500
 IGUALES_PEGADO = 10
-# El DHT22 del edge redondea a 0,1 y una sala cambia lento: repetir el valor es lo normal, no un sensor pegado.
-# shortcut: lista fija de los sensores lentos del edge; pasar a un umbral por sensor cuando haya otra estación.
-SIN_PEGADO = frozenset({"temp_c", "hum_pct"})
+# El servidor no usa la temperatura de la estación: ni lo que mide el DHT22 (temp_c, hum_pct) ni el `equipo` frío o
+# caliente que el edge saca de ella se guardan ni se atribuyen. El edge los sigue mandando.
+IGNORADOS = frozenset({"temp_c", "hum_pct", "equipo"})
 # El ultrasonido mide a qué distancia está lo que tiene delante, y eso cambia cada vez que alguien se mueve:
 # comparado con su historia avisaba de cada movimiento, y el aviso quedaba abierto para siempre si la escena
 # cambiaba (lo anómalo no entra a la historia). Lo que importa de esa lectura ya lo dice el edge como
 # «operario presente o ausente», y con eso trabaja la capa 1.
-# shortcut: lista fija, como SIN_PEGADO; pasar a una marca por sensor cuando haya otra estación.
+# shortcut: lista fija; pasar a una marca por sensor cuando haya otra estación.
 SIN_ANOMALIA = frozenset({"dist_cm"})
 # Capa 2 de cámara: se juzga con las detecciones del último segundo, y solo si hay
 # suficientes (a ~18/s, 5 son ~0,3 s) para que un cuadro suelto no cierre un paso.
@@ -527,6 +526,8 @@ class Servicios:
     ) -> dict:
         """`medido_en` es la hora en que el edge leyó el sensor (ISO 8601 con zona). Si llega, cada alerta o veredicto
         que esta lectura cause guarda en `evidencia.lectura` cuánto tardó desde la medición hasta quedar escrito."""
+        if sensor_id in IGNORADOS:
+            return {"duplicada": False, "ignorada": True, "ot": None, "eventos": []}
         _hilo.lectura = {"sensor": sensor_id, "medido_en": medido_en, "recibida_en": _ahora_ms()} if medido_en else None
         try:
             return self._recibir_lectura(edge_id, sensor_id, valor, seq)
@@ -718,7 +719,7 @@ class Servicios:
         self._iguales[sensor_id] = (x, n)
         clave = f"pegado:{sensor_id}"
         abierta = self.alertas_activas(ot_id).get(clave)
-        if n >= IGUALES_PEGADO and abierta is None and sensor_id not in SIN_PEGADO:
+        if n >= IGUALES_PEGADO and abierta is None:
             return [self.agregar(Evento(
                 ot_id=ot_id, tipo=TipoEvento.ALERTA, ts=db.ahora(), actor="sistema", capa=Capa.APRENDIZAJE,
                 detalle=f"{sensor_id} lleva {n} lecturas idénticas ({x:g}): el sensor puede estar pegado",

@@ -1,8 +1,7 @@
 {
-  "nombre": "Estación del demo: ESP32 con distancia, temperatura y motor, más una cámara (edge/edge.py)",
+  "nombre": "Estación del demo: ESP32 con distancia y motor, más una cámara (edge/edge.py)",
   "sensores": {
     "operario": ["presente", "ausente"],
-    "equipo": ["frio", "caliente"],
     "energia": ["viva", "cortada"],
     "motor": ["activo", "detenido"]
   },

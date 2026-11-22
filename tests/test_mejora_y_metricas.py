@@ -177,9 +177,9 @@ class LasMetricas(Base):
         self.assertEqual(m["pasos"]["verificados"], sum(m["pasos"]["por_evidencia"].values()))
         self.assertEqual(m["desviaciones"]["total"], sum(m["desviaciones"]["por_clase"].values()))
         self.assertEqual(m["observaciones"]["total"], 4)
-        # 1 por desviaciones y 5 de conformidad: el rodillo junta aislar y bloquear y no comprueba energía cero, y a cada
-        # pauta de la maqueta le falta uno de los controles que imita (ADR-0016)
-        self.assertEqual(m["mejoras"]["abierta"], 6)
+        # 1 por desviaciones y 4 de conformidad: el rodillo junta aislar y bloquear y no comprueba energía cero, a la LOTO
+        # del escritorio le falta apagar el motor y a la de la estación, el candado (ADR-0016)
+        self.assertEqual(m["mejoras"]["abierta"], 5)
         self.assertGreater(m["desviaciones"]["por_clase"]["seguridad"], 0)
 
     def test_un_paso_confirmado_por_persona_cuenta_como_desviacion_y_la_ot_deja_de_estar_limpia(self):
@@ -270,7 +270,7 @@ class ElAvisoAlSupervisor(Base):
         ot = self.ot_asignada(pauta="pauta-polin-estacion")
         edge = f"edge-aviso-{i}"
         self.assertEqual(self.c.post(f"/cliente/ots/{ot}/sesion", json={"edge_id": edge}, headers=self.ana).status_code, 200)
-        lecturas = [("energia", "viva"), ("operario", "ausente"), ("equipo", "caliente"), ("operario", "presente"),
+        lecturas = [("energia", "viva"), ("operario", "ausente"), ("operario", "presente"),
                     ("energia", "cortada")]
         self.c.post(f"/edge/{edge}/lecturas", json=[{"sensor_id": s, "valor": v} for s, v in lecturas])
         self.c.delete(f"/edge/{edge}/sesion")

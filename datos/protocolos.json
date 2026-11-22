@@ -147,13 +147,6 @@
         "orden": 2,
         "exige": "Imita bloquear: el botón de parada trabado, o el dispositivo de bloqueo sobre la mesa",
         "evidencia": "bloqueo = puesto, o la cámara ve el dispositivo"
-      },
-      {
-        "id": "M3",
-        "nombre": "Esperar a que se enfríe",
-        "orden": 3,
-        "exige": "Imita comprobar energía cero; no es una prueba de partida",
-        "evidencia": "equipo = frio"
       }
     ]
   }

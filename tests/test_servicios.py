@@ -150,12 +150,13 @@ class AnomaliaDeSenal(Base):
         self.s.recibir_lectura("edge-1", "vibracion", "2.0")
         self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
 
-    def test_la_temperatura_de_la_sala_puede_repetirse_sin_que_el_sensor_este_pegado(self):
-        for _ in range(15):
-            self.s.recibir_lectura("edge-1", "temp_c", "25.8")
-            self.s.recibir_lectura("edge-1", "vibracion", "2.0")
-        # la regla sigue para los demás sensores
-        self.assertEqual([a.evidencia["sensor"] for a in self.alertas("ot-1", "pegado")], ["vibracion"])
+    def test_la_temperatura_de_la_estacion_no_entra(self):
+        antes = db.eventos(self.cx, "ot-1")
+        for sensor, valor in (("temp_c", "41.0"), ("hum_pct", "55.0"), ("equipo", "caliente")):
+            r = self.s.recibir_lectura("edge-1", sensor, valor)
+            self.assertEqual((r["ignorada"], r["ot"], r["eventos"]), (True, None, []))
+        self.assertFalse({"temp_c", "hum_pct", "equipo"} & set(db.estado_sensores(self.cx)))
+        self.assertEqual(db.eventos(self.cx, "ot-1"), antes)
 
     def test_la_distancia_no_se_compara_con_su_historia(self):
         # Cambia cada vez que alguien se mueve, y el edge ya la lee como «operario presente o ausente».
