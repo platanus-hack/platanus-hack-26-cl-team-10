@@ -222,6 +222,22 @@ describe('operator dashboard', () => {
 })
 
 describe('supervisor dashboard', () => {
+  it('the logo opens a menu that pushes the page, with the sections and «Salir»; Escape closes it', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    const menu = await screen.findByRole('complementary', { name: 'Menú' })
+    expect(menu).toHaveAttribute('inert')
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }))
+    expect(menu).not.toHaveAttribute('inert')
+    expect(document.documentElement.dataset.menu).toBe('abierto')
+    expect(within(menu).getByRole('link', { name: 'Mejoras' })).toHaveAttribute('href', '/supervisor/mejoras')
+    expect(within(menu).getByRole('button', { name: 'Salir' })).toBeInTheDocument()
+    expect(within(menu).getByText('Carla Muñoz')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(menu).toHaveAttribute('inert')
+    expect(document.documentElement.dataset.menu).toBeUndefined()
+  })
+
   it('lists every OT in cards, with the count of each group', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
