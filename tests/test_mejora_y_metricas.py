@@ -229,6 +229,9 @@ class LasMetricas(Base):
         self.assertEqual(sum(s["desviaciones"] for s in serie), alertas)
         semanas = self.c.get("/cliente/metricas/serie?intervalo=semana", headers=self.carla).json()
         self.assertEqual(sum(s["ots_abiertas"] for s in semanas), OTS_DE_LA_SEMILLA)
+        meses = self.c.get("/cliente/metricas/serie?intervalo=mes", headers=self.carla).json()
+        self.assertEqual(sum(s["ots_abiertas"] for s in meses), OTS_DE_LA_SEMILLA)
+        self.assertTrue(all(s["periodo"].endswith("-01") for s in meses), meses)
 
     def test_el_periodo_filtra_por_el_dia_en_que_se_abrio_la_ot(self):
         serie = self.c.get("/cliente/metricas/serie", headers=self.carla).json()

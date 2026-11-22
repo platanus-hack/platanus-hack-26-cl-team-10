@@ -334,10 +334,17 @@ def _capa(ev: Evento) -> int | str:
 
 
 def serie(es: list[Ejecucion], intervalo: str = "dia") -> list[dict]:
-    """Por día o por semana (que empieza el lunes), sin huecos entre el primero y el último."""
+    """Por día, por semana (que empieza el lunes) o por mes (su día 1), sin huecos entre el primero y el último."""
     def periodo(t: datetime) -> date:
         d = t.date()
+        if intervalo == "mes":
+            return d.replace(day=1)
         return d - timedelta(days=d.weekday()) if intervalo == "semana" else d
+
+    def siguiente(d: date) -> date:
+        if intervalo == "mes":
+            return (d.replace(day=28) + timedelta(days=4)).replace(day=1)
+        return d + timedelta(days=7 if intervalo == "semana" else 1)
 
     filas: dict[date, Counter] = defaultdict(Counter)
     for e in es:
@@ -352,11 +359,10 @@ def serie(es: list[Ejecucion], intervalo: str = "dia") -> list[dict]:
             filas[periodo(_hora(o["ts"]))]["observaciones"] += 1
     if not filas:
         return []
-    paso = timedelta(days=7 if intervalo == "semana" else 1)
     salida, d = [], min(filas)
     while d <= max(filas):
         c = filas.get(d, Counter())
         salida.append({"periodo": d.isoformat(), **{k: c[k] for k in
                        ("ots_abiertas", "ots_completas", "desviaciones", "alertas_de_seguridad", "observaciones")}})
-        d += paso
+        d = siguiente(d)
     return salida

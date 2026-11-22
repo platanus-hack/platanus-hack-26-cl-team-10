@@ -5,9 +5,9 @@ import { api } from '../api/cliente'
 import type { Metricas } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { useNombres } from '../sesion/usuarios'
-import { avisoDe, enGrupos, incidentesDe, puedeAsignarse, VERIFICACION } from './estados'
+import { avisoDe, enGrupos, incidentesDe, VERIFICACION } from './estados'
+import { Actividad } from './Actividad'
 import { BarraIncidentes, IdOt } from './incidentes'
-import industrial from './industrial.module.css'
 import { Recomendaciones } from './Recomendaciones'
 import { rutaDe, useCampanaDeIncidentes } from './rutaDeOt'
 import { fraseCorta } from './sensores'
@@ -28,17 +28,6 @@ function useMetricasDeHoy() {
     return () => clearInterval(reloj)
   }, [])
   return m
-}
-
-function Dato({ nombre, valor, color }: { nombre: string; valor: string; color?: string }) {
-  return (
-    <li className={industrial.celda} data-color={color ? '' : undefined} style={color ? { ['--color-celda' as string]: `var(--f-${color})` } : undefined}>
-      <p className={industrial.rotulo}>{nombre}</p>
-      <p className={industrial.numero} aria-label={`${nombre}: ${valor}`}>
-        {valor}
-      </p>
-    </li>
-  )
 }
 
 /** Una OT que corre ahora, en una línea: cómo va, quién, en qué paso. */
@@ -133,8 +122,6 @@ export function PaginaHoy() {
 
   const lista = ots ?? []
   const enCurso = enGrupos(lista).find((g) => g.titulo === 'En ejecución')?.ots ?? []
-  const conAlerta = enCurso.filter((o) => avisoDe(o)).length
-  const porAsignar = lista.filter((o) => puedeAsignarse(o.estado)).length
 
   return (
     <>
@@ -147,14 +134,13 @@ export function PaginaHoy() {
           </VisuallyHidden>
           <BarraIncidentes incidentes={incidentes ?? []} />
           <EstadoLista cargando={ots === null} error={error} vacia={false} textoVacia="" onReintentar={() => void recargar()} />
-          {ots && (
-            <ul className={industrial.celdas}>
-              <Dato nombre="En curso" valor={String(enCurso.length)} color={enCurso.length ? 'accion' : undefined} />
-              <Dato nombre="Con alerta" valor={String(conAlerta)} color={conAlerta ? 'peligro' : undefined} />
-              <Dato nombre="Por asignar" valor={String(porAsignar)} color={porAsignar ? 'precaucion' : undefined} />
-              <Dato nombre="Completas hoy" valor={m ? String(m.ots.por_estado.completa ?? 0) : '…'} color="verificado" />
-            </ul>
-          )}
+          <Actividad />
+          <Paper withBorder radius="md" p="md" aria-label="Hoy, en frases" component="section">
+            <Text fw={800} mb="xs">
+              Resumen del día
+            </Text>
+            <ElDia m={m} />
+          </Paper>
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
             <Paper component="section" aria-label="En curso ahora" withBorder radius="md" p="md">
               <Group justify="space-between" mb="xs">
@@ -180,14 +166,13 @@ export function PaginaHoy() {
                 </Text>
               )}
             </Paper>
-            <Paper component="section" aria-label="El día" withBorder radius="md" p="md">
+            <Paper component="section" aria-label="Recomendaciones" withBorder radius="md" p="md">
               <Text fw={800} mb="xs">
-                El día
+                Recomendaciones
               </Text>
-              <ElDia m={m} />
+              <Recomendaciones recomendaciones={recomendaciones.recomendaciones} quitar={recomendaciones.quitar} incrustado />
             </Paper>
           </SimpleGrid>
-          <Recomendaciones recomendaciones={recomendaciones.recomendaciones} quitar={recomendaciones.quitar} />
         </Stack>
       </Pagina>
     </>

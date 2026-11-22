@@ -874,9 +874,9 @@ def metricas_por_equipo(desde: date | None = Desde, hasta: date | None = Hasta, 
 
 
 @app.get("/cliente/metricas/serie")
-def metricas_en_el_tiempo(intervalo: Literal["dia", "semana"] = "dia", desde: date | None = Desde,
+def metricas_en_el_tiempo(intervalo: Literal["dia", "semana", "mes"] = "dia", desde: date | None = Desde,
                           hasta: date | None = Hasta, authorization: str | None = Header(default=None)) -> list[dict]:
-    """Por día o por semana, sin huecos: OT abiertas y completas, desviaciones, alertas de seguridad y observaciones,
+    """Por día, semana o mes, sin huecos: OT abiertas y completas, desviaciones, alertas de seguridad y observaciones,
     para graficar. Solo supervisor."""
     return metricas.serie(_ejecuciones(_supervisor(authorization), desde, hasta), intervalo)
 

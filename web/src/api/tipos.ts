@@ -357,6 +357,9 @@ export type Mejora = {
   } | null
 }
 
+/** Un punto de `GET /cliente/metricas/serie`: `periodo` es el día, el lunes de la semana o el día 1 del mes. */
+export type PuntoSerie = { periodo: string; ots_abiertas: number; ots_completas: number; desviaciones: number; alertas_de_seguridad: number; observaciones: number }
+
 /** `GET /cliente/metricas`: la foto de la empresa. Nunca por persona. */
 export type Metricas = {
   ots: { total: number; por_estado: Record<EstadoGeneral, number> }

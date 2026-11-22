@@ -513,16 +513,21 @@ it('the demo handover: Carla assigns, Ana sees it, hands over, Bruno takes it', 
 })
 
 describe('today', () => {
-  it('«Hoy» shows the day in numbers, what runs now with its step, and how the day went', async () => {
+  it('«Hoy» shows the activity chart, what runs now with its step, the day in sentences and the recommendations', async () => {
     m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
     entrarComo(SUPERVISORA)
     abrir('/supervisor/hoy')
     const ahora = await screen.findByRole('region', { name: 'En curso ahora' })
     expect(await within(ahora).findByText('OT-13')).toBeInTheDocument()
     expect(within(ahora).getByText('Bruno Díaz')).toBeInTheDocument()
-    expect(await screen.findByLabelText('En curso: 1')).toBeInTheDocument()
-    expect(screen.getByLabelText('Por asignar: 1')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'El día' })).getByText(/desviaci/)).toBeInTheDocument()
+    const actividad = screen.getByRole('region', { name: 'Actividad' })
+    expect(within(actividad).getAllByText('OT completas')[0]).toBeVisible()
+    expect(within(actividad).getAllByText('Desviaciones')[0]).toBeVisible()
+    expect(within(actividad).getAllByRole('row', { hidden: true })).toHaveLength(14) // 7 días, en cada gráfico
+    await userEvent.click(within(actividad).getByText('Año'))
+    await waitFor(() => expect(within(actividad).getAllByRole('row', { hidden: true })).toHaveLength(24)) // 12 meses
+    expect(within(screen.getByRole('region', { name: 'Hoy, en frases' })).getByText(/desviaci/)).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Recomendaciones' })).getByText(/Nada que recomendar/)).toBeInTheDocument()
     expect(within(ahora).getByRole('link', { name: 'Ver todas las OT' })).toHaveAttribute('href', '/supervisor')
   })
 })
@@ -565,7 +570,6 @@ describe('Factum recommendations on the supervisor screen', () => {
     act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
     await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
-    expect(within(zona).getByText('Factum propone mejorar una pauta')).toBeInTheDocument()
     expect(within(zona).getByText('Cambio de polín en la cinta')).toBeInTheDocument()
     expect(within(zona).getByText('versión 8 · 1 cambio')).toBeInTheDocument()
     expect(within(zona).getByText(/^Reescribe «/)).toBeInTheDocument()

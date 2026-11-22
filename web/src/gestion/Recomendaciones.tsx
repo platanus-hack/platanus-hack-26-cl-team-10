@@ -160,14 +160,37 @@ function Propuesta({
 export function Recomendaciones({
   recomendaciones,
   quitar,
+  incrustado = false,
 }: {
   recomendaciones: ResumenMejoras[];
   quitar: (pauta: string) => void;
+  /** Dentro de un panel que ya tiene título («Recomendaciones» en Hoy): sin marco propio, y dice si no hay nada. */
+  incrustado?: boolean;
 }) {
   const [pospuestas, setPospuestas] = useState<Set<string>>(new Set());
   const [hechos, setHechos] = useState<{ pauta: string; texto: string }[]>([]);
   const visibles = recomendaciones.filter((r) => !pospuestas.has(r.pauta));
-  if (visibles.length === 0 && hechos.length === 0) return null;
+  if (visibles.length === 0 && hechos.length === 0)
+    return incrustado ? (
+      <Text size="sm" c="dimmed">
+        Nada que recomendar por ahora: Factum avisa aquí cuando una pauta se puede mejorar.
+      </Text>
+    ) : null;
+  const acordeon = (
+    <Accordion variant="contained" radius="sm" chevronPosition="left">
+      {visibles.map((r) => (
+        <Propuesta
+          key={r.pauta}
+          r={r}
+          onAplicada={(texto) => {
+            quitar(r.pauta);
+            setHechos((hs) => [...hs.filter((x) => x.pauta !== r.pauta), { pauta: r.pauta, texto }]);
+          }}
+          onPosponer={() => setPospuestas((s) => new Set(s).add(r.pauta))}
+        />
+      ))}
+    </Accordion>
+  );
   return (
     <Stack gap="sm" role="region" aria-label="Recomendaciones de Factum">
       {hechos.map((h) => (
@@ -185,7 +208,8 @@ export function Recomendaciones({
           {h.texto}
         </Alert>
       ))}
-      {visibles.length > 0 && (
+      {visibles.length > 0 && incrustado && acordeon}
+      {visibles.length > 0 && !incrustado && (
         <Paper
           withBorder
           radius="md"
@@ -204,27 +228,7 @@ export function Recomendaciones({
                 : `Factum propone mejorar ${visibles.length} pautas`}
             </Text>
           </Group>
-          <Accordion
-            variant="contained"
-            radius="sm"
-           
-            chevronPosition="left"
-          >
-            {visibles.map((r) => (
-              <Propuesta
-                key={r.pauta}
-                r={r}
-                onAplicada={(texto) => {
-                  quitar(r.pauta);
-                  setHechos((hs) => [
-                    ...hs.filter((x) => x.pauta !== r.pauta),
-                    { pauta: r.pauta, texto },
-                  ]);
-                }}
-                onPosponer={() => setPospuestas((s) => new Set(s).add(r.pauta))}
-              />
-            ))}
-          </Accordion>
+          {acordeon}
         </Paper>
       )}
     </Stack>
