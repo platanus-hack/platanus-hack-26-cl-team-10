@@ -20,3 +20,20 @@ body,
   color: var(--f-verificado-sobre, #0a0c0a);
   background: var(--f-verificado, #d4ff9e);
 }
+
+/* El menú del supervisor empuja la página en vez de taparla (gestion/ui.tsx, <Menu>). En el celular, la tapa. */
+body {
+  transition: padding-left 300ms ease;
+}
+
+@media (min-width: 48em) {
+  html[data-menu='abierto'] body {
+    padding-left: 240px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
+}

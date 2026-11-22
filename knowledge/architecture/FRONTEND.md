@@ -123,6 +123,7 @@ El amarillo de seguridad no se lee como texto sobre blanco (1,5:1): va siempre d
 El logo es `project-logo.png`: una cruz lima y «Factum» en matriz de puntos, sobre tinta. Es el mismo del monitor de Jona.
 
 - **`<Marca>`** (`web/src/Marca.tsx`) lo dibuja en SVG, calcado del PNG punto por punto: no depende de que cargue una letra. La cruz y el nombre van siempre juntos; la cruz sola en una barra se lee como un botón de «agregar».
+- **El menú del supervisor** lo abre el logo: un panel a la izquierda que empuja la página (no la tapa; en el celular, sí), con Supervisión, Mejoras y, al pie, el nombre y «Salir». La cruz gira hasta ser una ×, y Escape lo cierra. El operario no tiene menú: su nombre y «Salir» siguen en la banda.
 - **Vive sobre tinta, y solo arriba.** La banda de arriba (`Encabezado` y `BarraOt`) y el panel del login son tinta. Lo de trabajo va debajo: en claro para el operario y en oscuro para el supervisor, donde una línea separa la banda. `SOBRE_TINTA` en `tema.ts` trae el fondo, el texto y el foco del teclado en lima, porque el azul no se ve sobre tinta.
 - **La letra** es Bitcount Prop Single, servida por el front (`@fontsource-variable/bitcount-prop-single`). Desde el 2026-11-22 va solo en el logo y en el login, en la frase «Cada paso verificado queda como un hecho.»: en las pantallas de trabajo, los títulos y los valores van en la letra del texto, que se lee más limpio.
 - **El favicon** (`web/public/favicon.svg`) es la cruz lima sobre tinta, con el trazo más grueso que en el logo para que se lea a 16 px.
