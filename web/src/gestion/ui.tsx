@@ -66,6 +66,7 @@ const SECCIONES_SUPERVISOR = [
   { a: '/supervisor', nombre: 'Órdenes de trabajo' },
   { a: '/supervisor/protocolos', nombre: 'Protocolos' },
   { a: '/supervisor/mejoras', nombre: 'Mejoras' },
+  { a: '/simulador', nombre: 'Simulador' },
 ]
 
 const ANCHO_MENU = 240
