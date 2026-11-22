@@ -385,6 +385,8 @@ class ElCambioDePolinConElProtocoloCorto(Base):
     def test_con_la_pauta_que_ya_pide_alejarse_la_propuesta_sigue_reescribiendo_el_paso(self):
         from app import api, sugerencias
 
-        p = {"id": "x", "tipo": "desviacion", "pauta": "pauta-polin-estacion", "version": 8, "paso": "e7", "ots": [],
+        # La versión vigente: la pauta de la estación se sigue versionando y este caso no depende de cuál sea.
+        version = db.leer_pauta(api.cx, "pauta-polin-estacion").version
+        p = {"id": "x", "tipo": "desviacion", "pauta": "pauta-polin-estacion", "version": version, "paso": "e7", "ots": [],
              "senales": {"seguridad": 2}, "aplicable": True, "por_que_no": None}
         self.assertEqual([c["tipo"] for c in sugerencias.borrador(api.cx, p)["cambios"]], ["reescribe"])
