@@ -310,7 +310,7 @@ class AislarBloquearYComprobar(Base):
     def test_demo_el_polin_caliente_avisa_sin_detener_y_se_calma_con_el_nuevo(self):
         self.demo()
         alertas = self.leer(temp_c="41.0")
-        self.assertTrue(any(a.startswith("temp_c = 41, lejos de su mediana") for a in alertas), alertas)
+        self.assertTrue(any(a.startswith("Temperatura 41 °C fuera de lo normal: lo habitual es") for a in alertas), alertas)
         self.assertEqual(self.s.calificacion("ot-1")["nivel"], "warning")
         self.leer(temp_c="24.4")
         self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")

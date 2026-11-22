@@ -84,6 +84,7 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 - **El color nunca va solo.** Siempre va con un ícono y un texto: con sol, con guantes o con daltonismo rojo-verde, el color no alcanza.
 - **Claro para el operario, oscuro para el supervisor y el login.** Lo del operario va en claro, que se lee mejor bajo el sol. Lo del supervisor (`/supervisor…`) y el login van en oscuro, con el lenguaje del monitor. Lo decide la ruta, en `App.tsx`; ninguna pantalla sabe en qué esquema está.
 - **En oscuro, la paleta del monitor más dos colores.** Lima para lo verificado, ámbar para el aviso y rojo para el peligro. El lima dejó de usarse para todo: **hielo** es lo que se puede tocar y el paso en curso, y **lila** son las propuestas de mejora. Los dos tienen la misma claridad que el lima, así que conviven con él.
+- **La saturación es un solo número.** `SATURACION`, en `tema.ts`, dice cuánto color llevan las vistas oscuras y el lima de la marca: 1 es la paleta tal cual y 0 la deja en grises. Hoy va en 0,5, porque la pantalla de la presentación exagera los colores. Baja el croma y deja igual la claridad, así que el contraste no cambia; el rojo del peligro conserva algo más de color (0,65) para seguir siendo lo que más salta. Lo del operario, en claro, no la usa.
 - **Cada color tiene cinco usos:** el color, bajo el cursor, el texto que va encima, un fondo teñido y el texto de color. Sus valores cambian con el esquema y están en `tema.ts` (`CLARO` y `OSCURO`). Botones, insignias e íconos los toman de ahí, y en oscuro los tonos de Mantine que las pantallas ya usan (`peligro.6`, `precaucion.0`) siguen esos usos.
 - **La alerta de capa 1 se ve como una tarjeta de bloqueo:** una franja roja arriba con «Peligro» en blanco, y el cuerpo blanco con el texto en grafito.
 
@@ -98,18 +99,18 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 | Precaución | `#FFD100` de relleno, `#7A5C00` para texto | Avisos de nivel `warning` (cámara y anomalías de señal), sin señal, sin conexión y la marca de un paso confirmado por una persona |
 | Peligro | `#C8102E` | Lo de nivel `error`: el warn de capa 1 que suena y la alerta de seguridad |
 
-En oscuro:
+En oscuro, la paleta tal cual, y entre paréntesis como se ve en pantalla con la saturación de hoy:
 
 | Token | Hex | Uso |
 |---|---|---|
 | Tinta | `#0a0c0a` | Fondo, liso |
 | Panel | `#101310` | Celdas y tarjetas |
 | Línea | `#252a23` y `#3d4439` | Separadores de celdas y bordes |
-| Lima | `#d4ff9e` | Verificado, y la marca |
-| Hielo | `#9fe3ff` | Botones principales, enlaces y el paso en curso |
-| Lila | `#c8b6ff` | Propuestas de mejora |
-| Ámbar | `#ffc24d` | Avisos de nivel `warning` |
-| Rojo | `#ff4433` | Lo de nivel `error` |
+| Lima | `#d4ff9e` (`#e1f7c8`) | Verificado, y la marca |
+| Hielo | `#9fe3ff` (`#bddeeb`) | Botones principales, enlaces y el paso en curso |
+| Lila | `#c8b6ff` (`#c5bde2`) | Propuestas de mejora |
+| Ámbar | `#ffc24d` (`#e7c997`) | Avisos de nivel `warning` |
+| Rojo | `#ff4433` (`#de6b5c`) | Lo de nivel `error` |
 
 El amarillo de seguridad no se lee como texto sobre blanco (1,5:1): va siempre de relleno con texto grafito (10,5:1), y el texto amarillo usa `#7A5C00` (6,3:1). Los demás pasan AA con texto blanco: rojo 5,9:1, verde 4,8:1, azul 8,5:1.
 
@@ -139,8 +140,8 @@ El tema vive en `web/src/tema.ts`, con los colores, sus usos por esquema, las le
 
 Las vistas del supervisor y el login se ven como el monitor de Jona (`app/estatico/monitor.html`). Sus clases están en `web/src/gestion/industrial.module.css`:
 
-- **Rótulos chicos** en mayúsculas monoespaciadas (la ficha de la OT, los contadores, el estado de cada paso). El título de una sección va en la letra del texto, sin corchetes, con su número a la derecha.
-- **Celdas, no tarjetas:** grupos de datos separados por una línea de 1 px (la ficha de la OT, los contadores, los sensores).
+- **Rótulos chicos** en mayúsculas monoespaciadas (la ficha de la OT, el estado de cada paso). El título de una sección va en la letra del texto, sin corchetes, con su número a la derecha.
+- **Celdas, no tarjetas:** grupos de datos separados por una línea de 1 px (la ficha de la OT, los sensores).
 - **Títulos, valores y botones** en la letra del texto, con mayúscula inicial. Desde el 2026-11-22 ya no van en la letra de puntos ni los botones en mayúsculas monoespaciadas, y el fondo no lleva trama: Pancho pidió bajar el ruido.
 - **Una sola etiqueta por tarjeta de OT:** la verificación. El estado ya lo dice el grupo («Por asignar», «Asignadas, sin empezar»), y un grupo sin OT no se muestra.
 - **Esquinas casi rectas:** ningún radio pasa de unos pocos píxeles, en toda la app.
@@ -165,10 +166,11 @@ El operario conserva su fondo claro y sus colores ISO. De este lenguaje toma sol
 
 **Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde la tarjeta de la OT, desde su id o desde «Ver». Trabaja como el monitor de Jona y, como todo lo del supervisor, va en oscuro.
 
-- **Arriba,** el número de la OT y el nombre de la pauta, y la ficha en celdas: quién la ejecuta, en qué estación corre y desde cuándo, el equipo y el estado. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora».
+- **Arriba,** el número de la OT y el nombre de la pauta. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora». Una anomalía de un sensor se dice en palabras («Distancia 148.9 cm fuera de lo normal: lo habitual es 102 cm», `app/scoring.py`).
+- **A la derecha, siempre a la vista, los pasos;** debajo, plegados, «Detalles» (la ficha: quién la ejecuta, en qué estación y desde cuándo, el equipo y el estado) y «Sensores». La verificación, junto al video, tampoco se pliega.
 - **Cámara.** El video de la estación (`GET /edge/{edge}/video.mjpg`, el que el edge manda al servidor). Encima va lo que la cámara reconoce, en cajas: blancas si está segura (80 % o más) y amarillas si duda; se borran si pasa 1 s sin detecciones. También el paso en curso, y el marco toma el color de la verificación. Si la OT no corre en una estación, lo dice.
 - **Verificación.** «Todo bien», «Atención» o «Detente», en grande y con su color, y por qué lo dice: cada aviso activo de `calificacion.avisos`, quién lo dice (el sensor o la cámara) y con cuánta certeza. Es lo que explica una tarjeta encendida de la lista.
-- **Sensores,** una ficha por sensor: los de la pauta de esta OT y los que están leyendo ahora (el servidor recuerda sensores de todas las estaciones, y esos no se muestran). El que espera el paso en curso va primero y marcado, y solo una lectura de ahora cuenta como «ya está». Lo que solo trajo el snapshot dice «Última lectura guardada» y va en gris hasta que llega una nueva. Un sensor numérico muestra su unidad y una línea con sus últimas 90 lecturas, para ver hacia dónde va (la temperatura que baja mientras se espera).
+- **Sensores** (plegados; el título trae cuántos), una ficha por sensor: los de la pauta de esta OT y los que están leyendo ahora (el servidor recuerda sensores de todas las estaciones, y esos no se muestran). El que espera el paso en curso va primero y marcado, y solo una lectura de ahora cuenta como «ya está». Lo que solo trajo el snapshot dice «Última lectura guardada» y va en gris hasta que llega una nueva. Un sensor numérico muestra su unidad y una línea con sus últimas 90 lecturas, para ver hacia dónde va (la temperatura que baja mientras se espera).
 - **Pasos,** numerados y con su estado a la derecha: verificado en lima, en curso en hielo. Un paso en conflicto va en rojo solo si lo dice el sensor; la duda de la cámara va en ámbar.
 - **Bitácora** completa, abajo y a todo el ancho, lo último arriba.
 

@@ -27,12 +27,50 @@ const mejora: MantineColorsTuple = ['#f3f0ff', '#e5dbff', '#d0bfff', '#b197fc', 
 const tinta: MantineColorsTuple = ['#eef2e9', '#c3cbbd', '#9ca696', '#6f7869', '#3d4439', '#252a23', '#171b16', '#101310', '#0a0c0a', '#060706']
 
 /**
+ * Cuánto color llevan el lima de la marca y las vistas oscuras: 1 es la paleta tal cual y 0 la deja
+ * en grises. La pantalla de la presentación exagera los colores, así que van a la mitad. Es el único
+ * número que hay que tocar si se ven fuertes o lavados.
+ */
+export const SATURACION = 0.5
+/** El peligro conserva algo más de color: tiene que seguir siendo lo que más salta. */
+const SATURACION_DEL_PELIGRO = Math.min(1, SATURACION * 1.3)
+
+/**
+ * Le baja el color a un hex sin cambiarle la claridad ni el tono: multiplica su croma en OKLCH.
+ * Como la claridad no cambia, el contraste con el fondo tampoco.
+ */
+export function apagar(hex: string, cuanto: number): string {
+  const lineal = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  const gamma = (c: number) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)
+  const [r, g, b] = [1, 3, 5].map((i) => lineal(parseInt(hex.slice(i, i + 2), 16) / 255))
+  // sRGB lineal a OKLab (Björn Ottosson).
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  const claridad = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
+  const verdeRojo = (1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s) * cuanto
+  const azulAmarillo = (0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s) * cuanto
+  // Y de vuelta.
+  const l3 = (claridad + 0.3963377774 * verdeRojo + 0.2158037573 * azulAmarillo) ** 3
+  const m3 = (claridad - 0.1055613458 * verdeRojo - 0.0638541728 * azulAmarillo) ** 3
+  const s3 = (claridad - 0.0894841775 * verdeRojo - 1.291485548 * azulAmarillo) ** 3
+  const canales = [
+    4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+    -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+    -0.0041960863 * l3 - 0.7034186147 * m3 + 1.707614701 * s3,
+  ]
+  const par = (c: number) => Math.round(Math.min(1, Math.max(0, gamma(c))) * 255).toString(16).padStart(2, '0')
+  return `#${canales.map(par).join('')}`
+}
+
+/**
  * La marca (project-logo.png): la cruz lima y «Factum» en matriz de puntos, sobre tinta.
  * En oscuro el lima dice además «verificado»: es el único estado que comparte color con la marca.
+ * El lima del logo es `#d4ff9e`; aquí va como se muestra en pantalla.
  */
 export const MARCA = {
   tinta: '#0a0c0a',
-  lima: '#d4ff9e',
+  lima: apagar('#d4ff9e', SATURACION),
   hueso: '#eef2e9',
   /** Texto secundario sobre tinta. */
   tenue: '#9ca696',
@@ -74,13 +112,24 @@ const CLARO: Record<string, Usos> = {
   roca: { color: roca[6], cursor: roca[7], sobre: '#FFFFFF', tenue: roca[0], texto: roca[7] },
   mejora: { color: mejora[6], cursor: mejora[7], sobre: '#FFFFFF', tenue: mejora[0], texto: mejora[7] },
 }
-const OSCURO: Record<string, Usos> = {
+// La paleta oscura se escribe tal cual y se muestra con la saturación de arriba.
+const OSCURO = enPantalla({
   accion: { color: '#9fe3ff', cursor: '#c4eeff', sobre: MARCA.tinta, tenue: '#0e1f28', texto: '#9fe3ff' },
-  verificado: { color: MARCA.lima, cursor: '#e6ffc4', sobre: MARCA.tinta, tenue: '#17230c', texto: MARCA.lima },
+  verificado: { color: '#d4ff9e', cursor: '#e6ffc4', sobre: MARCA.tinta, tenue: '#17230c', texto: '#d4ff9e' },
   precaucion: { color: '#ffc24d', cursor: '#ffd27a', sobre: MARCA.tinta, tenue: '#2a1e06', texto: '#ffc24d' },
   peligro: { color: '#ff4433', cursor: '#ff6b5e', sobre: '#1a0402', tenue: '#2c0d0a', texto: '#ff7a6e' },
-  roca: { color: '#3d4439', cursor: '#4a5245', sobre: MARCA.hueso, tenue: '#171b16', texto: MARCA.tenue },
   mejora: { color: '#c8b6ff', cursor: '#dccfff', sobre: MARCA.tinta, tenue: '#1b1730', texto: '#c8b6ff' },
+})
+// Los grises no llevan color que bajar.
+OSCURO.roca = { color: '#3d4439', cursor: '#4a5245', sobre: MARCA.hueso, tenue: '#171b16', texto: MARCA.tenue }
+
+function enPantalla(usos: Record<string, Usos>): Record<string, Usos> {
+  return Object.fromEntries(
+    Object.entries(usos).map(([nombre, u]) => {
+      const a = (hex: string) => apagar(hex, nombre === 'peligro' ? SATURACION_DEL_PELIGRO : SATURACION)
+      return [nombre, { color: a(u.color), cursor: a(u.cursor), sobre: u.sobre, tenue: a(u.tenue), texto: a(u.texto) }]
+    }),
+  )
 }
 
 const variablesDe = (usos: Record<string, Usos>) =>
@@ -150,6 +199,8 @@ export const variablesDelTema: CSSVariablesResolver = () => ({
     '--mantine-color-roca-7': '#b4bcae',
     '--mantine-color-roca-filled': 'var(--f-roca)',
     '--mantine-color-anchor': 'var(--f-accion-texto)',
+    // El rojo con que Mantine marca los errores y los campos obligatorios no es de la paleta.
+    '--mantine-color-error': 'var(--f-peligro-texto)',
   },
 })
 
