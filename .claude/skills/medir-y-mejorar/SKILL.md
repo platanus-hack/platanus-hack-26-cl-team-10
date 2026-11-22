@@ -74,7 +74,7 @@ Si quiere aplicar todo lo de una pauta de una vez, como el botón del aviso:
 curl -s -X POST "$FACTUM_URL/cliente/pautas/<pauta>/mejoras/aplicar" -H "$H"
 ```
 
-Acepta sus propuestas abiertas y Factum arma la versión siguiente sin aprobar (`version`); si no se pudo, `aviso` dice por qué.
+Acepta sus propuestas abiertas que Factum ya avisó (las que traen `detectada`) y Factum arma la versión siguiente sin aprobar (`version`); si no se pudo, `aviso` dice por qué. Si la pauta no tiene ninguna, responde 404.
 
 Descartar pide una nota que diga por qué. Lo aceptado lo lleva el equipo de Factum a la versión siguiente de la pauta, y la aprueba aparte: eso no lo hace el supervisor ni esta skill. Después, la misma propuesta queda `aplicada` y trae `validacion`: si el paso dejó de desviarse en la versión nueva (`mejoro`), si la baja todavía puede ser azar (`sin_evidencia`, con su `p_valor`), si se sigue desviando (`se_repite`) o si todavía nadie la ejecutó (`sin_datos`). Si un cambio no bajó el paso y se sigue desviando, la propuesta de la versión nueva viene con `escalar`: la causa no es el texto de la pauta, y se conversa con la supervisión antes de otra versión.
 

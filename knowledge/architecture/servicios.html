@@ -373,7 +373,7 @@ const CASOS = {
     rutas: ["r-edge","r-s1","r-12","r-23","r-34","r-45","r-5b","r-bs","r-sb","r-bw","r-wu"],
     marcas: {"n-s1":["ok","seq 88 nuevo"],"n-s2":["ok","ot-1 · operario:A"],"n-s3":["ok","sin alerta"],"n-s4":["ok","no es su sensor"],"n-s5":["warn",""],"n-bit":["warn","alerta capa 2"],"n-sco":["warn","warning · certeza 0,4"]},
     req: {edge:"edge-1", lecturas:[{sensor_id:"vibracion", valor:"6.5", seq:88}]},
-    ev: {tipo:"evento", evento:{id:4, ot_id:"ot-1", tipo:"alerta", capa:2, detalle:"vibracion = 6.5, lejos de su mediana 2 (40.5 desvíos)", evidencia:{tipo:"senal", sensor:"vibracion", valor:6.5, certeza:0.4}, calificacion:{nivel:"warning", certeza:0.4, capa:2}}},
+    ev: {tipo:"evento", evento:{id:4, ot_id:"ot-1", tipo:"alerta", capa:2, detalle:"vibracion 6.5 fuera de lo normal: lo habitual es 2", evidencia:{tipo:"senal", sensor:"vibracion", valor:6.5, certeza:0.4}, calificacion:{nivel:"warning", certeza:0.4, capa:2}}},
     ui: {nivel:"warning", hechos:1, aviso:["warn","Se muestra, no suena: vibración fuera de lo normal."]}
   },
   duplicada: {
