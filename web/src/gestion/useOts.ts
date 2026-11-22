@@ -55,6 +55,7 @@ function conLimite<T>(promesa: Promise<T>, ms: number): Promise<T> {
  * nombres de `GET /cliente/pautas`, una vez. Solo las OT abiertas de `detalleDe` (el operador que
  * mira) se leen una por una, para mostrar en qué paso siguen.
  */
+/** `detalleDe`: el id del operador que mira (sus OT abiertas), o `'en_ejecucion'` para las que corren ahora (el supervisor). */
 export function useOts(cadaMs: number = RECARGA_MS, limiteMs: number = LIMITE_MS, detalleDe: string | null = null) {
   const [ots, setOts] = useState<OtVista[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +75,7 @@ export function useOts(cadaMs: number = RECARGA_MS, limiteMs: number = LIMITE_MS
           )
       const detalles = Promise.all(
         lista.map((o) =>
-          detalleDe && o.operador === detalleDe && !o.completa
+          (detalleDe === 'en_ejecucion' ? o.estado_general === 'en_ejecucion' : detalleDe && o.operador === detalleDe && !o.completa)
             ? conLimite(api.leerOt(o.ot), limiteMs).then(avanceDe, () => null)
             : null,
         ),

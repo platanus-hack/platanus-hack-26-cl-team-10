@@ -64,7 +64,16 @@ function abrir(ruta: string) {
 }
 
 /** La tarjeta de una OT, por su id en mayúsculas. */
-const tarjeta = async (ot: string) => (await screen.findByText(ot.toUpperCase())).closest<HTMLElement>('.mantine-Card-root')!
+/** La fila de una OT en la tabla del supervisor, o su tarjeta en la lista del operario. */
+const tarjeta = async (ot: string) => (await screen.findByText(ot.toUpperCase())).closest<HTMLElement>('tr, .mantine-Card-root')!
+
+/** Asigna desde el selector de la fila, como lo haría el supervisor: abre, elige el nombre. */
+async function asignar(ot: string, nombre: string, verbo = 'Asignar') {
+  const selector = (await screen.findAllByLabelText(`${verbo} ${ot}`))[0]!
+  await userEvent.click(selector)
+  // jsdom no posiciona el desplegable: sus opciones existen, pero quedan «ocultas». Se buscan en la fila de esa OT.
+  await userEvent.click(await within(selector.closest('tr')!).findByRole('option', { name: nombre, hidden: true }))
+}
 
 /** Entra por el formulario, como en el servidor: correo y clave (la del mock). */
 async function entrarConFormulario(p: Persona) {
@@ -238,11 +247,11 @@ describe('supervisor dashboard', () => {
     expect(document.documentElement.dataset.menu).toBeUndefined()
   })
 
-  it('lists every OT in cards, with the count of each group', async () => {
+  it('lists the active OTs in one table, with how many there are in each filter', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    expect(await screen.findByLabelText('Por asignar: 1')).toBeInTheDocument()
-    expect(screen.getByLabelText('Asignadas, sin empezar: 2')).toBeInTheDocument()
+    expect(await screen.findByText('Por asignar (1)')).toBeInTheDocument()
+    expect(screen.getByText('Activas (3)')).toBeInTheDocument()
     const ids = screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)
     expect(ids).toEqual(['OT-14', 'OT-12', 'OT-13'])
     expect(within(await tarjeta('ot-12')).getByText('Ana Rojas')).toBeInTheDocument()
@@ -251,15 +260,15 @@ describe('supervisor dashboard', () => {
   it('assigns an unassigned OT to an operator', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    await userEvent.click(await screen.findByRole('button', { name: 'Asignar ot-14 a Bruno Díaz' }))
-    await waitFor(() => expect(within(screen.getByText('OT-14').closest<HTMLElement>('.mantine-Card-root')!).getByText('Bruno Díaz')).toBeInTheDocument())
+    await asignar('ot-14', 'Bruno Díaz')
+    await waitFor(async () => expect(within(await tarjeta('ot-14')).getByText('Bruno Díaz')).toBeInTheDocument())
     expect(m.operador('ot-14')).toBe('operario:2')
-    expect(screen.queryByRole('region', { name: 'Por asignar' })).toBeNull()
+    expect(await screen.findByText('Por asignar (0)')).toBeInTheDocument()
     // La bitácora dice qué supervisor la asignó, como en la API real.
     expect(m.eventos('ot-14').at(-1)).toMatchObject({ tipo: 'ot_asignada', actor: 'supervisor:oculta', evidencia: { operador: 'operario:2' } })
   })
 
-  it('reads names and progress from the list, without asking for each OT', async () => {
+  it('reads names and progress from the list, and asks only the running OTs for their current step', async () => {
     m.agregar('ot-12', { tipo: 'veredicto', actor: 'sistema', paso_id: 'p1', estado: 'verificado', detalle: 'ok' })
     entrarComo(SUPERVISORA)
     const pedidas = await lecturasDeOt(async () => {
@@ -268,7 +277,8 @@ describe('supervisor dashboard', () => {
       expect(within(ot12).getByText(`${PAUTA_DEMO.nombre} v${PAUTA_DEMO.version}`)).toBeInTheDocument()
       expect(within(ot12).getByText('1/6 pasos')).toBeInTheDocument()
     })
-    expect(pedidas).toEqual([])
+    // ot-12 ya empezó: se lee su paso en curso. Las demás no se piden una por una.
+    expect(pedidas).toEqual(['/ot/ot-12'])
   })
 
   it('shows the pauta id when the names do not load', async () => {
@@ -287,27 +297,27 @@ describe('supervisor dashboard', () => {
     abrir('/supervisor')
     const ot12 = await tarjeta('ot-12')
     expect(within(ot12).getByText('Turno entregado por Ana Rojas')).toBeInTheDocument()
-    await userEvent.click(within(ot12).getByRole('button', { name: 'Reasignar ot-12 a Bruno Díaz' }))
+    await asignar('ot-12', 'Bruno Díaz', 'Reasignar')
     await waitFor(() => expect(m.operador('ot-12')).toBe('operario:2'))
-    expect(await screen.findByLabelText('Por asignar: 1')).toBeInTheDocument()
+    expect(await screen.findByText('Por asignar (1)')).toBeInTheDocument()
   })
 
   it('shows the rule when the API refuses the assignment', async () => {
     server.use(http.post(`${config.API_URL}/cliente/ots/:id/asignar`, () => HttpResponse.json({ regla: 'la OT ya tiene operador' }, { status: 409 })))
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    await userEvent.click(await screen.findByRole('button', { name: 'Asignar ot-14 a Ana Rojas' }))
+    await asignar('ot-14', 'Ana Rojas')
     expect(await screen.findByRole('alert')).toHaveTextContent('la OT ya tiene operador')
     expect(m.operador('ot-14')).toBeNull()
   })
 
-  it('refreshes the list after a refused assignment, so a stale OT drops its buttons', async () => {
+  it('refreshes the list after a refused assignment, so a stale OT drops its selector', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    const boton = await screen.findByRole('button', { name: 'Asignar ot-14 a Ana Rojas' })
+    await tarjeta('ot-14')
     m.asignar('ot-14', 'operario:2') // otro supervisor se adelantó
-    await userEvent.click(boton)
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Asignar ot-14 a Ana Rojas' })).not.toBeInTheDocument())
+    await asignar('ot-14', 'Ana Rojas')
+    await waitFor(() => expect(screen.queryAllByLabelText('Asignar ot-14')).toHaveLength(0))
     expect(within(await tarjeta('ot-14')).getByText('Bruno Díaz')).toBeInTheDocument()
   })
 
@@ -317,27 +327,28 @@ describe('supervisor dashboard', () => {
     m.agregar('ot-13', { tipo: 'veredicto', actor: 'sistema', paso_id: m.pauta.pasos[0].id, estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto.', evidencia: { tipo: 'camara' } })
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    const enEjecucion = await screen.findByRole('region', { name: 'En ejecución' })
-    expect(within(enEjecucion).getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12'])
-    expect(within(screen.getByRole('region', { name: 'Por asignar' })).getByText('OT-14')).toBeInTheDocument()
-    expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12', 'OT-14'])
+    await tarjeta('ot-13')
+    await waitFor(() => expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12', 'OT-14']))
+    await userEvent.click(screen.getByText('Con alerta (1)'))
+    expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13'])
   })
 
-  it('each group folds, and the choice is remembered', async () => {
+  it('finds an OT by operator, OT or pauta, and says so when nothing matches', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    const grupo = await screen.findByRole('region', { name: 'Asignadas, sin empezar' })
-    const titulo = within(grupo).getByRole('button', { expanded: true })
-    await userEvent.click(titulo)
-    expect(titulo).toHaveAttribute('aria-expanded', 'false')
-    expect(localStorage.getItem('factum.grupo.Asignadas, sin empezar')).toBe('0')
+    await tarjeta('ot-12')
+    await userEvent.type(screen.getByLabelText('Buscar OT, operario o pauta'), 'ana')
+    expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-12'])
+    await userEvent.clear(screen.getByLabelText('Buscar OT, operario o pauta'))
+    await userEvent.type(screen.getByLabelText('Buscar OT, operario o pauta'), 'nadie-asi')
+    expect(screen.getByText('Nada coincide con la búsqueda.')).toBeInTheDocument()
   })
 
-  it('hides the groups that have no OT, «En ejecución» included', async () => {
+  it('the completed OTs live in their own filter, out of the daily view', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    expect(within(await screen.findByRole('region', { name: 'Asignadas, sin empezar' })).getByText('OT-12')).toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'En ejecución' })).toBeNull()
+    expect(await screen.findByText('Completas (0)')).toBeInTheDocument()
+    expect(screen.getByText('Activas (3)')).toBeInTheDocument()
   })
 
   it('a warning from the station lights up its card and says why on hover, without raising the red bar', async () => {
@@ -374,15 +385,15 @@ describe('supervisor dashboard', () => {
   it('orders a new OT from a company pauta: it shows up unassigned', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    expect(await screen.findByLabelText('Por asignar: 1')).toBeInTheDocument()
+    expect(await screen.findByText('Por asignar (1)')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Pedir OT' }))
     const modal = await screen.findByRole('dialog', { name: 'Pedir una OT' })
     expect(within(modal).getByRole('button', { name: 'Pedir esta OT' })).toBeDisabled()
     await userEvent.click(await within(modal).findByRole('radio', { name: `${PAUTA_DEMO.nombre}` }))
     await userEvent.click(within(modal).getByRole('button', { name: 'Pedir esta OT' }))
     expect(await screen.findByText(`Pediste la OT-0004, ${PAUTA_DEMO.nombre}. Queda por asignar.`)).toBeInTheDocument()
-    expect(await screen.findByLabelText('Por asignar: 2')).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'Asignar ot-0004 a Ana Rojas' })).toBeInTheDocument()
+    expect(await screen.findByText('Por asignar (2)')).toBeInTheDocument()
+    expect((await screen.findAllByLabelText('Asignar ot-0004'))[0]).toBeInTheDocument()
     expect(m.eventos('ot-0004')[0]).toMatchObject({ tipo: 'ot_abierta' })
   })
 
@@ -412,11 +423,11 @@ describe('supervisor dashboard', () => {
     expect(within(await tarjeta('ot-14')).queryByText('Todo bien')).toBeNull()
   })
 
-  it('every OT opens its live view, from its id or from Ver', async () => {
+  it('every OT opens its live view, from its id or from its row', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     expect(within(await tarjeta('ot-12')).getByRole('link', { name: 'OT-12' })).toHaveAttribute('href', '/supervisor/ot/ot-12')
-    await userEvent.click(within(await tarjeta('ot-12')).getByRole('link', { name: 'Ver ot-12' }))
+    await userEvent.click(within(await tarjeta('ot-12')).getByText(PAUTA_DEMO.nombre, { exact: false }))
     expect(await screen.findByText('vista en vivo de ot-12')).toBeInTheDocument()
   })
 
@@ -470,7 +481,7 @@ describe('supervisor dashboard', () => {
 it('the demo handover: Carla assigns, Ana sees it, hands over, Bruno takes it', async () => {
   entrarComo(SUPERVISORA)
   abrir('/supervisor')
-  await userEvent.click(await screen.findByRole('button', { name: 'Asignar ot-14 a Ana Rojas' }))
+  await asignar('ot-14', 'Ana Rojas')
   await waitFor(() => expect(m.operador('ot-14')).toBe('operario:1'))
   await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
 
@@ -486,7 +497,7 @@ it('the demo handover: Carla assigns, Ana sees it, hands over, Bruno takes it', 
   await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
 
   await entrarConFormulario(SUPERVISORA)
-  await userEvent.click(await screen.findByRole('button', { name: 'Reasignar ot-14 a Bruno Díaz' }))
+  await asignar('ot-14', 'Bruno Díaz', 'Reasignar')
   await waitFor(() => expect(m.operador('ot-14')).toBe('operario:2'))
   await userEvent.click(screen.getByRole('button', { name: 'Salir' }))
 

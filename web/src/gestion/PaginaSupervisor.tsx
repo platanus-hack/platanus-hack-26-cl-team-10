@@ -1,5 +1,5 @@
-import { Alert, Anchor, Button, Card, Collapse, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title, Tooltip, UnstyledButton, VisuallyHidden } from '@mantine/core'
-import { IconAlertTriangle, IconChevronRight, IconEye, IconPlus, IconUser } from '@tabler/icons-react'
+import { Alert, Anchor, Button, Group, Modal, Pagination, Paper, Progress, Radio, SegmentedControl, Select, Stack, Table, Text, TextInput, Title, Tooltip, VisuallyHidden } from '@mantine/core'
+import { IconAlertTriangle, IconEye, IconPlus, IconSearch } from '@tabler/icons-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/cliente'
@@ -12,7 +12,7 @@ import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, VERIFICACION,
 import industrial from './industrial.module.css'
 import estilos from './TarjetaOt.module.css'
 import { Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
-import { mensajeDe, useOts, type OtVista } from './useOts'
+import { LIMITE_MS, mensajeDe, RECARGA_MS, useOts, type OtVista } from './useOts'
 import { Recomendaciones } from './Recomendaciones'
 import { useRecomendaciones } from './useRecomendaciones'
 
@@ -39,24 +39,6 @@ function useOperadores() {
 type Operadores = { lista: Persona[] | null; error: string | null }
 
 
-function Avance({ ot }: { ot: OtVista }) {
-  const a = ot.avance
-  if (!a) return <Text c="roca.6">—</Text>
-  return (
-    <Stack gap={4} miw={110}>
-      <Text size="sm" fw={700}>
-        {a.cerrados}/{a.total} pasos
-      </Text>
-      <Progress
-        value={a.total ? (a.cerrados / a.total) * 100 : 0}
-        color={ESTADOS[ot.estado].color}
-        size="sm"
-        aria-label={`Avance de ${ot.ot}: ${a.cerrados} de ${a.total}`}
-      />
-    </Stack>
-  )
-}
-
 function Operador({ ot }: { ot: OtVista }) {
   const nombreDe = useNombres()
   if (ot.operador) return <Text fw={600}>{nombreDe(ot.operador)}</Text>
@@ -68,64 +50,6 @@ function Operador({ ot }: { ot: OtVista }) {
   )
 }
 
-/** Un botón por operador de la empresa: con dos en el demo, asignar es un solo clic. */
-function Asignar({ ot, operadores, onListo }: { ot: OtVista; operadores: Operadores; onListo: () => Promise<void> }) {
-  const [enviando, setEnviando] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  if (!puedeAsignarse(ot.estado)) return <Text c="roca.6">—</Text>
-  if (!operadores.lista) {
-    return (
-      <Text size="sm" c={operadores.error ? 'peligro' : 'roca.6'}>
-        {operadores.error ? 'No se pudo cargar a los operadores' : 'Cargando operadores…'}
-      </Text>
-    )
-  }
-
-  const asignar = async (operador: string) => {
-    setEnviando(operador)
-    setError(null)
-    try {
-      // Quién asigna lo sabe la API por el token, y queda en la bitácora de la OT.
-      await api.asignar(ot.ot, operador)
-      await onListo()
-    } catch (e) {
-      setError(mensajeDe(e))
-      // Un 409 suele decir que la OT cambió (otra pestaña u otro supervisor): se trae lo último.
-      await onListo()
-    } finally {
-      setEnviando(null)
-    }
-  }
-
-  const verbo = ot.estado === 'entregada' ? 'Reasignar' : 'Asignar'
-  return (
-    <Stack gap={4}>
-      <Group gap={6}>
-        <Text size="sm" fw={600} c="roca.7">
-          {verbo} a
-        </Text>
-        {operadores.lista.map((u) => (
-          <Button
-            key={u.id}
-            size="xs"
-            loading={enviando === u.id}
-            disabled={enviando !== null && enviando !== u.id}
-            onClick={() => void asignar(u.id)}
-            aria-label={`${verbo} ${ot.ot} a ${u.nombre}`}
-          >
-            {u.nombre}
-          </Button>
-        ))}
-      </Group>
-      {error && (
-        <Text size="sm" c="peligro" role="alert">
-          {error}
-        </Text>
-      )}
-    </Stack>
-  )
-}
-
 const rutaDe = (ot: string) => `/supervisor/ot/${encodeURIComponent(ot)}`
 
 /** El id de la OT lleva a su vista en vivo: cámara, sensores y bitácora. */
@@ -134,15 +58,6 @@ function IdOt({ ot }: { ot: string }) {
     <Anchor component={Link} to={rutaDe(ot)} fw={500} ff="var(--f-mono)" c="var(--f-accion-texto)" underline="hover" style={{ letterSpacing: '0.06em' }}>
       {ot.toUpperCase()}
     </Anchor>
-  )
-}
-
-function Ver({ ot, ancho = false }: { ot: OtVista; ancho?: boolean }) {
-  const enVivo = ot.estado === 'en_ejecucion'
-  return (
-    <Button component={Link} to={rutaDe(ot.ot)} variant="default" size="xs" fullWidth={ancho} leftSection={<IconEye size={16} />} aria-label={`Ver ${ot.ot}`}>
-      {enVivo ? 'Ver en vivo' : 'Ver bitácora'}
-    </Button>
   )
 }
 
@@ -197,94 +112,226 @@ function useCampanaDeIncidentes(incidentes: Incidente[] | null) {
   }, [])
 }
 
-/**
- * Una OT en su tarjeta. Si la estación avisa algo, la tarjeta se enciende (amarillo o rojo) y dice
- * por qué. Un clic en cualquier parte abre su vista en vivo; los botones y los enlaces hacen lo suyo.
- */
-function TarjetaOt({ ot: o, operadores, onListo }: { ot: OtVista; operadores: Operadores; onListo: () => Promise<void> }) {
-  const navigate = useNavigate()
-  const aviso = avisoDe(o)
-  const abrir = (e: MouseEvent<HTMLElement>) => {
-    if (!(e.target as HTMLElement).closest('a, button')) void navigate(rutaDe(o.ot))
+const POR_PAGINA = 25
+type Filtro = 'activas' | 'alerta' | 'por_asignar' | 'completas'
+
+/** Asignar o reasignar con un selector que se busca escribiendo: sirve igual con dos operarios que con cientos. */
+function Asignar({ ot, operadores, onListo }: { ot: OtVista; operadores: Operadores; onListo: () => Promise<void> }) {
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  if (!operadores.lista) {
+    return (
+      <Text size="sm" c={operadores.error ? 'peligro' : 'roca.6'}>
+        {operadores.error ? 'No se pudo cargar a los operadores' : 'Cargando operadores…'}
+      </Text>
+    )
+  }
+  const verbo = ot.estado === 'entregada' ? 'Reasignar' : 'Asignar'
+  const asignar = async (operador: string | null) => {
+    if (!operador) return
+    setEnviando(true)
+    setError(null)
+    try {
+      // Quién asigna lo sabe la API por el token, y queda en la bitácora de la OT.
+      await api.asignar(ot.ot, operador)
+    } catch (e) {
+      setError(mensajeDe(e))
+    } finally {
+      // Un 409 suele decir que la OT cambió (otra pestaña u otro supervisor): se trae lo último.
+      await onListo()
+      setEnviando(false)
+    }
   }
   return (
-    <Card withBorder radius="md" padding="md" className={estilos.tarjeta} data-nivel={aviso?.nivel} onClick={abrir}>
-      <Stack gap="sm" flex={1}>
-        <Group justify="space-between" wrap="nowrap" align="flex-start">
-          <IdOt ot={o.ot} />
-          {o.calificacion &&
-            (aviso ? (
-              // El motivo, a mano pero sin ensuciar la tarjeta: al pasar el cursor por la etiqueta.
-              <Tooltip label={aviso.que} multiline w={280} withArrow>
-                <span aria-label={`${VERIFICACION[aviso.nivel].etiqueta}: ${aviso.que}`} style={{ display: 'inline-flex' }}>
-                  <VerificacionBadge nivel={o.calificacion.nivel} />
-                </span>
-              </Tooltip>
-            ) : (
-              <VerificacionBadge nivel={o.calificacion.nivel} />
+    <Stack gap={2}>
+      <Select
+        size="xs"
+        w={200}
+        placeholder={`${verbo} a…`}
+        aria-label={`${verbo} ${ot.ot}`}
+        data={operadores.lista.map((u) => ({ value: u.id, label: u.nombre }))}
+        searchable
+        nothingFoundMessage="Nadie con ese nombre"
+        disabled={enviando}
+        value={null}
+        onChange={(v) => void asignar(v)}
+        comboboxProps={{ withinPortal: false }}
+      />
+      {error && (
+        <Text size="xs" c="peligro" role="alert">
+          {error}
+        </Text>
+      )}
+    </Stack>
+  )
+}
+
+/** Una OT en una fila: cómo va, quién la tiene, en qué paso. Toda la fila abre su vista en vivo. */
+function FilaOt({ ot: o, operadores, onListo }: { ot: OtVista; operadores: Operadores; onListo: () => Promise<void> }) {
+  const navigate = useNavigate()
+  const aviso = avisoDe(o)
+  const a = o.avance
+  const abrir = (e: MouseEvent<HTMLElement>) => {
+    if (!(e.target as HTMLElement).closest('a, button, input, [role="listbox"]')) void navigate(rutaDe(o.ot))
+  }
+  return (
+    <Table.Tr className={estilos.fila} data-nivel={aviso?.nivel} onClick={abrir}>
+      <Table.Td w={130}>
+        {o.calificacion ? (
+          aviso ? (
+            <Tooltip label={fraseCorta(aviso.que)} multiline w={280} withArrow>
+              <span aria-label={`${VERIFICACION[aviso.nivel].etiqueta}: ${aviso.que}`} style={{ display: 'inline-flex' }}>
+                <VerificacionBadge nivel={o.calificacion.nivel} size="sm" />
+              </span>
+            </Tooltip>
+          ) : (
+            <VerificacionBadge nivel={o.calificacion.nivel} size="sm" />
+          )
+        ) : (
+          <Text size="xs" c="dimmed">
+            {ESTADOS[o.estado].etiqueta}
+          </Text>
+        )}
+      </Table.Td>
+      <Table.Td w={100}>
+        <IdOt ot={o.ot} />
+      </Table.Td>
+      <Table.Td>
+        <Operador ot={o} />
+      </Table.Td>
+      <Table.Td maw={280}>
+        <Text size="sm" truncate>
+          {a?.nombre ?? o.pauta}
+        </Text>
+      </Table.Td>
+      <Table.Td w={220}>
+        {a ? (
+          <Stack gap={2}>
+            <Group gap={8} wrap="nowrap">
+              <Progress
+                value={a.total ? (a.cerrados / a.total) * 100 : 0}
+                color={aviso ? (aviso.nivel === 'error' ? 'peligro' : 'precaucion') : ESTADOS[o.estado].color}
+                size="sm"
+                style={{ flex: 1 }}
+                aria-label={`Avance de ${o.ot}: ${a.cerrados} de ${a.total}`}
+              />
+              <Text size="xs" fw={700} style={{ whiteSpace: 'nowrap' }}>
+                {a.cerrados}/{a.total} pasos
+              </Text>
+            </Group>
+            {o.estado === 'en_ejecucion' && a.pasoActual && (
+              <Text size="xs" c="dimmed" truncate>
+                Paso {a.pasoActual}
+              </Text>
+            )}
+          </Stack>
+        ) : (
+          <Text c="roca.6">—</Text>
+        )}
+      </Table.Td>
+      <Table.Td w={220}>{puedeAsignarse(o.estado) && <Asignar ot={o} operadores={operadores} onListo={onListo} />}</Table.Td>
+    </Table.Tr>
+  )
+}
+
+/**
+ * Todas las OT en una tabla, pensada para cientos: lo que avisa arriba, un buscador (OT, operario o pauta), filtros
+ * por estado y páginas de 25. Las completas quedan en su filtro, fuera de la vista de todos los días.
+ */
+function TablaOts({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Operadores; onListo: () => Promise<void> }) {
+  const nombreDe = useNombres()
+  const [filtro, setFiltro] = useState<Filtro>('activas')
+  const [busca, setBusca] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const ordenadas = enGrupos(ots).flatMap((g) => g.ots)
+  const de: Record<Filtro, OtVista[]> = {
+    activas: ordenadas.filter((o) => o.estado !== 'completa'),
+    alerta: ordenadas.filter((o) => o.estado === 'en_ejecucion' && avisoDe(o)),
+    por_asignar: ordenadas.filter((o) => puedeAsignarse(o.estado)),
+    completas: ordenadas.filter((o) => o.estado === 'completa'),
+  }
+  const q = busca.trim().toLowerCase()
+  const visibles = de[filtro].filter(
+    (o) => !q || [o.ot, o.operador ? nombreDe(o.operador) : '', o.avance?.nombre ?? o.pauta].some((t) => t.toLowerCase().includes(q)),
+  )
+  const paginas = Math.max(1, Math.ceil(visibles.length / POR_PAGINA))
+  const actual = Math.min(pagina, paginas)
+  const etiqueta = (nombre: string, f: Filtro) => `${nombre} (${de[f].length})`
+  return (
+    <Stack gap="sm">
+      <Group justify="space-between" gap="sm">
+        <SegmentedControl
+          aria-label="Qué OT ver"
+          value={filtro}
+          onChange={(v) => {
+            setFiltro(v as Filtro)
+            setPagina(1)
+          }}
+          data={[
+            { value: 'activas', label: etiqueta('Activas', 'activas') },
+            { value: 'alerta', label: etiqueta('Con alerta', 'alerta') },
+            { value: 'por_asignar', label: etiqueta('Por asignar', 'por_asignar') },
+            { value: 'completas', label: etiqueta('Completas', 'completas') },
+          ]}
+        />
+        <TextInput
+          aria-label="Buscar OT, operario o pauta"
+          placeholder="Buscar OT, operario o pauta"
+          leftSection={<IconSearch size={16} />}
+          value={busca}
+          onChange={(e) => {
+            setBusca(e.currentTarget.value)
+            setPagina(1)
+          }}
+          w={{ base: '100%', sm: 300 }}
+        />
+      </Group>
+      <Table.ScrollContainer minWidth={900}>
+        <Table aria-label="Órdenes de trabajo" verticalSpacing="sm" highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th className={industrial.rotulo}>Cómo va</Table.Th>
+              <Table.Th className={industrial.rotulo}>OT</Table.Th>
+              <Table.Th className={industrial.rotulo}>Operario</Table.Th>
+              <Table.Th className={industrial.rotulo}>Pauta</Table.Th>
+              <Table.Th className={industrial.rotulo}>Avance</Table.Th>
+              <Table.Th />
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {visibles.slice((actual - 1) * POR_PAGINA, actual * POR_PAGINA).map((o) => (
+              <FilaOt key={o.ot} ot={o} operadores={operadores} onListo={onListo} />
             ))}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
+      {visibles.length === 0 && (
+        <Text c="dimmed" ta="center" py="md">
+          {q ? 'Nada coincide con la búsqueda.' : filtro === 'alerta' ? 'Ninguna OT tiene alertas ahora.' : 'No hay OT aquí.'}
+        </Text>
+      )}
+      {paginas > 1 && (
+        <Group justify="space-between">
+          <Text size="sm" c="dimmed">
+            {visibles.length} OT
+          </Text>
+          <Pagination total={paginas} value={actual} onChange={setPagina} size="sm" />
         </Group>
-        <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
-        <Group justify="space-between" align="flex-end" wrap="nowrap" mt="auto">
-          <Group gap={6} wrap="nowrap">
-            <IconUser size={18} aria-hidden style={{ flexShrink: 0 }} />
-            <Operador ot={o} />
-          </Group>
-          <Avance ot={o} />
-        </Group>
-        {puedeAsignarse(o.estado) ? <Asignar ot={o} operadores={operadores} onListo={onListo} /> : <Ver ot={o} ancho />}
-      </Stack>
-    </Card>
-  )
-}
-
-/** Si un grupo está abierto: lo elige el supervisor y se recuerda. Por omisión, todos abiertos menos «Completas». */
-function useAbierto(titulo: string): [boolean, () => void] {
-  const clave = `factum.grupo.${titulo}`
-  const [abierto, setAbierto] = useState(() => {
-    const guardado = localStorage.getItem(clave)
-    return guardado === null ? titulo !== 'Completas' : guardado === '1'
-  })
-  const alternar = () =>
-    setAbierto((a) => {
-      localStorage.setItem(clave, a ? '0' : '1')
-      return !a
-    })
-  return [abierto, alternar]
-}
-
-function Grupo({ titulo, ots, operadores, onListo }: { titulo: string; ots: OtVista[]; operadores: Operadores; onListo: () => Promise<void> }) {
-  const [abierto, alternar] = useAbierto(titulo)
-  return (
-    <Stack component="section" aria-label={titulo} gap="sm">
-      <UnstyledButton onClick={alternar} aria-expanded={abierto} w="100%">
-        <Title order={3} className={industrial.seccion} m={0}>
-          <IconChevronRight size={16} aria-hidden style={{ transform: abierto ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }} />
-          {titulo}
-          <span className={industrial.dato} aria-label={`${titulo}: ${ots.length}`}>
-            {ots.length}
-          </span>
-        </Title>
-      </UnstyledButton>
-      <Collapse expanded={abierto} transitionDuration={200} keepMounted keepMountedMode="display-none">
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-          {ots.map((o) => (
-            <TarjetaOt key={o.ot} ot={o} operadores={operadores} onListo={onListo} />
-          ))}
-        </SimpleGrid>
-      </Collapse>
+      )}
     </Stack>
   )
 }
 
-/** Las OT en grupos, con las que se ejecutan ahora arriba. Cada grupo se pliega. */
-function Grupos({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Operadores; onListo: () => Promise<void> }) {
+/** Una frase con cómo va todo, arriba: sin tablero de números, solo lo que importa. */
+function Resumen({ ots }: { ots: OtVista[] }) {
+  const cuenta = (e: OtVista['estado']) => ots.filter((o) => o.estado === e).length
+  const conAlerta = ots.filter((o) => o.estado === 'en_ejecucion' && avisoDe(o)).length
+  const porAsignar = cuenta('sin_asignar') + cuenta('entregada')
+  const partes = [`${cuenta('en_ejecucion')} en curso`, conAlerta ? `${conAlerta} con alerta` : 'sin alertas', porAsignar ? `${porAsignar} por asignar` : null]
   return (
-    <Stack gap="lg">
-      {enGrupos(ots).map((g) => (
-        <Grupo key={g.titulo} titulo={g.titulo} ots={g.ots} operadores={operadores} onListo={onListo} />
-      ))}
-    </Stack>
+    <Text size="lg" fw={700}>
+      {partes.filter(Boolean).join(' · ')}
+    </Text>
   )
 }
 
@@ -358,7 +405,7 @@ function PedirOt({ onPedida }: { onPedida: (o: OtPedida) => Promise<void> }) {
 
 export function PaginaSupervisor() {
   const usuario = useSesion()
-  const { ots, error, recargar } = useOts()
+  const { ots, error, recargar } = useOts(RECARGA_MS, LIMITE_MS, 'en_ejecucion')
   const operadores = useOperadores()
   const incidentes = useMemo(() => (ots ? incidentesDe(ots) : null), [ots])
   useCampanaDeIncidentes(incidentes)
@@ -379,11 +426,11 @@ export function PaginaSupervisor() {
       <FranjaDesactualizada error={ots ? error : null} />
       <Pagina>
         <Stack gap="lg">
-          {/* Sin título a la vista: la página es la lista. Queda para los lectores de pantalla. */}
-          <Group justify="space-between">
+          <Group justify="space-between" align="center">
             <VisuallyHidden>
               <Title order={2}>Órdenes de trabajo</Title>
             </VisuallyHidden>
+            {ots ? <Resumen ots={lista} /> : <span />}
             <PedirOt onPedida={alPedir} />
           </Group>
           <BarraIncidentes incidentes={incidentes ?? []} />
@@ -400,7 +447,7 @@ export function PaginaSupervisor() {
             textoVacia="No hay órdenes de trabajo abiertas."
             onReintentar={() => void recargar()}
           />
-          <Grupos ots={lista} operadores={deOperadores} onListo={recargar} />
+          {lista.length > 0 && <TablaOts ots={lista} operadores={deOperadores} onListo={recargar} />}
         </Stack>
       </Pagina>
     </>
