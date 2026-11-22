@@ -1,13 +1,13 @@
-import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core'
 import { IconAlertTriangle, IconEye, IconPlus, IconRefresh, IconUser } from '@tabler/icons-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/cliente'
-import type { EstadoGeneral, OtPedida, PautaResumen, Persona } from '../api/tipos'
+import type { OtPedida, PautaResumen, Persona } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { recordarNombres, useNombres } from '../sesion/usuarios'
 import { campana } from './campana'
-import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, type Incidente } from './estados'
+import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, VERIFICACION, type Incidente } from './estados'
 import industrial from './industrial.module.css'
 import estilos from './TarjetaOt.module.css'
 import { Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
@@ -37,30 +37,6 @@ function useOperadores() {
 
 type Operadores = { lista: Persona[] | null; error: string | null }
 
-const CONTADORES: { titulo: string; estados: EstadoGeneral[]; color: string }[] = [
-  { titulo: 'Por asignar', estados: ['sin_asignar'], color: 'roca' },
-  { titulo: 'Entregadas', estados: ['entregada'], color: 'precaucion' },
-  { titulo: 'En curso', estados: ['asignada', 'en_ejecucion'], color: 'accion' },
-  { titulo: 'Completas', estados: ['completa'], color: 'verificado' },
-]
-
-function Contadores({ ots }: { ots: OtVista[] }) {
-  return (
-    <ul className={industrial.celdas}>
-      {CONTADORES.map((c) => {
-        const n = ots.filter((o) => c.estados.includes(o.estado)).length
-        return (
-          <li key={c.titulo} className={industrial.celda} data-color style={{ ['--color-celda' as string]: `var(--f-${c.color})` }}>
-            <p className={industrial.rotulo}>{c.titulo}</p>
-            <p className={industrial.numero} aria-label={`${c.titulo}: ${n}`}>
-              {n}
-            </p>
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
 
 function Avance({ ot }: { ot: OtVista }) {
   const a = ot.avance
@@ -235,19 +211,19 @@ function TarjetaOt({ ot: o, operadores, onListo }: { ot: OtVista; operadores: Op
       <Stack gap="sm" flex={1}>
         <Group justify="space-between" wrap="nowrap" align="flex-start">
           <IdOt ot={o.ot} />
-          {o.calificacion && <VerificacionBadge nivel={o.calificacion.nivel} />}
+          {o.calificacion &&
+            (aviso ? (
+              // El motivo, a mano pero sin ensuciar la tarjeta: al pasar el cursor por la etiqueta.
+              <Tooltip label={aviso.que} multiline w={280} withArrow>
+                <span aria-label={`${VERIFICACION[aviso.nivel].etiqueta}: ${aviso.que}`} style={{ display: 'inline-flex' }}>
+                  <VerificacionBadge nivel={o.calificacion.nivel} />
+                </span>
+              </Tooltip>
+            ) : (
+              <VerificacionBadge nivel={o.calificacion.nivel} />
+            ))}
         </Group>
-        <div>
-          <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
-          <Text size="sm" c="roca.6">
-            {o.equipo}
-          </Text>
-        </div>
-        {aviso && (
-          <Text size="sm" fw={700}>
-            {aviso.que}
-          </Text>
-        )}
+        <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
         <Group justify="space-between" align="flex-end" wrap="nowrap" mt="auto">
           <Group gap={6} wrap="nowrap">
             <IconUser size={18} aria-hidden style={{ flexShrink: 0 }} />
@@ -269,7 +245,9 @@ function Grupos({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Oper
         <Stack key={g.titulo} component="section" aria-label={g.titulo} gap="sm">
           <Title order={3} className={industrial.seccion}>
             {g.titulo}
-            <span className={industrial.dato}>{g.ots.length}</span>
+            <span className={industrial.dato} aria-label={`${g.titulo}: ${g.ots.length}`}>
+              {g.ots.length}
+            </span>
           </Title>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
             {g.ots.map((o) => (
@@ -396,7 +374,6 @@ export function PaginaSupervisor() {
               Pediste la {pedida.ot.toUpperCase()}, {pedida.nombre}. Queda por asignar.
             </Alert>
           )}
-          {ots && <Contadores ots={ots} />}
           <EstadoLista
             cargando={ots === null}
             error={error}
