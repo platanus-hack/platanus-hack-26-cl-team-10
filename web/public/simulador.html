@@ -986,12 +986,18 @@ const turnosDe = (k, r) => (TURNOS[k] || (TURNOS[k] = {}))[r] || (TURNOS[k][r] =
 const operadorEn = (k, r, i) => turnosDe(k, r).filter(t => t.desde <= i).at(-1).operador;
 const numeroDe = op => { const m = /(\d+)$/.exec(op); return m ? +m[1] : [...op].reduce((a, ch) => a + ch.charCodeAt(0), 0); };
 const conectado = () => !!BASE.url;
+// El token de la sesión viaja a la dirección que diga ?api. Por eso solo se usa cuando esta página la abre la app
+// misma, embebida y desde su mismo origen (PaginaSimulador.tsx): suelta, o enmarcada por otro sitio, un enlace con
+// un ?api ajeno se llevaría la sesión de quien lo abra.
+function abiertaPorLaApp() {
+  try { return window.parent !== window && window.parent.location.origin === location.origin; } catch (_) { return false; }
+}
 // Solo con la sesión vigente de un supervisor de la app se conecta a la base que dice ?api; si no, quedan los datos de ejemplo.
 function baseDeLaApp() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(PARAMS.get("sesion") || "factum.sesion") || "null"); } catch (_) { s = null; }
   const url = PARAMS.get("api");
-  if (!url || !s || !s.token || !s.usuario || s.usuario.rol !== "supervisor" || !(Date.parse(s.expira) > Date.now())) {
+  if (!abiertaPorLaApp() || !url || !s || !s.token || !s.usuario || s.usuario.rol !== "supervisor" || !(Date.parse(s.expira) > Date.now())) {
     BASE.error = "Entra a la app como supervisor para conectar el simulador a la base."; pintarBase(); return null;
   }
   BASE.token = s.token;
