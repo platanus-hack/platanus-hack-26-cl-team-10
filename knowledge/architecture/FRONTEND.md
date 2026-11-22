@@ -313,6 +313,8 @@ Si la estación ejecuta una OT de otra empresa (403) no hay botón: «La estaci�
 
 Cuando la API avisa que un paso no se hizo, el aviso se convierte en voz con ElevenLabs y suena en la app del operario casi al instante.
 
+**Solo para el demo, suena en la vista del supervisor.** `config.VOZ_EN` (`web/src/config.ts`) está en `'supervisor'`: los avisos los dice el detalle de la OT del supervisor y no la pantalla del operario, así no hace falta tener abierta una ventana del operario solo para que suene. Esa vista muestra «Audio activo» o «Audio bloqueado» y un botón «Probar audio», que es el toque que el navegador pide antes de dejar sonar; la del operario los esconde. Lo normal es `'operario'`, porque el aviso es para quien está junto a la máquina: **hay que volver a eso después del demo.** Las dos pantallas usan el mismo gancho, `useAvisosEnVoz`.
+
 **Cómo llega:**
 
 1. Al tocar «Comenzar» o «Continuar», el front abre la sesión (`POST /cliente/ots/{id}/sesion`) y se conecta a `wss://…/ot/{id}/stream`. Solo escucha. Si se corta, vuelve con `?desde=<último evento.id>`.

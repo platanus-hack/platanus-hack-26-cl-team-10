@@ -1,6 +1,6 @@
 import { Button, Center, Collapse, Group, Loader, Popover, ScrollArea, SegmentedControl, Stack, Text, Title, UnstyledButton } from '@mantine/core'
-import { IconAlertTriangle, IconArrowLeft, IconCheck, IconChevronRight, IconX } from '@tabler/icons-react'
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { IconAlertTriangle, IconArrowLeft, IconCheck, IconChevronRight, IconVolume, IconVolumeOff, IconX } from '@tabler/icons-react'
+import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { senalesDe } from '../api/mejoras'
 import type { Calificacion, CalificacionOt, Deteccion, EstadoOt, Evento, Mejora, Pauta, PasoEstado } from '../api/tipos'
@@ -8,6 +8,7 @@ import { config } from '../config'
 import { queDice, tituloDe } from '../ejecucion/alertas'
 import { FranjaSinConexion } from '../ejecucion/Avisos'
 import { cerradoPor, type Conexion } from '../ejecucion/estado'
+import { voz } from '../ejecucion/voz'
 import { useSesion } from '../sesion/sesion'
 import { useNombres, type Usuario } from '../sesion/usuarios'
 import { estadoDe, VERIFICACION } from './estados'
@@ -47,6 +48,29 @@ function EnVivo({ conexion }: { conexion: Conexion }) {
     <p className={estilos.vivo} data-vivo={vivo || undefined}>
       {vivo ? 'En vivo' : 'Conectando…'}
     </p>
+  )
+}
+
+/**
+ * SOLO PARA EL DEMO (config.VOZ_EN): los avisos en voz suenan en esta vista. El navegador no deja sonar
+ * nada hasta que alguien toca la página: «Probar audio» es ese toque, y dice la frase de prueba.
+ */
+function AudioDeLosAvisos() {
+  const audio = useSyncExternalStore(voz.alCambiar, voz.estado)
+  const probar = async () => {
+    if (voz.estado() !== 'activo') await voz.desbloquear()
+    voz.probar()
+  }
+  return (
+    <Group gap="xs" wrap="nowrap">
+      {audio === 'activo' ? <IconVolume size={18} /> : <IconVolumeOff size={18} color="var(--f-precaucion-texto)" />}
+      <Text size="sm" fw={600} c={audio === 'activo' ? undefined : 'precaucion.7'}>
+        {audio === 'activo' ? 'Audio activo' : 'Audio bloqueado'}
+      </Text>
+      <Button size="compact-sm" variant="subtle" onClick={probar}>
+        Probar audio
+      </Button>
+    </Group>
   )
 }
 
@@ -602,7 +626,10 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
               <div className={estilos.rejilla}>
                 <div className={estilos.col}>
                   <Camara edgeId={enEstacion} vistas={v.vistas} ot={ot} />
-                  <EnVivo conexion={s.conexion} />
+                  <Group justify="space-between" gap="sm">
+                    <EnVivo conexion={s.conexion} />
+                    {config.VOZ_EN === 'supervisor' && <AudioDeLosAvisos />}
+                  </Group>
                   <Verificacion calificacion={calificacion} />
                 </div>
                 <div className={estilos.col}>

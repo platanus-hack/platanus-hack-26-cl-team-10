@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { setupServer } from 'msw/node'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { config } from '../config'
+import { voz } from '../ejecucion/voz'
 import { cerrarSolo, ESCENARIOS, salto, type NombreEscenario, type Temporizador } from '../mocks/escenarios'
 import { crearHandlers } from '../mocks/handlers'
 import { Mundo } from '../mocks/mundo'
@@ -21,6 +22,15 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterAll(() => server.close())
 afterEach(() => vi.restoreAllMocks())
 
+// En el demo los avisos en voz suenan en esta vista (config.VOZ_EN); lo normal es que solo mire.
+const vozEn = config.VOZ_EN
+beforeEach(() => {
+  config.VOZ_EN = 'supervisor'
+})
+afterAll(() => {
+  config.VOZ_EN = vozEn
+})
+
 let m: Mundo
 
 function abrir(ot: string, escenario: NombreEscenario = 'feliz', antes: () => void = () => {}) {
@@ -30,6 +40,8 @@ function abrir(ot: string, escenario: NombreEscenario = 'feliz', antes: () => vo
   antes()
   server.resetHandlers(...crearHandlers(m, e, sinEspera))
   entrarComo(SUPERVISORA)
+  vi.spyOn(voz, 'decir').mockImplementation(() => {})
+  vi.spyOn(voz, 'precalentar').mockResolvedValue()
   render(
     <MantineProvider theme={tema}>
       <MemoryRouter initialEntries={[`/supervisor/ot/${ot}`]}>
@@ -301,5 +313,44 @@ describe('el reporte de la OT', () => {
     expect(screen.queryByText('En ejecución')).not.toBeInTheDocument()
     await user.click(ver)
     expect(await reporte()).toBeInTheDocument()
+  })
+})
+
+describe('the voice, only for the demo', () => {
+  const guardaAbierta = () => {
+    m.leer('energia', 'viva')
+    m.agregar('ot-13', {
+      tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1, detalle: 'GUARDA ABIERTA CON ENERGÍA VIVA.',
+      evidencia: { tipo: 'sensor', guarda: 'abierta', energia: 'viva', clave: 'seguridad:guarda' },
+    })
+  }
+
+  it('the warnings sound on this view: an incident arriving live is spoken as an Alto, and the audio can be tried', async () => {
+    const probar = vi.spyOn(voz, 'probar').mockImplementation(() => {})
+    vi.spyOn(voz, 'desbloquear').mockResolvedValue()
+    abrir('ot-13', 'incidente')
+    await screen.findByText('En vivo')
+    // Las frases de la OT se piden al abrirla, para que suenen sin esperar.
+    await waitFor(() => expect(voz.precalentar).toHaveBeenCalled())
+    // Lo que ya estaba en la bitácora al abrir no suena.
+    expect(voz.decir).not.toHaveBeenCalled()
+
+    guardaAbierta()
+    await waitFor(() => expect(voz.decir).toHaveBeenCalledWith('Guarda abierta con energía viva.', { alto: true }))
+    expect(voz.decir).toHaveBeenCalledTimes(1)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probar audio' }))
+    await waitFor(() => expect(probar).toHaveBeenCalled())
+  })
+
+  it('outside the demo the supervisor only watches: nothing is spoken and there is no audio to try', async () => {
+    config.VOZ_EN = 'operario'
+    abrir('ot-13', 'incidente')
+    await screen.findByText('En vivo')
+    guardaAbierta()
+    await screen.findByRole('alert', { name: 'Alertas abiertas' })
+    expect(voz.decir).not.toHaveBeenCalled()
+    expect(voz.precalentar).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Probar audio' })).toBeNull()
   })
 })
