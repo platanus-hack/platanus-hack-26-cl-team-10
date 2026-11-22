@@ -22,6 +22,7 @@ import type { Usuario } from '../sesion/usuarios'
 import { Marca } from '../Marca'
 import { MARCA, SOBRE_TINTA } from '../tema'
 import { ESTADOS, inicioDe, VERIFICACION } from './estados'
+import { PedirOt } from './PedirOt'
 
 const ICONOS: Record<EstadoGeneral, typeof IconCheck> = {
   sin_asignar: IconCircleDashed,
@@ -202,7 +203,7 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
               </Text>
             </Group>
           )}
-          {!supervisor && <Cuenta usuario={usuario} salir={salir} />}
+          {supervisor ? <PedirOt /> : <Cuenta usuario={usuario} salir={salir} />}
         </Group>
       </Container>
       {supervisor && <Menu abierto={menu} cerrar={cerrar} seccion={seccion} usuario={usuario} salir={salir} />}

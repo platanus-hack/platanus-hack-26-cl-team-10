@@ -1,11 +1,24 @@
-import { Box, Group, Paper, SegmentedControl, SimpleGrid, Stack, Text, Tooltip, VisuallyHidden } from '@mantine/core'
+import { Badge, Box, Group, Paper, SegmentedControl, Stack, Text, Tooltip, VisuallyHidden } from '@mantine/core'
 import { useEffect, useState } from 'react'
 import { api } from '../api/cliente'
 import type { PuntoSerie } from '../api/tipos'
 
 type Rango = 'semana' | 'mes' | 'año'
 type Punto = { clave: string; corta: string; larga: string }
-const ALTO = 140
+type Medida = 'ots_completas' | 'desviaciones' | 'alertas_de_seguridad'
+
+/**
+ * Tres líneas, un eje. Colores propios del gráfico, no los del tema: los del tema (lima, ámbar y rojo apagados) no
+ * pasan el validador de color en oscuro. Estos sí, en todos los pares (dataviz/validate_palette.js, --pairs all):
+ * azul lo que se termina, ámbar lo que se desvía, carmesí lo que es de seguridad.
+ */
+const SERIES: { medida: Medida; nombre: string; color: string }[] = [
+  { medida: 'ots_completas', nombre: 'OT completas', color: '#3a8ccf' },
+  { medida: 'desviaciones', nombre: 'Desviaciones', color: '#c08a1a' },
+  { medida: 'alertas_de_seguridad', nombre: 'Alertas de seguridad', color: '#d1407a' },
+]
+const ANCHO = 1000
+const ALTO = 200
 
 const iso = (d: Date) => d.toLocaleDateString('sv-SE') // AAAA-MM-DD, en la hora del supervisor
 
@@ -33,75 +46,32 @@ function periodos(rango: Rango, hoy = new Date()): Punto[] {
 }
 
 /**
- * Una sola serie en barras, sobre una línea base: el máximo marcado arriba, el valor exacto al pasar el cursor por la
- * columna (que es más ancha que la barra), y una tabla para lectores de pantalla. Sin leyenda: el título la nombra.
+ * Datos de ejemplo, solo para que se entienda el gráfico mientras no hay historia: más OT completas con el tiempo y
+ * menos desviaciones, que es lo que la mejora continua busca. Deterministas, para que no salten en cada recarga.
  */
-function Barras({ titulo, puntos, valores }: { titulo: string; puntos: Punto[]; valores: number[] }) {
-  const max = Math.max(1, ...valores)
-  const total = valores.reduce((a, b) => a + b, 0)
-  const cadaCuanto = puntos.length > 12 ? 5 : 1
-  return (
-    <Stack gap={6}>
-      <Group justify="space-between">
-        <Text size="sm" fw={700}>
-          {titulo}
-        </Text>
-        <Text size="sm" c="dimmed">
-          {total} en el periodo
-        </Text>
-      </Group>
-      <Box pos="relative" h={ALTO} style={{ display: 'flex', alignItems: 'flex-end', gap: 2, borderBottom: '1px solid var(--f-linea-2)' }} aria-hidden>
-        <Box pos="absolute" top={0} left={0} right={0} style={{ borderTop: '1px dashed var(--f-linea)' }} />
-        <Text pos="absolute" top={2} left={4} size="xs" c="dimmed" lh={1}>
-          {max}
-        </Text>
-        {puntos.map((p, i) => (
-          <Tooltip key={p.clave} label={`${p.larga}: ${valores[i]}`} withArrow openDelay={50}>
-            <Box h="100%" style={{ flex: 1, display: 'flex', alignItems: 'flex-end', cursor: 'default' }}>
-              <Box
-                w="100%"
-                h={`${(valores[i]! / max) * 100}%`}
-                mih={valores[i] ? 2 : 0}
-                style={{ background: 'var(--f-accion)', borderRadius: '4px 4px 0 0' }}
-              />
-            </Box>
-          </Tooltip>
-        ))}
-      </Box>
-      <Group gap={2} wrap="nowrap" aria-hidden>
-        {puntos.map((p, i) => (
-          <Text key={p.clave} size="xs" c="dimmed" ta="center" style={{ flex: 1, minWidth: 0 }}>
-            {i % cadaCuanto === 0 || i === puntos.length - 1 ? p.corta : ''}
-          </Text>
-        ))}
-      </Group>
-      <VisuallyHidden>
-        <table>
-          <caption>{titulo}</caption>
-          <tbody>
-            {puntos.map((p, i) => (
-              <tr key={p.clave}>
-                <th scope="row">{p.larga}</th>
-                <td>{valores[i]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </VisuallyHidden>
-    </Stack>
-  )
+function ejemplo(n: number, rango: Rango): Record<Medida, number>[] {
+  const escala = rango === 'año' ? 20 : 1
+  return Array.from({ length: n }, (_, i) => {
+    const t = n > 1 ? i / (n - 1) : 1
+    const ruido = (k: number) => Math.sin(i * 2.3 + k) * 0.8
+    return {
+      ots_completas: Math.max(0, Math.round((3 + 4 * t + ruido(1)) * escala)),
+      desviaciones: Math.max(0, Math.round((5 - 3 * t + ruido(2)) * escala)),
+      alertas_de_seguridad: Math.max(0, Math.round((2 - 1.6 * t + ruido(3) * 0.6) * escala)),
+    }
+  })
 }
 
-/** La actividad de la empresa en el tiempo: OT completas y desviaciones, por semana, mes o año. */
+/** La actividad de la empresa en el tiempo: tres líneas en un mismo eje, por semana, mes o año. */
 export function Actividad() {
   const [rango, setRango] = useState<Rango>('semana')
   const [serie, setSerie] = useState<PuntoSerie[] | null>(null)
+  const [encima, setEncima] = useState<number | null>(null)
   const puntos = periodos(rango)
 
   useEffect(() => {
     let vivo = true
-    const intervalo = rango === 'año' ? 'mes' : 'dia'
-    api.leerSerie(intervalo, periodos(rango)[0]!.clave).then(
+    api.leerSerie(rango === 'año' ? 'mes' : 'dia', periodos(rango)[0]!.clave).then(
       (s) => vivo && setSerie(s),
       () => vivo && setSerie([]),
     )
@@ -111,10 +81,30 @@ export function Actividad() {
   }, [rango])
 
   const de = new Map((serie ?? []).map((s) => [s.periodo, s]))
+  const reales = puntos.map((p) => ({
+    ots_completas: de.get(p.clave)?.ots_completas ?? 0,
+    desviaciones: de.get(p.clave)?.desviaciones ?? 0,
+    alertas_de_seguridad: de.get(p.clave)?.alertas_de_seguridad ?? 0,
+  }))
+  // Con menos de 3 periodos con algo, una línea no dice nada: se muestra un ejemplo, y se dice que lo es.
+  const conHistoria = reales.filter((r) => r.ots_completas + r.desviaciones + r.alertas_de_seguridad > 0).length >= 3
+  const valores = conHistoria ? reales : ejemplo(puntos.length, rango)
+  const max = Math.max(1, ...valores.flatMap((v) => SERIES.map((s) => v[s.medida])))
+  const x = (i: number) => (puntos.length > 1 ? (i / (puntos.length - 1)) * ANCHO : ANCHO / 2)
+  const y = (v: number) => ALTO - (v / max) * ALTO
+  const cadaCuanto = puntos.length > 12 ? 5 : 1
+
   return (
     <Paper component="section" aria-label="Actividad" withBorder radius="md" p="md">
-      <Group justify="space-between" mb="md">
-        <Text fw={800}>Actividad</Text>
+      <Group justify="space-between" mb="sm" gap="sm">
+        <Group gap="sm">
+          <Text fw={800}>Actividad</Text>
+          {serie && !conHistoria && (
+            <Badge variant="light" color="roca" radius="sm" tt="none">
+              Datos de ejemplo: todavía no hay historia suficiente
+            </Badge>
+          )}
+        </Group>
         <SegmentedControl
           size="xs"
           aria-label="Periodo del gráfico"
@@ -127,10 +117,102 @@ export function Actividad() {
           ]}
         />
       </Group>
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl">
-        <Barras titulo="OT completas" puntos={puntos} valores={puntos.map((p) => de.get(p.clave)?.ots_completas ?? 0)} />
-        <Barras titulo="Desviaciones" puntos={puntos} valores={puntos.map((p) => de.get(p.clave)?.desviaciones ?? 0)} />
-      </SimpleGrid>
+
+      {/* La leyenda: cada línea con su color, su nombre y su total del periodo. El color nunca va solo. */}
+      <Group gap="lg" mb="sm">
+        {SERIES.map((s) => (
+          <Group key={s.medida} gap={6} wrap="nowrap">
+            <Box w={16} h={3} style={{ background: s.color, borderRadius: 2 }} />
+            <Text size="sm">{s.nombre}</Text>
+            <Text size="sm" c="dimmed">
+              {valores.reduce((a, v) => a + v[s.medida], 0)}
+            </Text>
+          </Group>
+        ))}
+      </Group>
+
+      <Box pos="relative" h={ALTO} ml={28} aria-hidden>
+        {[1, 0.5, 0].map((f) => (
+          <Box key={f} pos="absolute" left={0} right={0} top={`${(1 - f) * 100}%`} style={{ borderTop: `1px ${f ? 'dashed' : 'solid'} var(--f-linea${f ? '' : '-2'})` }}>
+            <Text pos="absolute" left={-28} top={-8} size="xs" c="dimmed" w={22} ta="right" lh={1}>
+              {Math.round(max * f)}
+            </Text>
+          </Box>
+        ))}
+        <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} preserveAspectRatio="none" width="100%" height={ALTO} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+          {encima !== null && <line x1={x(encima)} x2={x(encima)} y1={0} y2={ALTO} stroke="var(--f-linea-2)" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+          {SERIES.map((s) => (
+            <polyline
+              key={s.medida}
+              points={valores.map((v, i) => `${x(i)},${y(v[s.medida])}`).join(' ')}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+        {/* Las zonas de hover: una por periodo, más anchas que la línea, con los tres valores. */}
+        <Box pos="absolute" style={{ inset: 0, display: 'flex' }}>
+          {puntos.map((p, i) => (
+            <Tooltip
+              key={p.clave}
+              withArrow
+              openDelay={30}
+              label={
+                <Stack gap={2}>
+                  <Text size="xs" fw={700}>
+                    {p.larga}
+                  </Text>
+                  {SERIES.map((s) => (
+                    <Group key={s.medida} gap={6} wrap="nowrap">
+                      <Box w={10} h={3} style={{ background: s.color, borderRadius: 2 }} />
+                      <Text size="xs">
+                        {s.nombre}: {valores[i]![s.medida]}
+                      </Text>
+                    </Group>
+                  ))}
+                </Stack>
+              }
+            >
+              <Box style={{ flex: 1 }} onMouseEnter={() => setEncima(i)} onMouseLeave={() => setEncima(null)} />
+            </Tooltip>
+          ))}
+        </Box>
+      </Box>
+      <Group gap={0} wrap="nowrap" ml={28} mt={6} aria-hidden>
+        {puntos.map((p, i) => (
+          <Text key={p.clave} size="xs" c="dimmed" ta="center" style={{ flex: 1, minWidth: 0 }}>
+            {i % cadaCuanto === 0 || i === puntos.length - 1 ? p.corta : ''}
+          </Text>
+        ))}
+      </Group>
+
+      <VisuallyHidden>
+        <table>
+          <caption>Actividad{conHistoria ? '' : ' (datos de ejemplo)'}</caption>
+          <thead>
+            <tr>
+              <th>Periodo</th>
+              {SERIES.map((s) => (
+                <th key={s.medida}>{s.nombre}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {puntos.map((p, i) => (
+              <tr key={p.clave}>
+                <th scope="row">{p.larga}</th>
+                {SERIES.map((s) => (
+                  <td key={s.medida}>{valores[i]![s.medida]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </VisuallyHidden>
     </Paper>
   )
 }

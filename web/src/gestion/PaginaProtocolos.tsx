@@ -1,10 +1,11 @@
-import { Alert, Button, Group, Paper, Stack, Table, Text, TextInput, Title, VisuallyHidden } from '@mantine/core'
+import { Alert, Button, Group, Paper, Stack, Table, Text, TextInput, Title, Tooltip, VisuallyHidden } from '@mantine/core'
 import { IconListDetails, IconSearch } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../api/cliente'
 import type { PautaResumen } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
+import { useNombres } from '../sesion/usuarios'
 import { avisoDe } from './estados'
 import industrial from './industrial.module.css'
 import { Encabezado, Pagina } from './ui'
@@ -25,38 +26,63 @@ function porProtocolo(pautas: PautaResumen[]): Protocolo[] {
   return [...grupos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre))
 }
 
-/** Cómo van las OT de una pauta, en pocas palabras. */
-function comoVan(ots: OtVista[]): string {
-  if (ots.length === 0) return 'Sin OT todavía'
+/** Cuántas OT de una pauta hay en cada estado, para una columna por número. */
+function cuentas(ots: OtVista[]) {
   const enCurso = ots.filter((o) => o.estado === 'en_ejecucion')
-  const conAlerta = enCurso.filter((o) => avisoDe(o)).length
   const completas = ots.filter((o) => o.estado === 'completa').length
-  const pendientes = ots.length - enCurso.length - completas
-  return [
-    enCurso.length ? `${enCurso.length} en curso` : null,
-    conAlerta ? `${conAlerta} con alerta` : null,
-    pendientes ? `${pendientes} por empezar` : null,
-    completas ? `${completas} ${completas === 1 ? 'completa' : 'completas'}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  return {
+    enCurso: enCurso.length,
+    conAlerta: enCurso.filter((o) => avisoDe(o)).length,
+    porEmpezar: ots.length - enCurso.length - completas,
+    completas,
+  }
+}
+
+/** Un número en su columna: en gris cuando es cero, para que se lea lo que sí hay. */
+function Numero({ n, color }: { n: number; color?: string }) {
+  return (
+    <Text size="sm" fw={n ? 700 : 400} c={n ? color : 'dimmed'} ta="right">
+      {n}
+    </Text>
+  )
+}
+
+/** Quiénes ejecutan o ejecutaron las OT de la pauta: los dos primeros por nombre y cuántos más. */
+function Operarios({ ots }: { ots: OtVista[] }) {
+  const nombreDe = useNombres()
+  const ids = [...new Set(ots.flatMap((o) => (o.operador ? [o.operador] : [])))]
+  if (ids.length === 0) return <Text size="sm" c="dimmed">—</Text>
+  const nombres = ids.map(nombreDe).sort((a, b) => a.localeCompare(b))
+  const texto = nombres.slice(0, 2).join(', ') + (nombres.length > 2 ? ` y ${nombres.length - 2} más` : '')
+  return (
+    <Tooltip label={nombres.join(', ')} disabled={nombres.length <= 2} multiline w={260} withArrow>
+      <Text size="sm" truncate>
+        {texto}
+      </Text>
+    </Tooltip>
+  )
 }
 
 function TablaDePautas({ pautas, ots }: { pautas: PautaResumen[]; ots: OtVista[] }) {
   return (
-    <Table.ScrollContainer minWidth={640}>
+    <Table.ScrollContainer minWidth={900}>
       <Table verticalSpacing="sm">
         <Table.Thead>
           <Table.Tr>
             <Table.Th className={industrial.rotulo}>Pauta</Table.Th>
             <Table.Th className={industrial.rotulo}>Equipo</Table.Th>
-            <Table.Th className={industrial.rotulo}>Sus OT</Table.Th>
+            <Table.Th className={industrial.rotulo}>Operarios</Table.Th>
+            <Table.Th className={industrial.rotulo} ta="right">En curso</Table.Th>
+            <Table.Th className={industrial.rotulo} ta="right">Con alerta</Table.Th>
+            <Table.Th className={industrial.rotulo} ta="right">Por empezar</Table.Th>
+            <Table.Th className={industrial.rotulo} ta="right">Completas</Table.Th>
             <Table.Th />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {pautas.map((p) => {
             const deEsta = ots.filter((o) => o.pauta === p.id)
+            const c = cuentas(deEsta)
             return (
               <Table.Tr key={p.id}>
                 <Table.Td>
@@ -68,10 +94,20 @@ function TablaDePautas({ pautas, ots }: { pautas: PautaResumen[]; ots: OtVista[]
                 <Table.Td>
                   <Text size="sm">{p.equipo}</Text>
                 </Table.Td>
+                <Table.Td maw={220}>
+                  <Operarios ots={deEsta} />
+                </Table.Td>
                 <Table.Td>
-                  <Text size="sm" c={deEsta.some((o) => o.estado === 'en_ejecucion' && avisoDe(o)) ? 'peligro.7' : undefined}>
-                    {comoVan(deEsta)}
-                  </Text>
+                  <Numero n={c.enCurso} />
+                </Table.Td>
+                <Table.Td>
+                  <Numero n={c.conAlerta} color="peligro.7" />
+                </Table.Td>
+                <Table.Td>
+                  <Numero n={c.porEmpezar} />
+                </Table.Td>
+                <Table.Td>
+                  <Numero n={c.completas} />
                 </Table.Td>
                 <Table.Td w={150}>
                   <Button
