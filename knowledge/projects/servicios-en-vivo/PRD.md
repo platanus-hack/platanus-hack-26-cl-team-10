@@ -71,7 +71,7 @@ CUANDO llega una lectura del edge
     si es el sensor del paso actual y lo cierra, entra su veredicto
     si deshace un control crítico ya verificado, entra una alerta de capa 1 (control)
     si cierra un paso posterior mientras el actual, crítico, sigue abierto, entra una alerta de capa 1 (orden)
-    si es numérica y se aleja de su historia normal, entra una alerta de capa 2 (una vez); diez iguales seguidas, sensor pegado
+    si es numérica y se aleja de su historia normal, entra una alerta de capa 2 (una vez; la distancia del edge no se compara, `SIN_ANOMALIA`); diez iguales seguidas, sensor pegado
     todo sale por el stream de esa OT, con su calificación
 CUANDO la condición de una alerta abierta desaparece
   ENTONCES entra alerta_resuelta que la apunta, y el aviso deja de venir en calificacion.avisos
