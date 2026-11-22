@@ -69,6 +69,20 @@ class Calificacion:
         }
 
 
+# Cómo se dice un sensor numérico a una persona (los mismos nombres que web/src/gestion/sensores.ts).
+_SENSORES = {"temp_c": ("Temperatura", "°C"), "hum_pct": ("Humedad", "%"), "dist_cm": ("Distancia", "cm")}
+
+
+def _cantidad(sensor_id: str, valor: float) -> str:
+    unidad = _SENSORES.get(sensor_id, ("", ""))[1]
+    return f"{valor:.1f}".rstrip("0").rstrip(".") + (f" {unidad}" if unidad else "")
+
+
+def _magnitud(sensor_id: str, valor: float) -> str:
+    """«Distancia 148.9 cm»: el nombre del sensor y su lectura, sin ids ni estadística."""
+    return f"{_SENSORES.get(sensor_id, (sensor_id, ''))[0]} {_cantidad(sensor_id, valor)}"
+
+
 def peor(calificaciones: Iterable[Calificacion]) -> Calificacion:
     """La más grave manda. A igual gravedad, la de menor certeza: es la que pide mirar."""
     lista = list(calificaciones)
@@ -129,9 +143,9 @@ def capa2(sensor_id: str, historia: Sequence[float], valor: float) -> Calificaci
             Nivel.WARNING,
             certeza,
             Capa.APRENDIZAJE,
-            (f"{sensor_id} = {valor:g}, lejos de su mediana {centro:g} ({desvio:.1f} desvíos)",),
+            (f"{_magnitud(sensor_id, valor)} fuera de lo normal: lo habitual es {_cantidad(sensor_id, centro)}",),
         )
-    return Calificacion(Nivel.OK, certeza, Capa.APRENDIZAJE, (f"{sensor_id} = {valor:g}, dentro de lo normal",))
+    return Calificacion(Nivel.OK, certeza, Capa.APRENDIZAJE, (f"{_magnitud(sensor_id, valor)}, dentro de lo normal",))
 
 
 def frescura(sensor_id: str, edad_s: float) -> Calificacion | None:
