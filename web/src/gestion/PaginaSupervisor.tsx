@@ -8,6 +8,7 @@ import { useSesion } from '../sesion/sesion'
 import { recordarNombres, useNombres } from '../sesion/usuarios'
 import { campana } from './campana'
 import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, type Incidente } from './estados'
+import industrial from './industrial.module.css'
 import estilos from './TarjetaOt.module.css'
 import { EstadoBadge, Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
 import { mensajeDe, useOts, type OtVista } from './useOts'
@@ -45,27 +46,19 @@ const CONTADORES: { titulo: string; estados: EstadoGeneral[]; color: string }[] 
 
 function Contadores({ ots }: { ots: OtVista[] }) {
   return (
-    <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+    <ul className={industrial.celdas}>
       {CONTADORES.map((c) => {
         const n = ots.filter((o) => c.estados.includes(o.estado)).length
         return (
-          <Paper
-            key={c.titulo}
-            withBorder
-            radius="md"
-            p="md"
-            style={{ borderLeft: `4px solid var(--mantine-color-${c.color}-6)` }}
-          >
-            <Text size="sm" c="roca.7" fw={600}>
-              {c.titulo}
-            </Text>
-            <Text fw={900} size="xl" aria-label={`${c.titulo}: ${n}`}>
+          <li key={c.titulo} className={industrial.celda} data-color style={{ ['--color-celda' as string]: `var(--f-${c.color})` }}>
+            <p className={industrial.rotulo}>{c.titulo}</p>
+            <p className={industrial.numero} aria-label={`${c.titulo}: ${n}`}>
               {n}
-            </Text>
-          </Paper>
+            </p>
+          </li>
         )
       })}
-    </SimpleGrid>
+    </ul>
   )
 }
 
@@ -161,7 +154,7 @@ const rutaDe = (ot: string) => `/supervisor/ot/${encodeURIComponent(ot)}`
 /** El id de la OT lleva a su vista en vivo: cámara, sensores y bitácora. */
 function IdOt({ ot }: { ot: string }) {
   return (
-    <Anchor component={Link} to={rutaDe(ot)} fw={800} c="var(--mantine-color-text)" underline="hover">
+    <Anchor component={Link} to={rutaDe(ot)} fw={500} ff="var(--f-mono)" c="var(--f-accion-texto)" underline="hover" style={{ letterSpacing: '0.06em' }}>
       {ot.toUpperCase()}
     </Anchor>
   )
@@ -183,9 +176,9 @@ function BarraIncidentes({ incidentes }: { incidentes: Incidente[] }) {
   return (
     <Paper radius="md" p="md" bg="peligro.6" role="alert" aria-label="Incidentes en curso">
       <Stack gap="sm">
-        <Group gap="xs" c="white">
+        <Group gap="xs" c="var(--f-peligro-sobre)">
           <IconAlertTriangle size={24} />
-          <Text fw={900} size="lg" c="white">
+          <Text fw={900} size="lg" c="var(--f-peligro-sobre)">
             {incidentes.length === 1 ? 'Un incidente en curso' : `${incidentes.length} incidentes en curso`}
           </Text>
         </Group>
@@ -199,7 +192,7 @@ function BarraIncidentes({ incidentes }: { incidentes: Incidente[] }) {
                 </Text>
                 <Text size="sm">{i.que}</Text>
               </Stack>
-              <Button component={Link} to={rutaDe(i.ot)} color="peligro" leftSection={<IconEye size={18} />} style={{ flexShrink: 0 }} aria-label={`Ver ${i.ot} en vivo`}>
+              <Button component={Link} to={rutaDe(i.ot)} variant="default" leftSection={<IconEye size={18} />} style={{ flexShrink: 0 }} aria-label={`Ver ${i.ot} en vivo`}>
                 Ver en vivo
               </Button>
             </Group>
@@ -277,16 +270,10 @@ function Grupos({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Oper
     <Stack gap="xl">
       {enGrupos(ots).map((g) => (
         <Stack key={g.titulo} component="section" aria-label={g.titulo} gap="sm">
-          <Group gap="xs" align="baseline">
-            <Title order={3} size="h4">
-              {g.titulo}
-            </Title>
-            {g.ots.length > 0 && (
-              <Text c="roca.6" fw={700}>
-                {g.ots.length}
-              </Text>
-            )}
-          </Group>
+          <Title order={3} className={industrial.seccion}>
+            {g.titulo}
+            {g.ots.length > 0 && <span className={industrial.dato}>{g.ots.length}</span>}
+          </Title>
           {g.ots.length === 0 ? (
             <Text c="roca.6">{g.siVacio}</Text>
           ) : (
@@ -399,7 +386,9 @@ export function PaginaSupervisor() {
       <Pagina>
         <Stack gap="lg">
           <Group justify="space-between">
-            <Title order={2}>Órdenes de trabajo</Title>
+            <Title order={2} className={industrial.titular}>
+              Órdenes de trabajo
+            </Title>
             <Group gap="sm">
               <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={actualizar}>
                 Actualizar

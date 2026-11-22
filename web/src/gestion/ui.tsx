@@ -75,9 +75,9 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
   }
   return (
     // La banda de la marca: tinta arriba, y todo lo de trabajo sigue claro debajo.
-    <Box component="header" style={{ ...SOBRE_TINTA, borderBottom: '1px solid var(--factum-linea, transparent)' }}>
+    <Box component="header" style={{ ...SOBRE_TINTA, borderBottom: '1px solid var(--f-linea, transparent)' }}>
       {/* El mismo ancho que <Pagina>: la marca cae sobre el título y «Salir» sobre el borde derecho. */}
-      <Container size={1200} px="md">
+      <Container size={1360} px="md">
         <Group justify="space-between" wrap="nowrap" gap="sm" h={56}>
           <Group gap="md" wrap="nowrap">
             <UnstyledButton component={Link} to={inicioDe(usuario.rol)} aria-label="Factum, ir al inicio" py={6} style={{ borderRadius: 4 }}>
@@ -94,11 +94,13 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
                       component={Link}
                       to={a}
                       aria-current={aqui ? 'page' : undefined}
-                      px={8}
-                      py={6}
-                      fw={600}
+                      px={10}
+                      py={8}
+                      fz={13}
+                      fw={500}
+                      tt="uppercase"
                       c={aqui ? MARCA.hueso : MARCA.tenue}
-                      style={{ borderRadius: 4, boxShadow: aqui ? `inset 0 -2px ${MARCA.lima}` : undefined }}
+                      style={{ fontFamily: 'var(--f-mono)', letterSpacing: '0.09em', boxShadow: aqui ? `inset 0 -2px ${MARCA.lima}` : undefined }}
                     >
                       {nombre}
                     </UnstyledButton>
@@ -198,7 +200,7 @@ export function FranjaDesactualizada({ error }: { error: string | null }) {
 
 export function Pagina({ children }: { children: ReactNode }) {
   return (
-    <Container size={1200} px="md" py="lg">
+    <Container size={1360} px="md" py="lg">
       {children}
     </Container>
   )

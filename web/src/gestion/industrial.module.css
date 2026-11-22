@@ -1,0 +1,693 @@
+/* El lenguaje del monitor (app/estatico/monitor.html), para las vistas del supervisor: rótulos
+   monoespaciados entre corchetes, celdas separadas por líneas en vez de tarjetas, y títulos y
+   valores en la letra de puntos. Los colores salen de tema.ts (variables --f-*). */
+
+.vista {
+  /* El color de la calificación vigente: tiñe el marco del video y el veredicto. */
+  --estado: var(--f-verificado);
+}
+
+.vista[data-nivel='warning'] {
+  --estado: var(--f-precaucion);
+}
+
+.vista[data-nivel='error'] {
+  --estado: var(--f-peligro);
+}
+
+/* ─── Letras ─── */
+
+.titular {
+  margin: 0;
+  font: 400 clamp(24px, 2.5vw, 40px) / 1.05 var(--f-titular);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.rotulo {
+  margin: 0;
+  font: 500 12px/1.4 var(--f-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--f-tenue);
+}
+
+/* El título de una sección: [// SENSORES ], con un dato a la derecha si lo lleva. */
+.seccion {
+  composes: rotulo;
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  margin-bottom: 12px;
+}
+
+.seccion::before {
+  content: '[//';
+  color: var(--f-linea-2);
+}
+
+.seccion::after {
+  content: ']';
+  color: var(--f-linea-2);
+}
+
+.dato {
+  order: 3;
+  margin-left: auto;
+  color: var(--mantine-color-text);
+}
+
+/* El número de la OT, sobre el nombre de la pauta. */
+.ot {
+  margin: 0 0 6px;
+  font: 500 14px/1.4 var(--f-mono);
+  letter-spacing: 0.09em;
+  color: var(--f-accion-texto);
+}
+
+/* ─── Cabecera y ficha ─── */
+
+.cabecera {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.cabeceraDerecha {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.vivo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 13px/1 var(--f-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--f-precaucion-texto);
+}
+
+.vivo::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.vivo[data-vivo] {
+  color: var(--f-verificado-texto);
+}
+
+.vivo[data-vivo]::before {
+  animation: late 1.6s ease-in-out infinite;
+}
+
+@keyframes late {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Celdas separadas por una línea: el fondo del contenedor es la línea. */
+.celdas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--f-linea);
+  border: 1px solid var(--f-linea);
+}
+
+.celda {
+  flex: 1 1 150px;
+  min-width: 0;
+  padding: 10px 14px 12px;
+  background: var(--f-panel);
+}
+
+.celda[data-ancho] {
+  flex: 3 1 300px;
+}
+
+.celda dd,
+.celdaValor {
+  margin: 4px 0 0;
+  font: 400 13px/1.45 var(--f-mono);
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+/* Una celda que lleva un número grande: los contadores y los resúmenes. */
+.numero {
+  margin: 4px 0 0;
+  font: 400 clamp(30px, 2.6vw, 42px) / 1.05 var(--f-titular);
+  font-variant-numeric: tabular-nums;
+}
+
+.celda[data-color] {
+  box-shadow: inset 3px 0 var(--color-celda);
+}
+
+/* ─── Dos columnas, como el monitor ─── */
+
+.rejilla {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 28px 32px;
+  align-items: start;
+}
+
+.col {
+  display: grid;
+  gap: 28px;
+  min-width: 0;
+}
+
+@media (max-width: 62em) {
+  .rejilla {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ─── Video: el marco toma el color de la calificación ─── */
+
+.marco {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--f-linea-2);
+  background: var(--f-vacio);
+}
+
+.vista:not([data-nivel='ok']) .marco {
+  border-color: var(--estado);
+}
+
+.marco img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.marco[data-vacio] {
+  aspect-ratio: 16 / 9;
+  background:
+    linear-gradient(var(--f-linea), var(--f-linea)) center / 100% 1px no-repeat,
+    linear-gradient(var(--f-linea), var(--f-linea)) center / 1px 100% no-repeat,
+    radial-gradient(circle at center, transparent 0 31%, var(--f-linea) 31% calc(31% + 1px), transparent calc(31% + 1px)) var(--f-vacio);
+}
+
+.marco[data-vacio] img {
+  position: absolute;
+  opacity: 0;
+}
+
+.esq {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: solid var(--estado);
+  border-width: 0;
+  pointer-events: none;
+}
+
+.esq:nth-of-type(1) {
+  top: 10px;
+  left: 10px;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+
+.esq:nth-of-type(2) {
+  top: 10px;
+  right: 10px;
+  border-top-width: 2px;
+  border-right-width: 2px;
+}
+
+.esq:nth-of-type(3) {
+  bottom: 10px;
+  left: 10px;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+}
+
+.esq:nth-of-type(4) {
+  right: 10px;
+  bottom: 10px;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+
+.marcoMensaje {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.marcoMensaje span {
+  padding: 8px 12px;
+  background: var(--f-vacio);
+}
+
+.arriba {
+  position: absolute;
+  top: 18px;
+  right: 44px;
+  left: 44px;
+  display: flex;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.arriba span {
+  padding: 3px 8px;
+  background: color-mix(in srgb, var(--f-vacio) 72%, transparent);
+  color: var(--mantine-color-text);
+}
+
+.cajas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.caja {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--f-caja);
+}
+
+.caja[data-seguro='false'] {
+  border-color: var(--f-precaucion);
+}
+
+.caja span {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  padding: 2px 6px;
+  font: 600 12px/1.3 var(--f-mono);
+  white-space: nowrap;
+  color: var(--f-vacio);
+  background: var(--f-caja);
+}
+
+.caja[data-seguro='false'] span {
+  background: var(--f-precaucion);
+}
+
+/* Pegada al borde de arriba del video, la etiqueta va por dentro para que no se corte. */
+.caja[data-arriba] span {
+  top: -2px;
+  bottom: auto;
+}
+
+.hud {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 44px 44px 22px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--f-vacio) 90%, transparent));
+  pointer-events: none;
+}
+
+.hudNum {
+  composes: rotulo;
+  color: var(--f-accion-texto);
+}
+
+.hudTitulo {
+  composes: titular;
+  margin-top: 4px;
+  color: var(--mantine-color-text);
+}
+
+/* ─── Verificación ─── */
+
+.veredicto {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--f-linea);
+}
+
+.nivel {
+  margin: 0;
+  font: 500 clamp(40px, 4.2vw, 64px) / 0.95 var(--f-titular);
+  text-transform: uppercase;
+  color: var(--estado);
+}
+
+.avisos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.avisos li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--f-linea);
+}
+
+.avisos b {
+  padding: 5px 7px;
+  border-radius: 2px;
+  font: 500 12px/1 var(--f-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--f-precaucion-sobre);
+  background: var(--f-precaucion);
+}
+
+.avisos li[data-nivel='error'] b {
+  color: var(--f-peligro-sobre);
+  background: var(--f-peligro);
+}
+
+.avisos small {
+  grid-column: 2;
+  font: 400 12px/1.4 var(--f-mono);
+  letter-spacing: 0.04em;
+  color: var(--f-tenue);
+}
+
+.sinAvisos {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--f-tenue);
+}
+
+/* ─── Sensores: una rejilla de celdas, no tarjetas sueltas ─── */
+
+.sensores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--f-linea);
+  border: 1px solid var(--f-linea);
+}
+
+.sensor {
+  position: relative;
+  min-height: 112px;
+  padding: 14px 16px 16px;
+  background: var(--f-panel);
+}
+
+/* Con un número impar de sensores, el último ocupa la fila entera. */
+.sensor:last-child:nth-child(odd) {
+  grid-column: span 2;
+}
+
+.sensorValor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  font: 400 clamp(26px, 2.4vw, 38px) / 1.05 var(--f-titular);
+  text-transform: uppercase;
+}
+
+.sensorNota {
+  margin: 4px 0 0;
+  font: 400 13px/1.4 var(--f-mono);
+  color: var(--f-tenue);
+}
+
+.sensor[data-viejo] .sensorValor {
+  opacity: 0.45;
+}
+
+/* El sensor que espera el paso en curso: ámbar mientras falta, lima cuando calza. */
+.sensor[data-espera] {
+  box-shadow: inset 3px 0 var(--f-precaucion);
+}
+
+.sensor[data-espera='falta'] .sensorValor {
+  color: var(--f-precaucion-texto);
+}
+
+.sensor[data-espera='calza'] {
+  box-shadow: inset 3px 0 var(--f-verificado);
+}
+
+.sensor[data-espera='calza'] .sensorValor {
+  color: var(--f-verificado-texto);
+}
+
+.tendencia {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin-top: 6px;
+  overflow: visible;
+}
+
+.tendencia polyline {
+  fill: none;
+  stroke: var(--f-tenue);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+/* ─── Pasos ─── */
+
+.pasos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--f-linea);
+}
+
+.pasos li {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 12px 12px 0;
+  border-bottom: 1px solid var(--f-linea);
+  color: var(--f-tenue);
+}
+
+.num {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--f-linea-2);
+  border-radius: 2px;
+  font: 500 14px/1 var(--f-mono);
+}
+
+.pasos b {
+  display: block;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.pasos small {
+  display: block;
+  font: 400 12px/1.5 var(--f-mono);
+  letter-spacing: 0.02em;
+}
+
+.estado {
+  font: 500 12px/1 var(--f-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pasos li[data-estado='verificado'] {
+  color: var(--mantine-color-text);
+}
+
+.pasos li[data-estado='verificado'] .num {
+  border-color: var(--f-verificado);
+  color: var(--f-verificado-texto);
+}
+
+.pasos li[data-estado='verificado'] .estado {
+  color: var(--f-verificado-texto);
+}
+
+.pasos li[data-estado='verificado'] small {
+  color: var(--f-tenue);
+}
+
+/* En curso: hielo, el color de lo que está pasando ahora. */
+.pasos li[data-actual] {
+  padding-left: 12px;
+  color: var(--mantine-color-text);
+  background: var(--f-alto);
+}
+
+.pasos li[data-actual] .num {
+  border-color: var(--f-accion);
+  color: var(--f-accion-sobre);
+  background: var(--f-accion);
+}
+
+.pasos li[data-actual] .estado {
+  color: var(--f-accion-texto);
+}
+
+/* En conflicto: rojo si lo dice el sensor, ámbar si es la duda de la cámara. */
+.pasos li[data-estado='en_conflicto'] .num {
+  border-color: var(--f-precaucion);
+  color: var(--f-precaucion-sobre);
+  background: var(--f-precaucion);
+}
+
+.pasos li[data-estado='en_conflicto'] .estado {
+  color: var(--f-precaucion-texto);
+}
+
+.pasos li[data-estado='en_conflicto'][data-capa='1'] .num {
+  border-color: var(--f-peligro);
+  color: var(--f-peligro-sobre);
+  background: var(--f-peligro);
+}
+
+.pasos li[data-estado='en_conflicto'][data-capa='1'] .estado {
+  color: var(--f-peligro-texto);
+}
+
+/* ─── Bitácora ─── */
+
+.bitacora {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--f-linea);
+}
+
+.bitacora li {
+  display: grid;
+  grid-template-columns: 9ch 1fr;
+  gap: 2px 16px;
+  padding: 10px 12px 10px 10px;
+  border-bottom: 1px solid var(--f-linea);
+  box-shadow: inset 3px 0 var(--color-evento, var(--f-linea-2));
+}
+
+.bitacora time {
+  font: 400 12px/1.6 var(--f-mono);
+  color: var(--f-tenue);
+}
+
+.bitacora b {
+  font: 500 12px/1.6 var(--f-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-evento-texto, var(--mantine-color-text));
+}
+
+.bitacora p {
+  grid-column: 2;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.bitacora small {
+  grid-column: 2;
+  font: 400 12px/1.4 var(--f-mono);
+  color: var(--f-tenue);
+}
+
+.bitacora li[data-abierta] {
+  background: var(--f-peligro-tenue);
+}
+
+.bitacora li[data-elegido] {
+  outline: 2px solid var(--f-peligro);
+  outline-offset: -2px;
+}
+
+/* ─── Avisos que cruzan la página ─── */
+
+/* La alarma: un peligro interrumpe. Rojo lleno, con el texto oscuro del monitor. */
+.alarma {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px 20px;
+  color: var(--f-peligro-sobre);
+  background: var(--f-peligro);
+}
+
+.alarma strong {
+  display: block;
+  font: 500 clamp(20px, 2.1vw, 30px) / 1.08 var(--f-titular);
+  text-wrap: balance;
+}
+
+.alarma p {
+  margin: 6px 0 0;
+  max-width: 70ch;
+  font-weight: 500;
+}
+
+.alarma small {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+/* Una franja de color a la izquierda y un fondo teñido: lo que avisa sin interrumpir. */
+.franja {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--f-linea);
+  background: var(--color-franja-tenue);
+  box-shadow: inset 4px 0 var(--color-franja);
+}
+
+.franja strong {
+  display: block;
+  font: 500 clamp(18px, 1.7vw, 24px) / 1.15 var(--f-titular);
+  text-wrap: balance;
+  color: var(--color-franja-texto);
+}
+
+.franja p {
+  margin: 6px 0 0;
+  max-width: 80ch;
+}
+
+.franja small {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--f-tenue);
+}

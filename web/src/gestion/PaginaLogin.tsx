@@ -10,6 +10,7 @@ import { CLAVE_MOCK, PERSONAS } from '../mocks/personas'
 import { guardarSesion, motivoDeSalida, useSesion } from '../sesion/sesion'
 import { usuarioDe } from '../sesion/usuarios'
 import { SOBRE_TINTA, TITULAR } from '../tema'
+import industrial from './industrial.module.css'
 import { inicioDe } from './estados'
 
 const ROL = { supervisor: 'Pide y asigna las OT', operador: 'Ejecuta las OT en terreno' } as const
@@ -88,7 +89,9 @@ export function PaginaLogin() {
       <Flex flex={1} justify="center" align={{ base: 'flex-start', md: 'center' }} px="md" py="xl">
         <Stack w="100%" maw={420} gap="lg">
           <Stack gap={4}>
-            <Title order={1}>Entrar</Title>
+            <Title order={1} className={industrial.titular}>
+              Entrar
+            </Title>
             <Text c="roca.6">Con el correo y la clave que te dio tu empresa.</Text>
           </Stack>
           {vencida && !error && (

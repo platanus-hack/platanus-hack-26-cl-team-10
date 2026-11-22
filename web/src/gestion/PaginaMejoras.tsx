@@ -1,4 +1,4 @@
-import { Alert, Badge, Box, Button, Group, Paper, SimpleGrid, Stack, Text, Textarea, Title } from '@mantine/core'
+import { Alert, Badge, Box, Button, Group, Paper, Stack, Text, Textarea, Title } from '@mantine/core'
 import { IconArrowUpRight, IconBulb, IconCheck, IconHistory, IconWifiOff, IconX } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
@@ -6,6 +6,7 @@ import { api } from '../api/cliente'
 import type { Borrador, CambioBorrador, DecisionMejora, EstadoMejora, Mejora, Metricas, SenalMejora } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { useNombres, type Usuario } from '../sesion/usuarios'
+import industrial from './industrial.module.css'
 import { Encabezado, Pagina } from './ui'
 import { useMejoras } from './useMejoras'
 import { mensajeDe } from './useOts'
@@ -21,7 +22,7 @@ export function PaginaMejoras({ cadaMs }: { cadaMs?: number }) {
 }
 
 const ESTADO: Record<EstadoMejora, { etiqueta: string; color: string; Icono: typeof IconCheck }> = {
-  abierta: { etiqueta: 'Por revisar', color: 'accion', Icono: IconBulb },
+  abierta: { etiqueta: 'Por revisar', color: 'mejora', Icono: IconBulb },
   aceptada: { etiqueta: 'Aceptada', color: 'verificado', Icono: IconCheck },
   descartada: { etiqueta: 'Descartada', color: 'roca', Icono: IconX },
   aplicada: { etiqueta: 'Aplicada en la versión nueva', color: 'verificado', Icono: IconArrowUpRight },
@@ -46,39 +47,33 @@ const VALIDACION = {
 
 function Dato({ nombre, valor, detalle }: { nombre: string; valor: string; detalle?: string }) {
   return (
-    <Paper withBorder radius="md" p="md">
-      <Text size="sm" fw={600} c="roca.7">
-        {nombre}
-      </Text>
-      <Text fw={800} fz={32} lh={1.2} style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {valor}
-      </Text>
-      {detalle && (
-        <Text size="sm" c="roca.7">
-          {detalle}
-        </Text>
-      )}
-    </Paper>
+    <li className={industrial.celda}>
+      <p className={industrial.rotulo}>{nombre}</p>
+      <p className={industrial.numero}>{valor}</p>
+      {detalle && <p className={industrial.celdaValor}>{detalle}</p>}
+    </li>
   )
 }
 
 function Resumen({ k }: { k: Metricas | null }) {
   const pct = (n: number | null) => (n === null ? 'Sin datos' : `${numero(n)} %`)
   return (
-    <SimpleGrid component="section" aria-label="Resumen" cols={{ base: 2, md: 4 }} spacing="md">
-      <Dato nombre="OT completas" valor={k ? String(k.cumplimiento.completas) : '…'} detalle={k ? `de ${k.ots.total} OT` : undefined} />
-      <Dato
-        nombre="Completas sin desviaciones"
-        valor={k ? String(k.cumplimiento.sin_desviaciones) : '…'}
-        detalle={k && k.cumplimiento.porcentaje !== null ? `${pct(k.cumplimiento.porcentaje)} de las completas` : undefined}
-      />
-      <Dato
-        nombre="Pasos cerrados con sensor o cámara"
-        valor={k ? pct(k.pasos.con_evidencia_objetiva_pct) : '…'}
-        detalle={k ? `de ${k.pasos.verificados} pasos verificados` : undefined}
-      />
-      <Dato nombre="Propuestas por revisar" valor={k ? String(k.mejoras.abierta) : '…'} />
-    </SimpleGrid>
+    <section aria-label="Resumen">
+      <ul className={industrial.celdas}>
+        <Dato nombre="OT completas" valor={k ? String(k.cumplimiento.completas) : '…'} detalle={k ? `de ${k.ots.total} OT` : undefined} />
+        <Dato
+          nombre="Completas sin desviaciones"
+          valor={k ? String(k.cumplimiento.sin_desviaciones) : '…'}
+          detalle={k && k.cumplimiento.porcentaje !== null ? `${pct(k.cumplimiento.porcentaje)} de las completas` : undefined}
+        />
+        <Dato
+          nombre="Pasos cerrados con sensor o cámara"
+          valor={k ? pct(k.pasos.con_evidencia_objetiva_pct) : '…'}
+          detalle={k ? `de ${k.pasos.verificados} pasos verificados` : undefined}
+        />
+        <Dato nombre="Propuestas por revisar" valor={k ? String(k.mejoras.abierta) : '…'} />
+      </ul>
+    </section>
   )
 }
 
@@ -241,7 +236,7 @@ function TarjetaMejora({ p, nueva, alDecidir }: { p: Mejora; nueva: boolean; alD
       withBorder
       radius="md"
       p="lg"
-      style={abierta ? { borderLeft: '6px solid var(--mantine-color-accion-6)' } : undefined}
+      style={abierta ? { boxShadow: 'inset 4px 0 var(--f-mejora)' } : undefined}
     >
       <Stack gap="md">
         <Group justify="space-between" align="flex-start" gap="lg">
@@ -251,7 +246,7 @@ function TarjetaMejora({ p, nueva, alDecidir }: { p: Mejora; nueva: boolean; alD
                 {etiqueta}
               </Badge>
               {nueva && (
-                <Badge color="accion" variant="outline" radius="sm">
+                <Badge color="mejora" variant="outline" radius="sm">
                   Nueva
                 </Badge>
               )}
@@ -261,15 +256,17 @@ function TarjetaMejora({ p, nueva, alDecidir }: { p: Mejora; nueva: boolean; alD
                 </Badge>
               )}
             </Group>
-            <Title order={3}>{p.titulo}</Title>
+            <Title order={3} className={industrial.titular}>
+              {p.titulo}
+            </Title>
             <Text size="sm" c="roca.7">
               Un paso de {p.nombre}, versión {p.version}
             </Text>
           </Stack>
           <Stack gap={0}>
-            <Text fw={800} fz={32} lh={1.2} style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <p className={industrial.numero}>
               {p.ots_con_senal} de {p.ejecuciones} OT
-            </Text>
+            </p>
             <Text size="sm" c="roca.7">
               dieron señales en este paso
               {p.operarios_distintos > 1 ? `, con ${p.operarios_distintos} operarios distintos` : ''}
@@ -286,9 +283,7 @@ function TarjetaMejora({ p, nueva, alDecidir }: { p: Mejora; nueva: boolean; alD
         </Group>
 
         <Box>
-          <Text size="sm" fw={700}>
-            Qué revisar
-          </Text>
+          <p className={industrial.rotulo}>Qué revisar</p>
           <Text>{p.sugerencia}</Text>
         </Box>
 
@@ -304,9 +299,7 @@ function TarjetaMejora({ p, nueva, alDecidir }: { p: Mejora; nueva: boolean; alD
 
         {p.observaciones.length > 0 && (
           <Box>
-            <Text size="sm" fw={700}>
-              Lo que observaron los operarios
-            </Text>
+            <p className={industrial.rotulo}>Lo que observaron los operarios</p>
             {p.observaciones.map((o, i) => (
               <Text key={i} fs="italic">
                 «{o.texto}»
@@ -379,7 +372,9 @@ function Vista({ usuario, cadaMs }: { usuario: Usuario; cadaMs?: number }) {
       <Pagina>
         <Stack gap="lg">
           <Stack gap={4}>
-            <Title order={2}>Mejoras de las pautas</Title>
+            <Title order={2} className={industrial.titular}>
+              Mejoras de las pautas
+            </Title>
             <Text c="roca.7">Una propuesta nace cuando el mismo paso se desvía en dos o más OT. Se agrupa por paso y por pauta, nunca por persona.</Text>
           </Stack>
 
