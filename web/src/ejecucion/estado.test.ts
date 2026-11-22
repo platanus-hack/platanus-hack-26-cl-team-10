@@ -4,7 +4,9 @@ import {
   avisoDelPaso,
   cerradoPor,
   contarCierre,
+  esAlto,
   estadoUi,
+  frasesDeLaOt,
   inicial,
   reducir,
   relevoPendiente,
@@ -237,6 +239,32 @@ describe('what the voice says', () => {
     expect(textoParaVoz(error(2, { detalle: 'el operario declaró «hecho» y reed_bloqueo = abierto' }), o)).toBe(
       'el operario declaró «hecho» y reed_bloqueo = abierto',
     )
+  })
+
+  it('the phrases known ahead are the ones textoParaVoz says: a skip on every step, a lost control only on critical controls', () => {
+    const conControl = ot('p1', [paso('p2', 'no_verificado', { control_critico: true }), paso('p1')])
+    const frases = frasesDeLaOt(conControl)
+    expect(frases).toEqual([
+      textoParaVoz(saltoDeP1(1), conControl),
+      'Oye, te saltaste el paso 2: Paso 2. Hazlo antes de seguir.',
+      textoParaVoz(error(2, { evidencia: { tipo: 'control', paso: 'p2', clave: 'control:p2' } }), conControl),
+    ])
+    expect(frasesDeLaOt(ot('p1', []))).toEqual([])
+  })
+})
+
+describe('Alto: the capa 1 safety alert', () => {
+  const guarda = { tipo: 'sensor', guarda: 'abierta', energia: 'viva', clave: 'seguridad:GUARDA ABIERTA' }
+
+  it('is a capa 1 safety alert', () => {
+    expect(esAlto(error(1, { evidencia: guarda }))).toBe(true)
+  })
+
+  it('is not a skip, a lost control, a capa 1 step verdict or a signal alert', () => {
+    expect(esAlto(saltoDeP1(1))).toBe(false)
+    expect(esAlto(error(2, { evidencia: { tipo: 'control', paso: 'p1', clave: 'control:p1' } }))).toBe(false)
+    expect(esAlto(error(3, { tipo: 'veredicto', paso_id: 'p1', evidencia: { tipo: 'sensor' } }))).toBe(false)
+    expect(esAlto(error(4, { capa: 2, evidencia: { clave: 'seguridad:x' } }))).toBe(false)
   })
 })
 
