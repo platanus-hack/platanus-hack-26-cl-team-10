@@ -201,6 +201,7 @@
     <select id="pauta" title="Qué pauta ejecuta la OT nueva" aria-label="Pauta de la demo">
       <option value="polin">Cambio de polín</option>
       <option value="loto">LOTO</option>
+      <option value="botella">Abrir una botella</option>
     </select>
     <button id="ejecutar" class="principal" title="Une esta OT a la estación, a nombre de su operador" hidden>Ejecutar aquí</button>
     <button id="nueva" class="principal" title="Abre una OT nueva con la pauta elegida, asignada al operador del demo, y la une al edge">Nueva demo</button>
@@ -546,7 +547,7 @@ function reiniciar() {
 // La demo es una OT del negocio: la pide el supervisor del demo, queda asignada a su operador y se une
 // al edge que se venía mirando. Las personas y las pautas las deja la semilla (POST /interno/ots/semilla).
 const DEMO = {supervisor: "supervisor:francisco", operador: "operario:jonathan"};
-const PAUTAS = {polin: "pauta-polin-estacion", loto: "pauta-loto-escritorio"};
+const PAUTAS = {polin: "pauta-polin-estacion", loto: "pauta-loto-escritorio", botella: "pauta-botella-01"};
 async function nuevaDemo() {
   $("accion").textContent = "Abriendo una OT nueva…";
   try {

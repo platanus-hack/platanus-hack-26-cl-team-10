@@ -59,7 +59,8 @@ def estado_detector() -> dict:
 EDGE_POR_DEFECTO = "edge-1"
 PAUTA_DEMO = "pauta-correa-ct-01"
 PAUTAS_DEMO = {"correa": protocolos.PAUTA_DEMO, "loto": protocolos.DATOS / "pauta-loto.json",
-               "polin": protocolos.DATOS / "pauta-polin-estacion.json"}
+               "polin": protocolos.DATOS / "pauta-polin-estacion.json",
+               "botella": protocolos.DATOS / "pauta-botella.json"}
 
 
 @app.exception_handler(ReglaDeNegocio)

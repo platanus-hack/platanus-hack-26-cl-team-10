@@ -376,6 +376,21 @@ class AislarBloquearYComprobar(Base):
         # Marcarlo crítico cuando esa regla distinga una condición de una acción del operario.
         self.assertEqual(self.estacion(equipo="frio"), [])
 
+    def test_botella_poner_y_abrir_completa_la_ot(self):
+        self.abrir("pauta-botella.json", [], {})
+        self.declarar("puse la botella", foto=b"cerrada")
+        self.declarar("la abrí", foto=b"abierta")
+        _, ahora, antes = self.juez[-1]
+        self.assertEqual((ahora, antes), (b"\xff\xd8abierta\xff\xd9", b"\xff\xd8cerrada\xff\xd9"))
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 2))
+
+    def test_botella_si_sigue_tapada_no_cierra_el_paso(self):
+        self.abrir("pauta-botella.json", [], {})
+        self.declarar("puse la botella")
+        self.camara = lambda pregunta, antes: antes is None
+        self.declarar("la abrí")
+        self.assertEqual(self.cerrados(), 1)
+
 
 class LaSemillaDeLosCasos(Base):
     def test_cada_protocolo_de_datos_tiene_su_documento_y_pautas_que_existen(self):
@@ -460,7 +475,7 @@ class LasOtDeEjemplo(Base):
         self.assertEqual(db.estado_sensores(self.cx), {"operario": "presente"})
         self.assertEqual(self.s.sesiones(), [])
         otra = self.semilla.cargar(self.cx)
-        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 19))
+        self.assertEqual((otra["ots_creadas"], len(otra["ots_que_ya_estaban"])), ([], 21))
 
     def test_la_camara_de_la_semilla_queda_dicha_en_la_evidencia(self):
         ev = next(e for e in db.eventos(self.cx, "ot-1006") if e.tipo.value == "veredicto" and e.capa == 3)
@@ -553,10 +568,10 @@ class PorHTTP(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             self.assertEqual(self.c.post("/interno/ots/semilla").status_code, 401)
             r = self.c.post("/interno/ots/semilla", headers={"X-Clave-Equipo": "secreta"})
-        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 19, 5))
+        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 21, 5))
         carla = next(a for a in r.json()["accesos"] if a["rol"] == "supervisor")
         token = self.c.post("/auth/entrar", json={"usuario": carla["usuario"], "clave": carla["clave"]}).json()["token"]
-        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 19)
+        self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 21)
 
     def test_la_semilla_deja_los_casos_listos_para_el_cliente(self):
         r = self.c.post("/interno/protocolos/semilla").json()
