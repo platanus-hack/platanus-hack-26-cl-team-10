@@ -37,3 +37,26 @@ body {
     transition: none;
   }
 }
+
+/* El logo de la banda, al abrir el menú: se desvanece en su lugar mientras la página se corre y el del menú aparece. */
+.logo-banda {
+  transition:
+    transform 300ms ease,
+    opacity 250ms ease 50ms;
+}
+
+html[data-menu='abierto'] .logo-banda {
+  opacity: 0;
+}
+
+@media (min-width: 48em) {
+  html[data-menu='abierto'] .logo-banda {
+    transform: translateX(-240px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-banda {
+    transition: none;
+  }
+}
