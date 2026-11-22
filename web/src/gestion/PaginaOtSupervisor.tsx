@@ -551,15 +551,15 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
             <Reporte otId={otId} alDia={eventos} />
           ) : (
             <>
-              {/* A un lado lo que se ve y cómo va; al otro, los pasos junto al video y debajo los sensores; abajo, todo lo que pasó. */}
+              {/* Como el monitor: a un lado lo que se ve y cómo va; al otro, sensores y pasos; abajo, todo lo que pasó. */}
               <div className={estilos.rejilla}>
                 <div className={estilos.col}>
                   <Camara edgeId={enEstacion} vistas={v.vistas} ot={ot} />
                   <Verificacion calificacion={calificacion} />
                 </div>
                 <div className={estilos.col}>
-                  <Pasos ot={ot} bitacora={s.bitacora} />
                   {enEstacion && <Sensores sensores={v.sensores} ot={ot} pauta={v.pauta} />}
+                  <Pasos ot={ot} bitacora={s.bitacora} />
                 </div>
               </div>
               <Bitacora bitacora={s.bitacora} ot={ot} abiertas={abiertas} elegido={elegido} />
