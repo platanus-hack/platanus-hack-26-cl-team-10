@@ -117,6 +117,14 @@ class CadaEmpresaVeLoSuyo(Base):
         ot = acceso.pedir_ot(self.cx, pedro, "pauta-brazo-01")["ot"]
         catalogo.asignacion(self.cx, ot, "operario:otra-1", "supervisor:otra")
 
+    def test_una_persona_que_no_es_supervisor_no_asigna_aunque_su_id_lo_parezca(self):
+        acceso.crear_persona(self.cx, "oculta", "supervisor:falso", "Falso", "falso@oculta.example", "operador")
+        ot = acceso.pedir_ot(self.cx, self.entra("carla.munoz@oculta.example"), "pauta-polin-demo")["ot"]
+        for actor in ("operario:1", "supervisor:falso"):
+            with self.assertRaisesRegex(catalogo.ReglaDeNegocio, "solo un supervisor"):
+                catalogo.asignacion(self.cx, ot, "operario:2", actor)
+        catalogo.asignacion(self.cx, ot, "operario:2", "supervisor:oculta")
+
     def test_no_hay_roles_ni_usuarios_repetidos(self):
         with self.assertRaises(catalogo.ReglaDeNegocio):
             acceso.crear_persona(self.cx, "otra", "x", "X", "x@otra.example", "gerente")
@@ -195,7 +203,7 @@ class PorHTTP(unittest.TestCase):
         personas = self.c.get("/cliente/personas", headers=ana).json()
         self.assertEqual({p["id"]: (p["nombre"], p["rol"]) for p in personas},
                          {"supervisor:oculta": ("Carla Muñoz", "supervisor"), "operario:1": ("Ana Rojas", "operador"),
-                          "operario:2": ("Bruno Díaz", "operador"), "supervisor:francisco": ("Francisco Zúñiga", "supervisor"),
+                          "operario:2": ("Bruno Díaz", "operador"),
                           "operario:jonathan": ("Jonathan Riquelme", "operador")})
         self.assertEqual({k for p in personas for k in p}, {"id", "nombre", "rol"})
         self.assertEqual(self.c.get("/cliente/personas", headers=self.cabecera("carla.munoz@oculta.example")).json(), personas)
@@ -293,12 +301,12 @@ class PorHTTP(unittest.TestCase):
     def test_el_equipo_deja_la_ot_del_demo_pedida_por_su_supervisor_y_asignada_a_su_operador(self):
         f = self.c.get("/ot/ot-1019/ficha").json()  # la que deja la semilla
         self.assertEqual((f["pauta"], f["operador_nombre"], f["pedida_por_nombre"], f["estado_general"]),
-                         ("pauta-polin-estacion", "Jonathan Riquelme", "Francisco Zúñiga", "asignada"))
-        cuerpo = {"pauta_id": "pauta-polin-estacion", "supervisor": "supervisor:francisco", "operador": "operario:jonathan"}
+                         ("pauta-polin-estacion", "Jonathan Riquelme", "Carla Muñoz", "asignada"))
+        cuerpo = {"pauta_id": "pauta-polin-estacion", "supervisor": "supervisor:oculta", "operador": "operario:jonathan"}
         r = self.c.post("/interno/ots", json=cuerpo)  # la que abre «Nueva demo»
         self.assertEqual((r.status_code, r.json()["operador"], r.json()["estado_general"]), (201, "operario:jonathan", "asignada"))
         f = self.c.get(f"/ot/{r.json()['ot']}/ficha").json()
-        self.assertEqual((f["cliente"]["id"], f["pedida_por"], f["operador_nombre"]), ("oculta", "supervisor:francisco", "Jonathan Riquelme"))
+        self.assertEqual((f["cliente"]["id"], f["pedida_por"], f["operador_nombre"]), ("oculta", "supervisor:oculta", "Jonathan Riquelme"))
         self.assertIn(r.json()["ot"], [o["ot"] for o in self.c.get("/cliente/ots", headers=self.cabecera("jonathan.riquelme@oculta.example")).json()])
         antes = len(self.c.get("/ots").json())
         for cambio, codigo in (({"supervisor": "operario:1"}, 403), ({"operador": "supervisor:oculta"}, 403), ({"supervisor": "nadie"}, 404), ({"pauta_id": "nada"}, 403)):

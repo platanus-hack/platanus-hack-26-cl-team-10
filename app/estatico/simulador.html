@@ -1288,7 +1288,7 @@ function correrEnLaBase() {
     } else {
       if (conSesion()) throw new Error(`Entraste como ${BASE.yo.rol}: solo un supervisor pide OT para la empresa.`);
       await api(`/ot/${id}/abrir?pauta_id=${encodeURIComponent(c.pauta.id)}&actor=simulador`, {metodo: "POST"});
-      await api(`/ot/${id}/asignar`, {metodo: "POST", cuerpo: {operador, actor: "simulador"}});
+      await api(`/ot/${id}/asignar`, {metodo: "POST", cuerpo: {operador, actor: "supervisor:simulador"}});
     }
     await api(`/ot/${id}/sesion`, {metodo: "POST", cuerpo: {edge_id: edge, operario: operador}});
     (REAL[caso] || (REAL[caso] = {}))[run] = {ot: id, edge, operador, tramos: [], eventos: [], enviados: -1, sensores: {}};
@@ -1326,7 +1326,7 @@ function cambioDeTurno(elegido) {
     const a = siguienteOperador(de), antes = R.eventos.at(-1).id;
     const entrega = await api(`/ot/${R.ot}/relevo/entregar?actor=${encodeURIComponent(de)}`, {metodo: "POST"});
     if (esSupervisor()) await api(`/cliente/ots/${R.ot}/asignar`, {metodo: "POST", cuerpo: {operador: a}});
-    else await api(`/ot/${R.ot}/asignar`, {metodo: "POST", cuerpo: {operador: a, actor: "simulador"}});
+    else await api(`/ot/${R.ot}/asignar`, {metodo: "POST", cuerpo: {operador: a, actor: "supervisor:simulador"}});
     await api(`/ot/${R.ot}/relevo/recibir?actor=${encodeURIComponent(a)}`, {metodo: "POST"});
     await api(`/ot/${R.ot}/sesion`, {metodo: "POST", cuerpo: {edge_id: R.edge, operario: a}});
     const evs = await api(`/ot/${R.ot}/eventos`), tr = R.tramos[i];

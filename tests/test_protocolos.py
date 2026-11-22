@@ -568,7 +568,7 @@ class PorHTTP(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             self.assertEqual(self.c.post("/interno/ots/semilla").status_code, 401)
             r = self.c.post("/interno/ots/semilla", headers={"X-Clave-Equipo": "secreta"})
-        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 21, 5))
+        self.assertEqual((r.status_code, len(r.json()["ots_creadas"]), len(r.json()["accesos"])), (200, 21, 4))
         carla = next(a for a in r.json()["accesos"] if a["rol"] == "supervisor")
         token = self.c.post("/auth/entrar", json={"usuario": carla["usuario"], "clave": carla["clave"]}).json()["token"]
         self.assertEqual(len(self.c.get("/cliente/ots", headers={"Authorization": f"Bearer {token}"}).json()), 21)
