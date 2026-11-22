@@ -84,6 +84,7 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 - **El color nunca va solo.** Siempre va con un ícono y un texto: con sol, con guantes o con daltonismo rojo-verde, el color no alcanza.
 - **Claro para el operario, oscuro para el supervisor y el login.** Lo del operario va en claro, que se lee mejor bajo el sol. Lo del supervisor (`/supervisor…`) y el login van en oscuro, con el lenguaje del monitor. Lo decide la ruta, en `App.tsx`; ninguna pantalla sabe en qué esquema está.
 - **En oscuro, la paleta del monitor más dos colores.** Lima para lo verificado, ámbar para el aviso y rojo para el peligro. El lima dejó de usarse para todo: **hielo** es lo que se puede tocar y el paso en curso, y **lila** son las propuestas de mejora. Los dos tienen la misma claridad que el lima, así que conviven con él.
+- **La saturación es un solo número.** `SATURACION`, en `tema.ts`, dice cuánto color llevan las vistas oscuras y el lima de la marca: 1 es la paleta tal cual y 0 la deja en grises. Hoy va en 0,5, porque la pantalla de la presentación exagera los colores. Baja el croma y deja igual la claridad, así que el contraste no cambia; el rojo del peligro conserva algo más de color (0,65) para seguir siendo lo que más salta. Lo del operario, en claro, no la usa.
 - **Cada color tiene cinco usos:** el color, bajo el cursor, el texto que va encima, un fondo teñido y el texto de color. Sus valores cambian con el esquema y están en `tema.ts` (`CLARO` y `OSCURO`). Botones, insignias e íconos los toman de ahí, y en oscuro los tonos de Mantine que las pantallas ya usan (`peligro.6`, `precaucion.0`) siguen esos usos.
 - **La alerta de capa 1 se ve como una tarjeta de bloqueo:** una franja roja arriba con «Peligro» en blanco, y el cuerpo blanco con el texto en grafito.
 
@@ -98,18 +99,18 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 | Precaución | `#FFD100` de relleno, `#7A5C00` para texto | Avisos de nivel `warning` (cámara y anomalías de señal), sin señal, sin conexión y la marca de un paso confirmado por una persona |
 | Peligro | `#C8102E` | Lo de nivel `error`: el warn de capa 1 que suena y la alerta de seguridad |
 
-En oscuro:
+En oscuro, la paleta tal cual, y entre paréntesis como se ve en pantalla con la saturación de hoy:
 
 | Token | Hex | Uso |
 |---|---|---|
 | Tinta | `#0a0c0a` | Fondo, con una trama de líneas finas |
 | Panel | `#101310` | Celdas y tarjetas |
 | Línea | `#252a23` y `#3d4439` | Separadores de celdas y bordes |
-| Lima | `#d4ff9e` | Verificado, y la marca |
-| Hielo | `#9fe3ff` | Botones principales, enlaces y el paso en curso |
-| Lila | `#c8b6ff` | Propuestas de mejora |
-| Ámbar | `#ffc24d` | Avisos de nivel `warning` |
-| Rojo | `#ff4433` | Lo de nivel `error` |
+| Lima | `#d4ff9e` (`#e1f7c8`) | Verificado, y la marca |
+| Hielo | `#9fe3ff` (`#bddeeb`) | Botones principales, enlaces y el paso en curso |
+| Lila | `#c8b6ff` (`#c5bde2`) | Propuestas de mejora |
+| Ámbar | `#ffc24d` (`#e7c997`) | Avisos de nivel `warning` |
+| Rojo | `#ff4433` (`#de6b5c`) | Lo de nivel `error` |
 
 El amarillo de seguridad no se lee como texto sobre blanco (1,5:1): va siempre de relleno con texto grafito (10,5:1), y el texto amarillo usa `#7A5C00` (6,3:1). Los demás pasan AA con texto blanco: rojo 5,9:1, verde 4,8:1, azul 8,5:1.
 
