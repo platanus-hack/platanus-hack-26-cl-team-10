@@ -13,7 +13,7 @@ import { useNombres, type Usuario } from '../sesion/usuarios'
 import { estadoDe, VERIFICACION } from './estados'
 import estilos from './industrial.module.css'
 import { Reporte } from './Reporte'
-import { NOMBRE_CLASE, NOMBRE_SENSOR, UNIDAD } from './sensores'
+import { enPalabras, NOMBRE_CLASE, NOMBRE_SENSOR, UNIDAD } from './sensores'
 import { Encabezado, EstadoBadge, Pagina } from './ui'
 import { useMejoras } from './useMejoras'
 import { useOtEnVivo, type Lectura } from './useOtEnVivo'
@@ -63,7 +63,7 @@ function Incidentes({ alertas, ot, onVer }: { alertas: Evento[]; ot: EstadoOt | 
               <strong>
                 {tituloDe(a)}, desde las {hora(a.ts)}
               </strong>
-              <p>{texto}</p>
+              <p>{enPalabras(texto)}</p>
               {ayuda && <small>{ayuda}</small>}
             </div>
             <Button variant="default" onClick={() => onVer(a.id)} style={{ flexShrink: 0 }}>
@@ -193,7 +193,7 @@ function Verificacion({ calificacion }: { calificacion: CalificacionOt | null })
             return (
               <li key={i} data-nivel={a.nivel}>
                 <b>{a.nivel === 'error' ? 'Error' : 'Aviso'}</b>
-                <span>{a.motivos.join(' · ')}</span>
+                <span>{a.motivos.map(enPalabras).join(' · ')}</span>
                 <small>{quien ? `Lo dice ${quien}, con ${certezaDe(a)}` : `Con ${certezaDe(a)}`}</small>
               </li>
             )
@@ -393,7 +393,7 @@ function Bitacora({ bitacora, ot, abiertas, elegido }: { bitacora: Evento[]; ot:
                   {n ? `, paso ${n}` : ''}
                   {abierta ? ' (abierta)' : ''}
                 </b>
-                <p>{ev.detalle}</p>
+                <p>{enPalabras(ev.detalle)}</p>
                 <small>{ev.actor === 'sistema' ? 'Sistema' : nombreDe(ev.actor)}</small>
               </li>
             )

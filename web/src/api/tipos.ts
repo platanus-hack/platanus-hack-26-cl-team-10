@@ -249,6 +249,9 @@ export type MejoraReporte = {
   por_que_no: string | null
   /** El cambio a la pauta en una frase por cambio, como «Agrega «Comprobar energía cero» después de …». */
   cambios_resumen: string[]
+  /** Por qué conviene y cómo se sabrá si funcionó, en palabras de quien conoce el trabajo (sugerencias.para_una_persona). */
+  porque: string
+  como_se_mide: string
 }
 
 /** Un cambio del borrador: lo que la versión siguiente haría con un paso. */

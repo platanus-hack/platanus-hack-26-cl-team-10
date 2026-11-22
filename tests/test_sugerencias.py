@@ -102,6 +102,13 @@ class LasMejorasSugeridas(recorrido.DelProtocoloALaMejoraContinua):
         self.assertEqual(por_id[self.conformidad()["id"]]["cambios_resumen"],
                          ["Agrega «Comprobar energía cero» después de «Poner tu candado»"])
         self.assertTrue(por_id[m["id"]]["cambios_resumen"][0].startswith("Reescribe «Cortar la energía»"))
+        conf = por_id[self.conformidad()["id"]]
+        self.assertEqual(conf["porque"], "El protocolo de seguridad pide «Comprobar energía cero» y hoy la pauta no tiene "
+                                         "ningún paso que lo haga.")
+        self.assertTrue(por_id[m["id"]]["porque"].startswith("«Cortar la energía» no se hizo como dice la pauta en 3 de 3"))
+        self.assertTrue(por_id[m["id"]]["como_se_mide"].startswith("Hoy falla en 3 de 3 trabajos."))
+        for x in r["mejoras"]:
+            self.assertNotRegex(x["porque"] + x["como_se_mide"], r"prot-|mediana|desv[ií]o|p_valor|binomial")
         md = self.c.get(f"/cliente/ots/{ots[0]}/reporte?formato=markdown", headers=self.carla).text
         self.assertIn("## Mejoras sugeridas", md)
         self.assertIn("Nada de este reporte lo redactó un modelo.", md)
