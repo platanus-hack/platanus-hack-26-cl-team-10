@@ -18,7 +18,7 @@ from app import catalogo, db, protocolos
 from app.bus import Bus
 from app.catalogo import ReglaDeNegocio
 from app.protocolos import DATOS, PAUTA_DEMO, SEMILLA
-from app.servicios import Servicios
+from app.servicios import DETECCIONES_MIN, Servicios
 from app.video import Video
 
 TIENE_HTTPX = importlib.util.find_spec("httpx") is not None and importlib.util.find_spec("fastapi") is not None
@@ -362,6 +362,16 @@ class AislarBloquearYComprobar(Base):
         self.camara = lambda pregunta, antes: True  # ahora sí hay un polín normal en su lugar
         self.declarar("lo reemplacé")
         self.assertEqual(self.cerrados(), 5)
+
+    def test_estacion_el_detector_ubica_el_polin_rojo_sin_declarar_y_su_foto_es_el_antes(self):
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.s.video.recibir("edge-1", b"\xff\xd8con el rojo\xff\xd9")
+        for _ in range(DETECCIONES_MIN):
+            self.s._ultimo_juicio.clear()  # en la prueba no se espera el medio segundo entre juicios
+            self.s.recibir_detecciones("edge-1", {"objetos": [{"clase": "red soda can", "conf": 0.92, "caja": [0, 0, 1, 1]}]})
+        self.assertEqual((self.cerrados(), self.juez), (4, []))  # lo cerró el detector, sin preguntarle al VLM
+        self.declarar("lo reemplacé", foto=b"con el nuevo")
+        self.assertEqual((self.juez[-1][2], self.cerrados()), (b"\xff\xd8con el rojo\xff\xd9", 5))
 
     def test_estacion_sin_la_foto_del_polin_rojo_no_hay_con_que_comparar(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")

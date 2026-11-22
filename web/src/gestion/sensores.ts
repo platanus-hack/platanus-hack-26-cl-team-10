@@ -21,4 +21,4 @@ export const NOMBRE_SENSOR: Record<string, string> = {
 export const UNIDAD: Record<string, string> = { temp_c: '°C', hum_pct: '%', dist_cm: 'cm' }
 
 // En la estación del demo los polines son latas: el detector las llama «soda can».
-export const NOMBRE_CLASE: Record<string, string> = { 'soda can': 'polín', 'red soda can': 'polín' }
+export const NOMBRE_CLASE: Record<string, string> = { 'soda can': 'polín', 'red soda can': 'polín rojo' }
