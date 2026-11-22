@@ -1,7 +1,7 @@
-import { Alert, Anchor, Button, Group, Modal, Pagination, Paper, Progress, Radio, SegmentedControl, Select, Stack, Table, Text, TextInput, Title, Tooltip, VisuallyHidden } from '@mantine/core'
+import { Alert, Anchor, Badge, Button, CloseButton, Group, Modal, Pagination, Paper, Progress, Radio, SegmentedControl, Select, Stack, Table, Text, TextInput, Title, Tooltip, VisuallyHidden } from '@mantine/core'
 import { IconAlertTriangle, IconEye, IconPlus, IconSearch } from '@tabler/icons-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { api } from '../api/cliente'
 import type { OtPedida, PautaResumen, Persona } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
@@ -243,7 +243,13 @@ function TablaOts({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Op
   const [filtro, setFiltro] = useState<Filtro>('activas')
   const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(1)
-  const ordenadas = enGrupos(ots).flatMap((g) => g.ots)
+  // ?pauta=… llega desde Protocolos («Ver sus OT»): la tabla muestra solo las OT de esa pauta, hasta que se quita.
+  const [params, setParams] = useSearchParams()
+  const pauta = params.get('pauta')
+  const ordenadas = enGrupos(ots)
+    .flatMap((g) => g.ots)
+    .filter((o) => !pauta || o.pauta === pauta)
+  const nombreDePauta = pauta ? (ots.find((o) => o.pauta === pauta)?.avance?.nombre?.replace(/ v\d+$/, '') ?? pauta) : null
   const de: Record<Filtro, OtVista[]> = {
     activas: ordenadas.filter((o) => o.estado !== 'completa'),
     alerta: ordenadas.filter((o) => o.estado === 'en_ejecucion' && avisoDe(o)),
@@ -274,6 +280,19 @@ function TablaOts({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Op
             { value: 'completas', label: etiqueta('Completas', 'completas') },
           ]}
         />
+        {pauta && (
+          <Badge
+            size="lg"
+            variant="light"
+            radius="sm"
+            tt="none"
+            rightSection={
+              <CloseButton size="xs" aria-label="Ver las OT de todas las pautas" onClick={() => setParams({})} />
+            }
+          >
+            Pauta: {nombreDePauta}
+          </Badge>
+        )}
         <TextInput
           aria-label="Buscar OT, operario o pauta"
           placeholder="Buscar OT, operario o pauta"
@@ -319,19 +338,6 @@ function TablaOts({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Op
         </Group>
       )}
     </Stack>
-  )
-}
-
-/** Una frase con cómo va todo, arriba: sin tablero de números, solo lo que importa. */
-function Resumen({ ots }: { ots: OtVista[] }) {
-  const cuenta = (e: OtVista['estado']) => ots.filter((o) => o.estado === e).length
-  const conAlerta = ots.filter((o) => o.estado === 'en_ejecucion' && avisoDe(o)).length
-  const porAsignar = cuenta('sin_asignar') + cuenta('entregada')
-  const partes = [`${cuenta('en_ejecucion')} en curso`, conAlerta ? `${conAlerta} con alerta` : 'sin alertas', porAsignar ? `${porAsignar} por asignar` : null]
-  return (
-    <Text size="lg" fw={700}>
-      {partes.filter(Boolean).join(' · ')}
-    </Text>
   )
 }
 
@@ -430,7 +436,7 @@ export function PaginaSupervisor() {
             <VisuallyHidden>
               <Title order={2}>Órdenes de trabajo</Title>
             </VisuallyHidden>
-            {ots ? <Resumen ots={lista} /> : <span />}
+            <span />
             <PedirOt onPedida={alPedir} />
           </Group>
           <BarraIncidentes incidentes={incidentes ?? []} />

@@ -8,6 +8,7 @@ import { PaginaOt } from './ejecucion/PaginaOt'
 import { Inicio } from './gestion/Inicio'
 import { PaginaLogin } from './gestion/PaginaLogin'
 import { PaginaMejoras } from './gestion/PaginaMejoras'
+import { PaginaProtocolos } from './gestion/PaginaProtocolos'
 import { PaginaOperador } from './gestion/PaginaOperador'
 import { PaginaOtSupervisor } from './gestion/PaginaOtSupervisor'
 import { PaginaSupervisor } from './gestion/PaginaSupervisor'
@@ -40,6 +41,14 @@ function Rutas() {
             element={
               <RequiereRol rol="supervisor">
                 <PaginaSupervisor />
+              </RequiereRol>
+            }
+          />
+          <Route
+            path="/supervisor/protocolos"
+            element={
+              <RequiereRol rol="supervisor">
+                <PaginaProtocolos />
               </RequiereRol>
             }
           />
