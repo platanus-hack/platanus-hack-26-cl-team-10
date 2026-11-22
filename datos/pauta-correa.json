@@ -12,7 +12,8 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "reed_bloqueo", "espera": "cerrado" }
+      "sensor": { "id": "reed_bloqueo", "espera": "cerrado" },
+      "cumple": ["prot-aislamiento-01:A1", "prot-aislamiento-01:A2"]
     },
     {
       "id": "p2",

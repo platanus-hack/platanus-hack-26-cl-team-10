@@ -19,7 +19,7 @@ uv run python scripts/analizar.py ejecuciones   # cómo se ejecutó cada pauta, 
 
 | Archivo | Dueño | Qué reemplaza |
 |---|---|---|
-| `protocolos.py` | Frente 1 | `extraer_pasos`: PDF → pasos. Hoy devuelve `datos/pauta-correa.json`. `cargar_semilla` carga los protocolos de `datos/protocolos.json` y les atribuye las pautas de `datos/` |
+| `protocolos.py` | Frente 1 | Lee las pautas de `datos/`. Del protocolo a la pauta no hay ruta: lo hace el equipo con la skill `reconocer-proceso` y lo comprueba `analisis.py` (ADR-0011, ADR-0015). `cargar_semilla` carga los protocolos de `datos/protocolos.json` y les atribuye las pautas de `datos/` |
 | `api.py` + `estatico/` | Frente 2 | La UI de ensayo por la app del operario con voz |
 | `servicios.py` + `bus.py` | Servicios | Atribuye lo del edge a la OT de la sesión y lo reparte por `/ot/{id}/stream` ([ADR-0007](../knowledge/decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md)) |
 | `scoring.py` | Servicios | La calificación ok · warning · error con certeza y motivos, por capa |
@@ -33,6 +33,9 @@ uv run python scripts/analizar.py ejecuciones   # cómo se ejecutó cada pauta, 
 | `reporte.py` | Servicios | El reporte de una OT armado desde su bitácora, en JSON o en Markdown: cada paso con la evidencia que lo cerró y su `evento`, las desviaciones, las confirmaciones por persona, las observaciones, los relevos y lo pendiente. No lo redacta un modelo |
 | `skills.py` | Servicios | Publica las skills de cliente de `.claude/skills/` en `/skills` y arma el índice `/llms.txt`; la guía completa queda en `/llms-full.txt` y `/agente`. `tests/test_skills.py` comprueba que cada ruta que nombra una skill exista |
 | `mejora.py` | Servicios | La mejora continua de las pautas: propuestas por paso desde las señales de cada ejecución, la validación del supervisor y la comprobación con la versión nueva ([ADR-0014](../knowledge/decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)) |
+| `recurrencia.py` | Servicios | Si un paso se desvía más que el resto de su pauta (binomial exacta con Holm) y si una versión nueva lo bajó de verdad (Fisher exacta). Lo usa `mejora.py` en `recurrencia` y `validacion` |
+| `simulacion.py` + `scripts/simular_mejora.py` | Servicios | OT simuladas con conductas erróneas por causa, por los servicios reales en memoria, y el eval de la mejora continua: fidelidad, criterio, validación y las escenas del demo ([resultados](../knowledge/projects/mejora-continua/simulacion.md)) |
+| Protocolos por empresa (en `catalogo.py`) | Servicios | Un protocolo es de una empresa o de la biblioteca de Factum. `POST /interno/clientes/{cliente_id}/protocolos` (`catalogo.instanciar`) copia uno de la biblioteca con sus pautas, aprobadas y habilitadas solo para esa empresa; cada pauta tiene un protocolo dueño (`pauta_duena`) donde itera. Métricas por protocolo en `GET /cliente/metricas/protocolos` ([ADR-0018](../knowledge/decisions/0018-la-pauta-tiene-un-protocolo-dueno-y-cada-protocolo-itera-por-separado.md)) |
 | `metricas.py` | Servicios | Las métricas de una empresa, leídas de la bitácora al pedirlas: resumen, por pauta, por paso, por equipo y en el tiempo. Nunca por persona |
 | `referencia.py` | Servicios | La referencia para leer y probar en `/referencia`, con Scalar: ordena el OpenAPI en grupos, declara el login y la clave del equipo, y suma los errores y los ejemplos de `app/referencia_ejemplos.json`. Una ruta nueva necesita su grupo, o `tests/test_referencia.py` falla. La revisión contra los estándares está en [API](../knowledge/architecture/API.md) |
 | `estatico/camara.html` · `estatico/monitor.html` | Servicios | El celular como cámara del edge, y la OT en vivo con video, avisos y bitácora |
@@ -40,7 +43,7 @@ uv run python scripts/analizar.py ejecuciones   # cómo se ejecutó cada pauta, 
 | `estatico/casos.html` | Servicios | El banco de pruebas en `/casos`: una tarjeta por criterio del [PRD](../knowledge/projects/servicios-en-vivo/PRD.md), que corre su secuencia real contra el servidor elegido (local o la VM) con una OT y un edge propios, y muestra cada llamada y el stream en vivo |
 | `../deploy/vm/` | Servicios | El servidor del demo: `deploy/vm/desplegar.sh` sube la rama actual a la VM sin borrar la bitácora y carga la semilla, que no toca lo que ya existe |
 | `verificacion.py` | Frente 3 | Capa 3 de cámara con Claude Haiku 5.5 (`ANTHROPIC_API_KEY`; en la VM va en `/srv/factum/entorno`; modelo en `VLM_MODELO`; sin key queda el stub). La capa 2 de cámara (YOLO del edge) está en `reglas.por_deteccion` |
-| `cerebro.py` | Frente 4 | `redactar_resumen` y `responder` por el modelo, con el registro completo |
+| `cerebro.py` | Frente 4 | El relevo (`redactar_resumen`) y las preguntas (`responder`) los redacta Claude Opus 5.5 con el registro completo (`ANTHROPIC_API_KEY`; modelo en `CEREBRO_MODELO`, tope en `CEREBRO_MAX_LLAMADAS`). Cada frase cita sus eventos y el código lo comprueba: si cita uno que no existe, calla un paso en conflicto o una alerta, queda el texto del código |
 | `analisis.py` + `scripts/analizar.py` | Servicios | Lo que se comprueba de una pauta sin modelo: contrato, citas del protocolo, factibilidad contra una estación (`datos/estaciones/`), historia de sus OT y el criterio de qué vale la pena analizar. Lo usan las skills de `.claude/skills/` ([ADR-0015](../knowledge/decisions/0015-reconocer-procesos-con-skills-de-agente-y-un-criterio.md)) |
 | `detector.py` | Servicios | YOLO en el servidor (ONNX + onnxruntime), el modo de detección por defecto |
 

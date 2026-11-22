@@ -1,16 +1,13 @@
 """FRENTE 1 — protocolo a pasos.
 
-El protocolo ya es un recurso: se carga, se lee, se corrige y se le atribuyen pautas
-(app/catalogo.py, rutas /interno/protocolos). Lo que sigue siendo un stub es extraer
-los pasos: `extraer_pasos` devuelve la pauta del demo que está en datos/pauta-correa.json,
-y las pautas de datos/ están escritas a mano.
+El protocolo es un recurso del servicio interno: se carga, se lee, se corrige y se le
+atribuyen pautas (app/catalogo.py, rutas /interno/protocolos). El cliente no crea
+protocolos ni pautas (ADR-0011): los arma el equipo de Factum al entrar a la operación,
+con la skill `reconocer-proceso`, y lo que esa skill afirma lo comprueba el código
+(app/analisis.py, `POST /interno/pautas/validar`; ADR-0015) antes de que una persona
+apruebe la pauta (ADR-0003). Por eso la API no tiene una ruta que convierta un PDF.
 
-Lo que hay que construir acá: recibir el PDF del cliente, extraer los pasos, y
-por cada paso decidir su tipo_evidencia y su pregunta_visual. Lo demás del
-sistema no cambia, porque el contrato de salida es el mismo: una Pauta.
-
-Regla que no se puede saltar (ADR-0003): una persona aprueba la pauta convertida
-antes de que se use. El stub la marca como aprobada porque es una pauta de demo.
+Acá queda leer las pautas de datos/ y cargar la semilla de protocolos.
 """
 
 from __future__ import annotations
@@ -36,9 +33,11 @@ def desde_json(ruta: Path | str = PAUTA_DEMO) -> Pauta:
     )
 
 
-def extraer_pasos(pdf: bytes) -> Pauta:  # noqa: ARG001
-    """TODO frente 1: PDF → pasos. Por ahora ignora el PDF y devuelve el demo."""
-    return desde_json()
+def _solo_cambia_cumple(guardada: Pauta, nueva: Pauta) -> bool:
+    from dataclasses import replace
+
+    sin = lambda p: replace(p, pasos=tuple(replace(x, cumple=()) for x in p.pasos))  # noqa: E731
+    return guardada != nueva and sin(guardada) == sin(nueva)
 
 
 def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
@@ -57,6 +56,10 @@ def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
         pauta = desde_json(ruta)
         if pauta.version not in {v["version"] for v in catalogo.versiones(cx, pauta.id)}:
             db.guardar_pauta(cx, pauta)
+        elif _solo_cambia_cumple(db.leer_pauta(cx, pauta.id, pauta.version), pauta):
+            # `cumple` anota qué control cumple cada paso y no cambia nada de lo que se ejecuta: se pone sobre la versión
+            # que ya existe, en vez de abrir una versión nueva solo para anotarla (ADR-0016)
+            db.guardar_pauta(cx, pauta)
         if not catalogo.aprobada(cx, pauta.id, pauta.version):
             catalogo.aprobar_pauta(cx, pauta.id, pauta.version, "supervisor:demo")
         pautas.append(pauta.id)
@@ -65,8 +68,13 @@ def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
         if not cx.execute("SELECT 1 FROM protocolos WHERE id = ?", (d["id"],)).fetchone():
             texto = (DATOS / d["documento"]).read_text(encoding="utf-8")
             catalogo.crear_protocolo(cx, {**d, "texto": texto, "pautas": []}, actor)
+        elif d.get("controles") and catalogo.leer_protocolo(cx, d["id"])["controles"] != catalogo._controles_validos(d["controles"]):
+            catalogo.fijar_controles(cx, d["id"], d["controles"], actor)
         for pauta_id in d["pautas"]:
             catalogo.atribuir(cx, pauta_id, d["id"], actor)
+        for pauta_id in d.get("propias", []):  # el protocolo dueño de cada pauta de la biblioteca (ADR-0018)
+            if catalogo.protocolo_dueno(cx, pauta_id) != d["id"]:
+                catalogo.fijar_duena(cx, pauta_id, d["id"], actor)
         protocolos.append(d["id"])
     # Entre un protocolo y una pauta de datos/, la atribución es la de datos/protocolos.json: la que se sacó de
     # ahí se saca también de la base. Va después de atribuir, para que ninguna pauta quede un momento sin protocolo.

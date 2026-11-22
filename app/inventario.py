@@ -201,6 +201,10 @@ REGLAS = {
     "A2": "Regla de seguridad que dispara en una ejecución correcta",
     "A3": "Cita que no está en el protocolo",
     "A4": "Paso que la estación no puede cerrar",
+    "C1": "Falta un control crítico del protocolo",
+    "C2": "Dos controles críticos en el mismo paso",
+    "C3": "Controles críticos fuera del orden del protocolo",
+    "C4": "Un paso dice cumplir un control que el protocolo no declara",
 }
 
 
@@ -295,6 +299,16 @@ def validar(cx: sqlite3.Connection, d: dict, inv: dict | None = None, reposo: di
         if paso.deteccion and inv["detector"]["en_servidor"] and paso.deteccion.clase not in inv["detector"]["clases"]:
             hallazgos.append(_hallazgo("I3", paso.id, f"el detector no conoce «{paso.deteccion.clase}»: el paso irá "
                                        "siempre a la capa 3"))
+    # Conformidad (ADR-0016): los controles críticos de los protocolos que aplican, los ya atribuidos más el que se nombra.
+    aplican = {p["id"]: p for p in catalogo.controles_de(cx, pauta.id)}
+    if protocolo_id and protocolo_id not in aplican:
+        prot = catalogo.leer_protocolo(cx, protocolo_id)
+        aplican[protocolo_id] = {"id": prot["id"], "nombre": prot["nombre"], "controles": prot["controles"]}
+    conformidad = analisis.conformidad(pauta, list(aplican.values()))
+    codigo = {"falta": "C1", "juntos": "C2", "orden": "C3", "desconocido": "C4"}
+    for h in conformidad["hallazgos"]:
+        hallazgos.append(_hallazgo(codigo[h["tipo"]], h["pasos"][0] if h["pasos"] else None, f"{h['protocolo']}: {h['detalle']}"))
+
     sin_respaldo = None
     if borrador is not None and protocolo_id:
         texto = catalogo.leer_protocolo(cx, protocolo_id)["texto"]
@@ -305,5 +319,6 @@ def validar(cx: sqlite3.Connection, d: dict, inv: dict | None = None, reposo: di
         hallazgos += [_hallazgo("A4", f["paso"], f["falta"]) for f in factibilidad if f["falta"]]
     pedidos = analisis.criterio(pauta, estacion_, (borrador or {}).get("no_puede_pasar", []))
     return {"valida": not errores, "errores": errores, "hallazgos": hallazgos, "reposo": en_reposo,
+            "conformidad": conformidad,
             "factibilidad": factibilidad, "citas_sin_respaldo": sin_respaldo, "analisis_que_pedir": pedidos,
             "pauta": catalogo.resumen_pauta(cx, pauta) | {"version": pauta.version}}

@@ -19,9 +19,10 @@ from typing import Literal
 from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from app import (acceso, catalogo, cerebro, db, escenarios, inventario, mejora, metricas, protocolos, referencia, reporte,
+                 sugerencias,
                  semilla, skills, verificacion)
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
@@ -118,6 +119,19 @@ class ProtocoloNuevo(BaseModel):
     origen: str = ""
     texto: str = ""
     pautas: list[str] = []
+    # los controles críticos, cada uno con id, nombre, orden y, si se sabe, qué exige y con qué evidencia (ADR-0016)
+    controles: list[dict] = []
+
+
+class ProtocoloDeEmpresa(BaseModel):
+    base: str
+    actor: str
+    sufijo: str | None = None
+
+
+class ControlesDeProtocolo(BaseModel):
+    controles: list[dict]
+    actor: str
 
 
 class ProtocoloCambio(BaseModel):
@@ -216,6 +230,9 @@ class LecturaEdge(BaseModel):
     sensor_id: str
     valor: str
     seq: int | None = None
+    # La hora en que el edge leyó el sensor, ISO 8601 con zona («2026-11-21T22:57:43.120+00:00»). Opcional: con ella,
+    # cada alerta y veredicto que cause la lectura guarda su latencia en `evidencia.lectura`.
+    medido_en: AwareDatetime | None = None
 
 
 @app.get("/")
@@ -231,10 +248,11 @@ def pagina_ensayo() -> FileResponse:
 
 
 @app.post("/pauta/demo")
-def cargar_pauta_demo(pauta: str = "correa") -> dict:
-    """Frente 1: cuando exista PDF→pasos, este endpoint recibe el PDF.
+def cargar_pauta_demo(pauta: str = "correa", x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Carga y aprueba una pauta de demo. Del equipo: pide la clave (ADR-0011).
     `pauta`: `correa` (cambio de rodillo), `polin` (cambio de polín en la estación: motor, distancia,
     temperatura y cámara) o `loto` (bloqueo con cámara y ESP32)."""
+    _solo_equipo(x_clave_equipo)
     if pauta not in PAUTAS_DEMO:
         raise HTTPException(404, f"pauta de demo desconocida: {pauta}; hay {sorted(PAUTAS_DEMO)}")
     pauta = protocolos.desde_json(PAUTAS_DEMO[pauta])
@@ -246,8 +264,10 @@ def cargar_pauta_demo(pauta: str = "correa") -> dict:
 
 @app.post("/ot/{ot_id}/abrir")
 def abrir_ot(ot_id: str, actor: str = "sistema", pauta_id: str = PAUTA_DEMO,
-             version: int | None = None) -> dict:
-    """La OT nace de una pauta APROBADA y guarda qué versión ejecuta (ADR-0003, ADR-0006)."""
+             version: int | None = None, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """La OT nace de una pauta APROBADA y guarda qué versión ejecuta (ADR-0003, ADR-0006). Abre una OT sin empresa,
+    así que pide la clave del equipo: el cliente pide la suya en `POST /cliente/ots` (ADR-0011)."""
+    _solo_equipo(x_clave_equipo)
     return catalogo.abrir_ot(cx, ot_id, pauta_id, actor, version)
 
 
@@ -260,8 +280,10 @@ def listar_pautas() -> list[dict]:
 
 
 @app.post("/pautas", status_code=201)
-def crear_pauta(pauta: dict) -> dict:
-    """Crear y cambiar son lo mismo: la versión siguiente. Nace sin aprobar."""
+def crear_pauta(pauta: dict, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Crear y cambiar son lo mismo: la versión siguiente. Nace sin aprobar. Las pautas las arma el equipo, no el
+    cliente: pide la clave del equipo (ADR-0011)."""
+    _solo_equipo(x_clave_equipo)
     try:
         return catalogo.crear_pauta(cx, pauta)
     except (KeyError, ValueError) as e:
@@ -282,7 +304,9 @@ def versiones_de_pauta(pauta_id: str) -> list[dict]:
 
 
 @app.post("/pautas/{pauta_id}/versiones/{version}/aprobar")
-def aprobar_pauta(pauta_id: str, version: int, a: Aprobacion) -> dict:
+def aprobar_pauta(pauta_id: str, version: int, a: Aprobacion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Pide la clave del equipo (ADR-0011)."""
+    _solo_equipo(x_clave_equipo)
     return catalogo.aprobar_pauta(cx, pauta_id, version, a.actor)
 
 
@@ -406,6 +430,14 @@ def leer_protocolo(protocolo_id: str, x_clave_equipo: str | None = Header(defaul
     """Un protocolo con su texto y sus pautas."""
     _solo_equipo(x_clave_equipo)
     return catalogo.leer_protocolo(cx, protocolo_id)
+
+
+@app.put("/interno/protocolos/{protocolo_id}/controles")
+def fijar_controles(protocolo_id: str, c: ControlesDeProtocolo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Aprueba los controles críticos del protocolo: los que el validador le exige a cada pauta que sale de él. Queda
+    quién y cuándo (ADR-0016). 409 si un control no trae id, nombre u orden, o si se repite."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.fijar_controles(cx, protocolo_id, c.controles, c.actor)
 
 
 @app.put("/interno/protocolos/{protocolo_id}")
@@ -568,8 +600,9 @@ def _relevo_entregar(ot_id: str, actor: str) -> dict:
     pauta = db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"])
     evs = db.eventos(cx, ot_id)
     estado = cerebro.estado_de_ot(pauta, evs)
-    resumen = cerebro.redactar_resumen(estado, evs)
-    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(), actor=actor, detalle=resumen))
+    resumen, redaccion = cerebro.redactar_resumen(estado, evs)
+    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(), actor=actor, detalle=resumen,
+                             evidencia=redaccion))
     return {"resumen": resumen, "estado": estado}
 
 
@@ -657,6 +690,7 @@ def reporte_de_la_ot(ot_id: str, formato: Literal["json", "markdown"] = Query(de
     ot = acceso.ot_de(cx, p, ot_id, servicios._ots_en_sesion())
     nombres = {x["id"]: x["nombre"] for x in acceso.nombres_de(cx, p["cliente"]["id"])}
     r = reporte.armar(cx, ot, servicios.calificacion(ot_id), nombres)
+    r["mejoras"] = _mejoras_del_reporte(p, r) if p["rol"] == "supervisor" else []
     if formato == "markdown":
         return PlainTextResponse(reporte.markdown(r), media_type="text/markdown; charset=utf-8")
     return r
@@ -707,6 +741,33 @@ def mejoras_del_cliente(estado: Literal["abierta", "aceptada", "descartada", "ap
     return [m for m in todas if estado is None or m["estado"] == estado]
 
 
+def _mejoras_del_reporte(p: dict, r: dict) -> list[dict]:
+    """Las propuestas de la pauta y versión de la OT en que esta OT aportó, y las de conformidad, con su cambio en una
+    línea por paso (app/sugerencias.py)."""
+    salida = []
+    for m in mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"]):
+        if (m["pauta"], m["version"]) != (r["pauta"]["id"], r["pauta"]["version"]):
+            continue
+        if m["tipo"] != "conformidad" and r["ot"] not in m["ots"]:
+            continue
+        salida.append({"propuesta": m["id"], "tipo": m["tipo"], "titulo": m["titulo"], "sugerencia": m["sugerencia"],
+                       "estado": m["estado"], "aplicable": m["aplicable"], "por_que_no": m["por_que_no"],
+                       "cambios_resumen": sugerencias.resumen_de(cx, m)})
+    return salida
+
+
+@app.get("/cliente/mejoras/{propuesta_id}/borrador")
+def borrador_de_mejora(propuesta_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """El cambio concreto que la propuesta haría en la versión siguiente de la pauta: qué pasos agrega, separa o
+    reescribe, con el antes y el después y las OT que lo respaldan, comprobado contra los controles del protocolo. No
+    guarda nada: «Aplicar» es aceptar la propuesta, y la versión la arma Factum. 404 si no es de su empresa."""
+    p = _supervisor(authorization)
+    m = next((m for m in mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"]) if m["id"] == propuesta_id), None)
+    if m is None:
+        raise db.NoExiste(f"propuesta {propuesta_id}")
+    return sugerencias.borrador(cx, m)
+
+
 @app.post("/cliente/mejoras/{propuesta_id}/revision")
 def revisar_mejora(propuesta_id: str, r: Revision, authorization: str | None = Header(default=None)) -> dict:
     """El supervisor valida una propuesta: aceptarla la manda al equipo de Factum para la versión siguiente de la pauta;
@@ -734,6 +795,14 @@ def metricas_por_pauta(desde: date | None = Desde, hasta: date | None = Hasta, o
     """Cada pauta que la empresa ejecutó: cumplimiento, desviaciones por clase, tiempo de ejecución, observaciones y el
     paso que más se desvía. Solo supervisor."""
     return metricas.por_pauta(cx, _ejecuciones(_supervisor(authorization), desde, hasta), orden, limite)
+
+
+@app.get("/cliente/metricas/protocolos")
+def metricas_por_protocolo(desde: date | None = Desde, hasta: date | None = Hasta, orden: OrdenGrupos = Orden,
+                           limite: int = Limite, authorization: str | None = Header(default=None)) -> list[dict]:
+    """Cada protocolo de la empresa, por las OT de las pautas de las que es dueño: cumplimiento, desviaciones, tiempo y
+    el paso que más se desvía. Es la unidad en que la mejora itera (ADR-0018). Solo supervisor."""
+    return metricas.por_protocolo(cx, _ejecuciones(_supervisor(authorization), desde, hasta), orden, limite)
 
 
 @app.get("/cliente/metricas/pautas/{pauta_id}/pasos")
@@ -843,6 +912,24 @@ def mejoras_de_todos(estado: Literal["abierta", "aceptada", "descartada", "aplic
     return salida
 
 
+@app.post("/interno/pautas/{pauta_id}/version-siguiente", status_code=201)
+def version_siguiente(pauta_id: str, a: Aprobacion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Arma y guarda, sin aprobar, la versión siguiente de la pauta con los cambios de todas las propuestas aceptadas de
+    su última versión aprobada. Se aprueba con la ruta de siempre, que rechaza la versión si pierde un control crítico.
+    404 si la pauta no existe; 409 si no hay aceptadas con un cambio que aplicar o ya hay una versión sin aprobar."""
+    _solo_equipo(x_clave_equipo)
+    return sugerencias.version_siguiente(cx, pauta_id, a.actor)
+
+
+@app.post("/interno/clientes/{cliente_id}/protocolos", status_code=201)
+def protocolo_de_empresa(cliente_id: str, p: ProtocoloDeEmpresa, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Copia un protocolo de la biblioteca de Factum para la empresa, con una copia de cada pauta suya, aprobada y
+    habilitada (ADR-0018). Desde acá ese protocolo itera solo. `sufijo` distingue dos del mismo tipo en la empresa, como
+    dos plantas. 404 si la empresa o el protocolo no existen; 409 si la copia ya existe."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.instanciar(cx, p.base, cliente_id, p.actor, p.sufijo)
+
+
 @app.put("/interno/clientes/{cliente_id}/pautas/{pauta_id}")
 def habilitar_pauta(cliente_id: str, pauta_id: str, x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
     _solo_equipo(x_clave_equipo)
@@ -916,7 +1003,9 @@ def sensor(lec: LecturaSensor) -> dict:
 @app.post("/edge/{edge_id}/lecturas")
 def lecturas_edge(edge_id: str, lecturas: list[LecturaEdge]) -> list[dict]:
     """Lo que manda el edge, en lote. Se atribuye a la OT que ese edge está ejecutando."""
-    return [servicios.recibir_lectura(edge_id, l.sensor_id, l.valor, l.seq) for l in lecturas]
+    return [servicios.recibir_lectura(edge_id, l.sensor_id, l.valor, l.seq,
+                                      l.medido_en.isoformat(timespec="milliseconds") if l.medido_en else None)
+            for l in lecturas]
 
 
 @app.post("/ot/{ot_id}/sesion")

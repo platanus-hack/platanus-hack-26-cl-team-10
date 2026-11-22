@@ -3,7 +3,7 @@ import { IconArrowUpRight, IconBulb, IconCheck, IconHistory, IconWifiOff, IconX 
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 import { api } from '../api/cliente'
-import type { DecisionMejora, EstadoMejora, Mejora, Metricas, SenalMejora } from '../api/tipos'
+import type { Borrador, CambioBorrador, DecisionMejora, EstadoMejora, Mejora, Metricas, SenalMejora } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { useNombres, type Usuario } from '../sesion/usuarios'
 import industrial from './industrial.module.css'
@@ -30,6 +30,7 @@ const ESTADO: Record<EstadoMejora, { etiqueta: string; color: string; Icono: typ
 }
 
 const SENAL: Record<SenalMejora, string> = {
+  seguridad: 'Se dio una condición de peligro',
   orden: 'Se hizo antes de su turno',
   control: 'El control se deshizo',
   conflicto: 'La palabra y la evidencia no coinciden',
@@ -41,6 +42,7 @@ const VALIDACION = {
   mejoro: 'el paso dejó de desviarse',
   se_repite: 'el paso se sigue desviando',
   sin_datos: 'todavía no hay ejecuciones',
+  sin_evidencia: 'bajó, pero con tan pocas OT todavía puede ser azar',
 } as const
 
 function Dato({ nombre, valor, detalle }: { nombre: string; valor: string; detalle?: string }) {
@@ -75,7 +77,90 @@ function Resumen({ k }: { k: Metricas | null }) {
   )
 }
 
-/** Aceptar es un toque; descartar pide antes el motivo, que queda en la revisión. */
+const CAMBIO: Record<CambioBorrador['tipo'], string> = { agrega: 'Agrega un paso', separa: 'Separa un paso', reescribe: 'Reescribe un paso' }
+
+function Texto({ titulo, t }: { titulo: string; t: { titulo: string; instruccion: string } | null }) {
+  return (
+    <Box style={{ flex: 1, minWidth: 220 }}>
+      <Text size="xs" fw={700} c="roca.7" tt="uppercase">
+        {titulo}
+      </Text>
+      {t ? (
+        <>
+          <Text fw={700}>{t.titulo}</Text>
+          <Text size="sm">{t.instruccion}</Text>
+        </>
+      ) : (
+        <Text size="sm" c="roca.7">
+          No existe: es un paso nuevo
+        </Text>
+      )}
+    </Box>
+  )
+}
+
+/** El cambio concreto a la pauta que haría aplicar la propuesta: antes y después de cada paso, con por qué. */
+function CambioPropuesto({ p }: { p: Mejora }) {
+  const [abierto, setAbierto] = useState(false)
+  const [b, setB] = useState<Borrador | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const alternar = () => {
+    setAbierto((a) => !a)
+    if (b) return
+    api.leerBorrador(p.id).then(setB, (e: unknown) => setError(mensajeDe(e)))
+  }
+
+  return (
+    <Stack gap="xs">
+      <Button variant="light" size="xs" w="fit-content" onClick={alternar} aria-expanded={abierto}>
+        {abierto ? 'Ocultar el cambio' : 'Ver el cambio'}
+      </Button>
+      {abierto && error && (
+        <Text size="sm" c="peligro" role="alert">
+          {error}
+        </Text>
+      )}
+      {abierto && b && (
+        <Paper component="section" withBorder radius="md" p="md" aria-label="Cambio propuesto">
+          <Stack gap="sm">
+            <Text size="sm" c="roca.7">
+              De la versión {b.desde_version} a la {b.version}
+            </Text>
+            {b.cambios.map((c, i) => (
+              <Stack key={i} gap={6}>
+                <Badge variant="light" radius="sm" w="fit-content">
+                  {CAMBIO[c.tipo]}
+                </Badge>
+                <Group align="flex-start" gap="lg">
+                  <Texto titulo="Antes" t={c.antes} />
+                  <Texto titulo="Después" t={c.despues} />
+                </Group>
+                <Text size="sm">
+                  <b>Por qué:</b> {c.porque}
+                </Text>
+              </Stack>
+            ))}
+            {!b.comprobacion ? null : b.comprobacion.valida ? (
+              <Text size="sm" c="verificado.8">
+                El validador lo revisó: no saca ningún control crítico.
+              </Text>
+            ) : (
+              <Text size="sm" c="peligro" role="alert">
+                El validador lo rechaza: la versión perdería un control crítico que hoy cumple.
+              </Text>
+            )}
+          </Stack>
+        </Paper>
+      )}
+    </Stack>
+  )
+}
+
+/**
+ * Aplicar es un toque: acepta la propuesta y Factum arma y aprueba la versión siguiente con su cambio. Sin cambio que
+ * aplicar (el sensor, una escalada), se acepta para que Factum lo vea. Descartar pide antes el motivo.
+ */
 function Decidir({ p, alDecidir, alCancelar }: { p: Mejora; alDecidir(): void; alCancelar?: () => void }) {
   const [descartando, setDescartando] = useState(false)
   const [nota, setNota] = useState('')
@@ -111,7 +196,7 @@ function Decidir({ p, alDecidir, alCancelar }: { p: Mejora; alDecidir(): void; a
       ) : (
         <Group gap="sm">
           <Button leftSection={<IconCheck size={18} />} loading={enviando === 'aceptar'} onClick={() => void revisar('aceptar')}>
-            Aceptar
+            {p.aplicable ? 'Aplicar' : 'Aceptar'}
           </Button>
           <Button variant="default" onClick={() => setDescartando(true)}>
             Descartar
@@ -122,7 +207,9 @@ function Decidir({ p, alDecidir, alCancelar }: { p: Mejora; alDecidir(): void; a
             </Button>
           )}
           <Text size="sm" c="roca.7">
-            Aceptarla la manda al equipo de Factum para la versión siguiente de la pauta.
+            {p.aplicable
+              ? 'Factum arma la versión siguiente con este cambio y la aprueba.'
+              : 'Aceptarla la manda al equipo de Factum para la versión siguiente de la pauta.'}
           </Text>
         </Group>
       )}
@@ -199,6 +286,16 @@ function TarjetaMejora({ p, nueva, alDecidir }: { p: Mejora; nueva: boolean; alD
           <p className={industrial.rotulo}>Qué revisar</p>
           <Text>{p.sugerencia}</Text>
         </Box>
+
+        {p.aplicable ? (
+          <CambioPropuesto p={p} />
+        ) : (
+          p.por_que_no && (
+            <Text size="sm" c="roca.7">
+              <b>Sin cambio de pauta que aplicar:</b> {p.por_que_no}
+            </Text>
+          )
+        )}
 
         {p.observaciones.length > 0 && (
           <Box>

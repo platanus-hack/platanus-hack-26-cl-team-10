@@ -106,7 +106,8 @@ def leer(cx: sqlite3.Connection, ot: dict) -> Ejecucion:
         if ev.tipo is TipoEvento.ALERTA:
             clave = (ev.evidencia or {}).get("clave", "")
             clase, _, resto = clave.partition(":")
-            a = Alerta(clase, resto if clase in ("orden", "control") else None, _hora(ev.ts))
+            paso = resto if clase in ("orden", "control") else (ev.evidencia or {}).get("paso") if clase == "seguridad" else None
+            a = Alerta(clase, paso, _hora(ev.ts))
             e.alertas.append(a)
             abiertas[ev.id] = a
             if a.paso:
@@ -254,6 +255,22 @@ def por_pauta(cx: sqlite3.Connection, es: list[Ejecucion], orden: str = "desviac
         salida.append({"pauta": pauta_id, "nombre": ultima.nombre,
                        "versiones": sorted({e.pauta.version for e in del_grupo}),
                        "protocolos": catalogo.protocolos_de(cx, pauta_id), **_grupo(del_grupo)})
+    return _ordenar(salida, orden, limite)
+
+
+def por_protocolo(cx: sqlite3.Connection, es: list[Ejecucion], orden: str = "desviaciones", limite: int = 50) -> list[dict]:
+    """Cada protocolo de la empresa, por las OT de las pautas de las que es dueño (ADR-0018): la unidad en que la
+    mejora itera, y la que le sirve al dueño de ese proceso."""
+    grupos = defaultdict(list)
+    for e in es:
+        grupos[catalogo.protocolo_dueno(cx, e.pauta.id) or "sin_dueno"].append(e)
+    salida = []
+    for protocolo_id, del_grupo in grupos.items():
+        nombre = catalogo.leer_protocolo(cx, protocolo_id)["nombre"] if protocolo_id != "sin_dueno" else "Sin protocolo dueño"
+        pautas = sorted({e.pauta.id for e in del_grupo})
+        salida.append({"protocolo": protocolo_id, "nombre": nombre, "pautas": pautas,
+                       "versiones": {p: sorted({e.pauta.version for e in del_grupo if e.pauta.id == p}) for p in pautas},
+                       **_grupo(del_grupo)})
     return _ordenar(salida, orden, limite)
 
 

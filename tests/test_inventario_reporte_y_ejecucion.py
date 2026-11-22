@@ -90,11 +90,14 @@ class ElValidador(Base):
     def test_las_pautas_del_repo_se_pueden_guardar_y_salen_los_huecos_ya_conocidos(self):
         loto = self.validar(pauta("pauta-loto"))
         self.assertEqual((loto["valida"], loto["errores"]), (True, []))
-        self.assertEqual([(h["regla"], h["paso"]) for h in loto["hallazgos"]], [("V1", "l2"), ("V1", "l5")])
+        # y la conformidad (ADR-0016): la maqueta no tiene cómo apagar el equipo del escritorio, M1
+        self.assertEqual([(h["regla"], h["paso"]) for h in loto["hallazgos"]], [("V1", "l2"), ("V1", "l5"), ("C1", None)])
+        self.assertIn("M1 Apagar el motor", loto["hallazgos"][2]["texto"])
         polin = self.validar(pauta("pauta-polin"))
         self.assertEqual([(h["regla"], h["paso"]) for h in polin["hallazgos"]], [("V1", "p4")])
         self.assertIn("palabra del operario", polin["hallazgos"][0]["texto"])
-        self.assertEqual(self.validar(pauta("pauta-polin-demo"))["hallazgos"], [])
+        self.assertEqual([(h["regla"], h["texto"]) for h in self.validar(pauta("pauta-polin-demo"))["hallazgos"]],
+                         [("C1", "prot-maqueta-01: ningún paso cumple M3 Esperar a que se enfríe")])
 
     def test_no_guarda_nada(self):
         self.validar(pauta("pauta-polin-demo"))
@@ -136,8 +139,10 @@ class ElValidadorConLasComprobacionesDeAnalisis(Base):
     """Las de app/analisis.py (ADR-0015), por la misma ruta: un solo validador para la API y para las skills."""
 
     def test_una_regla_de_seguridad_que_dispara_en_una_ejecucion_correcta(self):
-        r = self.validar(pauta("pauta-polin-estacion"))
-        self.assertIn(("A2", "e6"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
+        d = pauta("pauta-polin-estacion")
+        d["pasos"] = [p for p in d["pasos"] if p["id"] != "e6"]  # la v4: repone la corriente con el operario junto a la cinta
+        r = self.validar(d)
+        self.assertIn(("A2", "e7"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
 
     def test_un_paso_que_se_cierra_solo(self):
         d = pauta("pauta-polin-demo")

@@ -32,7 +32,7 @@ Cuando el mismo paso de la misma versión tiene señales en dos o más OT distin
 
 1. El supervisor de la empresa acepta o descarta cada propuesta en `POST /cliente/mejoras/{id}/revision`. Descartar pide una nota, y se puede cambiar de opinión: queda la última revisión.
 2. El equipo de Factum ve las aceptadas de todas las empresas en `GET /interno/mejoras`, escribe la versión siguiente de la pauta y una persona la aprueba (ADR-0003).
-3. La propuesta pasa a `aplicada`. Con las OT de la versión nueva que ya pasaron por ese paso, `validacion` dice si dejó de desviarse (`mejoro`), si se sigue desviando (`se_repite`) o si todavía no hay ejecuciones (`sin_datos`).
+3. La propuesta pasa a `aplicada`. Con las OT de la versión nueva que ya pasaron por ese paso, `validacion` dice si dejó de desviarse (`mejoro`), si bajó pero con tan pocas OT que puede ser azar (`sin_evidencia`), si se sigue desviando (`se_repite`) o si todavía no hay ejecuciones (`sin_datos`). Desde el 2026-11-21, «mejoro» pide Fisher exacta con α = 0,05, y cada propuesta trae `recurrencia`, que dice si el paso se desvía más que el resto de su pauta (`app/recurrencia.py`). La [simulación](../projects/mejora-continua/simulacion.md) mostró por qué: con 20 OT y ruido al 5 %, la regla de 2 OT deja alguna propuesta falsa en el 91 % de las pautas, y una versión sin efecto «mejoraba» el 42 % de las veces.
 
 **Las métricas se leen de la bitácora al pedirlas** (`app/metricas.py`), como la calificación: no hay un número guardado que se desfase. Son cinco GET para el supervisor, con `desde`, `hasta`, `orden` y `limite`:
 

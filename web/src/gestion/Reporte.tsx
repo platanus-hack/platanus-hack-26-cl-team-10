@@ -1,6 +1,7 @@
-import { Alert, Box, Center, Group, Loader, Stack, Table, Text, Title } from '@mantine/core'
+import { Alert, Anchor, Box, Center, Group, Loader, Stack, Table, Text, Title } from '@mantine/core'
 import { IconCamera, IconCheck, IconGauge, IconMessage, IconUser, IconWifiOff } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import { api } from '../api/cliente'
 import type { CierreReporte, DesviacionReporte, PasoReporte, ReporteOt } from '../api/tipos'
 import industrial from './industrial.module.css'
@@ -210,6 +211,37 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
             </Stack>
           )}
         </Stack>
+
+        {r.mejoras.length > 0 && (
+          <Stack gap="xs" component="section" aria-label="Mejoras sugeridas">
+            <Group justify="space-between">
+              <Title order={4} className={industrial.seccion}>
+                Mejoras sugeridas
+              </Title>
+              <Anchor component={Link} to="/supervisor/mejoras" size="sm">
+                Revisarlas en mejoras
+              </Anchor>
+            </Group>
+            <Stack gap="sm" component="ul" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {r.mejoras.map((x) => (
+                <Box key={x.propuesta} component="li">
+                  <Text fw={700}>{x.titulo}</Text>
+                  <Text size="sm">{x.sugerencia}</Text>
+                  {x.cambios_resumen.map((c) => (
+                    <Text key={c} size="sm" c="accion.7">
+                      {c}
+                    </Text>
+                  ))}
+                  {!x.aplicable && x.por_que_no && (
+                    <Text size="sm" c="roca.7">
+                      {x.por_que_no}
+                    </Text>
+                  )}
+                </Box>
+              ))}
+            </Stack>
+          </Stack>
+        )}
 
         {r.observaciones.length > 0 && (
           <Stack gap="xs">

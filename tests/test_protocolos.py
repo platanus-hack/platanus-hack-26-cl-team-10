@@ -361,7 +361,16 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual(self.cerrados(), 5)
         alertas += self.leer(operario="ausente") + self.leer(energia="viva")
         self.assertEqual((alertas, self.juez), ([], []))  # sin avisos y sin preguntarle al VLM
-        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 6))
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 7))
+
+    def test_estacion_encender_el_motor_sin_alejarse_avisa_y_no_cierra(self):
+        self.estacion(equipo="frio"), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.ver(("red soda can", 0.9))
+        self.ver(("soda can", 0.9))
+        self.assertEqual(self.cerrados(), 5)
+        alertas = self.leer(energia="viva")  # junto a la cinta
+        self.assertTrue(any(a.startswith("PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO") for a in alertas), alertas)
+        self.assertEqual(self.cerrados(), 5)
 
     def test_estacion_no_ver_el_polin_rojo_no_cuenta_si_nunca_se_vio(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
@@ -377,9 +386,9 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual((self.cerrados(), len(self.juez)), (4, 1))
 
     def test_estacion_con_el_equipo_ya_frio_no_avisa_al_empezar(self):
-        # shortcut: «Apagar el motor» no lleva control_critico porque, con el paso actual crítico,
-        # desviacion_de_orden toma «equipo = frio» por un paso adelantado y abre la demo con un error.
-        # Marcarlo crítico cuando esa regla distinga una condición de una acción del operario.
+        # «Apagar el motor» no lleva control_critico porque, con el paso actual crítico, la lectura repetida
+        # de «equipo = frio» sonaba ORDEN INVERTIDO. Desde el 2026-11-21 el orden solo mira lecturas que
+        # cambian (tests/test_orden_en_reposo.py): marcarlo crítico ya es decisión de la pauta, no del código.
         self.assertEqual(self.estacion(equipo="frio"), [])
 
     def test_botella_poner_y_abrir_completa_la_ot(self):
@@ -435,7 +444,7 @@ class LaSemillaDeLosCasos(Base):
 
     def test_un_protocolo_da_dos_pautas_la_del_rodillo_y_la_del_polin(self):
         protocolos.cargar_semilla(self.cx)
-        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01", "pauta-polin-demo", "pauta-polin-estacion"])
+        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01"])
 
     def test_se_puede_repetir_sin_duplicar(self):
         a = protocolos.cargar_semilla(self.cx)

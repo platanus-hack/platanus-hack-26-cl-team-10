@@ -113,7 +113,10 @@ class LaReferencia(unittest.TestCase):
 
     def test_todo_el_servicio_interno_declara_la_clave_y_sin_ella_responde_401(self):
         exigida = [(m, r, op) for m, r, op in self.operaciones() if op.get("security") == [{"ClaveEquipo": []}]]
-        self.assertEqual({r for _, r, _ in exigida}, {r for _, r, _ in self.operaciones() if r.startswith("/interno/")})
+        # fuera de /interno, las rutas anteriores al login que arman pautas y abren OT sin empresa (ADR-0011)
+        del_equipo = {"/pauta/demo", "/pautas", "/pautas/{pauta_id}/versiones/{version}/aprobar", "/ot/{ot_id}/abrir"}
+        self.assertEqual({r for _, r, _ in exigida},
+                         {r for _, r, _ in self.operaciones() if r.startswith("/interno/")} | del_equipo)
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             for metodo, ruta, op in exigida:
                 for cabeceras in ({}, {"X-Clave-Equipo": "otra"}):

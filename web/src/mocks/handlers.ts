@@ -3,7 +3,7 @@
 import { http, HttpResponse, ws, type RequestHandler, type WebSocketHandler } from 'msw'
 import type { Persona } from '../api/tipos'
 import { config } from '../config'
-import { mejorasDe, metricasDe, reporteDe } from './analisis'
+import { borradorDe, mejorasDe, metricasDe, reporteDe } from './analisis'
 import { resumenDeRelevo, type Escenario, type Temporizador } from './escenarios'
 import { ErrorMock, type Mundo } from './mundo'
 import { CLAVE_MOCK, expiraMock, PERSONAS, personaDeCabecera, tokenMock } from './personas'
@@ -172,7 +172,14 @@ export function crearHandlers(
     // Las propuestas de mejora y su revisión (app/mejora.py). Solo supervisor.
     http.get(`${raiz}/cliente/mejoras`, vivo(conLogin(soloSupervisor(({ request }) => {
       const estado = new URL(request.url).searchParams.get('estado')
-      return HttpResponse.json(mejorasDe(m).filter((x) => !estado || x.estado === estado))
+      // las que calcula el mock de su bitácora, más las que un test pone a mano en `m.mejoras`
+      return HttpResponse.json([...mejorasDe(m), ...m.mejoras].filter((x) => !estado || x.estado === estado))
+    })))),
+
+    // El cambio concreto a la pauta que haría aplicar la propuesta (app/sugerencias.py).
+    http.get(`${raiz}/cliente/mejoras/:id/borrador`, vivo(conLogin(soloSupervisor(({ params }) => {
+      const x = [...mejorasDe(m), ...m.mejoras].find((p) => p.id === String(params.id))
+      return x ? HttpResponse.json(borradorDe(m, x)) : noExiste(`propuesta ${String(params.id)}`)
     })))),
 
     http.post(`${raiz}/cliente/mejoras/:id/revision`, vivo(conLogin(soloSupervisor(async ({ params, request }, p) => {
@@ -180,6 +187,11 @@ export function crearHandlers(
       const { decision, nota = '' } = ((await request.json().catch(() => null)) ?? {}) as { decision?: string; nota?: string }
       if (decision !== 'aceptar' && decision !== 'descartar') return regla(`la decisión ${String(decision)} no existe; hay aceptar, descartar`)
       if (decision === 'descartar' && !nota.trim()) return regla('descartar una propuesta necesita una nota que diga por qué')
+      const puesta = m.mejoras.find((x) => x.id === id)
+      if (puesta) {
+        puesta.estado = decision === 'aceptar' ? 'aceptada' : 'descartada'
+        return HttpResponse.json(puesta)
+      }
       if (!mejorasDe(m).some((x) => x.id === id)) return noExiste(`propuesta ${id}`)
       m.revisar(id, decision, nota, p.id)
       return HttpResponse.json(mejorasDe(m).find((x) => x.id === id))

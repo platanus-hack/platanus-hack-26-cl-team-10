@@ -432,6 +432,7 @@
     "respuesta": [
       {
         "id": "pauta-polin-demo:v1:p3",
+        "tipo": "desviacion",
         "pauta": "pauta-polin-demo",
         "nombre": "Cambio de polín · demo de 2 minutos",
         "version": 1,
@@ -452,6 +453,7 @@
         "ots_con_senal": 2,
         "operarios_distintos": 2,
         "senales": {
+          "seguridad": 0,
           "orden": 1,
           "control": 0,
           "conflicto": 0,
@@ -466,9 +468,27 @@
         ],
         "motivo": "«Acercarte a la correa» tuvo señales en 2 de 3 OT de la versión 1, con 2 operarios distintos",
         "sugerencia": "El paso se hace antes de su turno: revisar si el orden de la pauta calza con cómo se trabaja en el equipo, o si el paso anterior se puede cumplir antes. Los operarios dejaron observaciones sobre este paso: leerlas antes de escribir la versión siguiente.",
+        "recurrencia": {
+          "ots_con_senal": 2,
+          "ots": 2,
+          "tasa": 1.0,
+          "tasa_del_resto": 0.062,
+          "p_valor": 0.0039,
+          "recurrente": true
+        },
+        "detectada": null,
+        "conformidad": null,
         "estado": "abierta",
         "revision": null,
-        "validacion": null
+        "validacion": null,
+        "protocolo_dueno": "prot-maqueta-01",
+        "escalar": false,
+        "ots": [
+          "ot-1001",
+          "ot-1002"
+        ],
+        "aplicable": true,
+        "por_que_no": null
       }
     ]
   },
@@ -479,6 +499,7 @@
     },
     "respuesta": {
       "id": "pauta-polin-demo:v1:p3",
+      "tipo": "desviacion",
       "pauta": "pauta-polin-demo",
       "nombre": "Cambio de polín · demo de 2 minutos",
       "version": 1,
@@ -499,6 +520,7 @@
       "ots_con_senal": 2,
       "operarios_distintos": 2,
       "senales": {
+        "seguridad": 0,
         "orden": 1,
         "control": 0,
         "conflicto": 0,
@@ -513,6 +535,16 @@
       ],
       "motivo": "«Acercarte a la correa» tuvo señales en 2 de 3 OT de la versión 1, con 2 operarios distintos",
       "sugerencia": "El paso se hace antes de su turno: revisar si el orden de la pauta calza con cómo se trabaja en el equipo, o si el paso anterior se puede cumplir antes. Los operarios dejaron observaciones sobre este paso: leerlas antes de escribir la versión siguiente.",
+      "recurrencia": {
+        "ots_con_senal": 2,
+        "ots": 2,
+        "tasa": 1.0,
+        "tasa_del_resto": 0.062,
+        "p_valor": 0.0039,
+        "recurrente": true
+      },
+      "detectada": null,
+      "conformidad": null,
       "estado": "aceptada",
       "revision": {
         "decision": "aceptar",
@@ -520,7 +552,15 @@
         "por": "supervisor:oculta",
         "ts": "2026-11-21T22:07:45+00:00"
       },
-      "validacion": null
+      "validacion": null,
+      "protocolo_dueno": "prot-maqueta-01",
+      "escalar": false,
+      "ots": [
+        "ot-1001",
+        "ot-1002"
+      ],
+      "aplicable": true,
+      "por_que_no": null
     }
   },
   "GET /cliente/ots/{ot_id}/pasos": {
@@ -879,7 +919,21 @@
         "total": 7,
         "primero": 150,
         "ultimo": 156
-      }
+      },
+      "mejoras": [
+        {
+          "propuesta": "pauta-polin-demo:v1:p3",
+          "tipo": "desviacion",
+          "titulo": "Acercarte a la correa",
+          "sugerencia": "El paso se hace antes de su turno: revisar si el orden de la pauta calza con cómo se trabaja en el equipo, o si el paso anterior se puede cumplir antes.",
+          "estado": "abierta",
+          "aplicable": true,
+          "por_que_no": null,
+          "cambios_resumen": [
+            "Reescribe «Acercarte a la correa»: dice cuándo el paso está hecho y qué no se hace antes"
+          ]
+        }
+      ]
     }
   },
   "POST /cliente/ots/{ot_id}/relevo/entregar": {

@@ -15,7 +15,8 @@
       "sensor": {
         "id": "energia",
         "espera": "cortada"
-      }
+      },
+      "cumple": ["prot-maqueta-01:M1"]
     },
     {
       "id": "p2",
@@ -28,7 +29,8 @@
       "sensor": {
         "id": "bloqueo",
         "espera": "puesto"
-      }
+      },
+      "cumple": ["prot-maqueta-01:M2"]
     },
     {
       "id": "p3",

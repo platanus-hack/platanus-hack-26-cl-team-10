@@ -234,10 +234,60 @@ export type ReporteOt = {
   observaciones: { paso: string | null; categoria: string; texto: string; quien: string; hora: string; evento: number }[]
   relevos: { que: 'entregado' | 'recibido'; quien: string; resumen: string; hora: string; evento: number }[]
   eventos: { total: number; primero: number | null; ultimo: number | null }
+  /** Las propuestas de la pauta de esta OT en que la OT aportó, o de conformidad: lo que se sugiere mejorar. */
+  mejoras: MejoraReporte[]
+}
+
+/** Una mejora sugerida, como la trae el reporte de una OT. */
+export type MejoraReporte = {
+  propuesta: string
+  tipo: 'desviacion' | 'conformidad'
+  titulo: string
+  sugerencia: string
+  estado: EstadoMejora
+  aplicable: boolean
+  por_que_no: string | null
+  /** El cambio a la pauta en una frase por cambio, como «Agrega «Comprobar energía cero» después de …». */
+  cambios_resumen: string[]
+}
+
+/** Un cambio del borrador: lo que la versión siguiente haría con un paso. */
+export type CambioBorrador = {
+  tipo: 'agrega' | 'separa' | 'reescribe'
+  paso: string | null
+  antes: { titulo: string; instruccion: string } | null
+  despues: { titulo: string; instruccion: string; tipo_evidencia: 'sensor' | 'camara' | 'confirmacion'; cumple: string[] }
+  /** Por qué, citando las OT por id. */
+  porque: string
+  ots: string[]
+}
+
+/** `GET /cliente/mejoras/{id}/borrador`: el cambio concreto a la pauta que haría aplicar la propuesta. */
+export type Borrador = {
+  propuesta: string
+  aplicable: boolean
+  por_que_no: string | null
+  pauta: string
+  desde_version: number
+  version: number
+  cambios: CambioBorrador[]
+  redactado_por: string
+  /** El borrador pasó por el contrato y la conformidad; `valida` false si pierde un control que la versión de origen cumplía. */
+  comprobacion: { valida: boolean; hallazgos_nuevos: unknown[] } | null
 }
 
 /** Lo que cuenta como señal de que un paso de la pauta se puede mejorar. */
-export type SenalMejora = 'orden' | 'control' | 'conflicto' | 'persona' | 'observacion'
+export type SenalMejora = 'seguridad' | 'orden' | 'control' | 'conflicto' | 'persona' | 'observacion'
+
+/** Si un paso se desvía más que el resto de su pauta (app/recurrencia.py). */
+export type Recurrencia = {
+  ots_con_senal: number
+  ots: number
+  tasa: number | null
+  tasa_del_resto: number
+  p_valor: number
+  recurrente: boolean
+}
 export type EstadoMejora = 'abierta' | 'aceptada' | 'descartada' | 'aplicada' | 'superada'
 export type DecisionMejora = 'aceptar' | 'descartar'
 
@@ -261,10 +311,29 @@ export type Mejora = {
   observaciones: { categoria: string; texto: string }[]
   motivo: string
   sugerencia: string
+  /** Si el paso se distingue del ruido de su pauta. */
+  recurrencia: Recurrencia | null
+  /** Cuándo y en qué OT Factum le avisó al supervisor. Una de conformidad no tiene OT: sale de la pauta misma. */
+  detectada: { ot: string | null; evento: number | null; ts: string } | null
+  /** Las OT donde el paso tuvo señal; vacía en las de conformidad. */
+  ots: string[]
+  /** Si hay un cambio de pauta que proponer. No lo hay si la señal es del sensor (`persona`), si se escaló o si ya se decidió. */
+  aplicable: boolean
+  por_que_no: string | null
+  /** `desviacion` nace de las OT; `conformidad`, de comparar la pauta con los controles de su protocolo (ADR-0016). */
+  tipo: 'desviacion' | 'conformidad'
+  conformidad: { protocolo: string; control: string; tipo: 'falta' | 'juntos' | 'orden' | 'desconocido'; detalle: string; pasos: string[] } | null
   estado: EstadoMejora
   revision: { decision: DecisionMejora; nota: string; por: string; ts: string } | null
   /** Con una versión más nueva de la pauta: si el paso dejó de desviarse. */
-  validacion: { version_nueva: number; ejecuciones: number; ots_con_senal: number; resultado: 'sin_datos' | 'mejoro' | 'se_repite' } | null
+  validacion: {
+    version_nueva: number
+    ejecuciones: number
+    ots_con_senal: number
+    /** `sin_evidencia`: bajó, pero con tan pocas OT que puede ser azar (Fisher exacta). */
+    resultado: 'sin_datos' | 'mejoro' | 'sin_evidencia' | 'se_repite'
+    p_valor: number | null
+  } | null
 }
 
 /** `GET /cliente/metricas`: la foto de la empresa. Nunca por persona. */

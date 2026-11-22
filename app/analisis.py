@@ -32,6 +32,9 @@ PARTE_LENTA = 0.4     # un paso que se lleva esta fracción del tiempo de la pau
 # ─── Lo que dice el protocolo ───────────────────────────────────────────────
 
 
+MIN_PALABRAS_CITA = 4  # «la» o «energía» aparecen en cualquier protocolo: una cita tan corta no señala nada
+
+
 def _plano(texto: str) -> str:
     """Sin formato Markdown ni espacios de más: una cita se busca por sus palabras."""
     # las marcas de énfasis se quitan sin dejar espacio: «**candado**, con» es «candado, con»
@@ -48,7 +51,7 @@ def citas_sin_respaldo(borrador: Mapping, texto: str) -> list[str]:
     por_paso = borrador.get("analisis", {}).get("pasos", {})
     return [
         p["id"] for p in borrador["pauta"]["pasos"]
-        if not (cita := _plano(por_paso.get(p["id"], {}).get("cita", ""))) or cita not in plano
+        if len((cita := _plano(por_paso.get(p["id"], {}).get("cita", ""))).split()) < MIN_PALABRAS_CITA or cita not in plano
     ]
 
 
@@ -128,6 +131,67 @@ def alertas_en_ejecucion_correcta(pauta: Pauta) -> list[dict]:
     return [{"paso": paso, "aviso": aviso} for aviso, paso in vistas.items()]
 
 
+# ─── Conformidad: la pauta contra los controles de sus protocolos (ADR-0016) ─
+
+
+def conformidad(pauta: Pauta, protocolos: Sequence[Mapping]) -> dict:
+    """Qué control crítico de qué protocolo le falta a la pauta, cuáles comparten paso y cuáles van fuera de orden.
+
+    `protocolos` son los que aplican a la pauta, cada uno con `id` y sus `controles` (`id`, `nombre`, `orden`). Un
+    paso dice qué control cumple con `cumple`, como «prot-aislamiento-01:A3». Es determinístico: se calcula cada vez y
+    no se guarda; lo que se guarda es la revisión de una persona (mejora_revisiones).
+
+    Cada hallazgo trae `clave`, estable entre corridas: `<protocolo>:<control>:<tipo>`.
+    """
+    hallazgos, cumplen, avisos = [], [], []
+    cumplido_por: dict[str, list[Paso]] = {}
+    for p in pauta.en_orden:
+        for c in p.cumple:
+            cumplido_por.setdefault(c, []).append(p)
+    for prot in protocolos:
+        controles = sorted(prot.get("controles") or [], key=lambda c: c["orden"])
+        if not controles:
+            avisos.append(f"{prot['id']} no declara controles críticos: no se le puede exigir nada a la pauta")
+            continue
+        if not any(c.split(":")[0] == prot["id"] for c in cumplido_por):
+            # una versión escrita antes de que existiera `cumple`: avisar, no reportar faltas que pueden no serlo
+            avisos.append(f"ningún paso dice qué control de {prot['id']} cumple: hay que anotarlo con `cumple` antes de exigirlo")
+            continue
+        ids = {c["id"] for c in controles}
+        for c in sorted({c for c in cumplido_por if c.split(":")[0] == prot["id"] and c.split(":")[1] not in ids}):
+            hallazgos.append({"clave": f"{c}:desconocido", "protocolo": prot["id"], "control": c.split(":")[1],
+                              "tipo": "desconocido", "pasos": [p.id for p in cumplido_por[c]],
+                              "detalle": f"un paso dice cumplir {c}, que {prot['id']} no declara"})
+        primeros = {}
+        for c in controles:
+            clave = f"{prot['id']}:{c['id']}"
+            pasos = cumplido_por.get(clave, [])
+            if not pasos:
+                hallazgos.append({"clave": f"{clave}:falta", "protocolo": prot["id"], "control": c["id"], "tipo": "falta",
+                                  "pasos": [], "detalle": f"ningún paso cumple {c['id']} {c['nombre']}"})
+                continue
+            primeros[c["id"]] = pasos[0]
+            cumplen.append({"protocolo": prot["id"], "control": c["id"], "pasos": [p.id for p in pasos]})
+        por_paso: dict[str, list[str]] = {}
+        for cid, p in primeros.items():
+            por_paso.setdefault(p.id, []).append(cid)
+        for paso_id, cids in por_paso.items():
+            if len(cids) > 1:
+                juntos = ", ".join(sorted(cids))
+                hallazgos.append({"clave": f"{prot['id']}:{'+'.join(sorted(cids))}:juntos", "protocolo": prot["id"],
+                                  "control": "+".join(sorted(cids)), "tipo": "juntos", "pasos": [paso_id],
+                                  "detalle": f"{juntos} en el mismo paso: la evidencia no puede comprobar que se hicieron "
+                                             "por separado y en su orden"})
+        en_orden = [c["id"] for c in controles if c["id"] in primeros]
+        for antes, despues in zip(en_orden, en_orden[1:]):
+            if primeros[antes].orden > primeros[despues].orden:
+                hallazgos.append({"clave": f"{prot['id']}:{antes}>{despues}:orden", "protocolo": prot["id"],
+                                  "control": f"{antes}>{despues}", "tipo": "orden",
+                                  "pasos": [primeros[antes].id, primeros[despues].id],
+                                  "detalle": f"{despues} va antes que {antes}: el protocolo los pide en el orden contrario"})
+    return {"hallazgos": hallazgos, "cumplen": cumplen, "avisos": avisos}
+
+
 # ─── La historia: cómo se ejecutó una versión de la pauta ───────────────────
 
 
@@ -137,16 +201,17 @@ def historia(pauta: Pauta, ots: Mapping[str, Sequence[Evento]]) -> dict[str, dic
     conflicto: OT donde lo declarado y la evidencia no coincidieron.
     por_persona: OT donde alguien lo confirmó contra el sensor o la cámara.
     alerta: OT donde este paso quedó saltado (orden invertido) o se deshizo (control perdido).
-    segundos: mediana desde que se cerró el paso anterior hasta que se cerró este.
+    segundos: mediana desde que se cerró el paso anterior hasta que se cerró este; el primero que se cierra no tiene.
     """
     h = {p.id: {"ots": len(ots), "verificado": 0, "conflicto": 0, "por_persona": 0, "alerta": 0, "segundos": []}
          for p in pauta.pasos}
     confirma = {p.id for p in pauta.pasos if p.tipo_evidencia is TipoEvidencia.CONFIRMACION}
     for eventos in ots.values():
         visto: set[tuple[str, str]] = set()
-        # shortcut: el primer paso se mide desde que se abrió la OT, que incluye la espera; cuando se
-        # registre `paso_iniciado`, medir desde ahí
-        anterior = eventos[0].ts if eventos else None
+        # El primer paso no tiene tiempo, como en app/metricas.py: desde que se abrió la OT corre también la
+        # espera hasta que alguien la toma, y eso hacía que el criterio de PARTE_LENTA marcara siempre el
+        # primer paso. Cuando se registre `paso_iniciado`, medir desde ahí.
+        anterior: str | None = None
 
         def contar(paso_id: str | None, que: str) -> bool:
             nuevo = paso_id in h and (paso_id, que) not in visto
@@ -165,8 +230,9 @@ def historia(pauta: Pauta, ots: Mapping[str, Sequence[Evento]]) -> dict[str, dic
                 if ev.capa is None and ev.paso_id not in confirma:
                     contar(ev.paso_id, "por_persona")
                 if contar(ev.paso_id, "verificado"):
-                    h[ev.paso_id]["segundos"].append(
-                        (datetime.fromisoformat(ev.ts) - datetime.fromisoformat(anterior)).total_seconds())
+                    if anterior is not None:
+                        h[ev.paso_id]["segundos"].append(
+                            (datetime.fromisoformat(ev.ts) - datetime.fromisoformat(anterior)).total_seconds())
                     anterior = ev.ts
     for d in h.values():
         d["segundos"] = round(median(d["segundos"]), 1) if d["segundos"] else None

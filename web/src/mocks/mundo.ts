@@ -60,6 +60,9 @@ export class Mundo {
     if (cae) for (const fn of this.alCaer) fn()
   }
 
+  /** Las propuestas de mejora de la empresa, como `GET /cliente/mejoras`. Un test las pone a mano. */
+  mejoras: Mejora[] = []
+
   private ots = new Map<string, OtMock>()
   private siguienteId = 1
   /** La última lectura de cada sensor, como db.sensores en la API. */

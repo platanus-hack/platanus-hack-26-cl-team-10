@@ -64,9 +64,9 @@ GRUPOS = {
              "sus pautas, se atribuyen y se aprueban. Un cliente no usa estas rutas.",
     INTERNO_CLIENTES: "Del equipo de Factum, con la clave del equipo. Las empresas, sus personas con su clave, "
                       "y qué pautas puede pedir cada empresa.",
-    ABIERTAS: "Rutas anteriores al login, que usan la pantalla del demo y el banco `/casos`. No piden nada: "
-              "crean pautas sin protocolo, abren OT sin empresa y listan las OT de todos. No son parte del "
-              "servicio al cliente. Brecha anotada en los ADR 0011 y 0012.",
+    ABIERTAS: "Rutas anteriores al login, que usan la pantalla del demo y el banco `/casos`. Las que crean o "
+              "aprueban pautas y abren OT sin empresa piden la clave del equipo, porque armar pautas es parte "
+              "del servicio y no del cliente (ADR-0011). Las de lectura siguen sin pedir nada.",
     ESCENARIOS: "El banco por industria: cada forma de ejecutar un paso, corrida en una caja aislada que no "
                 "toca la bitácora del servidor.",
 }

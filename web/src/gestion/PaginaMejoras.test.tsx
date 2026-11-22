@@ -71,18 +71,19 @@ it('a proposal shows the step, in how many OTs it deviated and what to review, n
   expect(within(p).queryByText('Nueva')).not.toBeInTheDocument()
 })
 
-it('accepting sends the review and says who accepted', async () => {
+it('applying accepts the proposal, says who did it and that Factum builds the next version', async () => {
   const user = userEvent.setup()
   abrir(() => {
     desviar('ot-12')
     desviar('ot-13')
   })
   const p = await propuesta()
-  await user.click(within(p).getByRole('button', { name: 'Aceptar' }))
+  expect(within(p).getByText('Factum arma la versión siguiente con este cambio y la aprueba.')).toBeInTheDocument()
+  await user.click(within(p).getByRole('button', { name: 'Aplicar' }))
 
   expect(await within(p).findByText('Aceptada')).toBeInTheDocument()
   expect(within(p).getByText(/^Aceptada por Carla Muñoz a las \d{2}:\d{2}/)).toBeInTheDocument()
-  expect(within(p).queryByRole('button', { name: 'Aceptar' })).not.toBeInTheDocument()
+  expect(within(p).queryByRole('button', { name: 'Aplicar' })).not.toBeInTheDocument()
   expect(m.revisionDe(`${PAUTA_DEMO.id}:v${PAUTA_DEMO.version}:${adelantado.id}`)).toMatchObject({ decision: 'aceptar', por: 'supervisor:oculta' })
 })
 
@@ -126,4 +127,46 @@ it('the summary: complete OTs, how many with no deviations and what closed the s
   expect(dato('Completas sin desviaciones')).toHaveTextContent('1')
   expect(dato('Propuestas por revisar')).toHaveTextContent('0')
   expect(within(resumen).getByText('Pasos cerrados con sensor o cámara')).toBeInTheDocument()
+})
+
+it('«Ver el cambio» shows each step before and after, why, citing the OTs, and that it keeps the critical controls', async () => {
+  const user = userEvent.setup()
+  abrir(() => {
+    desviar('ot-12')
+    desviar('ot-13')
+  })
+  const p = await propuesta()
+  await user.click(within(p).getByRole('button', { name: 'Ver el cambio' }))
+
+  const cambio = await within(p).findByRole('region', { name: 'Cambio propuesto' })
+  expect(within(cambio).getByText(`De la versión ${PAUTA_DEMO.version} a la ${PAUTA_DEMO.version + 1}`)).toBeInTheDocument()
+  expect(within(cambio).getByText('Reescribe un paso')).toBeInTheDocument()
+  expect(within(cambio).getByText('Antes')).toBeInTheDocument()
+  expect(within(cambio).getByText(adelantado.instruccion)).toBeInTheDocument()
+  expect(within(cambio).getByText(/No sigas al paso siguiente hasta que este quede verificado/)).toBeInTheDocument()
+  expect(within(cambio).getByText(/En ot-12 y ot-13 el paso dio señales/)).toBeInTheDocument()
+  expect(within(cambio).getByText('El validador lo revisó: no saca ningún control crítico.')).toBeInTheDocument()
+
+  await user.click(within(p).getByRole('button', { name: 'Ocultar el cambio' }))
+  expect(within(p).queryByRole('region', { name: 'Cambio propuesto' })).not.toBeInTheDocument()
+})
+
+it('a proposal with nothing to change in the pauta says why, and has no Aplicar nor change to see', async () => {
+  abrir(() => {
+    m.mejoras = [{
+      id: `${PAUTA_DEMO.id}:v${PAUTA_DEMO.version}:${adelantado.id}`, tipo: 'desviacion', conformidad: null,
+      pauta: PAUTA_DEMO.id, nombre: PAUTA_DEMO.nombre, version: PAUTA_DEMO.version, paso: adelantado.id, titulo: adelantado.titulo,
+      control_critico: adelantado.control_critico, ejecuciones: 3, ots_con_senal: 2, operarios_distintos: 2,
+      senales: { seguridad: 0, orden: 0, control: 0, conflicto: 0, persona: 2, observacion: 0 }, observaciones: [],
+      motivo: '', sugerencia: 'La evidencia no vio el paso y una persona lo confirmó.', recurrencia: null, detectada: null,
+      ots: ['ot-12', 'ot-13'], aplicable: false,
+      por_que_no: 'La evidencia no vio el paso y una persona lo confirmó: hay que revisar el sensor o la cámara, no la pauta.',
+      estado: 'abierta', revision: null, validacion: null,
+    }]
+  })
+  const p = await propuesta()
+  expect(within(p).getByText(/hay que revisar el sensor o la cámara, no la pauta/)).toBeInTheDocument()
+  expect(within(p).queryByRole('button', { name: 'Aplicar' })).not.toBeInTheDocument()
+  expect(within(p).queryByRole('button', { name: 'Ver el cambio' })).not.toBeInTheDocument()
+  expect(within(p).getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
 })
