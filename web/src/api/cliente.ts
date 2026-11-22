@@ -11,6 +11,7 @@ import type {
   EstadoOt,
   Mejora,
   Metricas,
+  PuntoSerie,
   ResumenMejoras,
   OtDetalle,
   OtPedida,
@@ -97,6 +98,8 @@ export type Cliente = {
   aplicarMejoras(pautaId: string): Promise<AplicacionMejoras>
   /** La foto de la empresa: cumplimiento, evidencia y desviaciones. Solo supervisor. */
   leerMetricas(desde?: string): Promise<Metricas>
+  /** OT abiertas y completas, desviaciones…, por día o por mes, sin huecos. Solo supervisor. */
+  leerSerie(intervalo: 'dia' | 'semana' | 'mes', desde?: string): Promise<PuntoSerie[]>
 }
 
 /** De dónde sale el token y qué hacer cuando la API deja de reconocerlo. */
@@ -180,6 +183,7 @@ export function crearCliente(
     leerBorrador: (id) => pedir('GET', `/cliente/mejoras/${encodeURIComponent(id)}/borrador`),
     resumenDeMejoras: () => pedir('GET', '/cliente/mejoras/resumen'),
     aplicarMejoras: (id) => pedir('POST', `/cliente/pautas/${encodeURIComponent(id)}/mejoras/aplicar`),
+    leerSerie: (intervalo, desde) => pedir('GET', `/cliente/metricas/serie?intervalo=${intervalo}${desde ? `&desde=${encodeURIComponent(desde)}` : ''}`),
     leerMetricas: (desde) => pedir('GET', desde ? `/cliente/metricas?desde=${encodeURIComponent(desde)}` : '/cliente/metricas'),
   }
 }

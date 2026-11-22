@@ -219,6 +219,9 @@ export function crearHandlers(
       })
     })))),
 
+    // La serie en el tiempo: en el mock, vacía (el gráfico muestra el periodo en cero).
+    http.get(`${raiz}/cliente/metricas/serie`, vivo(conLogin(soloSupervisor(() => HttpResponse.json([]))))),
+
     // La foto de la empresa (app/metricas.py). Solo supervisor.
     http.get(`${raiz}/cliente/metricas`, vivo(conLogin(soloSupervisor(() =>
       HttpResponse.json({ periodo: { desde: null, hasta: null }, ...metricasDe(m) }),
