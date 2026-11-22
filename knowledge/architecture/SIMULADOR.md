@@ -32,7 +32,9 @@ Sin sesión, la base no entrega nombres: los operarios se ven por su id. Con un 
 Cada pauta aprobada de la base es un caso. Hay dos clases:
 
 - **Las cinco con guion escrito** (`pauta-polin-demo`, `pauta-brazo-01`, `pauta-polin-ct-01`, `pauta-celda-mt-01` y `pauta-excavadora-01`) usan su guion, su escena 3D y sus textos en palabras de terreno, si la base tiene la misma versión y los mismos pasos.
-- **Cualquier otra** se simula desde sus propios pasos. Cada sensor parte en reposo: si la pauta lo lleva a varios valores, el reposo es el último; si lo lleva a uno, su contrario (`presente` → `ausente`, `cortada` → `viva`, `frio` → `caliente`). Un paso de sensor se cierra llevando el sensor al valor que pide; uno de cámara o de confirmación, declarando. La escena se elige por el equipo: la correa a escala, la correa de faena, el brazo, la celda o la excavadora, y una escena genérica con un poste por sensor para lo demás (el camión de extracción).
+- **Cualquier otra** se simula desde sus propios pasos. Cada sensor parte en reposo: si la pauta lo lleva a varios valores, el reposo es el último; si lo lleva a uno, su contrario (`presente` → `ausente`, `cortada` → `viva`, `frio` → `caliente`). Un paso de sensor se cierra llevando el sensor al valor que pide; uno de cámara o de confirmación, declarando. La escena se elige por el nombre y el equipo de la pauta: la correa a escala, la correa de faena, el brazo, la celda, la excavadora, el camión de extracción o la botella del demo, y una escena genérica (un equipo sobre su base y un poste por sensor) para lo demás. En la botella, que no tiene sensores, la botella llega a la mesa con el paso 1 verificado y pierde la tapa con el paso 2; lo que dibuja la vista «Cámara de Factum» es el cuadro que juzga el VLM al correr en la base.
+
+Todas las escenas comparten la persona (piernas, brazos que se estiran para tomar algo, casco) y las sombras en el piso.
 
 ## Cómo ejecuta cada operario
 

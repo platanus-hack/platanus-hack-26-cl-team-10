@@ -1,0 +1,27 @@
+{
+  "id": "pauta-botella-01",
+  "nombre": "Abrir una botella · estación del demo",
+  "version": 1,
+  "equipo": "una botella con tapa rosca, frente a la cámara de la estación",
+  "pasos": [
+    {
+      "id": "b1",
+      "orden": 1,
+      "titulo": "Poner la botella",
+      "instruccion": "Deja la botella cerrada sobre la mesa, a la vista de la cámara, suéltala y declara el paso.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "¿Hay una botella con su tapa puesta apoyada sobre la mesa, sin que nadie la sostenga en la mano?"
+    },
+    {
+      "id": "b2",
+      "orden": 2,
+      "titulo": "Abrir la tapa",
+      "instruccion": "Saca la tapa, deja la botella abierta en el mismo lugar y declara el paso. La cámara compara con la foto de antes.",
+      "tipo_evidencia": "camara",
+      "capa_minima": 3,
+      "pregunta_visual": "En la foto de antes hay una botella con la tapa puesta. En la foto de ahora, ¿esa botella sigue en la mesa pero ya sin la tapa puesta?",
+      "comparar_con": "b1"
+    }
+  ]
+}

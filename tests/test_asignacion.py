@@ -60,6 +60,13 @@ class Asignar(Base):
         ev = self.c.get("/ot/ot-1/eventos").json()[-1]
         self.assertEqual((ev["tipo"], ev["actor"], ev["evidencia"]), ("ot_asignada", "supervisor:1", {"operador": "operario:1"}))
 
+    def test_solo_un_supervisor_asigna(self):
+        for actor in ("operario:1", "sistema", "simulador"):
+            r = self.c.post("/ot/ot-1/asignar", json={"operador": "operario:2", "actor": actor})
+            self.assertEqual(r.status_code, 409, actor)
+            self.assertIn("solo un supervisor", r.json()["regla"])
+        self.assertIsNone(self.ot()["operador"])
+
     def test_una_ot_que_no_existe_es_404(self):
         r = self.asignar(ot_id="no-existe")
         self.assertEqual(r.status_code, 404)

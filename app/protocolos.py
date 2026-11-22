@@ -37,7 +37,9 @@ def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
     """Deja en la base las pautas de datos/ y sus protocolos (datos/protocolos.json), ya atribuidos.
 
     Es lo que el equipo hace una vez al poner en marcha una estación, hecho de una vez para los
-    casos del repo. Se puede repetir: lo que ya está no se toca. Las pautas quedan aprobadas por
+    casos del repo. Se puede repetir: no duplica nada ni cambia el texto de un protocolo que ya está, y las
+    atribuciones entre los protocolos y las pautas de datos/ quedan como dice protocolos.json, también las que
+    se sacaron de ahí. Las pautas quedan aprobadas por
     `supervisor:demo`, igual que en /pauta/demo.
     """
     from app import catalogo, db  # acá adentro: catalogo y db no dependen de este módulo
@@ -58,4 +60,10 @@ def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:
         for pauta_id in d["pautas"]:
             catalogo.atribuir(cx, pauta_id, d["id"], actor)
         protocolos.append(d["id"])
+    # Entre un protocolo y una pauta de datos/, la atribución es la de datos/protocolos.json: la que se sacó de
+    # ahí se saca también de la base. Va después de atribuir, para que ninguna pauta quede un momento sin protocolo.
+    for d in json.loads(SEMILLA.read_text(encoding="utf-8")):
+        for p in catalogo.pautas_de(cx, d["id"]):
+            if p["id"] in pautas and p["id"] not in d["pautas"]:
+                catalogo.quitar_atribucion(cx, p["id"], d["id"])
     return {"pautas": pautas, "protocolos": protocolos}

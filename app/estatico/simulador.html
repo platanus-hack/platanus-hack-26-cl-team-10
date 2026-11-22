@@ -383,11 +383,11 @@ function paleta() {
   if (!EMB || !tok("grafito")) return PALETA = {fondo: ["#0c0f0c", "#050605"], cara: "rgba(0,0,0,.35)", fantasma: ["rgba(212,255,158,.035)", "rgba(156,166,150,.42)"],
     zonaRoja: ["rgba(255,68,51,.26)", "#ff4433"], zonaTenue: ["rgba(238,242,233,.025)", "rgba(156,166,150,.32)"], zonaOk: ["rgba(212,255,158,.1)", "#d4ff9e"], linea: "rgba(212,255,158,.4)",
     rotRojo: "#ff4433", rotCambio: "#d4ff9e", rotNeutro: "rgba(5,6,5,.82)", rotTexto: "#0a0c0a", rotTextoNeutro: "#eef2e9", rotBorde: "#3d4439", marca: "#ffc24d", pov: "rgba(212,255,158,.75)", povTexto: "#eef2e9", povPunto: "#ff4433",
-    fuente: '500 12px ui-monospace, "SF Mono", Menlo, monospace', radio: 2};
+    fuente: '500 12px ui-monospace, "SF Mono", Menlo, monospace', radio: 2, sombra: "rgba(0,0,0,.38)"};
   const g = tok("grafito"), r = tok("roca"), b = tok("blanco");
   return PALETA = {fondo: [b, tok("roca1")], cara: alfa(g, 0.22), fantasma: [alfa(r, 0.07), alfa(r, 0.45)], zonaRoja: [alfa(tok("peligro"), 0.22), tok("peligro")], zonaTenue: [alfa(r, 0.04), alfa(r, 0.4)],
     zonaOk: [alfa(tok("verificado"), 0.15), tok("verificado")], linea: alfa(tok("accion"), 0.5), rotRojo: tok("peligro"), rotCambio: tok("accion"), rotNeutro: b, rotTexto: b, rotTextoNeutro: g,
-    rotBorde: tok("roca2"), marca: tok("precaucion"), pov: alfa(g, 0.6), povTexto: g, povPunto: tok("peligro")};
+    rotBorde: tok("roca2"), marca: tok("precaucion"), pov: alfa(g, 0.6), povTexto: g, povPunto: tok("peligro"), sombra: alfa(g, 0.14)};
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 const corto = x => String(Math.round(x * 100) / 100).replace(".", ",");
@@ -564,10 +564,11 @@ function caja(w, h, d) {   // apoyada en y = 0, centrada en x y z
   return {v: [[-x, 0, -z], [x, 0, -z], [x, h, -z], [-x, h, -z], [-x, 0, z], [x, 0, z], [x, h, z], [-x, h, z]],
     f: [[0, 1, 2, 3], [4, 5, 6, 7], [0, 4, 7, 3], [1, 5, 6, 2], [3, 2, 6, 7], [0, 1, 5, 4]]};
 }
-function prisma(r, h, n = 14) {
+const prisma = (r, h, n = 16) => cono(r, r, h, n);
+function cono(r, r2, h, n = 16) {   // tronco de cono: radio r abajo y r2 arriba
   const v = [], f = [];
   for (let i = 0; i < n; i++) { const a = i / n * 2 * Math.PI; v.push([r * Math.cos(a), 0, r * Math.sin(a)]); }
-  for (let i = 0; i < n; i++) v.push([v[i][0], h, v[i][2]]);
+  for (let i = 0; i < n; i++) { const a = i / n * 2 * Math.PI; v.push([r2 * Math.cos(a), h, r2 * Math.sin(a)]); }
   for (let i = 0; i < n; i++) f.push([i, (i + 1) % n, n + (i + 1) % n, n + i]);
   f.push([...Array(n).keys()], [...Array(n).keys()].map(i => n + i));
   return {v, f};
@@ -578,18 +579,32 @@ const COL = {blanco: [244, 244, 238], servo: [44, 44, 56], mesa: [128, 140, 158]
 
 
 Object.assign(COL, {jean: [52, 72, 112], chaleco: [240, 130, 40], casco: [250, 212, 60], cobre: [205, 125, 62], gabinete: [158, 168, 180], tierraC: [58, 172, 92],
-  goma: [52, 54, 60], mineral: [168, 132, 98], acero: [176, 184, 194], caliente: [232, 96, 44], amarillo: [240, 188, 40], suelo: [150, 132, 106], oruga: [42, 44, 50], vidrio: [96, 136, 166], humo: [208, 208, 214], cinta: [228, 62, 50], hormigon: [128, 140, 158], naranja: [236, 140, 40]});
+  goma: [52, 54, 60], mineral: [168, 132, 98], acero: [176, 184, 194], caliente: [232, 96, 44], amarillo: [240, 188, 40], suelo: [150, 132, 106], oruga: [42, 44, 50], vidrio: [96, 136, 166], humo: [208, 208, 214], cinta: [228, 62, 50], hormigon: [128, 140, 158], naranja: [236, 140, 40],
+  madera: [178, 136, 92], botella: [92, 168, 150]});
 
 // Cada operario lleva otro color de chaleco, para que se note que la ejecución es de otra persona.
 const CHALECOS = [[240, 130, 40], [92, 176, 84], [64, 128, 204], [204, 82, 160], [222, 192, 40], [150, 104, 214]];
 const MANGAS = [[47, 95, 158], [60, 130, 70], [150, 60, 60], [120, 70, 150], [170, 120, 40], [40, 120, 130]];
 const colorOperario = paleta => paleta[(numeroDe(operadorEn(caso, run, Math.max(0, posVis - 3))) - 1 + paleta.length * 99) % paleta.length];
-function persona(pon, x, z, k = 1.8, giro = 0) {
-  const M = m4.de(m4.t(x, 0, z), m4.ry(giro));
-  pon("persona", caja(2.2 * k, 4.2 * k, 1.3 * k), M, COL.jean);
-  pon("persona", caja(2.6 * k, 3.4 * k, 1.5 * k), m4.de(M, m4.t(0, 4.2 * k, 0)), colorOperario(CHALECOS));
-  pon("persona", prisma(0.85 * k, 1.5 * k, 10), m4.de(M, m4.t(0, 7.7 * k, 0)), COL.piel);
-  pon("persona", prisma(1.05 * k, 0.6 * k, 10), m4.de(M, m4.t(0, 9.1 * k, 0)), COL.casco);
+// La persona mira hacia +x de su giro. `alcance` (0 a 1) levanta los brazos hacia adelante, para tomar o mover algo.
+function persona(pon, x, z, k = 1.8, giro = 0, alcance = 0) {
+  const M = m4.de(m4.t(x, 0, z), m4.ry(giro)), chaleco = colorOperario(CHALECOS), manga = colorOperario(MANGAS);
+  [-0.55, 0.55].forEach(s => {
+    pon("persona", caja(0.95 * k, 0.45 * k, 1.35 * k), m4.de(M, m4.t(0.2 * k, 0, s * k)), COL.negro);
+    pon("persona", caja(0.85 * k, 3.9 * k, 0.9 * k), m4.de(M, m4.t(0, 0.4 * k, s * k)), COL.jean);
+  });
+  pon("persona", caja(1.3 * k, 3.4 * k, 2.4 * k), m4.de(M, m4.t(0, 4.2 * k, 0)), manga);
+  pon("persona", caja(1.45 * k, 2.6 * k, 2.55 * k), m4.de(M, m4.t(0, 4.9 * k, 0)), chaleco);
+  pon("persona", caja(1.5 * k, 0.28 * k, 2.6 * k), m4.de(M, m4.t(0, 5.9 * k, 0)), COL.plata);
+  [-1.5, 1.5].forEach(s => {
+    const H = m4.de(M, m4.t(0, 7.3 * k, s * k), m4.rz(Math.PI + alcance * Math.PI * 0.45));
+    pon("persona", caja(0.7 * k, 2.9 * k, 0.7 * k), H, manga);
+    pon("persona", caja(0.6 * k, 0.6 * k, 0.6 * k), m4.de(H, m4.t(0, 2.9 * k, 0)), COL.piel);
+  });
+  pon("persona", prisma(0.4 * k, 0.5 * k, 10), m4.de(M, m4.t(0, 7.6 * k, 0)), COL.piel);
+  pon("persona", cono(0.8 * k, 0.75 * k, 1.5 * k, 14), m4.de(M, m4.t(0, 8 * k, 0)), COL.piel);
+  pon("persona", cono(1.05 * k, 1.02 * k, 0.14 * k, 16), m4.de(M, m4.t(0.15 * k, 9.3 * k, 0)), COL.casco);
+  pon("persona", cono(0.9 * k, 0.55 * k, 0.9 * k, 16), m4.de(M, m4.t(0, 9.44 * k, 0)), COL.casco);
 }
 const candado = (pon, M) => {
   pon("candado", caja(1.5, 1.4, 0.7), M, COL.oro);
@@ -604,6 +619,10 @@ const candado = (pon, M) => {
 const mez = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
 const OBJETIVO = {
   generica: e => ({px: e.completa ? 34 : 16, pz: e.completa ? 26 : 8, giro: e.completa ? 0.3 : -0.6}),
+  // la botella llega a la mesa con el paso 1 verificado y pierde la tapa con el paso 2; la persona se acerca mientras trabaja
+  botella: e => ({puesta: +(e.verificados >= 1), abierta: +(e.verificados >= 2), px: e.completa ? -13 : 0, pz: e.completa ? -3 : 0, giro: e.completa ? 0.7 : 0, alcance: e.completa ? 0 : 1}),
+  camion: e => ({nivel: e.s.inclinacion === "nivelado" ? 0 : 0.07, humo: +(e.s.motor === "encendido"), ruedas: e.s.marcha === "en_marcha" ? 1 : 0, freno: +(e.s.freno_estacionamiento === "aplicado"),
+    px: e.completa ? 40 : 30, pz: e.completa ? 30 : 22, giro: e.completa ? 2.4 : 2.9}),
   brazo: e => { const viva = e.s.energia === "viva", falla = e.ot && !e.hecho("p5");
     return {mano: e.s.zona === "ocupada" ? (e.donde === "pinza" ? 9 : 26) : 100, candado: +(e.s.bloqueo === "puesto"), viva: +viva, abre: !viva || falla ? 1.5 : (e.fase < 0.5 ? 0.7 : 1.7)}; },
   demo: e => { const L = {lejos: [-4, 6, 40], cerca: [0, 9.5, 15], polin: [0, 6.6, 10.5], boton: [31, 8.6, 18], "boton-cerca": [2, 8.2, 12]}[e.donde || "lejos"], viva = e.s.energia === "viva";
@@ -813,19 +832,79 @@ function escenaExcavadora(e, q) {
     rotulos: [[[balde[0] + 4, balde[1] + 9, 3.6], "implementos"], [[-17, 21, 10], "motor"], [[6, 27, -6], "palanca_seguridad"], [[-9, 2.2, 15], "presion_hidraulica"],
       [[30, 1.2, 19], "zona"], [[46, 25, -26], "cámara"]]};
 }
+// La botella del demo, a escala de una persona: una mesa, la botella que la persona trae en la mano y deja frente a la
+// cámara, y la tapa, que termina al lado de la botella. Lo que dibuja la vista «Cámara de Factum» es lo que juzga el VLM.
+function escenaBotella(e, q) {
+  const o = [], pon = (id, malla, M, c, fantasma) => o.push({id, malla, M, c, fantasma});
+  pon("tablero", caja(70, 1, 50), m4.t(0, -1, 2), COL.hormigon);
+  pon("mesa", caja(18, 0.6, 10), m4.t(0, 7.6, 0), COL.madera);
+  [[-8.2, -4.2], [8.2, -4.2], [-8.2, 4.2], [8.2, 4.2]].forEach(([x, z]) => pon("mesa", caja(0.7, 7.6, 0.7), m4.t(x, 0, z), COL.gris));
+  pon("mesa", caja(16.4, 0.5, 0.4), m4.t(0, 6.4, -4.2), COL.gris); pon("mesa", caja(16.4, 0.5, 0.4), m4.t(0, 6.4, 4.2), COL.gris);
+  // la botella: de la mano a la mesa con el paso 1, y la tapa sale con el paso 2
+  const B = mez([0, 9.4, -3.2], [0, 8.2, 0.6], q.puesta), Mb = m4.t(B[0], B[1] + 0.5 * Math.sin(Math.PI * q.puesta), B[2]);
+  pon("botella", prisma(0.85, 2.5, 18), Mb, COL.botella); pon("botella", prisma(0.87, 1, 18), m4.de(Mb, m4.t(0, 0.8, 0)), COL.blanco);
+  pon("botella", cono(0.85, 0.34, 0.9, 18), m4.de(Mb, m4.t(0, 2.5, 0)), COL.botella); pon("botella", prisma(0.34, 0.55, 14), m4.de(Mb, m4.t(0, 3.4, 0)), COL.botella);
+  pon("botella", prisma(0.42, 0.12, 14), m4.de(Mb, m4.t(0, 3.65, 0)), COL.botella);
+  const T = mez([B[0], B[1] + 3.8, B[2]], [2.6, 8.2, 1.4], q.abierta);
+  pon("tapa", prisma(0.44, 0.5, 14), m4.t(T[0], T[1] + 1.6 * Math.sin(Math.PI * q.abierta), T[2]), COL.rojo);
+  // la cámara de Factum, en un trípode frente a la mesa, y su campo sobre la mesa
+  const cam = [8, 16, 13];
+  [0, 2.1, 4.2].forEach(a => pon("cam", caja(0.25, 16.2, 0.25), m4.de(m4.t(cam[0] + 2.2 * Math.cos(a), 0, cam[2] + 2.2 * Math.sin(a)), m4.ry(-a), m4.rz(0.135)), COL.gris));
+  pon("cam", caja(1.8, 1.3, 1.2), m4.de(m4.t(...cam), m4.ry(Math.atan2(-cam[0], -cam[2]) - Math.PI / 2)), COL.negro);
+  persona(pon, q.px, q.pz - 7.6, 1.8, -Math.PI / 2 + q.giro, q.alcance * 0.62);
+  return {objetos: o, zonas: [], lineas: [[cam[0], cam[1], cam[2]], [[-7, 8.2, -3.6], [7, 8.2, -3.6], [7, 8.2, 3.6], [-7, 8.2, 3.6]]],
+    rotulos: [[[B[0], B[1] + 5.2, B[2]], q.abierta > 0.5 ? "botella abierta" : "botella con tapa"], [[cam[0], cam[1] + 4.5, cam[2]], "cámara"]]};
+}
+
+// El camión de extracción, estacionado: la tolva, la cabina arriba a la izquierda, las ruedas y el motor adelante.
+function escenaCamion(e, q) {
+  const o = [], pon = (id, malla, M, c, fantasma) => o.push({id, malla, M, c, fantasma});
+  pon("tablero", caja(170, 1, 120), m4.t(6, -1, 6), COL.suelo);
+  const C = m4.de(m4.t(0, 0, 0), m4.rz(q.nivel)), en = (x, y, z) => m4.de(C, m4.t(x, y, z));
+  const rueda = (x, z) => { pon("ruedas", prisma(11, 8, 22), m4.de(en(x, 11, z), m4.rx(Math.PI / 2), m4.t(0, -4, 0)), COL.goma);
+    pon("ruedas", prisma(6, 8.4, 16), m4.de(en(x, 11, z), m4.rx(Math.PI / 2), m4.t(0, -4.2, 0)), COL.amarillo); };
+  [-24, 30].forEach(x => [-15, 15].forEach(z => rueda(x, z)));
+  rueda(-24, -24.5); rueda(-24, 24.5);
+  pon("chasis", caja(78, 5, 14), en(2, 12, 0), COL.oruga);
+  // la tolva, inclinada hacia atrás, con su visera sobre la cabina
+  pon("tolva", caja(56, 4, 34), en(-10, 19, 0), COL.amarillo);
+  pon("tolva", caja(56, 16, 1.4), en(-10, 23, -16.3), COL.amarillo); pon("tolva", caja(56, 16, 1.4), en(-10, 23, 16.3), COL.amarillo);
+  pon("tolva", caja(1.4, 20, 34), en(18, 23, 0), COL.amarillo); pon("tolva", caja(18, 1.4, 34), en(26, 40, 0), COL.amarillo);
+  pon("carga", caja(50, 8, 30), en(-10, 23, 0), COL.mineral);
+  // el motor adelante, la parrilla, la plataforma y la cabina a la izquierda
+  pon("motor", caja(16, 14, 18), en(34, 14, 0), COL.amarillo); pon("motor", caja(0.6, 10, 14), en(42.3, 16, 0), COL.negro);
+  pon("motor", caja(20, 1, 36), en(34, 28, 0), COL.gris);
+  pon("motor", caja(11, 9, 11), en(36, 29, -11), COL.amarillo); pon("motor", caja(0.3, 5, 8), en(41.6, 32, -11), COL.vidrio); pon("motor", caja(8, 5, 0.3), en(36, 32, -16.6), COL.vidrio);
+  pon("motor", caja(1.2, 18, 4), m4.de(en(44, 10, -14), m4.rz(0.5)), COL.gris);
+  [-1, 1].forEach(s => pon("motor", prisma(0.9, 9, 10), en(27, 29, s * 4), COL.negro));
+  if (q.humo > 0.04) [[0, 39, 1.6], [0.8, 42, 2.2], [1.9, 45.5, 2.8]].forEach(([dx, y, k], i) => { const s = k * q.humo, sube = (e.reloj * 1.4 + i * 0.33) % 1; pon("humo", caja(s, s, s), en(27 + dx + sube, y + sube * 2.4, 4), COL.humo); });
+  // las luces de atrás: rojas con el freno de estacionamiento aplicado
+  [-1, 1].forEach(s => pon("freno", caja(0.5, 2, 3), en(-37, 14, s * 5), mez(COL.negro, COL.rojo, q.freno)));
+  pon("cam", prisma(0.4, 30, 8), m4.t(66, 0, -40), COL.gris); pon("cam", caja(2.4, 3, 2.4), m4.t(66, 30, -40), COL.negro);
+  persona(pon, q.px, q.pz, 1.8, q.giro);
+  return {objetos: o, zonas: [], lineas: null,
+    rotulos: [[[-6, 46, 0], "inclinacion"], [[36, 44, -11], "marcha"], [[-37, 22, 6], "freno_estacionamiento"], [[44, 26, 0], "enfriamiento"], [[27, 52, 4], "motor"], [[66, 35.5, -40], "cámara"]]};
+}
+
 // Para un equipo sin escena propia: el equipo como un bloque, un poste por cada sensor de la pauta con su lectura, la
 // cámara y la persona, que se acerca mientras la OT está abierta.
 function escenaGenerica(e, q) {
   const o = [], pon = (id, malla, M, c, fantasma) => o.push({id, malla, M, c, fantasma}), c = C(), n = c.orden.length, xs = i => n < 2 ? 0 : -22 + i * 44 / (n - 1);
   pon("tablero", caja(96, 1, 64), m4.t(0, -1, 4), COL.hormigon);
-  pon("equipo", caja(30, 13, 16), m4.t(0, 0, -8), COL.amarillo); pon("equipo", caja(12, 7, 10), m4.t(9, 13, -8), COL.gris); pon("equipo", caja(0.4, 4, 8), m4.t(15.2, 15, -8), COL.vidrio);
-  [-11, 11].forEach(x => [-0.5, -15.5].forEach(z => pon("equipo", prisma(3.4, 3, 12), m4.de(m4.t(x, 3.4, z), m4.rx(Math.PI / 2)), COL.oruga)));
+  // un equipo cualquiera sobre su base: motor, acople y bomba, con su tablero al lado
+  pon("equipo", caja(34, 2, 14), m4.t(0, 0, -8), COL.oruga);
+  pon("equipo", prisma(4.6, 15, 20), m4.de(m4.t(-6, 7.2, -8), m4.rz(Math.PI / 2), m4.t(0, -7.5, 0)), COL.azul);
+  for (let i = 0; i < 6; i++) pon("equipo", caja(13, 0.5, 0.6), m4.de(m4.t(-6.5, 7.2, -8), m4.rx(i * Math.PI / 6), m4.t(0, 4.6, 0)), COL.gris);
+  pon("equipo", caja(5, 4.6, 6), m4.t(-6, 2, -8), COL.gris); pon("equipo", prisma(2, 4, 14), m4.de(m4.t(3.4, 7.2, -8), m4.rz(Math.PI / 2), m4.t(0, -2, 0)), COL.plata);
+  pon("equipo", caja(8, 9, 9), m4.t(10, 2, -8), COL.rojo); pon("equipo", prisma(1.2, 2.6, 12), m4.t(10, 11, -8), COL.plata);
+  pon("equipo", caja(6, 12, 3), m4.t(-24, 0, -10), COL.gabinete); pon("equipo", caja(1, 1, 0.4), m4.t(-25.5, 9, -8.4), COL.verde); pon("equipo", caja(1, 1, 0.4), m4.t(-23, 9, -8.4), COL.rojo);
   c.orden.forEach((sid, i) => { pon("factum-s", caja(0.7, 6.5, 0.7), m4.t(xs(i), 0, 14), COL.gris); pon("factum-s", caja(2.8, 1.8, 1.6), m4.t(xs(i), 6.5, 14), e.s[sid] !== c.reposo[sid] ? COL.verde : COL.pcb); });
   pon("cam", prisma(0.3, 19, 6), m4.t(30, 0, -18), COL.gris); pon("cam", caja(2, 3, 0.8), m4.t(30, 19, -18), COL.negro);
   persona(pon, q.px, q.pz, 1.7, q.giro);
   return {objetos: o, zonas: [], lineas: null, rotulos: c.orden.map((sid, i) => [[xs(i), 10.8, 14], sid]).concat([[[30, 24.5, -18], "cámara"]])};
 }
-const ESCENAS = {demo: [escenaDemo, {az: 0.42, el: 0.5, dist: 72, obj: [3, 3, 9]}], brazo: [escenaBrazo, {az: -0.62, el: 0.4, dist: 142, obj: [8, 21, 0]}], mineria: [escenaCorrea, {az: 0.4, el: 0.3, dist: 88, obj: [7, 9, 8]}], electrica: [escenaElectrica, {az: 0.42, el: 0.22, dist: 50, obj: [1.5, 11.5, 4]}],
+const ESCENAS = {botella: [escenaBotella, {az: -0.65, el: 0.36, dist: 34, obj: [0, 9, 0]}], camion: [escenaCamion, {az: 0.75, el: 0.3, dist: 190, obj: [4, 18, 2]}],
+  demo: [escenaDemo, {az: 0.42, el: 0.5, dist: 72, obj: [3, 3, 9]}], brazo: [escenaBrazo, {az: -0.62, el: 0.4, dist: 142, obj: [8, 21, 0]}], mineria: [escenaCorrea, {az: 0.4, el: 0.3, dist: 88, obj: [7, 9, 8]}], electrica: [escenaElectrica, {az: 0.42, el: 0.22, dist: 50, obj: [1.5, 11.5, 4]}],
   construccion: [escenaExcavadora, {az: 0.5, el: 0.27, dist: 92, obj: [14, 13, 3]}], generica: [escenaGenerica, {az: 0.5, el: 0.32, dist: 96, obj: [2, 7, 2]}]};
 
 // ─── Dibujar ────────────────────────────────────────────────────────────────
@@ -838,7 +917,7 @@ const poses = {}, rotOff = {}, rotVis = {};
 // La escena va un poco detrás del relato: primero la persona llega a donde va a actuar (`pos`), y recién
 // después cambian los sensores y Factum responde (`posVis`). Así cada tramo se ve como una acción, no como un salto.
 let posVis = 3, visTimer = null;
-function entorno() { const E = estadoEn(caso, posVis), t = G()[pos - 3], propia = C().autoria; return {E, e: {s: E.sensores, hecho: p => propia && E.estados[p] === "verificado", ot: true, completa: E.completa, fase, reloj, cinta, marca: E.marca, donde: t ? t.donde : null}}; }
+function entorno() { const E = estadoEn(caso, posVis), t = G()[pos - 3], propia = C().autoria; return {E, e: {s: E.sensores, hecho: p => propia && E.estados[p] === "verificado", verificados: Object.values(E.estados).filter(v => v === "verificado").length, ot: true, completa: E.completa, fase, reloj, cinta, marca: E.marca, donde: t ? t.donde : null}}; }
 // Acerca la pose a su objetivo. `dt` en segundos; sin `dt`, salta de una vez.
 function seguir(e, dt) {
   const objetivo = OBJETIVO[escenaDe(caso)](e), q = poses[caso] || (poses[caso] = {...objetivo}); enMovimiento = false;
@@ -880,6 +959,11 @@ function acercarVista(dt) {
   vista.obj = vista.obj.map((x, i) => { const d = meta.obj[i] - x; if (Math.abs(d) > 0.01) { mov = true; return x + d * k; } return meta.obj[i]; });
   return mov;
 }
+function envolvente(pts) {   // la envolvente convexa en pantalla, siempre en el mismo sentido
+  const p = pts.map(x => [x[0], x[1]]).sort((a, b) => a[0] - b[0] || a[1] - b[1]), giro = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lado = l => { const h = []; l.forEach(q => { while (h.length > 1 && giro(h.at(-2), h.at(-1), q) <= 0) h.pop(); h.push(q); }); h.pop(); return h; };
+  return [...lado(p), ...lado([...p].reverse())];
+}
 function dibujar() {
   const cv = $("c3d"); if (!cv.clientWidth) return;
   const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
@@ -907,8 +991,22 @@ function dibujar() {
   });
   caras.sort((a, b) => (b.id === "tablero") - (a.id === "tablero") || b.z - a.z);
   const trazo = (p2, relleno, borde, dash) => { g.beginPath(); p2.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); if (relleno) { g.fillStyle = relleno; g.fill(); } if (borde) { g.setLineDash(dash || []); g.strokeStyle = borde; g.stroke(); g.setLineDash([]); } };
+  // Las sombras en el piso: cada objeto, aplastado en y = 0 según la luz, como una mancha suave bajo todo lo demás.
+  let sombrasPintadas = false;
+  const pintarSombras = () => {
+    if (sombrasPintadas) return; sombrasPintadas = true;
+    g.beginPath();   // un solo relleno: donde dos sombras se pisan no se oscurece el doble
+    escena.objetos.forEach(o => {
+      if (o.fantasma || o.id === "tablero" || !capas[CAPA[o.id] || "maquina"] || (pov && o.id === "cam")) return;
+      const pts = o.malla.v.map(p => { const w = m4.ap(o.M, p); return proy([w[0] - luz[0] * w[1] / luz[1], 0.02, w[2] - luz[2] * w[1] / luz[1]]); });
+      if (pts.some(p => !p)) return;
+      const h = envolvente(pts); if (h.length < 3) return;
+      h.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
+    });
+    g.fillStyle = P.sombra || "rgba(0,0,0,.22)"; g.fill("nonzero");
+  };
   let zonasPintadas = !capas.zonas;
-  const pintarZonas = () => { if (zonasPintadas) return; zonasPintadas = true; escena.zonas.forEach(z => { const p2 = z.pts.map(proy); if (p2.some(p => !p)) return; g.lineWidth = 2; trazo(p2, z.roja ? P.zonaRoja[0] : z.tenue ? P.zonaTenue[0] : P.zonaOk[0], z.roja ? P.zonaRoja[1] : z.tenue ? P.zonaTenue[1] : P.zonaOk[1], [7, 5]); }); };
+  const pintarZonas = () => { pintarSombras(); if (zonasPintadas) return; zonasPintadas = true;escena.zonas.forEach(z => { const p2 = z.pts.map(proy); if (p2.some(p => !p)) return; g.lineWidth = 2; trazo(p2, z.roja ? P.zonaRoja[0] : z.tenue ? P.zonaTenue[0] : P.zonaOk[0], z.roja ? P.zonaRoja[1] : z.tenue ? P.zonaTenue[1] : P.zonaOk[1], [7, 5]); }); };
   g.lineWidth = 1;
   caras.forEach(c => {
     if (c.id !== "tablero") pintarZonas();
@@ -1088,7 +1186,7 @@ const OPUESTO = {presente: "ausente", ausente: "presente", cortada: "viva", viva
   abierto: "cerrado", cerrado: "abierto", ocupada: "libre", libre: "ocupada", bloqueada: "desbloqueada", desbloqueada: "bloqueada", puesta: "retirada", retirada: "puesta"};
 function escenaPara(p) {
   const t = `${p.id} ${p.nombre} ${p.equipo}`.toLowerCase();
-  return /brazo/.test(t) ? "brazo" : /media tensi|subestaci|seccionador/.test(t) ? "electrica" : /excavadora/.test(t) ? "construccion"
+  return /botella/.test(t) ? "botella" : /cami[oó]n|caex/.test(t) ? "camion" : /brazo/.test(t) ? "brazo" : /media tensi|subestaci|seccionador/.test(t) ? "electrica" : /excavadora/.test(t) ? "construccion"
     : /escala|cinta|esp32|estaci[oó]n demo/.test(t) ? "demo" : /correa|pol[ií]n|rodillo/.test(t) ? "mineria" : "generica";
 }
 function casoDesdePauta(p, protocolos) {
@@ -1288,7 +1386,7 @@ function correrEnLaBase() {
     } else {
       if (conSesion()) throw new Error(`Entraste como ${BASE.yo.rol}: solo un supervisor pide OT para la empresa.`);
       await api(`/ot/${id}/abrir?pauta_id=${encodeURIComponent(c.pauta.id)}&actor=simulador`, {metodo: "POST"});
-      await api(`/ot/${id}/asignar`, {metodo: "POST", cuerpo: {operador, actor: "simulador"}});
+      await api(`/ot/${id}/asignar`, {metodo: "POST", cuerpo: {operador, actor: "supervisor:simulador"}});
     }
     await api(`/ot/${id}/sesion`, {metodo: "POST", cuerpo: {edge_id: edge, operario: operador}});
     (REAL[caso] || (REAL[caso] = {}))[run] = {ot: id, edge, operador, tramos: [], eventos: [], enviados: -1, sensores: {}};
@@ -1326,7 +1424,7 @@ function cambioDeTurno(elegido) {
     const a = siguienteOperador(de), antes = R.eventos.at(-1).id;
     const entrega = await api(`/ot/${R.ot}/relevo/entregar?actor=${encodeURIComponent(de)}`, {metodo: "POST"});
     if (esSupervisor()) await api(`/cliente/ots/${R.ot}/asignar`, {metodo: "POST", cuerpo: {operador: a}});
-    else await api(`/ot/${R.ot}/asignar`, {metodo: "POST", cuerpo: {operador: a, actor: "simulador"}});
+    else await api(`/ot/${R.ot}/asignar`, {metodo: "POST", cuerpo: {operador: a, actor: "supervisor:simulador"}});
     await api(`/ot/${R.ot}/relevo/recibir?actor=${encodeURIComponent(a)}`, {metodo: "POST"});
     await api(`/ot/${R.ot}/sesion`, {metodo: "POST", cuerpo: {edge_id: R.edge, operario: a}});
     const evs = await api(`/ot/${R.ot}/eventos`), tr = R.tramos[i];
@@ -1831,7 +1929,7 @@ document.addEventListener("keydown", e => {
   (function cuadro(t) {
     const dt = Math.min(0.1, (t - antes) / 1000 || 0); antes = t;
     if (!RAPIDO) {
-      const {e} = entorno(), q = seguir(e, dt), sc = escenaDe(caso), gira = sc === "brazo" && q.viva > 0.01, humea = sc === "construccion" && q.humo > 0.04, corre = (sc === "mineria" || sc === "demo") && q.marcha > 0.01;
+      const {e} = entorno(), q = seguir(e, dt), sc = escenaDe(caso), gira = sc === "brazo" && q.viva > 0.01, humea = (sc === "construccion" || sc === "camion") && q.humo > 0.04, corre = (sc === "mineria" || sc === "demo") && q.marcha > 0.01;
       const mueveVista = acercarVista(dt);
       if (gira) fase = (fase + dt / 7 * q.viva) % 1;
       if (corre) cinta = (cinta + dt * (sc === "demo" ? 11 : 17) * q.marcha) % (sc === "demo" ? 60 : 75);

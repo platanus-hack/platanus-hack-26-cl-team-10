@@ -473,7 +473,7 @@ describe('Factum recommendations on the supervisor screen', () => {
   const recomendacion = (detectada: boolean): Mejora => ({
     id: 'pauta-polin-estacion:v5:e1', pauta: 'pauta-polin-estacion', nombre: 'Cambio de polín en la cinta', version: 5,
     paso: 'e1', titulo: 'Apagar el motor', control_critico: false, ejecuciones: 3, ots_con_senal: 3, operarios_distintos: 2,
-    senales: { seguridad: 3 }, motivo: '«Apagar el motor» tuvo señales en 3 de 3 OT',
+    senales: { seguridad: 3, orden: 0, control: 0, conflicto: 0, persona: 0, observacion: 0 }, observaciones: [], revision: null, validacion: null, motivo: '«Apagar el motor» tuvo señales en 3 de 3 OT',
     sugerencia: 'Con este paso todavía abierto se dio una condición de peligro.',
     recurrencia: { ots_con_senal: 3, ots: 3, tasa: 1, tasa_del_resto: 0.05, p_valor: 0.0001, recurrente: true },
     detectada: detectada ? { ot: 'ot-13', evento: 40, ts: '2026-11-21T22:10:00+00:00' } : null,
