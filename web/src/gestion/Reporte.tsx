@@ -1,8 +1,9 @@
-import { Alert, Badge, Box, Center, Group, Loader, Paper, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
+import { Alert, Box, Center, Group, Loader, Stack, Table, Text, Title } from '@mantine/core'
 import { IconCamera, IconCheck, IconGauge, IconMessage, IconUser, IconWifiOff } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { api } from '../api/cliente'
 import type { CierreReporte, DesviacionReporte, PasoReporte, ReporteOt } from '../api/tipos'
+import industrial from './industrial.module.css'
 import { NOMBRE_CLASE, NOMBRE_SENSOR } from './sensores'
 import { mensajeDe } from './useOts'
 
@@ -57,14 +58,10 @@ function Cierre({ p }: { p: PasoReporte }) {
 
 function Dato({ nombre, valor }: { nombre: string; valor: string }) {
   return (
-    <Box>
-      <Text size="sm" fw={600} c="roca.7">
-        {nombre}
-      </Text>
-      <Text fw={800} fz={28} lh={1.2} style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {valor}
-      </Text>
-    </Box>
+    <li className={industrial.celda}>
+      <p className={industrial.rotulo}>{nombre}</p>
+      <p className={industrial.numero}>{valor}</p>
+    </li>
   )
 }
 
@@ -133,26 +130,27 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
   const { resultado, personas, tiempos } = r
   const estado = !r.completa ? 'En curso' : resultado.sin_desviaciones ? 'Completa, sin desviaciones' : 'Completa, con desviaciones'
   return (
-    <Paper component="section" aria-label="Reporte de la OT" withBorder radius="md" p="lg">
+    <section aria-label="Reporte de la OT">
       <Stack gap="lg">
         <Group justify="space-between" align="flex-start" gap="md">
           <Stack gap={2}>
-            <Title order={3}>Reporte de la OT</Title>
-            <Text size="sm" c="roca.7">
+            <Title order={3} className={industrial.seccion}>
+              Reporte de la OT
+            </Title>
+            <p className={industrial.titular}>{estado}</p>
+            <Text size="sm" c="roca.7" mt={6}>
               Armado desde la bitácora, con {r.eventos.total} eventos. Nadie lo escribió.
             </Text>
           </Stack>
-          <Badge size="lg" radius="sm" color={!r.completa ? 'accion' : resultado.sin_desviaciones ? 'verificado' : 'precaucion'} variant={r.completa ? 'filled' : 'light'}>
-            {estado}
-          </Badge>
+
         </Group>
 
-        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
+        <ul className={industrial.celdas}>
           <Dato nombre="Pasos verificados" valor={`${resultado.pasos_verificados} de ${resultado.pasos}`} />
           <Dato nombre="Desviaciones" valor={String(resultado.desviaciones)} />
           <Dato nombre="Cerrados por una persona" valor={String(resultado.confirmados_por_persona)} />
           <Dato nombre="Duración" valor={tiempos.inicio && tiempos.fin ? entre(tiempos.inicio, tiempos.fin) : tiempos.inicio ? 'Sin terminar' : 'Sin empezar'} />
-        </SimpleGrid>
+        </ul>
 
         <Text size="sm" c="roca.7">
           La pidió {personas.pidio}. {personas.a_cargo ? `A cargo de ${personas.a_cargo}.` : 'Sin operador a cargo.'}
@@ -163,10 +161,10 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
           <Table aria-label="Pasos" verticalSpacing="sm" highlightOnHover={false}>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Paso</Table.Th>
-                <Table.Th>Lo cerró</Table.Th>
-                <Table.Th>Hora</Table.Th>
-                <Table.Th>Tardó</Table.Th>
+                <Table.Th className={industrial.rotulo}>Paso</Table.Th>
+                <Table.Th className={industrial.rotulo}>Lo cerró</Table.Th>
+                <Table.Th className={industrial.rotulo}>Hora</Table.Th>
+                <Table.Th className={industrial.rotulo}>Tardó</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -199,7 +197,7 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
         </Table.ScrollContainer>
 
         <Stack gap="xs">
-          <Title order={4} size="h5">
+          <Title order={4} className={industrial.seccion}>
             Desviaciones
           </Title>
           {r.desviaciones.length === 0 ? (
@@ -215,7 +213,7 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
 
         {r.observaciones.length > 0 && (
           <Stack gap="xs">
-            <Title order={4} size="h5">
+            <Title order={4} className={industrial.seccion}>
               Lo que observó el operario
             </Title>
             <Stack gap={6} component="ul" style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Observaciones">
@@ -231,6 +229,6 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
           </Stack>
         )}
       </Stack>
-    </Paper>
+    </section>
   )
 }

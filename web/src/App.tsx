@@ -25,13 +25,14 @@ export default function App() {
 
 // Rutas. Gestión (Diego) en gestion/, ejecución (Dani) en ejecucion/.
 function Rutas() {
-  // Lo del supervisor se proyecta y va en oscuro, como las láminas y el monitor; lo del operario
-  // y el login siguen claros, que es lo que se lee en terreno.
-  const oscuro = useLocation().pathname.startsWith('/supervisor')
+  // Lo del supervisor y el login van en oscuro, con el lenguaje del monitor; lo del operario sigue
+  // claro, que es lo que se lee en terreno.
+  const { pathname } = useLocation()
+  const oscuro = pathname.startsWith('/supervisor') || pathname === '/login'
   return (
     <MantineProvider theme={tema} forceColorScheme={oscuro ? 'dark' : 'light'} cssVariablesResolver={variablesDelTema}>
       <NombresDeLaEmpresa />
-      <div style={{ minHeight: '100vh', background: FONDO }}>
+      <div className="fondo" style={{ minHeight: '100vh', backgroundColor: FONDO }}>
         <Routes>
           <Route path="/login" element={<PaginaLogin />} />
           <Route
