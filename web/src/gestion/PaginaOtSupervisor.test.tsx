@@ -43,7 +43,8 @@ function abrir(ot: string, escenario: NombreEscenario = 'feliz', antes: () => vo
 }
 
 const bitacora = () => screen.getByRole('list', { name: 'Bitácora de la OT' })
-const sensores = () => screen.getByRole('list', { name: 'Lecturas de la estación' })
+// Los sensores van plegados: la lista está en la página aunque no se vea.
+const sensores = () => screen.getByRole('list', { name: 'Lecturas de la estación', hidden: true })
 /** La ficha de un sensor, por su nombre. */
 const sensor = (nombre: string) => within(sensores()).getByText(nombre).closest('li')!
 
@@ -151,7 +152,7 @@ it('a number shows its unit and its trend; a reading that only came saved looks 
 
   for (const t of ['41.5', '40.9', '40.2']) m.leer('temp_c', t)
   await waitFor(() => expect(within(sensor('Temperatura')).getByText('40.2 °C')).toBeInTheDocument())
-  expect(within(sensor('Temperatura')).getByRole('img', { name: 'Últimas lecturas de Temperatura' })).toBeInTheDocument()
+  expect(within(sensor('Temperatura')).getByRole('img', { name: 'Últimas lecturas de Temperatura', hidden: true })).toBeInTheDocument()
   expect(within(sensor('Temperatura')).queryByText('Última lectura guardada')).toBeNull()
 
   m.leer('guarda', 'abierta')

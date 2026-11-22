@@ -139,8 +139,8 @@ El tema vive en `web/src/tema.ts`, con los colores, sus usos por esquema, las le
 
 Las vistas del supervisor y el login se ven como el monitor de Jona (`app/estatico/monitor.html`). Sus clases están en `web/src/gestion/industrial.module.css`:
 
-- **Rótulos chicos** en mayúsculas monoespaciadas (la ficha de la OT, los contadores, el estado de cada paso). El título de una sección va en la letra del texto, sin corchetes, con su número a la derecha.
-- **Celdas, no tarjetas:** grupos de datos separados por una línea de 1 px (la ficha de la OT, los contadores, los sensores).
+- **Rótulos chicos** en mayúsculas monoespaciadas (la ficha de la OT, el estado de cada paso). El título de una sección va en la letra del texto, sin corchetes, con su número a la derecha.
+- **Celdas, no tarjetas:** grupos de datos separados por una línea de 1 px (la ficha de la OT, los sensores).
 - **Títulos, valores y botones** en la letra del texto, con mayúscula inicial. Desde el 2026-11-22 ya no van en la letra de puntos ni los botones en mayúsculas monoespaciadas, y el fondo no lleva trama: Pancho pidió bajar el ruido.
 - **Una sola etiqueta por tarjeta de OT:** la verificación. El estado ya lo dice el grupo («Por asignar», «Asignadas, sin empezar»), y un grupo sin OT no se muestra.
 - **Esquinas casi rectas:** ningún radio pasa de unos pocos píxeles, en toda la app.
@@ -165,10 +165,11 @@ El operario conserva su fondo claro y sus colores ISO. De este lenguaje toma sol
 
 **Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde la tarjeta de la OT, desde su id o desde «Ver». Trabaja como el monitor de Jona y, como todo lo del supervisor, va en oscuro.
 
-- **Arriba,** el número de la OT y el nombre de la pauta, y la ficha en celdas: quién la ejecuta, en qué estación corre y desde cuándo, el equipo y el estado. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora».
+- **Arriba,** el número de la OT y el nombre de la pauta. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora». Una anomalía de un sensor se dice en palabras («Distancia 148.9 cm fuera de lo normal: lo habitual es 102 cm», `app/scoring.py`).
+- **A la derecha, siempre a la vista, los pasos;** debajo, plegados, «Detalles» (la ficha: quién la ejecuta, en qué estación y desde cuándo, el equipo y el estado) y «Sensores». La verificación, junto al video, tampoco se pliega.
 - **Cámara.** El video de la estación (`GET /edge/{edge}/video.mjpg`, el que el edge manda al servidor). Encima va lo que la cámara reconoce, en cajas: blancas si está segura (80 % o más) y amarillas si duda; se borran si pasa 1 s sin detecciones. También el paso en curso, y el marco toma el color de la verificación. Si la OT no corre en una estación, lo dice.
 - **Verificación.** «Todo bien», «Atención» o «Detente», en grande y con su color, y por qué lo dice: cada aviso activo de `calificacion.avisos`, quién lo dice (el sensor o la cámara) y con cuánta certeza. Es lo que explica una tarjeta encendida de la lista.
-- **Sensores,** una ficha por sensor: los de la pauta de esta OT y los que están leyendo ahora (el servidor recuerda sensores de todas las estaciones, y esos no se muestran). El que espera el paso en curso va primero y marcado, y solo una lectura de ahora cuenta como «ya está». Lo que solo trajo el snapshot dice «Última lectura guardada» y va en gris hasta que llega una nueva. Un sensor numérico muestra su unidad y una línea con sus últimas 90 lecturas, para ver hacia dónde va (la temperatura que baja mientras se espera).
+- **Sensores** (plegados; el título trae cuántos), una ficha por sensor: los de la pauta de esta OT y los que están leyendo ahora (el servidor recuerda sensores de todas las estaciones, y esos no se muestran). El que espera el paso en curso va primero y marcado, y solo una lectura de ahora cuenta como «ya está». Lo que solo trajo el snapshot dice «Última lectura guardada» y va en gris hasta que llega una nueva. Un sensor numérico muestra su unidad y una línea con sus últimas 90 lecturas, para ver hacia dónde va (la temperatura que baja mientras se espera).
 - **Pasos,** numerados y con su estado a la derecha: verificado en lima, en curso en hielo. Un paso en conflicto va en rojo solo si lo dice el sensor; la duda de la cámara va en ámbar.
 - **Bitácora** completa, abajo y a todo el ancho, lo último arriba.
 
