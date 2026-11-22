@@ -35,6 +35,15 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+// Lo normal: los avisos suenan en la pantalla del operario. El demo los pasa al supervisor (config.VOZ_EN).
+const vozEn = config.VOZ_EN
+beforeEach(() => {
+  config.VOZ_EN = 'operario'
+})
+afterAll(() => {
+  config.VOZ_EN = vozEn
+})
+
 let m: Mundo
 let dicho: string[]
 
@@ -377,6 +386,17 @@ describe('the voice: Alto first, known phrases ready ahead', () => {
     await entrar()
     await waitFor(() => expect(dicho).toContain(GUARDA), { timeout: 2000 })
     expect(voz.decir).toHaveBeenCalledWith(GUARDA, { alto: true })
+  })
+
+  it('for the demo the voice moves to the supervisor: the operator sees the alert and its screen says nothing', async () => {
+    config.VOZ_EN = 'supervisor'
+    const precalentar = vi.spyOn(voz, 'precalentar').mockResolvedValue()
+    abrir('alerta-seguridad')
+    await entrar()
+    expect(await screen.findByRole('dialog', { name: 'Peligro' }, { timeout: 2000 })).toBeInTheDocument()
+    expect(dicho).toEqual([])
+    expect(precalentar).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Probar audio' })).toBeNull()
   })
 
   it('a skipped step is not an Alto', async () => {
