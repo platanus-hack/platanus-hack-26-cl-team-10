@@ -1,6 +1,6 @@
 // Lo que el supervisor ve de una OT, en vivo y sin tocar nada: el stream de la OT (estado,
 // alertas, bitácora, sesión, sensores y lo que ve la cámara), su resumen y su pauta.
-// No abre sesión, no declara y no habla: mirar no cambia la bitácora.
+// No abre sesión ni declara: mirar no cambia la bitácora. Tampoco habla, salvo en el demo (config.VOZ_EN).
 
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { api, ApiError, urlStream } from '../api/cliente'
@@ -8,6 +8,7 @@ import type { Deteccion, OtDetalle, Pauta, Sesion } from '../api/tipos'
 import { config } from '../config'
 import { inicial, reducir } from '../ejecucion/estado'
 import { conectarStream } from '../ejecucion/stream'
+import { useAvisosEnVoz } from '../ejecucion/useAvisosEnVoz'
 
 export type Acceso = 'verificando' | 'ok' | 'denegado'
 
@@ -39,6 +40,9 @@ export function useOtEnVivo(otId: string) {
   useEffect(() => {
     actual.current = s
   }, [s])
+
+  // SOLO PARA EL DEMO: los avisos en voz suenan en esta vista, así no hace falta una ventana del operario abierta.
+  useAvisosEnVoz(s, dispatch, config.VOZ_EN === 'supervisor')
 
   // El resumen dice de quién es y en qué estado general va; lo cambian eventos como el relevo.
   const leerDetalle = useCallback(async (): Promise<OtDetalle | null> => {

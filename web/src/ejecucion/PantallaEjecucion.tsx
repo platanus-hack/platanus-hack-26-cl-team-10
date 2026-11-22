@@ -2,6 +2,7 @@ import { Badge, Box, Button, Container, Divider, Group, Paper, Progress, Stack, 
 import { IconVolume, IconVolumeOff } from '@tabler/icons-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Nivel } from '../api/tipos'
+import { config } from '../config'
 import { useNombres, type Usuario } from '../sesion/usuarios'
 import { AvisoEnPantalla } from './AvisoEnPantalla'
 import { FranjaSinConexion, MensajeError } from './Avisos'
@@ -68,15 +69,18 @@ function Cabecera({ otId, e }: { otId: string; e: Ejecutor }) {
           </Stack>
         </Group>
         <Progress value={total ? (hechos / total) * 100 : 0} color={ot.completa ? 'verificado' : 'accion'} aria-label={`Avance ${hechos} de ${total}`} />
-        <Group gap="xs">
-          {e.audio === 'activo' ? <IconVolume size={18} /> : <IconVolumeOff size={18} color="var(--mantine-color-peligro-6)" />}
-          <Text size="sm" fw={600} c={e.audio === 'activo' ? undefined : 'peligro.7'}>
-            {e.audio === 'activo' ? 'Audio activo' : 'Audio bloqueado'}
-          </Text>
-          <Button size="compact-sm" variant="subtle" onClick={e.probarAudio}>
-            Probar audio
-          </Button>
-        </Group>
+        {/* En el demo los avisos suenan en la vista del supervisor (config.VOZ_EN): aquí no hay audio que probar. */}
+        {config.VOZ_EN === 'operario' && (
+          <Group gap="xs">
+            {e.audio === 'activo' ? <IconVolume size={18} /> : <IconVolumeOff size={18} color="var(--mantine-color-peligro-6)" />}
+            <Text size="sm" fw={600} c={e.audio === 'activo' ? undefined : 'peligro.7'}>
+              {e.audio === 'activo' ? 'Audio activo' : 'Audio bloqueado'}
+            </Text>
+            <Button size="compact-sm" variant="subtle" onClick={e.probarAudio}>
+              Probar audio
+            </Button>
+          </Group>
+        )}
       </Stack>
     </Paper>
   )
