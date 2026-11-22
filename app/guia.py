@@ -13,7 +13,20 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.routing import WebSocketRoute
 
-OCULTAS = {"/", "/agente", "/llms.txt", "/camara", "/monitor", "/casos"}
+OCULTAS = {"/", "/agente", "/llms.txt", "/llms-full.txt", "/camara", "/monitor", "/simulador", "/casos", "/referencia",
+           "/referencia/clientes.json", "/skills", "/skills/{nombre}/SKILL.md"}
+
+# La comparten esta guía y la referencia (app/referencia.py).
+ERRORES = """| Código | Cuerpo | Qué significa |
+|---|---|---|
+| 401 | `{"clave": "..."}` | El edge ya ejecuta otra OT, o se lo quiere soltar, o la llamada es del servicio interno, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
+| 401 | `{"login": "..."}` | El servicio para clientes no recibió un token válido: falta, no existe o venció. Entrar con `POST /auth/entrar` |
+| 403 | `{"permiso": "..."}` | La persona entró, pero su rol o su empresa no la dejan: un operador que pide una OT, o una pauta que su empresa no tiene habilitada |
+| 404 | `{"no_existe": "..."}` | La OT, pauta, protocolo, paso, evento o sesión no existe |
+| 409 | `{"regla": "..."}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
+| 422 | `{"detail": ...}` o `{"cuadro": "..."}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |
+| 405 | — | Se intentó editar o borrar algo que solo se lee (la bitácora) |
+| 500 | — | Falló el servidor. No dice nada sobre si lo pedido existe: avisar al equipo |"""
 
 
 def catalogo_de_rutas(app: FastAPI) -> list[tuple[str, str, str]]:
@@ -40,14 +53,16 @@ def guia(app: FastAPI, base: str) -> str:
     rutas = "\n".join(f"| `{m}` | `{p}` | {q} |" for m, p, q in catalogo_de_rutas(app))
     return f"""# Factum · API de flujos operacionales verificables
 
-Guía para el agente que se conecta. Base: `{base}` · esquemas: `{base}/openapi.json` · explorador: `{base}/docs`.
-Sin autenticación, salvo la clave del equipo para mover un edge (ver «Clave del equipo»): es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
+Guía para el agente que se conecta. Base: `{base}` · esquemas: `{base}/openapi.json` · referencia para probar cada ruta: `{base}/referencia`.
+Las skills de cliente (pedir, ejecutar, reportar y medir) están en `{base}/skills`, y el índice para agentes, en `{base}/llms.txt`.
+El servicio para clientes (`/cliente/...`) pide login y el interno (`/interno/...`), la clave del equipo. El resto no pide nada, salvo la clave del equipo para mover un edge (ver «Clave del equipo»): es un servidor de demo. Todo el contenido va en español y en JSON, salvo el video.
 
 ## Qué es
 
-Un operario ejecuta una orden de trabajo (OT) siguiendo una pauta, paso a paso. El edge (sensores y
-cámara de la estación) manda lecturas y video. La API atribuye cada lectura a la OT en curso, decide
-qué paso queda verificado, abre y resuelve alertas, y lo registra todo en una bitácora que solo agrega.
+El copiloto del operario. Un operario ejecuta una orden de trabajo (OT) siguiendo una pauta, paso a paso. El edge
+(sensores y cámara de la estación) manda lecturas y video. La API atribuye cada lectura a la OT en curso, decide qué paso
+queda verificado, le avisa al operario si se salta uno, abre y resuelve alertas, y lo registra todo en una bitácora que
+solo agrega. De esa bitácora salen las métricas y las propuestas para mejorar la pauta.
 
 ## Las reglas que no se rompen
 
@@ -107,7 +122,7 @@ cada cambio. Para reconectar sin perder bitácora, vuelve con `desde` = el últi
 | `sesion` | Al abrir una sesión | `sesion`, `video` |
 
 `evento.tipo`: `ot_abierta` · `ot_asignada` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` ·
-`relevo_recibido`. `evento.estado`: `verificado` · `no_verificado` · `en_conflicto`.
+`relevo_recibido` · `observacion` (lo que el operario vio; no cierra ningún paso). `evento.estado`: `verificado` · `no_verificado` · `en_conflicto`.
 
 **Los avisos.** `calificacion.avisos` es la lista de lo que está mal AHORA, lo más grave primero. Un aviso
 existe mientras venga en esa lista: cuando el sensor se corrige, el siguiente `calificacion_ot` ya no lo
@@ -153,6 +168,24 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
   `POST /cliente/ots/{{ot_id}}/sesion` (`edge_id`), sin la clave del equipo: si la estación ejecuta otra OT abierta
   responde 409 y se repite con `tomar` en true; la de otra empresa no se toma (403). Las empresas, sus personas y
   sus pautas las crea el equipo en `/interno/clientes`; la clave de cada persona se genera y se ve una sola vez.
+- **Ejecutar la OT con login (`/cliente/ots/{{ot_id}}/...`)**: quien actúa sale del token, no de un `actor` en el cuerpo.
+  `GET .../pasos` da el paso en curso; `POST .../declarar` (`texto`, `paso_id`) es del operador que tiene la OT;
+  `POST .../pasos/{{paso_id}}/confirmar` (`motivo`), del operador o del supervisor; `POST .../relevo/entregar` deja la OT
+  `entregada` y otro operador de la empresa la toma con `POST .../relevo/recibir`; `GET .../eventos` es la bitácora.
+  `GET .../reporte` da el reporte de la OT armado desde la bitácora, en JSON o con `formato=markdown`: cada paso con la
+  evidencia que lo cerró y su `evento`, cada desviación con su clase y cuánto tardó en resolverse, y lo pendiente. Las
+  rutas `/ot/{{ot_id}}/...` sin login siguen para la pantalla del demo.
+- **Para escribir una pauta (`/interno`)**: `GET /interno/inventario` dice qué sensores, valores, clases del detector y
+  preguntas visuales conoce el servidor, leído de la bitácora y de las pautas; `POST /interno/pautas/validar` dice, sin
+  guardar, si la pauta se puede crear y qué le fallaría a la verificación.
+- **Mejora continua y métricas (`/cliente/...`), con login**: el operario o el supervisor deja lo que vio con
+  `POST /cliente/ots/{{ot_id}}/observaciones` (`texto`, `categoria` y, si habla de uno, `paso_id`). Cuando el mismo paso de
+  la misma versión tiene señales en dos o más OT (alertas de orden o de control, conflictos, pasos confirmados por una
+  persona y observaciones de `pauta` o `seguridad`), nace una propuesta en `GET /cliente/mejoras`. El supervisor la acepta
+  o la descarta en `POST /cliente/mejoras/{{propuesta_id}}/revision`; las aceptadas las ve el equipo en `GET /interno/mejoras`
+  y las lleva a la versión siguiente de la pauta, y la propuesta dice después en `validacion` si el paso dejó de desviarse.
+  Las métricas, solo para el supervisor: `GET /cliente/metricas` (el resumen), y `/pautas`, `/pautas/{{pauta_id}}/pasos`,
+  `/equipos` y `/serie` debajo, con `desde`, `hasta` y `orden`. Agrupan por pauta, equipo, paso o día, nunca por persona.
 
 ## Clave del equipo
 
@@ -163,16 +196,7 @@ y el banco la guardan al abrirlos una vez con `?clave=`.
 
 ## Errores
 
-| Código | Cuerpo | Qué significa |
-|---|---|---|
-| 401 | `{{"clave": "..."}}` | El edge ya ejecuta otra OT, o se lo quiere soltar, o la llamada es del servicio interno, y falta la cabecera `X-Clave-Equipo`. `GET /clave` dice si este servidor la pide y si la que mandas sirve |
-| 401 | `{{"login": "..."}}` | El servicio para clientes no recibió un token válido: falta, no existe o venció. Entrar con `POST /auth/entrar` |
-| 403 | `{{"permiso": "..."}}` | La persona entró, pero su rol o su empresa no la dejan: un operador que pide una OT, o una pauta que su empresa no tiene habilitada |
-| 404 | `{{"no_existe": "..."}}` | La OT, pauta, protocolo, paso, evento o sesión no existe |
-| 409 | `{{"regla": "..."}}` | Lo pedido choca con una regla de negocio; el texto dice cuál |
-| 422 | `{{"detail": ...}}` o `{{"cuadro": "..."}}` | El cuerpo está mal formado o el cuadro no es un JPEG válido |
-| 405 | — | Se intentó editar o borrar algo que solo se lee (la bitácora) |
-| 500 | — | Falló el servidor. No dice nada sobre si lo pedido existe: avisar al equipo |
+{ERRORES}
 
 ## Todos los endpoints
 

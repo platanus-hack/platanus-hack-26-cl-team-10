@@ -19,6 +19,8 @@ export type TipoEvento =
   | 'relevo_entregado'
   | 'relevo_recibido'
   | 'propuesta_pauta'
+  /** Lo que el operario vio mientras ejecutaba: no cierra ni abre ningún paso (ADR-0014). */
+  | 'observacion'
 
 export type Evento = {
   id: number
@@ -167,3 +169,110 @@ export type RespuestaDeclarar = {
 
 /** POST /ot/{id}/pasos/{paso}/confirmar: una persona cierra el paso en curso aunque la evidencia no lo muestre. */
 export type RespuestaConfirmar = RespuestaDeclarar
+
+// ─── Reporte de una OT, mejoras y métricas (app/reporte.py, app/mejora.py, app/metricas.py) ───
+// El servidor los arma leyendo la bitácora al pedirlos: no hay un número guardado que se desfase.
+
+/** Con qué se cerró un paso, en el reporte. */
+export type CierreReporte =
+  | { con: 'sensor'; sensor: string | null; leido: string | null; esperado: string | null }
+  | { con: 'detector'; clase: string | null; presente: boolean | null; confianza: number | null }
+  | { con: 'camara'; pregunta: string | null; respuesta: boolean | null; confianza: number | null; foto?: string | null }
+  | { con: 'persona'; motivo: string | null; contra: unknown }
+  | { con: 'palabra'; declarado: string | null }
+
+export type PasoReporte = {
+  paso: string
+  orden: number
+  titulo: string
+  control_critico: boolean
+  estado: EstadoPasoApi
+  cerrado_con: CierreReporte | null
+  capa: number | string | null
+  hora: string | null
+  /** Cuánto pasó desde que se cerró el paso anterior. */
+  segundos: number | null
+  /** Cuántos veredictos tuvo antes de cerrarse. */
+  intentos: number
+  detalle: string | null
+  evento: number | null
+}
+
+export type DesviacionReporte = {
+  /** `seguridad`, `orden`, `control`, `conflicto`, o `senal` y `pegado`, que hablan del sensor. */
+  clase: string
+  que: string
+  paso: string | null
+  detalle: string
+  abierta: string
+  resuelta: string | null
+  minutos: number | null
+  evento: number
+}
+
+/** `GET /cliente/ots/{id}/reporte`: lo que pasó en la OT, cada línea con el evento que la sostiene. */
+export type ReporteOt = {
+  ot: string
+  estado: EstadoGeneral
+  completa: boolean
+  pauta: { id: string; nombre: string; version: number }
+  equipo: string
+  personas: { pidio: string; a_cargo: string | null; ejecutaron: string[] }
+  tiempos: { abierta: string; inicio: string | null; fin: string | null; minutos_de_ejecucion: number | null }
+  resultado: {
+    pasos_verificados: number
+    pasos: number
+    sin_desviaciones: boolean
+    desviaciones: number
+    confirmados_por_persona: number
+    calificacion: CalificacionOt
+  }
+  pasos: PasoReporte[]
+  pendientes: string[]
+  desviaciones: DesviacionReporte[]
+  confirmados_por_persona: { paso: string | null; quien: string; motivo: string | null; hora: string; evento: number }[]
+  observaciones: { paso: string | null; categoria: string; texto: string; quien: string; hora: string; evento: number }[]
+  relevos: { que: 'entregado' | 'recibido'; quien: string; resumen: string; hora: string; evento: number }[]
+  eventos: { total: number; primero: number | null; ultimo: number | null }
+}
+
+/** Lo que cuenta como señal de que un paso de la pauta se puede mejorar. */
+export type SenalMejora = 'orden' | 'control' | 'conflicto' | 'persona' | 'observacion'
+export type EstadoMejora = 'abierta' | 'aceptada' | 'descartada' | 'aplicada' | 'superada'
+export type DecisionMejora = 'aceptar' | 'descartar'
+
+/**
+ * `GET /cliente/mejoras`: una propuesta nace cuando el mismo paso de la misma versión tuvo señales
+ * en dos o más OT. Agrupa por paso: de los operarios dice cuántos, nunca quiénes.
+ */
+export type Mejora = {
+  id: string
+  pauta: string
+  nombre: string
+  version: number
+  paso: string
+  titulo: string
+  control_critico: boolean
+  /** Cuántas OT de esa versión se han ejecutado, y en cuántas el paso dio señales. */
+  ejecuciones: number
+  ots_con_senal: number
+  operarios_distintos: number
+  senales: Record<SenalMejora, number>
+  observaciones: { categoria: string; texto: string }[]
+  motivo: string
+  sugerencia: string
+  estado: EstadoMejora
+  revision: { decision: DecisionMejora; nota: string; por: string; ts: string } | null
+  /** Con una versión más nueva de la pauta: si el paso dejó de desviarse. */
+  validacion: { version_nueva: number; ejecuciones: number; ots_con_senal: number; resultado: 'sin_datos' | 'mejoro' | 'se_repite' } | null
+}
+
+/** `GET /cliente/metricas`: la foto de la empresa. Nunca por persona. */
+export type Metricas = {
+  ots: { total: number; por_estado: Record<EstadoGeneral, number> }
+  cumplimiento: { completas: number; sin_desviaciones: number; porcentaje: number | null }
+  pasos: { verificados: number; por_evidencia: Record<'sensor' | 'camara' | 'persona' | 'palabra', number>; con_evidencia_objetiva_pct: number | null }
+  desviaciones: { total: number; por_clase: Record<string, number>; alertas_abiertas: number; minutos_medios_para_resolver: number | null }
+  minutos_medios_de_ejecucion: number | null
+  mejoras: Record<EstadoMejora, number>
+}

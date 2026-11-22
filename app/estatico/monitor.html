@@ -182,6 +182,8 @@
   }
   @media (max-width:520px){header,main{padding-left:16px;padding-right:16px} input{width:14ch}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  .enlace-sim{display:inline-flex;align-items:center;font:500 13px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;height:36px;padding:0 12px;border:1px solid var(--linea-2);border-radius:3px;color:var(--texto);background:var(--panel);text-decoration:none}
+  .enlace-sim:hover{border-color:var(--lima)}
 </style>
 </head>
 <body data-nivel="ok">
@@ -194,9 +196,12 @@
     <span id="conexion" class="rot" role="status">desconectado</span>
   </div>
   <div class="grupo derecha">
+    <a href="/analisis" class="enlace-sim" title="Resultados, tiempos y propuestas de mejora de tu empresa">Análisis</a>
+    <a href="/simulador" class="enlace-sim" title="La ejecución de una OT en 3D, con las pautas y los operarios de esta base">Simulador</a>
     <select id="pauta" title="Qué pauta ejecuta la OT nueva" aria-label="Pauta de la demo">
       <option value="polin">Cambio de polín</option>
       <option value="loto">LOTO</option>
+      <option value="botella">Abrir una botella</option>
     </select>
     <button id="ejecutar" class="principal" title="Une esta OT a la estación, a nombre de su operador" hidden>Ejecutar aquí</button>
     <button id="nueva" class="principal" title="Abre una OT nueva con la pauta elegida, asignada al operador del demo, y la une al edge">Nueva demo</button>
@@ -541,8 +546,8 @@ function reiniciar() {
 
 // La demo es una OT del negocio: la pide el supervisor del demo, queda asignada a su operador y se une
 // al edge que se venía mirando. Las personas y las pautas las deja la semilla (POST /interno/ots/semilla).
-const DEMO = {supervisor: "supervisor:francisco", operador: "operario:jonathan"};
-const PAUTAS = {polin: "pauta-polin-estacion", loto: "pauta-loto-escritorio"};
+const DEMO = {supervisor: "supervisor:oculta", operador: "operario:1"};
+const PAUTAS = {polin: "pauta-polin-estacion", loto: "pauta-loto-escritorio", botella: "pauta-botella-01"};
 async function nuevaDemo() {
   $("accion").textContent = "Abriendo una OT nueva…";
   try {

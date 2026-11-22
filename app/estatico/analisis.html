@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análisis de ejecución</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitcount+Prop+Single:wght@300..600&display=swap">
+<style>
+  /* Los mismos colores, tipos y rótulos del monitor (monitor.html): es la misma herramienta. */
+  :root{
+    --fondo:#0a0c0a; --panel:#101310; --alto:#171b16; --linea:#252a23; --linea-2:#3d4439;
+    --texto:#eef2e9; --tenue:#9ca696; --lima:#d4ff9e; --ambar:#ffc24d; --rojo:#ff4433; --trama:#141813; --tinta:#0a0c0a;
+    --titular:"Bitcount Prop Single",ui-monospace,Menlo,monospace;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  ::selection{background:var(--lima);color:var(--tinta)}
+  html{scrollbar-color:var(--linea-2) var(--fondo)}
+  body{margin:0;font:16px/1.5 var(--sans);color:var(--texto);background:var(--fondo);
+       background-image:linear-gradient(var(--trama) 1px,transparent 1px),linear-gradient(90deg,var(--trama) 1px,transparent 1px);
+       background-size:100% 240px,25% 100%;background-attachment:fixed;font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--lima);outline-offset:2px}
+  h1,h2,h3,p,ol,ul,dl,dd{margin:0;padding:0}
+  ol,ul{list-style:none}
+  [hidden]{display:none!important}
+
+  h2,.rot,th,dt{font:500 12px/1.4 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--tenue)}
+  h2{display:flex;align-items:center;gap:.9em;margin-bottom:12px}
+  h2::before{content:"[//"} h2::after{content:"]"}
+  h2::before,h2::after{color:var(--linea-2)}
+  h2 output{margin-left:auto;order:3;color:var(--texto)}
+
+  /* ─── Barra ─── */
+  header{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:12px 24px;border-bottom:1px solid var(--linea);background:var(--fondo)}
+  .marca{display:flex;align-items:center;gap:10px;font:400 26px/1 var(--titular);letter-spacing:.02em}
+  .marca svg{width:18px;height:18px;stroke:var(--lima)}
+  .grupo{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+  .derecha{margin-left:auto}
+  nav a{font:500 13px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:var(--tenue);
+        padding:11px 2px 9px;border-bottom:2px solid transparent;transition:color .15s}
+  nav a:hover{color:var(--texto)}
+  nav a[aria-current]{color:var(--texto);border-bottom-color:var(--lima)}
+  input,button{font:500 13px/1 var(--mono);letter-spacing:.06em;height:36px;padding:0 12px;border-radius:3px;
+               border:1px solid var(--linea-2);background:var(--panel);color:var(--texto)}
+  input{caret-color:var(--lima);letter-spacing:.02em;width:100%}
+  input:hover{border-color:var(--tenue)}
+  button{text-transform:uppercase;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+  button:hover{border-color:var(--lima)}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.5;cursor:progress}
+  button.principal{background:var(--lima);border-color:var(--lima);color:var(--tinta)}
+  button.principal:hover{background:#e6ffc4}
+
+  /* ─── Cuerpo ─── */
+  main{max-width:1320px;margin:0 auto;padding:22px 24px 48px}
+  .cabecera{display:flex;align-items:flex-end;gap:24px;margin-bottom:22px}
+  h1{font:400 clamp(24px,2.5vw,40px)/1.05 var(--titular);letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+  #empresa{margin-top:6px}
+  #accion{margin-left:auto;max-width:46ch;text-align:right;text-transform:none;letter-spacing:.02em;font-size:13px;min-height:1.4em}
+  #reporte{display:grid;gap:40px}
+  #reporte > *,.rejilla > *{min-width:0}  /* sin esto la tabla ancha estira la página en vez de desplazarse sola */
+  .rejilla{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:40px 48px;align-items:start}
+  .pie{margin-top:12px;max-width:72ch;font-size:14px;color:var(--tenue)}
+
+  /* ─── Entrar ─── */
+  #entrada{display:grid;gap:16px;max-width:44ch}
+  #entrada label{display:grid;gap:6px}
+  #entrada button{justify-self:start;min-width:14ch}
+  #error{color:var(--ambar);min-height:1.5em}
+
+  /* ─── Resumen: una rejilla de celdas, como los sensores del monitor ─── */
+  #resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--linea);border:1px solid var(--linea)}
+  .celda{background:var(--panel);padding:14px 16px 16px;min-height:118px}
+  .celda b{display:block;margin-top:6px;font:400 clamp(26px,2.4vw,38px)/1.05 var(--titular);text-transform:uppercase}
+  .celda span{display:block;margin-top:4px;font:400 13px/1.4 var(--mono);color:var(--tenue)}
+  .celda.atencion b{color:var(--ambar)}
+
+  /* ─── Propuestas ─── */
+  #propuestas{border-top:1px solid var(--linea)}
+  #propuestas li{display:grid;gap:4px;padding:14px 0 16px;border-bottom:1px solid var(--linea)}
+  #propuestas b{font-weight:500;font-size:17px;line-height:1.3}
+  #propuestas small{font:400 12px/1.5 var(--mono);letter-spacing:.02em;color:var(--tenue)}
+  #propuestas p{max-width:68ch;margin-top:4px}
+  #propuestas q{display:block;max-width:68ch;margin-top:6px;padding-left:14px;border-left:1px solid var(--linea-2);color:var(--tenue);quotes:"«" "»"}
+  #sin-propuestas{padding:14px 0;border-top:1px solid var(--linea);color:var(--tenue);max-width:60ch}
+
+  /* ─── Qué cerró cada paso: una barra por forma de verificar ─── */
+  #cierres{border-top:1px solid var(--linea)}
+  #cierres li{display:grid;grid-template-columns:1fr auto;gap:2px 16px;align-items:baseline;padding:11px 0 13px;border-bottom:1px solid var(--linea)}
+  #cierres small{grid-column:1/-1;font:400 12px/1.5 var(--mono);letter-spacing:.02em;color:var(--tenue)}
+  #cierres output{font:500 13px/1.4 var(--mono)}
+  .barra{display:block;height:6px;background:var(--linea)}
+  .barra i{display:block;height:100%;min-width:2px;background:var(--lima);border-radius:0 3px 3px 0}
+  #cierres .barra{grid-column:1/-1;margin-top:6px}
+  #cierres .persona .barra i{background:var(--ambar)}
+
+  /* ─── Pauta por pauta ─── */
+  .pauta + .pauta{margin-top:36px}
+  .pauta h3{font:600 19px/1.3 var(--sans);text-wrap:balance}
+  .pauta > .rot{margin-top:2px}
+  .datos{display:flex;flex-wrap:wrap;gap:10px 36px;margin:14px 0 14px}
+  .datos dd{font-weight:500;font-size:17px;line-height:1.3}
+  .sin-ejecutar{padding:12px 0;border-top:1px solid var(--linea);color:var(--tenue)}
+  .tabla{overflow-x:auto;border-top:1px solid var(--linea);scrollbar-width:thin}
+  table{width:100%;min-width:780px;border-collapse:collapse}
+  th,td{text-align:left;padding:10px 20px 10px 0;border-bottom:1px solid var(--linea);vertical-align:middle}
+  th{white-space:nowrap}
+  th.n,td.n{text-align:right}
+  th:last-child,td:last-child{padding-right:0}
+  td.num{font:500 13px/1 var(--mono);color:var(--tenue);width:4ch}
+  td.evidencia{font:400 13px/1.4 var(--mono);color:var(--tenue);white-space:nowrap}
+  td.n{font:500 14px/1.4 var(--mono)}
+  td.cero{color:var(--tenue);font-weight:400}
+  td.tiempo{width:300px;white-space:nowrap}
+  td.tiempo div{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:center}
+  td.tiempo small{font:400 12px/1 var(--mono);color:var(--tenue);margin-left:6px}
+  tr.revisar td:nth-child(2){color:var(--ambar)}
+  .marca-paso{display:inline-block;margin-left:10px;font:500 11px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+              padding:4px 6px;border-radius:2px;border:1px solid var(--linea-2);color:var(--tenue);vertical-align:2px}
+  .marca-paso.revisar{background:var(--ambar);border-color:var(--ambar);color:var(--tinta)}
+
+  @media (max-width:980px){
+    .rejilla{grid-template-columns:1fr}
+    #resumen{grid-template-columns:1fr 1fr}
+    .cabecera{flex-direction:column;align-items:flex-start;gap:8px} #accion{margin-left:0;text-align:left}
+  }
+  @media (max-width:520px){header,main{padding-left:16px;padding-right:16px} .derecha{margin-left:0} #resumen{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <span class="marca"><svg viewBox="0 0 18 18" fill="none" stroke-width="1.6" aria-hidden="true"><path d="M9 1v16M1 9h16"/></svg>Factum</span>
+  <nav class="grupo" aria-label="Pantallas">
+    <a href="/monitor">Monitor</a>
+    <a href="/analisis" aria-current="page">Análisis</a>
+  </nav>
+  <div class="grupo derecha" id="sesion" hidden>
+    <button id="actualizar" title="Vuelve a leer la bitácora">Actualizar</button>
+    <button id="salir">Salir</button>
+  </div>
+</header>
+<main>
+  <div class="cabecera">
+    <div><h1>Análisis de ejecución</h1><p id="empresa" class="rot"></p></div>
+    <p id="accion" class="rot" role="status"></p>
+  </div>
+
+  <form id="entrada" hidden>
+    <p>El reporte es de cada empresa. Entra con tu cuenta de supervisor para ver las órdenes de trabajo de la tuya.</p>
+    <label><span class="rot">Usuario</span><input id="usuario" type="email" autocomplete="username" spellcheck="false" required></label>
+    <label><span class="rot">Clave</span><input id="clave" type="password" autocomplete="current-password" required></label>
+    <button class="principal" id="entrar">Entrar</button>
+    <p id="error" role="alert"></p>
+  </form>
+
+  <div id="reporte" hidden>
+    <section>
+      <h2>Resumen</h2>
+      <div id="resumen"></div>
+    </section>
+
+    <div class="rejilla">
+      <section>
+        <h2>Propuestas de mejora <output id="n-propuestas"></output></h2>
+        <ol id="propuestas"></ol>
+        <p id="sin-propuestas" hidden>Ningún paso repite una señal todavía. Una propuesta nace cuando el mismo paso de la misma versión, en dos órdenes o más, tiene una alerta de orden o de control, un conflicto, una confirmación por persona o una observación de los operarios.</p>
+      </section>
+      <section>
+        <h2>Qué cerró cada paso <output id="n-cierres"></output></h2>
+        <ul id="cierres"></ul>
+        <p class="pie" id="objetiva"></p>
+      </section>
+    </div>
+
+    <section>
+      <h2>Pauta por pauta</h2>
+      <div id="pautas"></div>
+      <p class="pie">Los pasos son los de la última versión aprobada de cada pauta. El tiempo de un paso va desde que cierra el paso anterior hasta que cierra él, así que el primer paso de cada orden no tiene medida; se informa el promedio. Los intentos son los veredictos que recibió el paso hasta cerrar: uno es el mínimo.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+// Esta página no calcula nada: pinta lo que ya entregan /cliente/metricas y /cliente/mejoras
+// (app/metricas.py y app/mejora.py, ADR-0014), que solo ve el supervisor y solo de su empresa.
+const $ = id => document.getElementById(id);
+const el = (tag, clase, texto) => {
+  const e = document.createElement(tag);
+  if (clase) e.className = clase;
+  if (texto != null) e.textContent = texto;
+  return e;
+};
+const coma = x => String(Math.round(x * 10) / 10).replace(".", ",");
+const cuantas = (n, una, varias) => `${n} ${n === 1 ? una : varias}`;
+function duracion(s) {
+  if (s == null) return "sin medida";
+  s = Math.round(s);
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = s % 60;
+  if (h) return m ? `${h} h ${m} min` : `${h} h`;
+  if (m) return r ? `${m} min ${r} s` : `${m} min`;
+  return `${r} s`;
+}
+
+// El orden va de la evidencia más dura a la más blanda (ADR-0004).
+const EVIDENCIAS = [
+  ["sensor", "Sensor", "Una regla sobre la lectura del sensor"],
+  ["camara", "Cámara", "El detector de la estación o el modelo de visión"],
+  ["palabra", "Palabra del operario", "Pasos de confirmación, que se cierran declarando"],
+  ["persona", "Una persona, contra la evidencia", "El sensor o la cámara no lo vieron"],
+];
+const CLASES = {seguridad: "de seguridad", orden: "de orden de pasos", control: "de control perdido",
+                conflicto: "de conflicto con la evidencia", persona: "de confirmación por persona"};
+const EVIDENCIA = {sensor: "Sensor", camara: "Cámara", confirmacion: "Confirmación"};
+const ESTADOS = {abierta: "Por revisar", aceptada: "Aceptada", descartada: "Descartada", aplicada: "Aplicada", superada: "Superada"};
+
+let token = sessionStorage.getItem("factum-token");
+
+class SinAcceso extends Error {}
+async function leer(ruta) {
+  const r = await fetch(ruta, {headers: {Authorization: `Bearer ${token}`}});
+  if (r.status === 401) throw new SinAcceso("La sesión venció. Vuelve a entrar.");
+  if (r.status === 403) throw new SinAcceso("Este reporte es para supervisores. Entra con una cuenta de supervisor.");
+  if (!r.ok) throw new Error(`${ruta}: ${r.status}`);
+  return r.json();
+}
+
+function barra(parte) {
+  const b = el("span", "barra");
+  if (parte > 0) {
+    const i = el("i");
+    i.style.width = `${Math.round(parte * 100)}%`;
+    b.append(i);
+  }
+  return b;
+}
+
+function celda(rotulo, valor, nota, atencion) {
+  const c = el("div", atencion ? "celda atencion" : "celda");
+  c.append(el("h3", "rot", rotulo), el("b", "", valor), el("span", "", nota));
+  return c;
+}
+
+function pintarResumen(m) {
+  const c = m.cumplimiento, d = m.desviaciones, seguridad = d.por_clase.seguridad;
+  $("resumen").replaceChildren(
+    celda("Órdenes completas", `${c.completas} de ${m.ots.total}`,
+          m.ots.total === c.completas ? "todas cerraron su pauta" : `${m.ots.total - c.completas} en curso o sin empezar`),
+    celda("Completas sin desviaciones", `${c.sin_desviaciones} de ${c.completas}`,
+          m.minutos_medios_de_ejecucion == null ? "sin alertas, conflictos ni confirmaciones por persona"
+            : `una orden demora ${duracion(m.minutos_medios_de_ejecucion * 60)} en promedio`),
+    celda("Alertas de seguridad", String(seguridad),
+          d.alertas_abiertas ? `${cuantas(d.alertas_abiertas, "alerta", "alertas")} de ejecución sin resolver`
+            : d.minutos_medios_para_resolver == null ? "ninguna alerta de ejecución registrada"
+            : `una alerta se resuelve en ${duracion(d.minutos_medios_para_resolver * 60)}`, seguridad > 0),
+    celda("Propuestas por revisar", String(m.mejoras.abierta),
+          m.mejoras.abierta ? "pasos con señales en dos órdenes o más"
+            : m.mejoras.aceptada ? `${cuantas(m.mejoras.aceptada, "aceptada espera", "aceptadas esperan")} su versión nueva` : "ninguna abierta",
+          m.mejoras.abierta > 0),
+  );
+}
+
+function pintarPropuestas(mejoras) {
+  const abiertas = mejoras.filter(x => x.estado === "abierta").length;
+  $("n-propuestas").textContent = mejoras.length ? `${abiertas} por revisar` : "";
+  $("sin-propuestas").hidden = mejoras.length > 0;
+  $("propuestas").hidden = !mejoras.length;
+  $("propuestas").replaceChildren(...mejoras.map(x => {
+    const li = el("li"), titulo = el("b", "", x.titulo);
+    if (x.control_critico) titulo.append(el("span", "marca-paso", "Control crítico"));
+    titulo.append(el("span", x.estado === "abierta" ? "marca-paso revisar" : "marca-paso", ESTADOS[x.estado] || x.estado));
+    li.append(titulo, el("small", "", `${x.nombre} · versión ${x.version}`), el("p", "", x.sugerencia));
+    for (const o of x.observaciones) li.append(el("q", "", o.texto));
+    li.append(el("small", "", x.motivo));
+    return li;
+  }));
+}
+
+function pintarEvidencia(pasos) {
+  const mayor = Math.max(1, ...Object.values(pasos.por_evidencia));
+  $("n-cierres").textContent = pasos.verificados ? cuantas(pasos.verificados, "paso", "pasos") : "";
+  $("objetiva").textContent = pasos.con_evidencia_objetiva_pct == null ? ""
+    : `${coma(pasos.con_evidencia_objetiva_pct)} % de los pasos se cerró con evidencia objetiva: un sensor o la cámara, no la palabra de alguien.`;
+  $("cierres").replaceChildren(...EVIDENCIAS.map(([clave, nombre, detalle]) => {
+    const n = pasos.por_evidencia[clave] || 0, li = el("li", clave === "persona" ? "persona" : "");
+    li.append(el("span", "", nombre), el("output", "", pasos.verificados ? `${n} · ${Math.round(n / pasos.verificados * 100)} %` : "0"),
+              el("small", "", detalle), barra(n / mayor));
+    return li;
+  }));
+}
+
+function dato(rotulo, valor) {
+  const d = el("div");
+  d.append(el("dt", "", rotulo), el("dd", "", valor));
+  return d;
+}
+
+function pintarPauta(p, pasos, conPropuesta) {
+  const a = el("article", "pauta"), c = p.cumplimiento;
+  const clases = Object.entries(p.por_clase).filter(([, n]) => n).map(([clase, n]) => `${n} ${CLASES[clase] || clase}`).join(", ");
+  const datos = el("dl", "datos");
+  datos.append(
+    dato("Órdenes", `${c.completas} de ${p.ots} completas`),
+    dato("Sin desviaciones", `${c.sin_desviaciones} de ${c.completas}`),
+    dato("Ejecución media", p.minutos_medios_de_ejecucion == null ? "sin medida" : duracion(p.minutos_medios_de_ejecucion * 60)),
+    dato("Desviaciones", clases || "ninguna"),
+  );
+  a.append(el("h3", "", p.nombre),
+           el("p", "rot", [`versión ${Math.max(...p.versiones)}`, p.observaciones && cuantas(p.observaciones, "observación", "observaciones")].filter(Boolean).join(" · ")),
+           datos);
+
+  if (!pasos || !pasos.some(s => s.verificado)) {
+    a.append(el("p", "sin-ejecutar", pasos ? "Ninguna orden de esta versión ha cerrado un paso todavía." : "No se pudieron leer los pasos de esta pauta."));
+    return a;
+  }
+  const mayor = Math.max(1, ...pasos.map(s => s.segundos_medios || 0));
+  const tabla = el("table"), cabeza = el("tr");
+  for (const [texto, clase] of [["N.º"], ["Paso"], ["Evidencia"], ["Tiempo medio"], ["Intentos", "n"], ["Desviaciones", "n"], ["Observaciones", "n"]]) {
+    const th = el("th", clase, texto);
+    th.scope = "col";
+    cabeza.append(th);
+  }
+  const thead = el("thead"), tbody = el("tbody");
+  thead.append(cabeza);
+  for (const s of pasos) {
+    const revisar = conPropuesta.has(s.paso);
+    const tr = el("tr", revisar ? "revisar" : ""), paso = el("td", "", s.titulo), tiempo = el("td", "tiempo");
+    if (s.control_critico) paso.append(el("span", "marca-paso", "Control crítico"));
+    if (revisar) paso.append(el("span", "marca-paso revisar", "Con propuesta"));
+    if (s.segundos_medios == null) {
+      tiempo.append(el("small", "", "sin medida"));
+    } else {
+      const fila = el("div");
+      fila.append(barra(s.segundos_medios / mayor), el("span", "", duracion(s.segundos_medios)));
+      tiempo.append(fila);
+    }
+    // Un intento es lo normal; más de uno es que el paso no cerró a la primera.
+    const intentos = el("td", s.intentos_medios > 1 ? "n" : "n cero", s.intentos_medios == null ? "sin cierres" : coma(s.intentos_medios));
+    tr.append(el("td", "num", String(s.orden).padStart(2, "0")), paso, el("td", "evidencia", EVIDENCIA[s.tipo_evidencia] || s.tipo_evidencia),
+              tiempo, intentos, el("td", s.desviaciones ? "n" : "n cero", String(s.desviaciones)),
+              el("td", s.observaciones.length ? "n" : "n cero", String(s.observaciones.length)));
+    tbody.append(tr);
+  }
+  tabla.append(thead, tbody);
+  const marco = el("div", "tabla");
+  marco.tabIndex = 0;  // la tabla se desplaza de lado en pantallas angostas: que el teclado también pueda
+  marco.setAttribute("role", "region");
+  marco.setAttribute("aria-label", `Pasos de ${p.nombre}`);
+  marco.append(tabla);
+  a.append(marco);
+  return a;
+}
+
+function pedirEntrada(motivo) {
+  token = null; sessionStorage.removeItem("factum-token");
+  $("reporte").hidden = true; $("sesion").hidden = true; $("entrada").hidden = false;
+  $("empresa").textContent = ""; $("accion").textContent = ""; $("error").textContent = motivo || "";
+  $("usuario").focus();
+}
+
+async function cargar() {
+  if (!token) return pedirEntrada();
+  $("accion").textContent = "Leyendo la bitácora…";
+  $("actualizar").disabled = true;
+  try {
+    const [yo, metricas, pautas, mejoras] = await Promise.all(
+      ["/yo", "/cliente/metricas", "/cliente/metricas/pautas?orden=ots", "/cliente/mejoras"].map(leer));
+    // Los pasos de una pauta que falla no botan el reporte entero: esa pauta lo dice en su lugar.
+    const pasos = await Promise.all(pautas.map(p =>
+      leer(`/cliente/metricas/pautas/${encodeURIComponent(p.pauta)}/pasos`).catch(e => { if (e instanceof SinAcceso) throw e; return null; })));
+    const vigentes = mejoras.filter(x => x.estado === "abierta" || x.estado === "aceptada");
+
+    $("empresa").textContent = [yo.cliente.nombre, yo.cliente.industria, cuantas(metricas.ots.total, "orden de trabajo", "órdenes de trabajo")].filter(Boolean).join(" · ");
+    $("accion").textContent = `Leído a las ${new Date().toLocaleTimeString("es-CL", {hour: "2-digit", minute: "2-digit"})}`;
+    pintarResumen(metricas);
+    pintarPropuestas(vigentes);
+    pintarEvidencia(metricas.pasos);
+    $("pautas").replaceChildren(...(pautas.length
+      ? pautas.map((p, i) => pintarPauta(p, pasos[i], new Set(vigentes.filter(x => x.pauta === p.pauta && x.version === Math.max(...p.versiones)).map(x => x.paso))))
+      : [el("p", "sin-ejecutar", "Tu empresa todavía no tiene órdenes de trabajo. Cuando se ejecute la primera, aquí aparecen sus pasos con el tiempo y los intentos de cada uno.")]));
+    $("entrada").hidden = true; $("reporte").hidden = false; $("sesion").hidden = false;
+  } catch (e) {
+    if (e instanceof SinAcceso) return pedirEntrada(e.message);
+    $("accion").textContent = "No se pudo leer el reporte. Revisa la conexión y prueba con Actualizar.";
+    $("sesion").hidden = false;
+  } finally {
+    $("actualizar").disabled = false;
+  }
+}
+
+$("entrada").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  $("error").textContent = ""; $("entrar").disabled = true;
+  try {
+    const r = await fetch("/auth/entrar", {method: "POST", headers: {"Content-Type": "application/json"},
+                                          body: JSON.stringify({usuario: $("usuario").value.trim(), clave: $("clave").value})});
+    if (r.status === 401) { $("error").textContent = "El usuario o la clave no calzan."; return; }
+    if (!r.ok) throw new Error(r.status);
+    token = (await r.json()).token;
+    sessionStorage.setItem("factum-token", token);
+    $("clave").value = "";
+    await cargar();
+  } catch (e) {
+    $("error").textContent = "No se pudo entrar. Revisa la conexión y vuelve a intentar.";
+  } finally {
+    $("entrar").disabled = false;
+  }
+});
+$("actualizar").addEventListener("click", cargar);
+$("salir").addEventListener("click", async () => {
+  await fetch("/auth/salir", {method: "POST", headers: {Authorization: `Bearer ${token}`}}).catch(() => {});
+  pedirEntrada();
+});
+
+cargar();
+</script>
+</body>
+</html>

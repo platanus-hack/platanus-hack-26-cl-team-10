@@ -60,6 +60,11 @@ export function VerificacionBadge({ nivel, size = 'md' }: { nivel: Nivel; size?:
   )
 }
 
+const SECCIONES_SUPERVISOR = [
+  { a: '/supervisor', nombre: 'Supervisión' },
+  { a: '/supervisor/mejoras', nombre: 'Mejoras' },
+]
+
 export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: string }) {
   const navigate = useNavigate()
   const salir = () => {
@@ -70,7 +75,7 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
   }
   return (
     // La banda de la marca: tinta arriba, y todo lo de trabajo sigue claro debajo.
-    <Box component="header" style={SOBRE_TINTA}>
+    <Box component="header" style={{ ...SOBRE_TINTA, borderBottom: '1px solid var(--factum-linea, transparent)' }}>
       {/* El mismo ancho que <Pagina>: la marca cae sobre el título y «Salir» sobre el borde derecho. */}
       <Container size={1200} px="md">
         <Group justify="space-between" wrap="nowrap" gap="sm" h={56}>
@@ -78,9 +83,33 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
             <UnstyledButton component={Link} to={inicioDe(usuario.rol)} aria-label="Factum, ir al inicio" py={6} style={{ borderRadius: 4 }}>
               <Marca alto={20} />
             </UnstyledButton>
-            <Text c={MARCA.tenue} fw={600} visibleFrom="xs">
-              {seccion}
-            </Text>
+            {usuario.rol === 'supervisor' ? (
+              // El supervisor tiene dos lugares: las OT en vivo y lo que esas OT dicen de las pautas.
+              <Group component="nav" aria-label="Secciones" gap={4} wrap="nowrap">
+                {SECCIONES_SUPERVISOR.map(({ a, nombre }) => {
+                  const aqui = nombre === seccion
+                  return (
+                    <UnstyledButton
+                      key={a}
+                      component={Link}
+                      to={a}
+                      aria-current={aqui ? 'page' : undefined}
+                      px={8}
+                      py={6}
+                      fw={600}
+                      c={aqui ? MARCA.hueso : MARCA.tenue}
+                      style={{ borderRadius: 4, boxShadow: aqui ? `inset 0 -2px ${MARCA.lima}` : undefined }}
+                    >
+                      {nombre}
+                    </UnstyledButton>
+                  )
+                })}
+              </Group>
+            ) : (
+              <Text c={MARCA.tenue} fw={600} visibleFrom="xs">
+                {seccion}
+              </Text>
+            )}
           </Group>
           <Group gap="sm" wrap="nowrap" miw={0}>
             <Stack gap={0} align="flex-end" miw={0}>

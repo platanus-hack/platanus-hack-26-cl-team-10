@@ -6,14 +6,11 @@
     "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 44, 45 y 55 y la estrategia de controles de REFERENCIAS 56. No es el procedimiento de un cliente.",
     "documento": "protocolos/prot-aislamiento-01.md",
     "pautas": [
-      "pauta-loto-escritorio",
       "pauta-correa-ct-01",
       "pauta-polin-ct-01",
       "pauta-celda-mt-01",
       "pauta-excavadora-01",
-      "pauta-brazo-01",
-      "pauta-polin-demo",
-      "pauta-polin-estacion"
+      "pauta-brazo-01"
     ]
   },
   {
@@ -67,6 +64,28 @@
     "documento": "protocolos/prot-camion-rigido-01.md",
     "pautas": [
       "pauta-camion-detencion-01"
+    ]
+  },
+  {
+    "id": "prot-botella-01",
+    "nombre": "Abrir una botella",
+    "industria": "demo",
+    "origen": "Redactado por el equipo de Factum para el demo. No es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-botella-01.md",
+    "pautas": [
+      "pauta-botella-01"
+    ]
+  },
+  {
+    "id": "prot-maqueta-01",
+    "nombre": "Ejemplos en la maqueta del demo",
+    "industria": "demo",
+    "origen": "Redactado por el equipo de Factum para la maqueta del demo. No sale de una norma ni es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-maqueta-01.md",
+    "pautas": [
+      "pauta-polin-demo",
+      "pauta-polin-estacion",
+      "pauta-loto-escritorio"
     ]
   }
 ]
