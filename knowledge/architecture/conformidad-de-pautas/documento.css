@@ -1,0 +1,246 @@
+/* documento.css · estilos propios de la plantilla DOCUMENTO (index.html y diseno.html).
+   Se carga después de marca.css y base.css y no escribe ningún color ni fuente: solo lee las variables
+   de marca.css. El borde fuerte y el trazo de «entra después» se derivan de --muted, --line y --paper;
+   el código usa var(--mono) si marca.css la define y, si no, la monoespaciada del sistema.
+   Para cambiar la marca no se toca este archivo: se cambia marca.css.
+   Regla de tamaño: ningún texto bajo 15 px, tampoco etiquetas, chips, leyendas ni código. */
+
+/* Tonos derivados de la paleta de marca.css */
+:root{--borde-fuerte:color-mix(in srgb,var(--muted) 30%,var(--line));--trazo:color-mix(in srgb,var(--muted) 55%,var(--paper))}
+
+/* Encabezado: el chip declara el tipo de documento */
+.tipo{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
+.chip--tipo{background:var(--paper);color:var(--brand)}
+.top .chip--linea{background:none;color:var(--on-deep);border:1px solid color-mix(in srgb,var(--on-deep-muted) 70%,transparent)}
+
+/* Disposición: índice lateral pegajoso y columna de lectura */
+.doc{display:grid;grid-template-columns:220px minmax(0,1fr);gap:64px;padding-top:48px}
+.doc > article{min-width:0;max-width:var(--text)}
+.doc--ancho{grid-template-columns:200px minmax(0,1fr);gap:48px}
+.doc--ancho > article{max-width:840px}
+.lado{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow-y:auto}
+.indice b,.lado__t{display:block;font-size:15px;font-weight:700;color:var(--muted);margin-bottom:10px}
+.indice a{display:block;color:var(--muted);text-decoration:none;padding:6px 0 6px 14px;border-left:2px solid var(--line);font-size:16px;line-height:1.4}
+.indice a:hover{color:var(--ink)}
+.indice a.on{color:var(--brand);border-color:var(--brand);font-weight:700}
+.indice a.sub{padding-left:28px}
+.doc section{padding-bottom:56px;scroll-margin-top:24px}
+.doc section > h2{padding-top:4px}
+.doc h3{margin-top:28px}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+
+/* Índice en el teléfono: un desplegable arriba del contenido */
+details.indice-m{display:none}
+details.indice-m summary{font-weight:700;cursor:pointer;list-style-position:inside}
+details.indice-m a{display:block;padding:10px 0;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+details.indice-m a:last-child{border:0}
+
+/* Callouts: nota, advertencia y regla. Un solo acento por callout. */
+.callout{border-radius:12px;padding:16px 20px;margin:24px 0}
+.callout p{margin:0}
+.callout p + p{margin-top:8px}
+.callout__t{display:block;font-weight:700;margin-bottom:4px}
+.callout--nota{background:var(--soft);border-left:3px solid var(--brand)}
+.callout--advertencia{background:var(--warn-bg);border-left:3px solid var(--warn)}
+.callout--advertencia .callout__t{color:var(--warn)}
+.callout--regla{border:2px solid var(--ink);background:var(--paper)}
+
+/* Antes de empezar */
+.requisitos{list-style:none;padding:0;margin:0}
+.requisitos li{padding:12px 0 12px 30px;border-bottom:1px solid var(--line);position:relative}
+.requisitos li::before{content:"";position:absolute;left:2px;top:20px;width:12px;height:12px;border-radius:50%;border:2px solid var(--brand)}
+
+/* Pasos numerados con código */
+.pasos-doc{list-style:none;counter-reset:p;padding:0;margin:0}
+.pasos-doc > li{counter-increment:p;position:relative;padding:0 0 36px 52px}
+.pasos-doc > li::before{content:counter(p);position:absolute;left:0;top:-2px;width:34px;height:34px;border-radius:50%;background:var(--brand);color:var(--paper);display:grid;place-items:center;font-weight:700;font-size:16px}
+.pasos-doc > li:not(:last-child)::after{content:"";position:absolute;left:16px;top:40px;bottom:6px;width:2px;background:var(--line)}
+.pasos-doc h3{margin:0 0 6px;font-size:20px}
+
+.codigo{position:relative;margin:12px 0 14px}
+.codigo pre{background:var(--deep);color:var(--on-deep);border-radius:12px;padding:18px 20px;padding-right:104px;overflow-x:auto;font:15px/1.6 var(--mono,monospace);margin:0;white-space:pre-wrap;word-break:break-word}
+.codigo pre code{background:none;padding:0;font-size:inherit;color:inherit}
+.copiar{position:absolute;top:10px;right:10px;font:700 15px/1 var(--fuente);color:var(--ink);background:var(--paper);border:0;border-radius:8px;padding:9px 12px;cursor:pointer}
+.copiar:hover{background:var(--brand-soft);color:var(--brand)}
+.copiar.ok{background:var(--ok-bg);color:var(--ok)}
+code{font:max(15px,.92em) var(--mono,monospace);background:color-mix(in srgb,var(--muted) 12%,transparent);padding:1px 6px;border-radius:6px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+
+.funciono{background:var(--ok-bg);border-radius:12px;padding:14px 18px;margin-top:4px}
+.funciono b{display:block;color:var(--ok);margin-bottom:2px}
+.funciono p{margin:0}
+
+/* Problemas frecuentes */
+details.faq{border-bottom:1px solid var(--line)}
+details.faq:first-of-type{border-top:1px solid var(--line)}
+details.faq summary{cursor:pointer;list-style:none;padding:16px 36px 16px 0;font-weight:700;position:relative}
+details.faq summary::-webkit-details-marker{display:none}
+details.faq summary::after{content:"";position:absolute;right:6px;top:24px;width:9px;height:9px;border:solid var(--muted);border-width:0 2px 2px 0;transform:rotate(45deg)}
+details.faq[open] summary::after{transform:rotate(-135deg);top:28px}
+details.faq > div{padding:0 0 18px}
+details.faq > div p:last-child{margin:0}
+
+/* Términos */
+dl.terminos{margin:0}
+dl.terminos div{display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+dl.terminos dt{font-weight:700}
+dl.terminos dd{margin:0;color:var(--muted)}
+
+/* Registro de cambios */
+.cambios{list-style:none;padding:0;margin:0}
+.cambios li{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.cambios time{color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ============ Documento de diseño ============ */
+
+/* Objetivos y no objetivos */
+.dos-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.lista{margin:0;padding-left:20px}
+.lista li{margin:8px 0}
+.caja--no{background:var(--paper);border:1px solid var(--line)}
+
+/* Selector «mirar el flujo con» */
+.caso{display:flex;flex-direction:column;gap:4px;background:var(--soft);padding:4px;border-radius:12px;margin-bottom:28px}
+.caso button{all:unset;box-sizing:border-box;cursor:pointer;display:block;padding:10px 12px;border-radius:9px;color:var(--muted);font-size:16px;line-height:1.35}
+.caso button small{display:block;font-size:15px;color:var(--muted)}
+.caso button[aria-pressed=true]{background:var(--paper);color:var(--ink);font-weight:700;box-shadow:0 1px 3px color-mix(in srgb,var(--deep) 12%,transparent)}
+.caso button[aria-pressed=true] small{font-weight:400}
+.caso button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+body[data-caso=a] [data-solo=b],body[data-caso=b] [data-solo=a]{display:none!important}
+/* En el teléfono el selector vive dentro de la sección del flujo (.caso--m) y se pega arriba solo mientras se lee esa sección */
+.caso--m{display:none}
+
+/* Diagrama de carriles: grilla CSS con actores en filas y pasos en columnas */
+.carriles{position:relative;margin-top:24px;border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.carriles__g{position:relative;display:grid;grid-template-columns:repeat(var(--pasos,6),minmax(0,1fr));column-gap:16px;row-gap:6px;padding:0 10px}
+.carril{grid-column:1/-1;background:var(--tinte);border-radius:10px;margin:0 -10px}
+.carril__t{grid-column:1/-1;align-self:start;justify-self:start;position:relative;z-index:1;background:var(--tinte);border-radius:6px;margin-top:8px;padding:0 8px 0 4px;font-weight:700;color:var(--muted);font-size:15px;line-height:1.3}
+.nodo{position:relative;z-index:1;align-self:end;margin:40px 0 12px;display:block;text-decoration:none;color:var(--ink);background:var(--paper);border:1px solid var(--borde-fuerte);border-radius:10px;padding:12px 10px 10px;font-size:15px;line-height:1.3;text-align:center}
+.nodo b{display:block;font-weight:700}
+.nodo span{display:block;color:var(--muted)}
+.nodo i{position:absolute;left:-9px;top:-9px;width:24px;height:24px;border-radius:50%;background:var(--soft);border:1px solid var(--borde-fuerte);display:grid;place-items:center;font:700 15px/1 var(--fuente);font-style:normal;color:var(--ink)}
+a.nodo:hover{border-color:var(--brand)}
+.nodo.ahora{background:var(--brand-soft);border:1.5px solid var(--brand)}
+.nodo.ahora span{color:var(--brand)}
+.nodo.ahora i{background:var(--brand);border-color:var(--brand);color:var(--paper)}
+.nodo.despues{border:1.5px dashed var(--trazo)}
+.nodo.despues i{background:var(--paper);border:1.5px dashed var(--trazo);color:var(--muted)}
+.carriles svg.lineas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible}
+.carriles svg.lineas path{fill:none;stroke:var(--trazo);stroke-width:1.5}
+.carriles svg.lineas marker path{stroke-dasharray:none}
+.carriles svg.lineas path.luego{stroke-dasharray:5 5}
+
+/* Leyenda de alcance: la misma marca en el diagrama y en cada maqueta */
+.alcance{display:flex;gap:10px 22px;flex-wrap:wrap;list-style:none;padding:0;margin:14px 0 0;font-size:15px;color:var(--muted)}
+.alcance li{display:flex;align-items:center;gap:8px}
+.alcance li::before{content:"";flex:none;width:16px;height:16px;border-radius:5px;background:var(--paper);border:1px solid var(--borde-fuerte)}
+.alcance .ahora::before{background:var(--brand-soft);border:1.5px solid var(--brand)}
+.alcance .despues::before{border:1.5px dashed var(--trazo)}
+.alcance b{color:var(--ink);font-weight:700}
+
+/* Pasos del diseño */
+.paso{padding-top:48px;scroll-margin-top:24px}
+.paso-h{display:grid;grid-template-columns:40px minmax(0,1fr);column-gap:14px;align-items:start}
+.paso-n{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--soft);border:1px solid var(--borde-fuerte);font-weight:700;font-size:16px}
+.paso.ahora .paso-n{background:var(--brand);border-color:var(--brand);color:var(--paper)}
+.paso.despues .paso-n{background:none;border:1.5px dashed var(--trazo);color:var(--muted)}
+.paso h3{font-size:22px;margin:2px 0 6px}
+.paso-h p{color:var(--muted);margin:0}
+
+/* Maqueta de pantalla: imita la UI sin pretender ser la UI */
+.pantalla{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sombra);padding:22px 24px;margin-top:18px;max-width:600px}
+.pantalla__t{font-weight:700;font-size:17px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pantalla__t span{font-weight:400;color:var(--muted)}
+.campo{display:block;margin-top:12px}
+.campo > span{display:block;font-size:15px;color:var(--muted);margin-bottom:4px}
+.fi{display:block;padding:9px 12px;border-radius:8px;border:1px solid var(--borde-fuerte);background:var(--paper);font-size:16px;line-height:1.45}
+.fila2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.opcion{display:flex;gap:10px;padding:11px 12px;border:1px solid var(--borde-fuerte);border-radius:10px;margin-top:8px;font-size:16px;line-height:1.4}
+.opcion small{display:block;color:var(--muted);font-size:15px}
+.opcion > i{flex:none;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--muted);margin-top:3px}
+.opcion.on > i{border:5px solid var(--brand)}
+.acciones{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:center;margin-top:20px}
+.btn{display:inline-block;padding:9px 16px;border-radius:9px;border:1px solid var(--borde-fuerte);background:var(--paper);font-size:15px;line-height:1.3;font-weight:700;white-space:nowrap;color:var(--ink)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--paper)}
+.btn.nada{border-color:transparent;background:none;color:var(--brand)}
+.msg{border-radius:12px;padding:10px 14px;font-size:16px;line-height:1.45;margin-top:8px;max-width:88%}
+.msg.yo{background:var(--soft);margin-left:auto}
+.msg.bot{border:1px solid var(--line)}
+.msg small{display:block;color:var(--muted);font-size:15px}
+.aviso{background:var(--soft);border-radius:10px;padding:10px 14px;font-size:16px;margin-top:14px}
+.aviso--warn{background:var(--warn-bg);color:var(--warn)}
+.fila-l{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:16px}
+.fila-l:first-of-type{border-top:0}
+.fila-l small{display:block;color:var(--muted);font-size:15px}
+.fila-l > .chip{align-self:flex-start}
+.pantalla .fila-l.despues{padding-left:10px;padding-right:10px}
+
+/* El alcance marcado sobre cada elemento de la maqueta */
+.pantalla .ahora{outline:1.5px solid var(--brand);outline-offset:3px;border-radius:8px}
+.pantalla .fi.ahora,.pantalla .opcion.ahora,.pantalla .aviso.ahora{outline:0;background:var(--brand-soft);border-color:var(--brand)}
+.pantalla .aviso.ahora{border:1.5px solid var(--brand)}
+.pantalla .btn.pri.ahora{outline:1.5px solid var(--brand);outline-offset:3px}
+.pantalla .despues{outline:1.5px dashed var(--trazo);outline-offset:3px;border-radius:8px;color:var(--muted)}
+.pantalla .btn.despues{background:var(--paper);border-color:transparent}
+
+/* Cómo es hoy */
+details.hoy{margin-top:14px;color:var(--muted)}
+details.hoy summary{cursor:pointer;color:var(--brand);font-weight:700;width:max-content;max-width:100%}
+details.hoy p{margin:6px 0 0;max-width:66ch}
+
+/* Alternativas, riesgos, decisiones y preguntas */
+.tabla td b{font-weight:700}
+.descartada{color:var(--muted)}
+.riesgos{--cols:2}
+.riesgos h3{margin:0 0 6px;font-size:19px}
+.riesgos p{margin:0}
+.preguntas{margin:0;padding-left:22px}
+.preguntas li{margin:0 0 14px;padding-left:4px}
+.preguntas small{display:block;color:var(--muted);font-size:15px}
+
+/* Teléfono y tableta */
+@media (max-width:1000px){
+  .doc{grid-template-columns:1fr;gap:0;padding-top:28px}
+  .lado .indice,.lado .lado__t{display:none}
+  .lado{position:static;max-height:none;overflow:visible}
+  .doc--ancho .lado{display:none}
+  .caso--m{display:flex;flex-direction:row;position:sticky;top:10px;z-index:5;margin:20px 0 4px;box-shadow:0 1px 2px color-mix(in srgb,var(--deep) 8%,transparent),0 10px 24px -14px color-mix(in srgb,var(--deep) 30%,transparent)}
+  .caso--m button{flex:1;text-align:center;padding:10px 8px}
+  .caso--m button small{display:none}
+  details.indice-m{display:block;background:var(--soft);border-radius:12px;padding:14px 18px;margin-bottom:32px}
+  .doc section,.paso{scroll-margin-top:84px}
+}
+@media (max-width:760px){
+  /* El diagrama pasa a una lista vertical: cada nodo dice su actor */
+  .carriles{padding:16px}
+  .carriles__g{display:flex;flex-direction:column;gap:0}
+  .carril,.carril__t,.carriles svg.lineas{display:none}
+  .nodo{align-self:stretch;text-align:left;padding:12px 14px 12px 46px;margin:0 0 14px}
+  .nodo::after{content:"";position:absolute;left:20px;top:100%;height:14px;width:2px;background:var(--borde-fuerte)}
+  .nodo:last-child::after{content:none}
+  .nodo i{left:10px;top:12px}
+  .nodo[data-actor]::before{content:attr(data-actor);display:block;color:var(--muted);font-size:15px}
+}
+@media (max-width:620px){
+  /* El paso usa el ancho completo: número y título en una fila, el texto debajo */
+  .paso{padding-top:40px}
+  .paso-h{grid-template-columns:auto minmax(0,1fr);column-gap:12px}
+  .paso-h > div{display:contents}
+  .paso-h h3{align-self:center;margin:0;font-size:20px}
+  .paso-h p{grid-column:1/-1;margin-top:10px}
+  .pantalla{margin-left:-4px;margin-right:-4px}
+  .dos-col,.fila2{grid-template-columns:minmax(0,1fr)}
+  .fila2{gap:0}
+  dl.terminos div,.cambios li{grid-template-columns:1fr;gap:2px}
+  .pasos-doc > li{padding-left:46px}
+  .codigo pre{padding:52px 16px 16px}
+  .pantalla{padding:18px 16px}
+  .msg{max-width:100%}
+  .fila-l{gap:10px}
+  .fila-l > .chip,.fila-l > .btn{flex:none}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{
+  .lado,details.indice-m,.copiar{display:none}
+  .doc{display:block}
+  details.hoy,details.faq{display:block}
+}

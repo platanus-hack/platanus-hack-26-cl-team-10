@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="es">
+<head>
+<!-- Documento de diseño del ADR-0016: qué significa que una pauta salga de un protocolo y cómo se comprueba
+     que lo cumple. Hecho con la plantilla DOCUMENTO de zupal-docs (diseno.html): base.css, documento.css,
+     documento.js y anotaciones.* no se tocan; marca.css lleva la paleta de Factum.
+     Fuente de la decisión: knowledge/decisions/0016-una-pauta-sale-del-protocolo-que-aplica-a-su-tarea.md.
+     La simulación se hizo a mano sobre datos/ del 2026-11-22; no la calcula ningún código todavía. -->
+<title>Una pauta sale del protocolo que aplica a su tarea · Factum</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="fuente" content="knowledge/architecture/conformidad-de-pautas/index.html">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="marca.css">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="documento.css">
+<link rel="stylesheet" href="anotaciones.css">
+<style>
+  .ctl{display:inline-block;font:600 15px/1.3 var(--mono);padding:1px 7px;border-radius:6px;background:var(--brand-soft);color:var(--brand);margin-right:4px}
+  .ctl--falta{background:var(--warn-bg);color:var(--warn)}
+  .tabla td .ctl{margin:2px 4px 2px 0}
+  .esquema{font:15px/1.6 var(--mono);background:var(--deep);color:var(--on-deep);border-radius:12px;padding:18px 20px;overflow-x:auto;white-space:pre}
+</style>
+</head>
+<body data-caso="a">
+
+<header class="top">
+  <div class="wrap">
+    <span class="marca"><img src="logo.svg" alt=""><span><b>Factum</b><i>Diseño</i></span></span>
+    <p class="tipo"><span class="chip chip--tipo">Documento de diseño</span><span class="chip chip--linea">En revisión</span></p>
+    <p class="top__meta">ADR-0016 · 22 de noviembre de 2026</p>
+    <h1>Una pauta sale del protocolo que aplica a su tarea, y cumplirlo se comprueba aparte</h1>
+    <p class="top__lead">Qué significa que una pauta salga de un protocolo, cómo se descubre que le falta un control crítico y quién lo corrige, sin esconder la falta.</p>
+  </div>
+</header>
+
+<div class="wrap doc doc--ancho">
+  <aside class="lado">
+    <div class="lado__t">Mirar el flujo con</div>
+    <div class="caso" role="group" aria-label="Caso de ejemplo">
+      <button type="button" data-elige="a" aria-pressed="true">Pauta que cumple<small>Cambio de polín, completa</small></button>
+      <button type="button" data-elige="b" aria-pressed="false">Pauta con hallazgo<small>Cambio de rodillo, le falta un control</small></button>
+    </div>
+    <nav class="indice" aria-label="Contenido">
+      <b>Contenido</b>
+      <a href="#contexto">Contexto y alcance</a>
+      <a href="#objetivos">Objetivos</a>
+      <a href="#criterio">El criterio y su base</a>
+      <a href="#diseno">El diseño</a>
+      <a class="sub" href="#paso-1">1 · Cargar el protocolo</a>
+      <a class="sub" href="#paso-2">2 · Aprobar sus controles</a>
+      <a class="sub" href="#paso-3">3 · Atribuir la pauta</a>
+      <a class="sub" href="#paso-4">4 · Validar</a>
+      <a class="sub" href="#paso-5">5 · Revisar el hallazgo</a>
+      <a class="sub" href="#paso-6">6 · Corregir la pauta</a>
+      <a href="#simulacion">Simulación</a>
+      <a href="#datos">Qué se guarda</a>
+      <a href="#mejoras">Qué mejora</a>
+      <a href="#aportes">Qué aporta cada pieza</a>
+      <a href="#alternativas">Alternativas</a>
+      <a href="#riesgos">Riesgos</a>
+      <a href="#decisiones">Qué se decidió</a>
+      <a href="#preguntas">Preguntas abiertas</a>
+    </nav>
+  </aside>
+
+  <article>
+    <details class="indice-m"><summary>Contenido</summary>
+      <a href="#contexto">Contexto y alcance</a><a href="#objetivos">Objetivos</a><a href="#criterio">El criterio y su base</a><a href="#diseno">El diseño</a><a href="#simulacion">Simulación</a><a href="#datos">Qué se guarda</a><a href="#mejoras">Qué mejora</a><a href="#aportes">Qué aporta cada pieza</a><a href="#alternativas">Alternativas</a><a href="#riesgos">Riesgos</a><a href="#decisiones">Qué se decidió</a><a href="#preguntas">Preguntas abiertas</a>
+    </details>
+
+    <section id="contexto">
+      <h2>Contexto y alcance</h2>
+      <p class="lead">En Factum una pauta «sale» de uno o más protocolos, pero nadie había dicho qué significa eso. Al revisar las atribuciones aparecieron tres lecturas mezcladas, y con una de ellas, que no tenía respaldo, se movieron pautas.</p>
+      <p>Un <b>protocolo</b> es el documento del procedimiento: el del cliente o uno que redacta el equipo. Una <b>pauta</b> es la lista de pasos verificables que se ejecuta en una OT. La relación es de muchos a muchos (ADR-0011): el cambio de polín sale del protocolo de la correa, por los pasos del trabajo, y del de aislamiento de energías, por los pasos de cortar, bloquear y comprobar.</p>
+      <div class="tabla-wrap">
+      <table class="tabla">
+        <thead><tr><th>Lectura</th><th>Qué diría «la pauta sale del protocolo»</th><th>Problema</th></tr></thead>
+        <tbody>
+          <tr><td>Derivación</td><td data-label="Qué diría">Sus pasos se copiaron de ese documento</td><td data-label="Problema">Deja las pautas de la maqueta dentro del protocolo de una correa real</td></tr>
+          <tr><td>Conformidad</td><td data-label="Qué diría">La pauta cumple sus controles críticos</td><td data-label="Problema">Sin respaldo: una pauta que no cumple deja de parecer cubierta, que es justo lo que hay que ver</td></tr>
+          <tr><td>Aplicabilidad</td><td data-label="Qué diría">El peligro que controla existe en la tarea de la pauta</td><td data-label="Problema">Ninguno: es la que adopta este diseño</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Este diseño cubre qué significa la atribución, cómo se comprueba que una pauta cumple los controles críticos de los protocolos que le aplican, qué se guarda y quién revisa lo que falte. Cómo se ejecuta una OT y cómo nacen las propuestas de mejora por desviaciones siguen como están.</p>
+    </section>
+
+    <section id="objetivos">
+      <h2>Objetivos y no objetivos</h2>
+      <div class="dos-col">
+        <div class="caja">
+          <h3 style="margin-top:0">Objetivos</h3>
+          <ul class="lista">
+            <li>Que la relación pauta–protocolo tenga un solo significado, con respaldo en las normas.</li>
+            <li>Que una pauta a la que le falta un control crítico se vea, con nombre y protocolo, sin que nadie tenga que leer el texto.</li>
+            <li>Que la falta la revise una persona y quede quién, cuándo y por qué.</li>
+            <li>Que un hallazgo se pueda reproducir: qué versión de la pauta contra qué versión del protocolo.</li>
+          </ul>
+        </div>
+        <div class="caja caja--no">
+          <h3 style="margin-top:0">No objetivos</h3>
+          <ul class="lista">
+            <li>Corregir las pautas solas: la versión nueva la escribe y la aprueba el equipo.</li>
+            <li>Certificar el cumplimiento legal de un cliente frente a la autoridad.</li>
+            <li>Guardar dos relaciones distintas, «aplica a» y «se derivó de».</li>
+            <li>Comprobar en vivo, durante la OT, lo que ya comprueban las reglas de capa 1.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="criterio">
+      <h2>El criterio y su base</h2>
+      <div class="callout callout--regla">
+        <span class="callout__t">El criterio</span>
+        <p><b>Una pauta se atribuye a un protocolo cuando el alcance del protocolo cubre su tarea:</b> el peligro que controla existe en esa tarea.</p>
+        <p><b>Si a la pauta le falta un control crítico, es un hallazgo:</b> se registra y se corrige con una versión nueva. Nunca se resuelve quitando la atribución.</p>
+      </div>
+      <div class="tabla-wrap">
+      <table class="tabla">
+        <thead><tr><th>Qué afirma el criterio</th><th>Qué dice la fuente</th><th>Fuente</th></tr></thead>
+        <tbody>
+          <tr><td>El alcance se define por el peligro</td><td data-label="Qué dice">Cubre todo servicio y mantención donde una energización, una partida o una liberación de energía inesperada puede herir, (a)(1)(i)</td><td data-label="Fuente">29 CFR 1910.147 (REFERENCIAS 78)</td></tr>
+          <tr><td>Aplica a toda tarea del tipo, no solo a las que cumplen</td><td data-label="Qué dice">Bloqueo y advertencia antes de toda mantención o reparación, art. 52; desenergizar y bloquear antes de todo trabajo mecánico o eléctrico</td><td data-label="Fuente">DS 132 (44) y MSHA 30 CFR 56 (45)</td></tr>
+          <tr><td>El procedimiento de cada equipo trae los pasos del control</td><td data-label="Qué dice">Pasos para apagar, aislar, bloquear y asegurar, y para probar que el bloqueo funciona, (c)(4)(ii)(B) y (D)</td><td data-label="Fuente">29 CFR 1910.147 (78)</td></tr>
+          <tr><td>Lo que falta se corrige, no se excluye</td><td data-label="Qué dice">La inspección periódica se hace para corregir las desviaciones o insuficiencias que encuentre, (c)(6)(i)(B)</td><td data-label="Fuente">29 CFR 1910.147 (78)</td></tr>
+          <tr><td>Un control crítico se define por el evento que previene</td><td data-label="Qué dice">Su ausencia o falla aumenta el riesgo aunque existan los demás; si rinde menos de lo requerido, se investiga y se mejora (paso 9)</td><td data-label="Fuente">ICMM, guía de controles críticos (79)</td></tr>
+          <tr><td>El protocolo no es el control</td><td data-label="Qué dice">Los procedimientos y las reglas no son controles: el control es el acto que mandan hacer</td><td data-label="Fuente">ICMM (79)</td></tr>
+          <tr><td>Aislar, bloquear y comprobar son tres controles distintos</td><td data-label="Qué dice">El primer control crítico de una correa: aislar, bloquear y comprobar energía cero cada vez, en ese orden</td><td data-label="Fuente">Antofagasta Minerals (56)</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout callout--advertencia">
+        <span class="callout__t">Lo que no se verificó</span>
+        <p>ISO 45001:2018, cláusula 10.2 (no conformidad y acción correctiva), respaldaría lo mismo, pero es de pago y no se leyó: no se cita. 1910.147 es de industria general y no rige la minería ni la construcción; se usa como modelo de cómo se estructura un programa de control de energía.</p>
+      </div>
+    </section>
+
+    <section id="diseno">
+      <h2>El diseño</h2>
+      <p class="muted">Seis pasos entre cuatro actores. El caso de la izquierda cambia lo que muestra cada pantalla.</p>
+      <div class="caso caso--m" role="group" aria-label="Caso de ejemplo">
+        <button type="button" data-elige="a" aria-pressed="true">Pauta que cumple</button>
+        <button type="button" data-elige="b" aria-pressed="false">Pauta con hallazgo</button>
+      </div>
+
+      <div class="carriles">
+        <div class="carriles__g" role="list" aria-label="Recorrido en seis pasos entre el equipo de Factum, la skill que lee protocolos, el validador y el supervisor del cliente">
+          <div class="carril" style="grid-row:1"></div><div class="carril__t" style="grid-row:1">Equipo de Factum</div>
+          <div class="carril" style="grid-row:2"></div><div class="carril__t" style="grid-row:2">Skill que lee el protocolo</div>
+          <div class="carril" style="grid-row:3"></div><div class="carril__t" style="grid-row:3">Validador de pautas</div>
+          <div class="carril" style="grid-row:4"></div><div class="carril__t" style="grid-row:4">Supervisor del cliente</div>
+
+          <a class="nodo ahora" id="n1" data-a="n2" data-actor="Equipo de Factum" role="listitem" href="#paso-1" style="grid-column:1;grid-row:1"><i>1</i><b>Carga el protocolo</b><span>como versión nueva</span></a>
+          <a class="nodo ahora" id="n2" data-a="n3" data-actor="Skill que lee el protocolo" role="listitem" href="#paso-2" style="grid-column:2;grid-row:2"><i>2</i><b>Propone sus controles</b><span>el equipo los aprueba</span></a>
+          <a class="nodo ahora" id="n3" data-a="n4" data-actor="Equipo de Factum" role="listitem" href="#paso-3" style="grid-column:3;grid-row:1"><i>3</i><b>Atribuye la pauta</b><span>y marca qué control cumple cada paso</span></a>
+          <a class="nodo ahora" id="n4" data-a="n5" data-actor="Validador de pautas" role="listitem" href="#paso-4" style="grid-column:4;grid-row:3"><i>4</i><b>Valida</b><span data-solo="a">3 de 3 controles</span><span data-solo="b">le faltan 2</span></a>
+          <a class="nodo" id="n5" data-a="n6" data-actor="Supervisor del cliente" role="listitem" href="#paso-5" style="grid-column:5;grid-row:4"><i>5</i><b>Revisa</b><span data-solo="a">nada que revisar</span><span data-solo="b">acepta el hallazgo</span></a>
+          <a class="nodo" id="n6" data-actor="Equipo de Factum" role="listitem" href="#paso-6" style="grid-column:6;grid-row:1"><i>6</i><b>Corrige la pauta</b><span data-solo="a">no hace falta</span><span data-solo="b">versión 2, validada</span></a>
+        </div>
+      </div>
+      <ul class="alcance" aria-label="Leyenda">
+        <li class="ahora">Entra ahora</li>
+        <li>Ya existe</li>
+        <li class="despues">Entra después</li>
+      </ul>
+
+      <!-- Paso 1 -->
+      <div class="paso ahora" id="paso-1">
+        <div class="paso-h">
+          <span class="paso-n">1</span>
+          <div><h3>El equipo carga el protocolo como una versión</h3><p>El protocolo deja de reescribirse: cada cambio de texto es una versión nueva, como ya pasa con las pautas. Un hallazgo dice «la pauta v1 contra el protocolo v2», y eso solo se puede reproducir si la versión 2 sigue existiendo.</p></div>
+        </div>
+        <div class="pantalla">
+          <div class="pantalla__t">Protocolo <span>prot-aislamiento-01 · Aislamiento y bloqueo de energías</span></div>
+          <div class="fila-l ahora"><div>Versión 2<small>Corrige la cita de 29 CFR 1910.147 · hoy</small></div><span class="chip chip--warn">Controles sin aprobar</span></div>
+          <div class="fila-l ahora"><div>Versión 1<small>La de la semilla · 21 nov</small></div><span class="chip chip--ok">Vigente</span></div>
+          <div class="campo"><span>Alcance</span><span class="fi">Toda mantención, reparación, limpieza o ajuste en que una persona pone el cuerpo donde el equipo se mueve, tiene tensión o guarda energía.</span></div>
+          <div class="acciones"><span class="btn">Ver el texto</span><span class="btn pri ahora">Pedir los controles a la skill</span></div>
+        </div>
+        <ul class="alcance">
+          <li>El protocolo con su texto, por la API interna</li>
+          <li class="ahora">Versiones del protocolo; la versión 1 es la de hoy</li>
+          <li>La sección «Alcance» de cada protocolo, que ya existe en todos</li>
+        </ul>
+        <details class="hoy"><summary>Cómo es hoy</summary><p><code>PUT /interno/protocolos/{id}</code> reescribe el texto y no queda la versión anterior. La semilla crea el protocolo si falta y nunca cambia su texto.</p></details>
+      </div>
+
+      <!-- Paso 2 -->
+      <div class="paso ahora" id="paso-2">
+        <div class="paso-h">
+          <span class="paso-n">2</span>
+          <div><h3>La skill propone los controles críticos y el equipo los aprueba</h3><p>La skill que reconoce procesos lee el protocolo y propone sus controles críticos, cada uno con qué exige, en qué orden va y con qué evidencia se comprueba. Una persona del equipo los revisa y los aprueba, una vez por versión del protocolo. Para ICMM, elegir los controles y darles un dueño son pasos deliberados (pasos 4 a 6), no un resultado automático.</p></div>
+        </div>
+        <div class="pantalla">
+          <div class="pantalla__t">Controles críticos <span>prot-aislamiento-01 v1</span></div>
+          <div class="fila-l ahora"><div><span class="ctl">A1</span> Aislar<small>Separar el equipo de su energía en el punto de aislación · se comprueba con el estado del punto</small></div><span class="chip">1.º</span></div>
+          <div class="fila-l ahora"><div><span class="ctl">A2</span> Bloquear<small>Candado personal en el punto de bloqueo, no en el mando · se comprueba con el candado puesto</small></div><span class="chip">2.º</span></div>
+          <div class="fila-l ahora"><div><span class="ctl">A3</span> Comprobar energía cero<small>Intentar la partida, medir o mirar el manómetro · el equipo no responde</small></div><span class="chip">3.º</span></div>
+          <div class="msg bot">Propuestos desde la sección «El control crítico» del protocolo. Fuente: REFERENCIAS 56.<small>Skill reconocer-proceso</small></div>
+          <div class="acciones"><span class="btn">Corregir</span><span class="btn pri ahora">Aprobar los controles</span></div>
+        </div>
+        <ul class="alcance">
+          <li>La skill que lee protocolos (ADR-0015)</li>
+          <li class="ahora">Que proponga controles críticos con orden y evidencia</li>
+          <li class="ahora">La tabla de controles por versión y su aprobación</li>
+        </ul>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>Los controles críticos viven solo en el texto del protocolo. Las pautas marcan algunos pasos con <code>control_critico: true</code>, sin decir qué control cumplen ni de qué protocolo.</p></details>
+      </div>
+
+      <!-- Paso 3 -->
+      <div class="paso ahora" id="paso-3">
+        <div class="paso-h">
+          <span class="paso-n">3</span>
+          <div><h3>El equipo atribuye la pauta por alcance y marca qué control cumple cada paso</h3><p>La pauta se atribuye a cada protocolo cuyo alcance cubre su tarea. Cada paso que cumple un control lo dice con un campo nuevo, <code>cumple</code>, en el JSON de la pauta, que ya está versionado.</p></div>
+        </div>
+        <div class="pantalla">
+          <div class="pantalla__t"><span data-solo="a">Cambio de polín en correa transportadora · v1</span><span data-solo="b">Cambio de rodillo en correa transportadora · v1</span> <span>aplica: aislamiento, correa</span></div>
+          <div data-solo="a">
+            <div class="fila-l"><div>1 · Parar la correa</div><span></span></div>
+            <div class="fila-l ahora"><div>2 · Cortar la corriente</div><span class="ctl">A1</span></div>
+            <div class="fila-l ahora"><div>3 · Poner tu candado</div><span class="ctl">A2</span></div>
+            <div class="fila-l ahora"><div>4 · Probar que no arranca</div><span class="ctl">A3</span></div>
+            <div class="fila-l"><div>5 · Sacar la tapa protectora<small>y 6 a 10: cambiar el polín, reponer la tapa, sacar el candado, devolver la corriente y probar</small></div><span></span></div>
+          </div>
+          <div data-solo="b">
+            <div class="fila-l ahora"><div>1 · Cortar la energía y bloquear con candado</div><span><span class="ctl">A1</span><span class="ctl">A2</span></span></div>
+            <div class="fila-l"><div>2 · Retirar la guarda</div><span></span></div>
+            <div class="fila-l"><div>3 · Cambiar el rodillo<small>y 4 a 6: reinstalar la guarda, retirar el bloqueo y energizar, prueba de detención</small></div><span></span></div>
+            <div class="aviso aviso--warn">Ningún paso cumple <span class="ctl ctl--falta">A3</span> Comprobar energía cero.</div>
+          </div>
+          <div class="acciones"><span class="btn pri ahora">Guardar y validar</span></div>
+        </div>
+        <ul class="alcance">
+          <li>La atribución de muchos a muchos (ADR-0011)</li>
+          <li class="ahora">El campo <code>cumple</code> en cada paso</li>
+          <li class="ahora">Atribuir por alcance, con el criterio de este documento</li>
+        </ul>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>La atribución existe, pero sin un criterio escrito. El PR #65 sacó tres pautas de la maqueta del protocolo de aislamiento porque no lo cumplían; el resultado se sostiene, pero por otra razón: la maqueta no tiene el peligro real.</p></details>
+      </div>
+
+      <!-- Paso 4 -->
+      <div class="paso ahora" id="paso-4">
+        <div class="paso-h">
+          <span class="paso-n">4</span>
+          <div><h3>El validador calcula la conformidad</h3><p>El validador de pautas, que ya revisa sensores y reglas, revisa además que cada control crítico de cada protocolo que aplica tenga su paso, en su orden y sin compartir paso con otro control. El resultado no se guarda: se calcula de nuevo cada vez, porque sale de datos que sí están guardados.</p></div>
+        </div>
+        <div class="pantalla">
+          <div class="pantalla__t">Validación <span>POST /interno/pautas/validar</span></div>
+          <div data-solo="a">
+            <div class="fila-l"><div>prot-aislamiento-01 v1<small><span class="ctl">A1</span><span class="ctl">A2</span><span class="ctl">A3</span> en sus pasos 2, 3 y 4, en orden</small></div><span class="chip chip--ok">3 de 3</span></div>
+            <div class="fila-l"><div>prot-correa-01 v1<small>La tapa sale con candado y vuelve antes de sacarlo</small></div><span class="chip chip--ok">Cumple</span></div>
+            <div class="aviso">Sin hallazgos. La pauta puede aprobarse.</div>
+          </div>
+          <div data-solo="b">
+            <div class="fila-l"><div>prot-aislamiento-01 v1<small><span class="ctl">A1</span> y <span class="ctl">A2</span> en el mismo paso: no se puede comprobar que se aisló antes de bloquear</small></div><span class="chip chip--warn">Hallazgo</span></div>
+            <div class="fila-l"><div>prot-aislamiento-01 v1<small>Ningún paso cumple <span class="ctl ctl--falta">A3</span> Comprobar energía cero</small></div><span class="chip chip--warn">Hallazgo</span></div>
+            <div class="fila-l"><div>prot-correa-01 v1<small>La guarda sale con candado y vuelve antes de sacarlo</small></div><span class="chip chip--ok">Cumple</span></div>
+            <div class="aviso aviso--warn">Dos hallazgos. La atribución se mantiene; los hallazgos pasan a revisión.</div>
+          </div>
+        </div>
+        <ul class="alcance">
+          <li>El validador de pautas, con sus revisiones de sensores (ADR-0015)</li>
+          <li class="ahora">La revisión de conformidad contra los controles aprobados</li>
+        </ul>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>El validador revisa que los sensores de la pauta existan en la estación y que las reglas se puedan evaluar. No sabe qué controles exige cada protocolo.</p></details>
+      </div>
+
+      <!-- Paso 5 -->
+      <div class="paso" id="paso-5">
+        <div class="paso-h">
+          <span class="paso-n">5</span>
+          <div><h3>El supervisor revisa el hallazgo donde ya revisa las propuestas de mejora</h3><p data-solo="a">No hay nada que revisar: la pauta cumple.</p><p data-solo="b">El hallazgo aparece en <code>/supervisor/mejoras</code> (PR #66) como una propuesta más, de tipo conformidad. El supervisor la acepta o la descarta con un motivo, y queda quién, cuándo y por qué, como pide 1910.147 (c)(6)(ii).</p></div>
+        </div>
+        <div class="pantalla">
+          <div class="pantalla__t">Mejoras de las pautas <span>supervisor</span></div>
+          <div data-solo="a">
+            <div class="aviso">El cambio de polín no tiene propuestas ni hallazgos abiertos.</div>
+          </div>
+          <div data-solo="b">
+            <div class="fila-l ahora"><div><b>Comprobar energía cero</b><small>Cambio de rodillo en correa transportadora, versión 1</small></div><span><span class="chip chip--warn">Conformidad</span> <span class="chip">Control crítico</span></span></div>
+            <div class="campo"><span>Qué revisar</span><span class="fi">El protocolo de aislamiento exige probar que el equipo no arranca después de bloquear y antes de tocar nada. Esta pauta no tiene ese paso.</span></div>
+            <div class="opcion on ahora"><i></i><div>Aceptar<small>El equipo escribe la versión siguiente con el paso que falta</small></div></div>
+            <div class="opcion"><i></i><div>Descartar<small>Pide el motivo, que queda en la revisión</small></div></div>
+          </div>
+          <div class="acciones"><span class="btn pri" data-solo="b">Guardar la revisión</span></div>
+        </div>
+        <ul class="alcance">
+          <li>La pantalla de propuestas y su revisión (PR #66, ADR-0014)</li>
+          <li class="ahora">El tipo «conformidad» en esa misma pantalla</li>
+        </ul>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>La pantalla muestra propuestas que nacen cuando el mismo paso se desvía en dos o más OT. Una falta de la pauta misma, que no depende de ninguna OT, no aparece en ninguna parte.</p></details>
+      </div>
+
+      <!-- Paso 6 -->
+      <div class="paso" id="paso-6">
+        <div class="paso-h">
+          <span class="paso-n">6</span>
+          <div><h3>El equipo corrige la pauta y el validador lo confirma</h3><p data-solo="a">No hace falta una versión nueva.</p><p data-solo="b">Con el hallazgo aceptado, el equipo escribe la versión 2 con «Cortar la energía», «Poner tu candado» y «Probar que no arranca» separados, y la aprueba. El validador la revisa otra vez: 3 de 3. Las OT nuevas ejecutan la versión 2; las que ya existían conservan la suya.</p></div>
+        </div>
+        <div class="pantalla">
+          <div class="pantalla__t">Versiones <span data-solo="a">Cambio de polín</span><span data-solo="b">Cambio de rodillo</span></div>
+          <div data-solo="a"><div class="fila-l"><div>Versión 1<small>Aprobada · 3 de 3 controles</small></div><span class="chip chip--ok">Vigente</span></div></div>
+          <div data-solo="b">
+            <div class="fila-l"><div>Versión 2<small>Aprobada · 3 de 3 controles · cierra el hallazgo</small></div><span class="chip chip--ok">Vigente</span></div>
+            <div class="fila-l"><div>Versión 1<small>2 hallazgos aceptados</small></div><span class="chip">Reemplazada</span></div>
+          </div>
+        </div>
+        <ul class="alcance">
+          <li>Versiones de pauta y su aprobación (ADR-0003)</li>
+          <li>La propuesta pasa a «aplicada» con la versión nueva (ADR-0014)</li>
+        </ul>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>Igual. Lo nuevo es que el validador confirma que la versión nueva cierra el hallazgo.</p></details>
+      </div>
+    </section>
+
+    <section id="simulacion">
+      <h2>Simulación sobre la semilla de hoy</h2>
+      <p class="lead">Se aplicó a mano la revisión del paso 4 a las 11 pautas del repo, con los controles que declara cada protocolo en su texto. Ningún código lo calcula todavía.</p>
+      <p>Se compararon tres momentos: antes del PR #65, cuando las pautas de la maqueta salían del protocolo de aislamiento; hoy, después del PR; y con este diseño, donde las de la maqueta salen solo de su protocolo de ejemplos.</p>
+      <div class="chart" style="height:340px"><canvas id="grafico-hallazgos" aria-label="Hallazgos por pauta en los tres momentos"></canvas></div>
+      <div class="tabla-wrap">
+      <table class="tabla">
+        <thead><tr><th>Pauta</th><th>Le aplican, con este diseño</th><th>Controles</th><th class="n">Antes del #65</th><th class="n">Hoy</th><th class="n">Con el diseño</th></tr></thead>
+        <tbody>
+          <tr><td>Cambio de polín (CT-01)</td><td data-label="Le aplican">aislamiento, correa</td><td data-label="Controles"><span class="ctl">A1</span><span class="ctl">A2</span><span class="ctl">A3</span></td><td class="n" data-label="Antes del #65">0</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td>Ajuste de pinza del brazo</td><td data-label="Le aplican">aislamiento, brazo</td><td data-label="Controles"><span class="ctl">A1</span><span class="ctl">A2</span><span class="ctl">A3</span></td><td class="n" data-label="Antes del #65">0</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td>Celda de media tensión</td><td data-label="Le aplican">aislamiento, celda</td><td data-label="Controles"><span class="ctl">A1</span><span class="ctl">A2</span><span class="ctl">A3</span> y las dos eléctricas</td><td class="n" data-label="Antes del #65">0</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td>Manguera de la excavadora</td><td data-label="Le aplican">aislamiento, excavadora</td><td data-label="Controles"><span class="ctl">A1</span><span class="ctl">A2</span><span class="ctl">A3</span> e implementos abajo</td><td class="n" data-label="Antes del #65">0</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td><b>Cambio de rodillo (CT-01)</b></td><td data-label="Le aplican">aislamiento, correa</td><td data-label="Controles"><span class="ctl">A1</span><span class="ctl">A2</span> juntos, <span class="ctl ctl--falta">A3</span> falta</td><td class="n" data-label="Antes del #65">2</td><td class="n" data-label="Hoy">2</td><td class="n" data-label="Con el diseño"><b>2</b></td></tr>
+          <tr><td>Polín, demo de 2 minutos</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra correa: <span class="ctl ctl--falta">A3</span> y la tapa faltan</td><td class="n" data-label="Antes del #65">2</td><td class="n" data-label="Hoy">2</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td>Polín de la estación</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra correa: aísla en el mando; <span class="ctl ctl--falta">A2</span>, <span class="ctl ctl--falta">A3</span> y la tapa faltan</td><td class="n" data-label="Antes del #65">4</td><td class="n" data-label="Hoy">4</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td>LOTO de escritorio</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra aislamiento: bloquea sin aislar; la prueba es la temperatura</td><td class="n" data-label="Antes del #65">2</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td>Camión de extracción</td><td data-label="Le aplican">camión</td><td data-label="Controles">El protocolo no declara controles críticos</td><td class="n" data-label="Antes del #65">—</td><td class="n" data-label="Hoy">—</td><td class="n" data-label="Con el diseño">aviso</td></tr>
+          <tr><td>Abrir una botella</td><td data-label="Le aplican">botella</td><td data-label="Controles">Ejemplo sin peligro: no tiene controles</td><td class="n" data-label="Antes del #65">0</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td><b>Total</b></td><td></td><td></td><td class="n" data-label="Antes del #65"><b>10</b></td><td class="n" data-label="Hoy"><b>8</b></td><td class="n" data-label="Con el diseño"><b>2</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout callout--nota">
+        <span class="callout__t">Qué dice la simulación</span>
+        <p>Con las atribuciones de hoy, el validador daría 8 hallazgos y 6 serían ruido: pautas de una maqueta comparadas contra el protocolo de una correa real. Con el criterio de alcance quedan los 2 que son de verdad, los del cambio de rodillo. Una pauta queda fuera: la de inspección de correa, que existe solo en la base del servidor y no en el repo.</p>
+      </div>
+    </section>
+
+    <section id="datos">
+      <h2>Qué se guarda y qué se calcula</h2>
+      <p class="lead">Se guardan los hechos y las decisiones de las personas; se calcula lo que sale de ellos.</p>
+      <p>Es el patrón que ya rige en Factum: la bitácora solo agrega (ADR-0003) y las propuestas de mejora se calculan de la bitácora, mientras que su revisión se guarda (ADR-0014). 1910.147 dice qué tiene que quedar de una revisión de procedimiento: el equipo, la fecha, quiénes participaron y quién revisó, (c)(6)(ii). ICMM pide definir para cada control cómo se verifica y quién es su dueño, pasos 5 y 6.</p>
+      <div class="tabla-wrap">
+      <table class="tabla">
+        <thead><tr><th>Qué</th><th>Se guarda o se calcula</th><th>Dónde</th></tr></thead>
+        <tbody>
+          <tr><td>El protocolo, por versión</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde">Tabla nueva de versiones; la de hoy queda como versión 1</td></tr>
+          <tr><td>Los controles críticos de cada versión</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde">Tabla nueva, con su aprobación por una persona</td></tr>
+          <tr><td>Qué control cumple cada paso</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde">Campo <code>cumple</code> del paso, en el JSON versionado de la pauta</td></tr>
+          <tr><td>El hallazgo</td><td data-label="Se guarda o se calcula"><span class="chip">Se calcula</span></td><td data-label="Dónde">El validador, cada vez: siempre da lo mismo para los mismos datos</td></tr>
+          <tr><td>La revisión del hallazgo</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde"><code>mejora_revisiones</code>, la misma de las propuestas, sin borrar nada</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <h3>Esquema propuesto</h3>
+      <pre class="esquema">-- el protocolo, por versión (la fila de hoy pasa a ser la versión 1)
+CREATE TABLE protocolo_versiones (
+  protocolo_id TEXT, version INTEGER, texto TEXT, alcance TEXT,
+  creada_por TEXT, ts TEXT, PRIMARY KEY (protocolo_id, version));
+
+-- sus controles críticos, aprobados por una persona
+CREATE TABLE protocolo_controles (
+  protocolo_id TEXT, version INTEGER, control_id TEXT,   -- «A1»
+  nombre TEXT, exige TEXT, orden INTEGER, evidencia TEXT, fuente TEXT,
+  PRIMARY KEY (protocolo_id, version, control_id));
+CREATE TABLE protocolo_aprobaciones (
+  protocolo_id TEXT, version INTEGER, aprobada_por TEXT, ts TEXT,
+  PRIMARY KEY (protocolo_id, version));
+
+-- en el JSON de cada paso de la pauta
+"cumple": [{"protocolo": "prot-aislamiento-01", "control": "A3"}]
+
+-- la revisión va a mejora_revisiones, con una clave estable:
+propuesta_id = "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01@1:A3"</pre>
+    </section>
+
+    <section id="mejoras">
+      <h2>Qué mejora</h2>
+      <div class="grid" style="--cols:2">
+        <div class="caja"><h3>Las faltas se ven solas</h3><p>Hoy, que al cambio de rodillo le falta comprobar energía cero lo sabe quien leyó el ADR-0011. Con el validador aparece en la pantalla del supervisor, con el control y el protocolo.</p></div>
+        <div class="caja"><h3>Sin falsas alarmas de la maqueta</h3><p>Las pautas de ejemplo dejan de compararse contra protocolos de equipos reales: de 8 hallazgos posibles quedan los 2 verdaderos.</p></div>
+        <div class="caja"><h3>Un hallazgo se puede reproducir</h3><p>Con protocolos versionados, «la pauta v1 contra el protocolo v1» se puede volver a calcular meses después, aunque el texto del protocolo haya cambiado.</p></div>
+        <div class="caja"><h3>Una pantalla, dos fuentes de mejora</h3><p>El supervisor revisa en el mismo lugar lo que se desvía en las OT y lo que le falta a la pauta. No hay una pantalla nueva.</p></div>
+        <div class="caja"><h3>Lo que señaló el PR #66</h3><p>Acercarse con el motor encendido no produce propuesta en la pauta de la estación, porque «Apagar el motor» no es control crítico. Si el protocolo de la maqueta declara los controles que imita, el validador muestra que ese paso no está marcado.</p></div>
+        <div class="caja"><h3>Citas correctas</h3><p>El protocolo de aislamiento deja de citar 1910.147 por una referencia que solo cuenta cuántas veces se cita esa norma, y la cita por su texto, como modelo.</p></div>
+      </div>
+    </section>
+
+    <section id="aportes">
+      <h2>Qué aporta cada pieza</h2>
+      <p class="muted">La mayor parte ya existe. Lo nuevo es el significado de la atribución, los controles como datos y la revisión de conformidad.</p>
+      <div class="tabla-wrap">
+      <table class="tabla">
+        <thead><tr><th>Pieza</th><th>De dónde viene</th><th>Qué aporta a este diseño</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td>Bitácora que solo agrega</td><td data-label="De dónde viene">ADR-0003</td><td data-label="Qué aporta">El patrón: los hechos se guardan, el resto se calcula</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
+          <tr><td>Atribución de muchos a muchos</td><td data-label="De dónde viene">ADR-0011</td><td data-label="Qué aporta">La relación que este diseño define</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
+          <tr><td>Propuestas de mejora y su revisión</td><td data-label="De dónde viene">ADR-0014, <code>app/mejora.py</code></td><td data-label="Qué aporta">La tabla <code>mejora_revisiones</code> y el ciclo aceptar, versión nueva, comprobar</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
+          <tr><td>Pantalla de mejoras del supervisor</td><td data-label="De dónde viene">PR #66</td><td data-label="Qué aporta">Dónde se revisa un hallazgo, con aceptar y descartar con motivo</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
+          <tr><td>Skill que reconoce procesos</td><td data-label="De dónde viene">ADR-0015</td><td data-label="Qué aporta">Lee el protocolo y propone sus controles críticos</td><td data-label="Estado"><span class="chip chip--warn">Se extiende</span></td></tr>
+          <tr><td>Validador de pautas</td><td data-label="De dónde viene">ADR-0015, <code>/interno/pautas/validar</code></td><td data-label="Qué aporta">Calcula los hallazgos de conformidad</td><td data-label="Estado"><span class="chip chip--warn">Se extiende</span></td></tr>
+          <tr><td>Semilla que converge</td><td data-label="De dónde viene">PR #65</td><td data-label="Qué aporta">Un despliegue deja la base con las atribuciones del repo, sin cambios a mano</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
+          <tr><td>Protocolo de la maqueta</td><td data-label="De dónde viene">PR #65</td><td data-label="Qué aporta">El lugar de las pautas de ejemplo, fuera de los protocolos de equipos reales</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
+          <tr><td>Versiones de protocolo, controles y campo <code>cumple</code></td><td data-label="De dónde viene">Este diseño</td><td data-label="Qué aporta">Lo que hace comprobable y reproducible la conformidad</td><td data-label="Estado"><span class="chip">Nuevo</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="alternativas">
+      <h2>Alternativas consideradas</h2>
+      <div class="tabla-wrap">
+      <table class="tabla">
+        <thead><tr><th>Opción</th><th>A favor</th><th>En contra</th><th>Resultado</th></tr></thead>
+        <tbody>
+          <tr><td>Atribución por alcance; conformidad aparte</td><td data-label="A favor">Respaldada por las normas; la falta queda a la vista</td><td data-label="En contra">Tres cambios de datos y una migración</td><td data-label="Resultado"><span class="chip chip--ok">Elegida</span></td></tr>
+          <tr><td>Atribución por conformidad</td><td data-label="A favor">Simple de leer</td><td data-label="En contra">Sin respaldo; esconde la pauta defectuosa</td><td data-label="Resultado" class="descartada">Descartada</td></tr>
+          <tr><td>Atribución por derivación</td><td data-label="A favor">Trazabilidad pura</td><td data-label="En contra">Deja la maqueta dentro del protocolo de una correa real; no dice qué exigir</td><td data-label="Resultado" class="descartada">Descartada</td></tr>
+          <tr><td>Dos relaciones: «aplica a» y «se derivó de»</td><td data-label="A favor">La más precisa</td><td data-label="En contra">Duplica el modelo por algo que cabe en una frase del protocolo</td><td data-label="Resultado" class="descartada">Descartada por ahora: se vuelve a ella si un cliente audita la derivación</td></tr>
+          <tr><td>Guardar los hallazgos en una tabla propia</td><td data-label="A favor">Consulta directa</td><td data-label="En contra">Duplica lo que el validador calcula y puede quedar desactualizado</td><td data-label="Resultado" class="descartada">Descartada: se guarda solo la revisión</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="riesgos">
+      <h2>Riesgos y temas transversales</h2>
+      <div class="grid riesgos">
+        <div class="caja"><h3>Controles mal propuestos</h3><p>La skill puede proponer un control de más o de menos. Por eso los aprueba una persona y quedan por versión.</p></div>
+        <div class="caja"><h3>Migración</h3><p>Los protocolos de hoy pasan a versión 1 y las pautas aprobadas no tienen el campo <code>cumple</code>: hasta completarlo, el validador avisa en vez de reportar hallazgos.</p></div>
+        <div class="caja"><h3>Quién revisa</h3><p>1910.147 pide que revise alguien distinto de quien usa el procedimiento. En el demo revisa el supervisor del cliente; con un cliente real puede ser el equipo.</p></div>
+        <div class="caja"><h3>Alcance legal</h3><p>Un hallazgo dice que la pauta no recoge un control del protocolo. No certifica que el cliente cumpla la norma frente a la autoridad.</p></div>
+      </div>
+    </section>
+
+    <section id="decisiones">
+      <h2>Qué se decidió</h2>
+      <div class="tabla-wrap">
+      <table class="tabla">
+        <thead><tr><th>Fecha</th><th>Decisión</th><th>Quién</th></tr></thead>
+        <tbody>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión">Las pautas de la maqueta salen de un protocolo de ejemplos redactado por el equipo (PR #65, ya en producción).</td><td data-label="Quién">Equipo</td></tr>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión">El hallazgo de conformidad es una salida del validador de pautas.</td><td data-label="Quién">Equipo</td></tr>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión">Los controles críticos de cada protocolo se guardan como datos y los aprueba una persona, una vez por versión.</td><td data-label="Quién">Equipo</td></tr>
+          <tr><td class="num">—</td><td data-label="Decisión">Atribución por alcance y conformidad aparte (ADR-0016): en revisión.</td><td data-label="Quién">Pendiente</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="preguntas">
+      <h2>Preguntas abiertas</h2>
+      <ol class="preguntas">
+        <li>¿Quién revisa un hallazgo con un cliente real: su supervisor o el equipo de Factum?<small>1910.147 pide que revise alguien distinto de quien usa el procedimiento. Para el demo alcanza el supervisor.</small></li>
+        <li>¿El protocolo de la maqueta declara los controles que imita, para que el demo muestre hallazgos y propuestas?</li>
+        <li>¿Se trae al repo el protocolo de inspección de correa, que existe solo en la base del servidor, o se borra?</li>
+        <li>¿Se busca y se lee ISO 10218 para el protocolo del brazo, que hoy no tiene norma?</li>
+      </ol>
+    </section>
+  </article>
+</div>
+
+<footer class="wrap pie"><span>La simulación se hizo a mano sobre las pautas del repo del 22 de noviembre de 2026. Fuentes en REFERENCIAS 44, 45, 56, 78 y 79.</span><span class="marca"><img src="logo.svg" alt=""><span><b>Factum</b><i>Diseño</i></span></span></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="marca-charts.js"></script>
+<script>
+(function(){
+  if(!window.Chart || !window.MARCA) return;
+  var C = window.MARCA;
+  new Chart(document.getElementById('grafico-hallazgos'), {
+    type: 'bar',
+    data: {
+      labels: ['Cambio de rodillo', 'Polín, demo', 'Polín de la estación', 'LOTO de escritorio'],
+      datasets: [
+        { label: 'Antes del #65', data: [2, 2, 4, 2], backgroundColor: C.gris },
+        { label: 'Hoy', data: [2, 2, 4, 0], backgroundColor: C.accent },
+        { label: 'Con el diseño', data: [2, 0, 0, 0], backgroundColor: C.brand }
+      ]
+    },
+    options: {
+      plugins: { etiquetas: { on: true }, legend: { position: 'bottom' } },
+      scales: { x: C.sinGrilla, y: { beginAtZero: true, suggestedMax: 5, ticks: { stepSize: 1 }, title: { display: true, text: 'Hallazgos' } } }
+    }
+  });
+})();
+</script>
+<script src="documento.js"></script>
+<script src="anotaciones.js"></script>
+</body>
+</html>
