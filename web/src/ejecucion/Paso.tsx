@@ -3,6 +3,7 @@ import { IconAlertTriangle, IconAntennaBarsOff, IconCheck, IconCircleDashed, Ico
 import type { ReactNode } from 'react'
 import { cierraSolo, pideHecho, sePuedeConfirmar } from '../api/pauta'
 import type { Deteccion, PasoEstado, PasoPauta } from '../api/tipos'
+import { NOMBRE_CLASE } from '../gestion/sensores'
 import { ConfirmarPaso } from './ConfirmarPaso'
 import type { EstadoUi } from './estado'
 
@@ -101,7 +102,7 @@ export function Paso({ paso, pauta, ui, aviso, cerradoPor, habilitado, vistas = 
               </Text>
               {camaraEnVivo && (
                 <Text size="sm" c="accion.7" fw={600}>
-                  La cámara ve: {vistas.map((v) => v.clase).join(', ')}
+                  La cámara ve: {vistas.map((v) => NOMBRE_CLASE[v.clase] ?? v.clase).join(', ')}
                 </Text>
               )}
               {conHecho && <Group>{hecho}</Group>}

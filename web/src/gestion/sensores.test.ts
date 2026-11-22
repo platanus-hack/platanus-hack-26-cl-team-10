@@ -10,6 +10,15 @@ describe('enPalabras', () => {
   it('leaves any other text as it is', () => {
     expect(enPalabras('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBe('GUARDA ABIERTA CON ENERGÍA VIVA.')
   })
+
+  it('what the camera sees goes by the name the crew uses, in any text of the server', () => {
+    expect(enPalabras('el modelo del edge ya no ve red soda can en 5 cuadros seguidos, y ve green soda can en su lugar')).toBe(
+      'el modelo del edge ya no ve polín rojo en 5 cuadros seguidos, y ve polín verde en su lugar',
+    )
+    expect(enPalabras('el modelo del edge ve soda can en 5 cuadros seguidos (mín. 91%)')).toBe('el modelo del edge ve polín en 5 cuadros seguidos (mín. 91%)')
+    // Lo que el detector no llama polín queda igual.
+    expect(enPalabras('el modelo del edge ve mouse en 5 cuadros seguidos')).toBe('el modelo del edge ve mouse en 5 cuadros seguidos')
+  })
 })
 
 describe('fraseCorta', () => {

@@ -41,6 +41,11 @@ describe('a step that closes on its own', () => {
     expect(screen.getByText('La cámara ve: mouse, cup')).toBeInTheDocument()
     expect(boton('Hecho')).toBeNull()
   })
+
+  it("what the camera sees is said with the name the crew uses, not the detector's", () => {
+    pintar('l2', { ui: 'en_curso', vistas: [{ clase: 'green soda can', conf: 0.93 }, { clase: 'red soda can', conf: 0.9 }] })
+    expect(screen.getByText('La cámara ve: polín verde, polín rojo')).toBeInTheDocument()
+  })
 })
 
 describe('a step that closes by declaring', () => {

@@ -37,11 +37,12 @@ export function fraseCorta(texto: string): string {
 /**
  * Los avisos de anomalía que ya están en la bitácora se escribieron como estadística («dist_cm = 148.9, lejos de su
  * mediana 102.1 (22.9 desvíos)»). Se muestran como los nuevos (app/scoring.py): «Distancia 148.9 cm fuera de lo normal: lo
- * habitual es 102.1 cm». Cualquier otro texto pasa igual.
+ * habitual es 102.1 cm». En cualquier otro texto, lo que reconoce la cámara va con su nombre de la faena
+ * (`conNombresDeClase`).
  */
 export function enPalabras(texto: string): string {
   const m = ANOMALIA_VIEJA.exec(texto.trim())
-  if (!m) return texto
+  if (!m) return conNombresDeClase(texto)
   const [, id, valor, centro] = m
   const u = UNIDAD[id!] ? ` ${UNIDAD[id!]}` : ''
   return `${NOMBRE_SENSOR[id!] ?? id} ${uno(valor!)}${u} fuera de lo normal: lo habitual es ${uno(centro!)}${u}`
@@ -53,3 +54,12 @@ export const NOMBRE_CLASE: Record<string, string> = {
   'red soda can': 'polín rojo',
   'green soda can': 'polín verde',
 }
+
+/** Los nombres del detector, del más largo al más corto: «red soda can» antes que «soda can». */
+const CLASES_EN_TEXTO = new RegExp(`\\b(${Object.keys(NOMBRE_CLASE).sort((a, b) => b.length - a.length).join('|')})\\b`, 'g')
+
+/**
+ * El servidor escribe lo que ve la cámara con el nombre del detector («ya no ve red soda can, y ve green soda can
+ * en su lugar»). Aquí va con el de la faena: «ya no ve polín rojo, y ve polín verde en su lugar».
+ */
+export const conNombresDeClase = (texto: string): string => texto.replace(CLASES_EN_TEXTO, (clase) => NOMBRE_CLASE[clase] ?? clase)

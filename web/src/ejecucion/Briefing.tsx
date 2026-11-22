@@ -69,7 +69,7 @@ export function Briefing({ ot, bitacora, alertas, relevo, onRecibido }: Props) {
               </Group>
               {enConflicto.map((p) => (
                 <Text key={p.id} size="sm">
-                  {p.orden}. {p.titulo}: {p.detalle}
+                  {p.orden}. {p.titulo}: {p.detalle && enPalabras(p.detalle)}
                 </Text>
               ))}
               {alertas.map((a) => (

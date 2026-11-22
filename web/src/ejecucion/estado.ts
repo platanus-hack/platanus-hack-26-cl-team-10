@@ -222,7 +222,7 @@ function conflictoEnPalabras(paso: PasoEstado): string | null {
   }
   if (ev.tipo === 'sensor' && ev.id && ev.valor != null)
     return `El sensor ${String(ev.id)} marca «${String(ev.valor)}»; el paso espera «${String(ev.espera)}».`
-  return paso.detalle
+  return paso.detalle ? enPalabras(paso.detalle) : paso.detalle
 }
 
 /** «Alto»: la alerta de seguridad de capa 1. Su voz pasa adelante y corta lo que esté sonando. */
