@@ -411,6 +411,22 @@ class LaSemillaDeLosCasos(Base):
         self.assertEqual([p["id"] for p in catalogo.protocolos_de(self.cx, "pauta-celda-mt-01")], ["prot-aislamiento-01", "prot-celda-mt-01"])
         self.assertGreater(len(catalogo.pautas_de(self.cx, "prot-aislamiento-01")), 1)
 
+    def test_las_pautas_de_la_maqueta_son_ejemplos_y_no_salen_del_de_aislamiento(self):
+        protocolos.cargar_semilla(self.cx)
+        ejemplos = ["pauta-loto-escritorio", "pauta-polin-demo", "pauta-polin-estacion"]
+        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-maqueta-01")], ejemplos)
+        self.assertFalse(set(ejemplos) & {p["id"] for p in catalogo.pautas_de(self.cx, "prot-aislamiento-01")})
+
+    def test_una_atribucion_que_se_saco_de_datos_se_saca_de_la_base_al_repetir(self):
+        protocolos.cargar_semilla(self.cx)
+        catalogo.atribuir(self.cx, "pauta-loto-escritorio", "prot-aislamiento-01", "equipo:factum")  # la de antes
+        catalogo.crear_pauta(self.cx, {**json.loads((DATOS / "pauta-loto.json").read_text(encoding="utf-8")), "id": "pauta-de-un-cliente"})
+        catalogo.atribuir(self.cx, "pauta-de-un-cliente", "prot-aislamiento-01", "equipo:factum")  # no es de datos/
+        protocolos.cargar_semilla(self.cx)
+        de_aislamiento = {p["id"] for p in catalogo.pautas_de(self.cx, "prot-aislamiento-01")}
+        self.assertNotIn("pauta-loto-escritorio", de_aislamiento)
+        self.assertIn("pauta-de-un-cliente", de_aislamiento)
+
     def test_un_protocolo_da_dos_pautas_la_del_rodillo_y_la_del_polin(self):
         protocolos.cargar_semilla(self.cx)
         self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01", "pauta-polin-demo", "pauta-polin-estacion"])
