@@ -34,7 +34,8 @@ def main():
 
     frames = Path("data/frames"); frames.mkdir(parents=True, exist_ok=True)
     log = open("data/sensores.jsonl", "a", buffering=1)
-    esp = serial.Serial(a.puerto, 115200, timeout=0.2)
+    # exclusivo, igual que edge.py: dos procesos leyendo el mismo CP2102 lo traban hasta desenchufarlo
+    esp = serial.Serial(a.puerto, 115200, timeout=0.2, exclusive=True)
     cam = cv2.VideoCapture(a.camara) if a.camara >= 0 else None
     if cam is not None and not cam.isOpened():
         raise SystemExit(f"No pude abrir la cámara {a.camara} (¿permiso de cámara para la terminal?)")

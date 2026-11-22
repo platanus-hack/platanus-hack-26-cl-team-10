@@ -1,7 +1,7 @@
 {
   "id": "pauta-polin-estacion",
   "nombre": "Cambio de polín en la cinta · estación del demo",
-  "version": 5,
+  "version": 7,
   "equipo": "cinta a escala (ESP32: motor con botón, distancia y temperatura; cámara)",
   "pasos": [
     {
@@ -11,8 +11,13 @@
       "instruccion": "Aprieta el botón para detener el motor de la cinta. No te acerques mientras siga andando.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
-      "sensor": { "id": "energia", "espera": "cortada" },
-      "cumple": ["prot-maqueta-01:M1"]
+      "sensor": {
+        "id": "energia",
+        "espera": "cortada"
+      },
+      "cumple": [
+        "prot-maqueta-01:M1"
+      ]
     },
     {
       "id": "e2",
@@ -21,7 +26,10 @@
       "instruccion": "Recién con el motor detenido, acércate a la cinta.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
-      "sensor": { "id": "operario", "espera": "presente" }
+      "sensor": {
+        "id": "operario",
+        "espera": "presente"
+      }
     },
     {
       "id": "e3",
@@ -30,27 +38,39 @@
       "instruccion": "Espera a que el equipo esté frío antes de tocar el polín.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
-      "sensor": { "id": "equipo", "espera": "frio" },
-      "cumple": ["prot-maqueta-01:M3"]
+      "sensor": {
+        "id": "equipo",
+        "espera": "frio"
+      },
+      "cumple": [
+        "prot-maqueta-01:M3"
+      ]
     },
     {
       "id": "e4",
       "orden": 4,
       "titulo": "Ubicar el polín rojo",
-      "instruccion": "Deja a la vista de la cámara el polín rojo, que es el que falló, y declara el paso. En el demo los polines son latas: la cámara tiene que verlo puesto antes de que lo saques.",
+      "instruccion": "Deja a la vista de la cámara el polín rojo, que es el que falló. En el demo los polines son latas: la cámara tiene que verlo antes de que lo saques.",
       "tipo_evidencia": "camara",
-      "capa_minima": 3,
-      "pregunta_visual": "¿Hay una lata de bebida de cuerpo rojo apoyada sobre la cinta o la mesa, sin que nadie la sostenga en la mano? Una lata plateada con letras rojas no cuenta como roja."
+      "capa_minima": 2,
+      "pregunta_visual": "¿Se ve una lata de bebida de cuerpo rojo? Una lata plateada con letras rojas no cuenta como roja.",
+      "deteccion": {
+        "clase": "red soda can",
+        "presente": true
+      }
     },
     {
       "id": "e5",
       "orden": 5,
       "titulo": "Reemplazar el polín rojo",
-      "instruccion": "Saca el polín rojo, pon un polín normal en el mismo lugar y declara el paso. La cámara compara con la foto de antes: tiene que haber un polín que no sea rojo donde estaba el rojo.",
+      "instruccion": "Saca el polín rojo y pon el nuevo en su lugar. La cámara cierra el paso cuando deja de ver el rojo que antes vio.",
       "tipo_evidencia": "camara",
-      "capa_minima": 3,
-      "pregunta_visual": "En la foto de antes hay una lata roja puesta en la cinta. En la foto de ahora, ¿esa lata roja ya no está y en el mismo lugar hay puesta una lata que no es roja (por ejemplo plateada), sin que nadie la sostenga en la mano?",
-      "comparar_con": "e4"
+      "capa_minima": 2,
+      "pregunta_visual": "¿Ya no se ve ninguna lata de bebida de cuerpo rojo?",
+      "deteccion": {
+        "clase": "red soda can",
+        "presente": false
+      }
     },
     {
       "id": "e6",
@@ -60,7 +80,10 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "operario", "espera": "ausente" }
+      "sensor": {
+        "id": "operario",
+        "espera": "ausente"
+      }
     },
     {
       "id": "e7",
@@ -70,7 +93,10 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "energia", "espera": "viva" }
+      "sensor": {
+        "id": "energia",
+        "espera": "viva"
+      }
     }
   ]
 }

@@ -355,9 +355,7 @@ $("video").onerror = () => $("marco").classList.add("vacio");
 // Las cajas vienen normalizadas 0-1: se escalan al tamaño con que se ve el video.
 // Si deja de llegar detección por 1 s, se borran para no mostrar algo viejo.
 let borrarCajas = null;
-// En la estación los polines son latas. El detector las encuentra pero no distingue bien su color
-// (toma por roja una plateada con letras rojas): el color lo juzga el VLM, acá todas son «polín».
-const POLINES = {"soda can": "polín", "red soda can": "polín"};
+const POLINES = {"soda can": "polín", "red soda can": "polín rojo"};  // en la estación los polines son latas
 function pintarCajas(d) {
   const cv = $("cajas"), img = $("video");
   cv.width = img.clientWidth; cv.height = img.clientHeight;
@@ -479,7 +477,7 @@ const FORMATO = {
   motor: v => v === "activo" ? "activo" : "inactivo", equipo: v => v === "frio" ? "equipo frío" : "equipo caliente",
   dist_cm: v => `a ${v} cm`, temp_c: v => `${v} °C`, hum_pct: v => `${v} %`,
 };
-let edge = "edge-mac";
+let edge = "edge-1";
 const temperaturas = [];
 function pintarSensor(id, valor, vivo) {
   if (id === "energia") { id = "motor"; valor = valor === "viva" ? "activo" : "detenido"; }  // el mismo dato del ESP32
