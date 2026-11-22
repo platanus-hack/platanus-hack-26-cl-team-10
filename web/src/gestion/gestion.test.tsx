@@ -21,6 +21,7 @@ import { Inicio } from './Inicio'
 import { PaginaLogin } from './PaginaLogin'
 import { PaginaOperador } from './PaginaOperador'
 import { campana } from './campana'
+import { PaginaProtocolos } from './PaginaProtocolos'
 import { PaginaSupervisor } from './PaginaSupervisor'
 
 const sinEspera: Temporizador = () => {}
@@ -54,6 +55,7 @@ function abrir(ruta: string) {
           <Route path="/login" element={<PaginaLogin />} />
           <Route path="/supervisor" element={<RequiereRol rol="supervisor"><PaginaSupervisor /></RequiereRol>} />
           <Route path="/supervisor/ot/:id" element={<RequiereRol rol="supervisor"><VistaEnVivo /></RequiereRol>} />
+          <Route path="/supervisor/protocolos" element={<RequiereRol rol="supervisor"><PaginaProtocolos /></RequiereRol>} />
           <Route path="/operador" element={<RequiereRol rol="operador"><PaginaOperador /></RequiereRol>} />
           <Route path="/ot/:id" element={<RequiereRol rol="operador"><Ejecucion /></RequiereRol>} />
           <Route path="*" element={<Inicio />} />
@@ -63,7 +65,6 @@ function abrir(ruta: string) {
   )
 }
 
-/** La tarjeta de una OT, por su id en mayúsculas. */
 /** La fila de una OT en la tabla del supervisor, o su tarjeta en la lista del operario. */
 const tarjeta = async (ot: string) => (await screen.findByText(ot.toUpperCase())).closest<HTMLElement>('tr, .mantine-Card-root')!
 
@@ -504,6 +505,21 @@ it('the demo handover: Carla assigns, Ana sees it, hands over, Bruno takes it', 
   await entrarConFormulario(BRUNO)
   await userEvent.click(within(await tarjeta('ot-14')).getByRole('button', { name: /Comenzar|Continuar/ }))
   expect(await screen.findByText('ejecución de ot-14')).toBeInTheDocument()
+})
+
+describe('protocols', () => {
+  it('lists each protocol with its pautas, and «Ver sus OT» opens the table filtered by that pauta', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor/protocolos')
+    const protocolo = await screen.findByRole('region', { name: 'Aislamiento y bloqueo de energías' })
+    expect(within(protocolo).getByText(PAUTA_DEMO.nombre)).toBeInTheDocument()
+    expect(within(protocolo).getByText(/por empezar/)).toBeInTheDocument()
+    await userEvent.click(within(protocolo).getByRole('link', { name: `Ver las OT de ${PAUTA_DEMO.nombre}` }))
+    expect(await screen.findByText(/^Pauta: /)).toBeInTheDocument()
+    expect(screen.getAllByText(/^OT-\d+$/)).toHaveLength(3)
+    await userEvent.click(screen.getByRole('button', { name: 'Ver las OT de todas las pautas' }))
+    await waitFor(() => expect(screen.queryByText(/^Pauta: /)).toBeNull())
+  })
 })
 
 describe('Factum recommendations on the supervisor screen', () => {
