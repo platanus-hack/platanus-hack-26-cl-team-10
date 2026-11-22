@@ -68,5 +68,15 @@
     "pautas": [
       "pauta-camion-detencion-01"
     ]
+  },
+  {
+    "id": "prot-botella-01",
+    "nombre": "Abrir una botella",
+    "industria": "demo",
+    "origen": "Redactado por el equipo de Factum para el demo. No es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-botella-01.md",
+    "pautas": [
+      "pauta-botella-01"
+    ]
   }
 ]
