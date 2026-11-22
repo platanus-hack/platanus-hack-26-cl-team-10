@@ -20,6 +20,8 @@ Por cada lectura atribuida:
    anomalía abre una alerta y la vuelta a lo normal la resuelve; diez lecturas
    idénticas seguidas abren el aviso de sensor pegado (salvo en los sensores lentos
    del edge, SIN_PEGADO, donde repetir el valor es lo normal).
+   La distancia del edge no se compara con su historia (SIN_ANOMALIA): cambia cada
+   vez que alguien se mueve, y lo que importa de ella ya llega como `operario`.
 7. Todo lo nuevo, la calificación vigente y los avisos activos salen por el bus.
 
 Qué alertas siguen activas se lee de la bitácora, no de la memoria: una alerta
@@ -67,6 +69,12 @@ IGUALES_PEGADO = 10
 # El DHT22 del edge redondea a 0,1 y una sala cambia lento: repetir el valor es lo normal, no un sensor pegado.
 # shortcut: lista fija de los sensores lentos del edge; pasar a un umbral por sensor cuando haya otra estación.
 SIN_PEGADO = frozenset({"temp_c", "hum_pct"})
+# El ultrasonido mide a qué distancia está lo que tiene delante, y eso cambia cada vez que alguien se mueve:
+# comparado con su historia avisaba de cada movimiento, y el aviso quedaba abierto para siempre si la escena
+# cambiaba (lo anómalo no entra a la historia). Lo que importa de esa lectura ya lo dice el edge como
+# «operario presente o ausente», y con eso trabaja la capa 1.
+# shortcut: lista fija, como SIN_PEGADO; pasar a una marca por sensor cuando haya otra estación.
+SIN_ANOMALIA = frozenset({"dist_cm"})
 # Capa 2 de cámara: se juzga con las detecciones del último segundo, y solo si hay
 # suficientes (a ~18/s, 5 son ~0,3 s) para que un cuadro suelto no cierre un paso.
 # con el detector en el servidor (~2,5 detecciones/s en la VM) 1 s no junta 5: se alarga por entorno
@@ -674,6 +682,14 @@ class Servicios:
             x = float(valor)
         except ValueError:
             return []
+        if sensor_id in SIN_ANOMALIA:
+            nuevos = self._pegado(ot_id, sensor_id, x)
+            # La alerta que quedó abierta de cuando sí se comparaba no la cerraría nadie.
+            abierta = self.alertas_activas(ot_id).get(_clave_senal(sensor_id))
+            if abierta is not None:
+                nuevos.append(self._resolver(ot_id, abierta, f"{sensor_id} ya no se compara con su historia",
+                                             {"tipo": "senal", "sensor": sensor_id, "valor": x}))
+            return nuevos
         historia = self._historia[sensor_id]
         c = capa2(sensor_id, list(historia), x)
         if c.nivel is Nivel.OK:

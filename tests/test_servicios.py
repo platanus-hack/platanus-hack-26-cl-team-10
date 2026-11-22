@@ -8,7 +8,7 @@ import unittest
 
 from app import db
 from app.bus import Bus, canal_ot
-from app.contratos import Capa, Estado, TipoEvento
+from app.contratos import Capa, Estado, Evento, TipoEvento
 from app.protocolos import desde_json
 from app.servicios import Servicios
 
@@ -156,6 +156,28 @@ class AnomaliaDeSenal(Base):
             self.s.recibir_lectura("edge-1", "vibracion", "2.0")
         # la regla sigue para los demás sensores
         self.assertEqual([a.evidencia["sensor"] for a in self.alertas("ot-1", "pegado")], ["vibracion"])
+
+    def test_la_distancia_no_se_compara_con_su_historia(self):
+        # Cambia cada vez que alguien se mueve, y el edge ya la lee como «operario presente o ausente».
+        for v in [102.1, 101.8, 102.4, 102.0, 102.3, 101.9, 102.1, 102.2, 101.7, 102.0, 102.1, 102.3]:
+            self.s.recibir_lectura("edge-1", "dist_cm", str(v))
+        self.s.recibir_lectura("edge-1", "dist_cm", "148.9")
+        self.assertEqual(self.alertas("ot-1", "senal"), [])
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
+
+    def test_una_alerta_de_distancia_que_quedo_abierta_se_cierra_con_la_lectura_siguiente(self):
+        # La dejó abierta un servidor anterior, y la distancia sigue lejos de su historia: sola no se cerraría.
+        for v in [102.1, 101.8, 102.4, 102.0, 102.3, 101.9, 102.1, 102.2, 101.7, 102.0, 102.1, 102.3]:
+            self.s.recibir_lectura("edge-1", "dist_cm", str(v))
+        abierta = self.s.agregar(Evento(
+            ot_id="ot-1", tipo=TipoEvento.ALERTA, ts=db.ahora(), actor="sistema", capa=Capa.APRENDIZAJE,
+            detalle="dist_cm = 148.9, lejos de su mediana 102.1 (22.9 desvíos)",
+            evidencia={"tipo": "senal", "sensor": "dist_cm", "valor": 148.9, "certeza": 1.0, "clave": "senal:dist_cm"}))
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "warning")
+        self.s.recibir_lectura("edge-1", "dist_cm", "151.1")
+        resueltas = self.de_tipo("ot-1", TipoEvento.ALERTA_RESUELTA)
+        self.assertEqual([r.evidencia["resuelve"] for r in resueltas], [abierta.id])
+        self.assertEqual(self.s.calificacion("ot-1")["nivel"], "ok")
 
     def test_un_valor_no_numerico_no_pasa_por_la_capa2(self):
         self.s.recibir_lectura("edge-1", "guarda", "abierta")
