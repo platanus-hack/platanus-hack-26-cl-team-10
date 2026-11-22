@@ -201,6 +201,11 @@ it('marks the sensor the step under way waits for, and whether it already reads 
   await waitFor(() => expect(sensor('Candado')).toHaveAttribute('data-espera', 'calza'))
 })
 
+it('a small arrow next to the OT id goes back to the list', async () => {
+  abrir('ot-13', 'incidente')
+  expect(await screen.findByRole('link', { name: 'Volver a la lista de OT' })).toHaveAttribute('href', '/supervisor')
+})
+
 it('an OT of another company, or that does not exist, says so', async () => {
   abrir('ot-99')
   expect(await screen.findByText('Esta OT no está en tu empresa')).toBeInTheDocument()

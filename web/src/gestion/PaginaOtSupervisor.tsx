@@ -1,4 +1,4 @@
-import { Button, Center, Collapse, Group, Loader, Popover, ScrollArea, SegmentedControl, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Button, Center, Collapse, Group, Loader, Popover, ScrollArea, SegmentedControl, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { IconAlertTriangle, IconArrowLeft, IconCheck, IconChevronRight, IconVolume, IconVolumeOff, IconX } from '@tabler/icons-react'
 import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
@@ -571,9 +571,14 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
           <Stack gap="md">
             <div className={estilos.cabecera}>
               <div>
-                <Title order={2} className={estilos.ot}>
-                  {otId.toUpperCase()}
-                </Title>
+                <Group gap={6} wrap="nowrap">
+                  <ActionIcon component={Link} to="/supervisor" variant="subtle" color="accion" size="sm" aria-label="Volver a la lista de OT">
+                    <IconArrowLeft size={18} />
+                  </ActionIcon>
+                  <Title order={2} className={estilos.ot} m={0}>
+                    {otId.toUpperCase()}
+                  </Title>
+                </Group>
                 <p className={estilos.titular}>{nombre}</p>
               </div>
               <div className={estilos.cabeceraDerecha}>
