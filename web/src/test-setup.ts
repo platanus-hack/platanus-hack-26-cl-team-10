@@ -12,8 +12,9 @@ afterEach(() => {
 if (!window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
+    // Como un equipo con «reducir movimiento»: Mantine abre y cierra sin animar, y jsdom no espera transiciones.
     value: (query: string) => ({
-      matches: false,
+      matches: query.includes('prefers-reduced-motion: reduce'),
       media: query,
       onchange: null,
       addEventListener: () => {},

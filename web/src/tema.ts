@@ -243,6 +243,8 @@ export const tema = createTheme({
   black: '#1F262E',
   white: '#FFFFFF',
   autoContrast: true,
+  // Quien pidió «reducir movimiento» en su equipo ve los desplegables y paneles sin animación.
+  respectReducedMotion: true,
   variantColorResolver: variantes,
   components: {
     Button: Button.extend({ styles: { root: { fontWeight: 600 } } }),

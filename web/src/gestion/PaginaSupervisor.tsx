@@ -1,4 +1,4 @@
-import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core'
+import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title, Tooltip, VisuallyHidden } from '@mantine/core'
 import { IconAlertTriangle, IconEye, IconPlus, IconUser } from '@tabler/icons-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -249,7 +249,7 @@ function Grupos({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Oper
               {g.ots.length}
             </span>
           </Title>
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
             {g.ots.map((o) => (
               <TarjetaOt key={o.ot} ot={o} operadores={operadores} onListo={onListo} />
             ))}
@@ -351,10 +351,11 @@ export function PaginaSupervisor() {
       <FranjaDesactualizada error={ots ? error : null} />
       <Pagina>
         <Stack gap="lg">
+          {/* Sin título a la vista: la página es la lista. Queda para los lectores de pantalla. */}
           <Group justify="space-between">
-            <Title order={2} className={industrial.titular}>
-              Órdenes de trabajo
-            </Title>
+            <VisuallyHidden>
+              <Title order={2}>Órdenes de trabajo</Title>
+            </VisuallyHidden>
             <PedirOt onPedida={alPedir} />
           </Group>
           <BarraIncidentes incidentes={incidentes ?? []} />

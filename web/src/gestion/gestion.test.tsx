@@ -506,6 +506,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     m.mejoras = [recomendacion(true)]
     act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     expect(within(zona).getByText('Factum propone mejorar una pauta')).toBeInTheDocument()
     expect(within(zona).getByText('Cambio de polín en la cinta')).toBeInTheDocument()
     expect(within(zona).getByText('versión 8 · 1 cambio')).toBeInTheDocument()
@@ -527,6 +528,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     expect(within(zona).getAllByRole('button', { name: /Aplicar/ })).toHaveLength(1)
     expect(within(zona).getByText('Agrega «Bloquear el encendido»')).toBeInTheDocument()
     expect(within(zona).getByRole('button', { name: 'El protocolo lo exige y hoy ningún paso de la pauta lo hace.' })).toBeInTheDocument()
@@ -542,6 +544,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     expect(within(zona).getByText(/^No cambia: «/)).toBeInTheDocument()
     expect(within(zona).getByRole('button', { name: /se revisa el sensor/ })).toBeInTheDocument()
     expect(within(zona).getByText('sin cambios a la pauta')).toBeInTheDocument()
@@ -554,6 +557,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     await userEvent.click(within(zona).getByRole('button', { name: 'Ahora no' }))
     expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull()
     expect(m.mejoras[0]!.estado).toBe('abierta')

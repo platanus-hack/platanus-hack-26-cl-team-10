@@ -207,7 +207,7 @@ export function Recomendaciones({
           <Accordion
             variant="contained"
             radius="sm"
-            defaultValue={visibles[0]!.pauta}
+           
             chevronPosition="left"
           >
             {visibles.map((r) => (
