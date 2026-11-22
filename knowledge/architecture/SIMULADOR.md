@@ -66,6 +66,6 @@ Los desvíos de una pauta de la base se generan desde sus pasos, y el motor los 
 
 ## Lo que no cubre
 
-- **El motor de la página es una copia de las reglas del servidor.** Si `app/servicios.py` cambia una regla, el simulador no se entera. `Brecha`.
+- **El motor de la página es una copia de las reglas del servidor.** Si `app/servicios.py` cambia una regla, el simulador no se entera. Ya pasa: el servidor no compara la distancia del edge con su historia (`SIN_ANOMALIA`) ni da por pegados los sensores lentos (`SIN_PEGADO`), y el motor de la página sí. `Brecha`.
 - **Las OT simuladas no llegan a `GET /cliente/mejoras` ni a las métricas.** El reporte que muestra es el de la simulación.
 - **El texto de los protocolos** pide la clave del equipo en un servidor que la tiene configurada; el simulador no la guarda.

@@ -120,9 +120,10 @@ cada cambio. Para reconectar sin perder bitácora, vuelve con `desde` = el últi
 | `evento` | Cada fila nueva de la bitácora | `evento` con `id`, `tipo`, `paso_id`, `estado`, `capa`, `detalle`, `evidencia`, `calificacion` |
 | `calificacion_ot` | Después de cada lectura o declaración | `calificacion` con `nivel`, `certeza`, `capa`, `motivos`, `avisos` |
 | `sesion` | Al abrir una sesión | `sesion`, `video` |
+| `detecciones` | Lo que ve la cámara del edge de la OT, varias veces por segundo; no entra a la bitácora | `edge_id`, `modelo`, `ts`, `objetos` (`clase`, `conf`, `caja`) y `clases` (lo que el modelo buscaba) |
 
 `evento.tipo`: `ot_abierta` · `ot_asignada` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` ·
-`relevo_recibido` · `observacion` (lo que el operario vio; no cierra ningún paso). `evento.estado`: `verificado` · `no_verificado` · `en_conflicto`.
+`relevo_recibido` · `observacion` (lo que el operario vio; no cierra ningún paso) · `propuesta_pauta` (Factum avisa al supervisor que un paso se volvió recurrente). `evento.estado`: `verificado` · `no_verificado` · `en_conflicto`.
 
 **Los avisos.** `calificacion.avisos` es la lista de lo que está mal AHORA, lo más grave primero. Un aviso
 existe mientras venga en esa lista: cuando el sensor se corrige, el siguiente `calificacion_ot` ya no lo
@@ -189,7 +190,7 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
   siguiente que Factum armaría con todo lo que ya avisó, qué cambia y por qué, y qué no y por qué no; el supervisor lo
   aplica entero con `POST /cliente/pautas/{{pauta_id}}/mejoras/aplicar`, que acepta esas propuestas y arma la versión
   sin aprobar. El reporte de la OT trae las mejoras en que esa OT aportó. El
-  supervisor la acepta («Aplicar») o la descarta en `POST /cliente/mejoras/{{propuesta_id}}/revision`; con las aceptadas,
+  supervisor acepta cada propuesta («Aplicar») o la descarta en `POST /cliente/mejoras/{{propuesta_id}}/revision`; con las aceptadas,
   el equipo arma la versión siguiente sin aprobar en `POST /interno/pautas/{{pauta_id}}/version-siguiente` y la aprueba
   aparte, y la propuesta dice después en `validacion` si el paso dejó de desviarse.
   Las métricas, solo para el supervisor: `GET /cliente/metricas` (el resumen), y `/pautas`, `/pautas/{{pauta_id}}/pasos`,
