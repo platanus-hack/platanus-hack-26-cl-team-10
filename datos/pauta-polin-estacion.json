@@ -11,7 +11,8 @@
       "instruccion": "Aprieta el botón para detener el motor de la cinta. No te acerques mientras siga andando.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
-      "sensor": { "id": "energia", "espera": "cortada" }
+      "sensor": { "id": "energia", "espera": "cortada" },
+      "cumple": ["prot-maqueta-01:M1"]
     },
     {
       "id": "e2",
@@ -29,7 +30,8 @@
       "instruccion": "Espera a que el equipo esté frío antes de tocar el polín.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
-      "sensor": { "id": "equipo", "espera": "frio" }
+      "sensor": { "id": "equipo", "espera": "frio" },
+      "cumple": ["prot-maqueta-01:M3"]
     },
     {
       "id": "e4",

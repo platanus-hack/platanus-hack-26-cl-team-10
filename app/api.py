@@ -22,6 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Res
 from pydantic import AwareDatetime, BaseModel, Field
 
 from app import (acceso, catalogo, cerebro, db, escenarios, inventario, mejora, metricas, protocolos, referencia, reporte,
+                 sugerencias,
                  semilla, skills, verificacion)
 from app.catalogo import ReglaDeNegocio
 from app.guia import guia as texto_de_la_guia
@@ -118,6 +119,19 @@ class ProtocoloNuevo(BaseModel):
     origen: str = ""
     texto: str = ""
     pautas: list[str] = []
+    # los controles críticos, cada uno con id, nombre, orden y, si se sabe, qué exige y con qué evidencia (ADR-0016)
+    controles: list[dict] = []
+
+
+class ProtocoloDeEmpresa(BaseModel):
+    base: str
+    actor: str
+    sufijo: str | None = None
+
+
+class ControlesDeProtocolo(BaseModel):
+    controles: list[dict]
+    actor: str
 
 
 class ProtocoloCambio(BaseModel):
@@ -418,6 +432,14 @@ def leer_protocolo(protocolo_id: str, x_clave_equipo: str | None = Header(defaul
     return catalogo.leer_protocolo(cx, protocolo_id)
 
 
+@app.put("/interno/protocolos/{protocolo_id}/controles")
+def fijar_controles(protocolo_id: str, c: ControlesDeProtocolo, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Aprueba los controles críticos del protocolo: los que el validador le exige a cada pauta que sale de él. Queda
+    quién y cuándo (ADR-0016). 409 si un control no trae id, nombre u orden, o si se repite."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.fijar_controles(cx, protocolo_id, c.controles, c.actor)
+
+
 @app.put("/interno/protocolos/{protocolo_id}")
 def cambiar_protocolo(protocolo_id: str, c: ProtocoloCambio, x_clave_equipo: str | None = Header(default=None)) -> dict:
     """Corrige nombre, industria, origen o texto. El id no cambia."""
@@ -668,6 +690,7 @@ def reporte_de_la_ot(ot_id: str, formato: Literal["json", "markdown"] = Query(de
     ot = acceso.ot_de(cx, p, ot_id, servicios._ots_en_sesion())
     nombres = {x["id"]: x["nombre"] for x in acceso.nombres_de(cx, p["cliente"]["id"])}
     r = reporte.armar(cx, ot, servicios.calificacion(ot_id), nombres)
+    r["mejoras"] = _mejoras_del_reporte(p, r) if p["rol"] == "supervisor" else []
     if formato == "markdown":
         return PlainTextResponse(reporte.markdown(r), media_type="text/markdown; charset=utf-8")
     return r
@@ -718,6 +741,33 @@ def mejoras_del_cliente(estado: Literal["abierta", "aceptada", "descartada", "ap
     return [m for m in todas if estado is None or m["estado"] == estado]
 
 
+def _mejoras_del_reporte(p: dict, r: dict) -> list[dict]:
+    """Las propuestas de la pauta y versión de la OT en que esta OT aportó, y las de conformidad, con su cambio en una
+    línea por paso (app/sugerencias.py)."""
+    salida = []
+    for m in mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"]):
+        if (m["pauta"], m["version"]) != (r["pauta"]["id"], r["pauta"]["version"]):
+            continue
+        if m["tipo"] != "conformidad" and r["ot"] not in m["ots"]:
+            continue
+        salida.append({"propuesta": m["id"], "tipo": m["tipo"], "titulo": m["titulo"], "sugerencia": m["sugerencia"],
+                       "estado": m["estado"], "aplicable": m["aplicable"], "por_que_no": m["por_que_no"],
+                       "cambios_resumen": sugerencias.resumen_de(cx, m)})
+    return salida
+
+
+@app.get("/cliente/mejoras/{propuesta_id}/borrador")
+def borrador_de_mejora(propuesta_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """El cambio concreto que la propuesta haría en la versión siguiente de la pauta: qué pasos agrega, separa o
+    reescribe, con el antes y el después y las OT que lo respaldan, comprobado contra los controles del protocolo. No
+    guarda nada: «Aplicar» es aceptar la propuesta, y la versión la arma Factum. 404 si no es de su empresa."""
+    p = _supervisor(authorization)
+    m = next((m for m in mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"]) if m["id"] == propuesta_id), None)
+    if m is None:
+        raise db.NoExiste(f"propuesta {propuesta_id}")
+    return sugerencias.borrador(cx, m)
+
+
 @app.post("/cliente/mejoras/{propuesta_id}/revision")
 def revisar_mejora(propuesta_id: str, r: Revision, authorization: str | None = Header(default=None)) -> dict:
     """El supervisor valida una propuesta: aceptarla la manda al equipo de Factum para la versión siguiente de la pauta;
@@ -745,6 +795,14 @@ def metricas_por_pauta(desde: date | None = Desde, hasta: date | None = Hasta, o
     """Cada pauta que la empresa ejecutó: cumplimiento, desviaciones por clase, tiempo de ejecución, observaciones y el
     paso que más se desvía. Solo supervisor."""
     return metricas.por_pauta(cx, _ejecuciones(_supervisor(authorization), desde, hasta), orden, limite)
+
+
+@app.get("/cliente/metricas/protocolos")
+def metricas_por_protocolo(desde: date | None = Desde, hasta: date | None = Hasta, orden: OrdenGrupos = Orden,
+                           limite: int = Limite, authorization: str | None = Header(default=None)) -> list[dict]:
+    """Cada protocolo de la empresa, por las OT de las pautas de las que es dueño: cumplimiento, desviaciones, tiempo y
+    el paso que más se desvía. Es la unidad en que la mejora itera (ADR-0018). Solo supervisor."""
+    return metricas.por_protocolo(cx, _ejecuciones(_supervisor(authorization), desde, hasta), orden, limite)
 
 
 @app.get("/cliente/metricas/pautas/{pauta_id}/pasos")
@@ -852,6 +910,24 @@ def mejoras_de_todos(estado: Literal["abierta", "aceptada", "descartada", "aplic
         salida += [{**m, "cliente": c} for m in mejora.propuestas(cx, _ejecuciones(p), c["id"])
                    if estado is None or m["estado"] == estado]
     return salida
+
+
+@app.post("/interno/pautas/{pauta_id}/version-siguiente", status_code=201)
+def version_siguiente(pauta_id: str, a: Aprobacion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Arma y guarda, sin aprobar, la versión siguiente de la pauta con los cambios de todas las propuestas aceptadas de
+    su última versión aprobada. Se aprueba con la ruta de siempre, que rechaza la versión si pierde un control crítico.
+    404 si la pauta no existe; 409 si no hay aceptadas con un cambio que aplicar o ya hay una versión sin aprobar."""
+    _solo_equipo(x_clave_equipo)
+    return sugerencias.version_siguiente(cx, pauta_id, a.actor)
+
+
+@app.post("/interno/clientes/{cliente_id}/protocolos", status_code=201)
+def protocolo_de_empresa(cliente_id: str, p: ProtocoloDeEmpresa, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Copia un protocolo de la biblioteca de Factum para la empresa, con una copia de cada pauta suya, aprobada y
+    habilitada (ADR-0018). Desde acá ese protocolo itera solo. `sufijo` distingue dos del mismo tipo en la empresa, como
+    dos plantas. 404 si la empresa o el protocolo no existen; 409 si la copia ya existe."""
+    _solo_equipo(x_clave_equipo)
+    return catalogo.instanciar(cx, p.base, cliente_id, p.actor, p.sufijo)
 
 
 @app.put("/interno/clientes/{cliente_id}/pautas/{pauta_id}")

@@ -437,7 +437,7 @@ class LaSemillaDeLosCasos(Base):
 
     def test_un_protocolo_da_dos_pautas_la_del_rodillo_y_la_del_polin(self):
         protocolos.cargar_semilla(self.cx)
-        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01", "pauta-polin-demo", "pauta-polin-estacion"])
+        self.assertEqual([p["id"] for p in catalogo.pautas_de(self.cx, "prot-correa-01")], ["pauta-correa-ct-01", "pauta-polin-ct-01"])
 
     def test_se_puede_repetir_sin_duplicar(self):
         a = protocolos.cargar_semilla(self.cx)

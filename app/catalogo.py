@@ -39,6 +39,11 @@ CREATE TABLE IF NOT EXISTS pauta_protocolo (
     pauta_id TEXT NOT NULL, protocolo_id TEXT NOT NULL, atribuida_por TEXT NOT NULL, ts TEXT NOT NULL,
     PRIMARY KEY (pauta_id, protocolo_id)
 );
+-- El protocolo dueño de la pauta: uno solo, el de la tarea que ejecuta. Sus versiones, sus OT, sus propuestas y sus
+-- métricas se iteran en ese protocolo (ADR-0018). Los demás protocolos de pauta_protocolo solo «aplican» (ADR-0016).
+CREATE TABLE IF NOT EXISTS pauta_duena (
+    pauta_id TEXT PRIMARY KEY, protocolo_id TEXT NOT NULL, por TEXT NOT NULL, ts TEXT NOT NULL
+);
 """
 
 
@@ -48,6 +53,13 @@ class ReglaDeNegocio(Exception):
 
 def preparar(cx: sqlite3.Connection) -> None:
     cx.executescript(_ESQUEMA)
+    # Los controles críticos de cada protocolo, como datos (ADR-0016). Una base anterior no tiene las columnas.
+    columnas = {f["name"] for f in cx.execute("PRAGMA table_info(protocolos)").fetchall()}
+    for columna, tipo in (("controles", "TEXT NOT NULL DEFAULT '[]'"), ("controles_por", "TEXT"), ("controles_en", "TEXT"),
+                          ("cliente_id", "TEXT")):  # sin cliente: de la biblioteca de Factum (ADR-0018)
+        if columna not in columnas:
+            cx.execute(f"ALTER TABLE protocolos ADD COLUMN {columna} {tipo}")  # columna y tipo son constantes de acá
+    cx.commit()
 
 
 # ─── Pautas ─────────────────────────────────────────────────────────────────
@@ -88,11 +100,30 @@ def crear_pauta(cx: sqlite3.Connection, d: dict) -> dict:
     return resumen_pauta(cx, pauta)
 
 
+def hallazgos_de_conformidad(cx: sqlite3.Connection, pauta: Pauta) -> list[dict]:
+    from app import analisis  # acá adentro: analisis no depende del catálogo
+
+    return analisis.conformidad(pauta, controles_de(cx, pauta.id))["hallazgos"]
+
+
 def aprobar_pauta(cx: sqlite3.Connection, pauta_id: str, version: int, actor: str) -> dict:
-    """Una persona aprueba antes de que la pauta se use (ADR-0003)."""
+    """Una persona aprueba antes de que la pauta se use (ADR-0003).
+
+    Una versión nueva no se aprueba si le falta un control crítico que la versión aprobada anterior cumplía: la mejora
+    continua puede reescribir un paso, nunca sacar o juntar un control (ADR-0016). Lo que ya le faltaba a la anterior
+    no bloquea: es un hallazgo abierto, que se revisa en las mejoras."""
     pauta = db.leer_pauta(cx, pauta_id, version)
     if not actor or actor == "sistema":
         raise ReglaDeNegocio("una pauta la aprueba una persona, no el sistema")
+    anterior = ultima_aprobada(cx, pauta_id)
+    if anterior is not None and anterior < version:
+        previa = db.leer_pauta(cx, pauta_id, anterior)
+        anotados = {c.split(":")[0] for p in previa.pasos for c in p.cumple}  # una versión sin `cumple` no se compara
+        antes = {h["clave"] for h in hallazgos_de_conformidad(cx, previa)}
+        nuevos = [h for h in hallazgos_de_conformidad(cx, pauta) if h["clave"] not in antes and h["protocolo"] in anotados]
+        if nuevos:
+            raise ReglaDeNegocio(f"la pauta {pauta_id} v{version} pierde controles críticos que la v{anterior} cumplía: "
+                                 + "; ".join(h["detalle"] for h in nuevos))
     try:
         cx.execute(
             "INSERT INTO aprobaciones (pauta_id, version, aprobada_por, ts) VALUES (?, ?, ?, ?)",
@@ -291,7 +322,11 @@ def pautas_de(cx: sqlite3.Connection, protocolo_id: str) -> list[dict]:
 
 def _protocolo_dict(cx: sqlite3.Connection, f: sqlite3.Row, con_texto: bool) -> dict:
     d = {"id": f["id"], "nombre": f["nombre"], "industria": f["industria"], "origen": f["origen"],
-         "creado_por": f["creado_por"], "creado_en": f["ts"], "pautas": pautas_de(cx, f["id"])}
+         "creado_por": f["creado_por"], "creado_en": f["ts"], "pautas": pautas_de(cx, f["id"]),
+         "controles": json.loads(f["controles"] or "[]"), "cliente": f["cliente_id"],
+         "propias": [r["pauta_id"] for r in cx.execute(
+             "SELECT pauta_id FROM pauta_duena WHERE protocolo_id = ? ORDER BY pauta_id", (f["id"],)).fetchall()],
+         "controles_aprobados": {"por": f["controles_por"], "en": f["controles_en"]} if f["controles_por"] else None}
     if con_texto:
         d["texto"] = f["texto"]
     return d
@@ -314,7 +349,122 @@ def crear_protocolo(cx: sqlite3.Connection, d: dict, actor: str) -> dict:
     cx.commit()
     for pauta_id in pautas:
         atribuir(cx, pauta_id, protocolo_id, actor)
+    if d.get("controles"):
+        fijar_controles(cx, protocolo_id, d["controles"], actor)
     return leer_protocolo(cx, protocolo_id)
+
+
+def _controles_validos(controles: Sequence[dict]) -> list[dict]:
+    salida, ids = [], set()
+    for c in controles:
+        cid, nombre = str(c.get("id") or "").strip(), str(c.get("nombre") or "").strip()
+        if not cid or not nombre or ":" in cid:
+            raise ReglaDeNegocio("cada control necesita id (sin «:») y nombre")
+        if cid in ids:
+            raise ReglaDeNegocio(f"el control {cid} está dos veces")
+        if not isinstance(c.get("orden"), int):
+            raise ReglaDeNegocio(f"el control {cid} necesita su orden, un entero")
+        ids.add(cid)
+        salida.append({"id": cid, "nombre": nombre, "orden": c["orden"], "exige": str(c.get("exige") or ""),
+                       "evidencia": str(c.get("evidencia") or "")})
+    return sorted(salida, key=lambda c: c["orden"])
+
+
+def fijar_controles(cx: sqlite3.Connection, protocolo_id: str, controles: Sequence[dict], actor: str) -> dict:
+    """Los controles críticos del protocolo, con su orden. Los propone la skill que lee el protocolo y los aprueba una
+    persona del equipo (ADR-0016): queda quién y cuándo. Cambiarlos cambia lo que el validador le exige a cada pauta.
+
+    shortcut: los protocolos todavía no tienen versiones; cuando las tengan, los controles van por versión."""
+    _fila_protocolo(cx, protocolo_id)
+    _exige_persona(actor, "aprobar los controles de un protocolo")
+    validos = _controles_validos(controles)
+    cx.execute("UPDATE protocolos SET controles = ?, controles_por = ?, controles_en = ? WHERE id = ?",
+               (json.dumps(validos, ensure_ascii=False), actor, db.ahora(), protocolo_id))
+    cx.commit()
+    return leer_protocolo(cx, protocolo_id)
+
+
+def fijar_duena(cx: sqlite3.Connection, pauta_id: str, protocolo_id: str, actor: str) -> None:
+    """El protocolo dueño de la pauta. Tiene que aplicarle: se atribuye si no lo estaba."""
+    _exige_persona(actor, "darle un protocolo dueño a una pauta")
+    atribuir(cx, pauta_id, protocolo_id, actor)
+    cx.execute("INSERT OR REPLACE INTO pauta_duena (pauta_id, protocolo_id, por, ts) VALUES (?, ?, ?, ?)",
+               (pauta_id, protocolo_id, actor, db.ahora()))
+    cx.commit()
+
+
+def protocolo_dueno(cx: sqlite3.Connection, pauta_id: str) -> str | None:
+    f = cx.execute("SELECT protocolo_id FROM pauta_duena WHERE pauta_id = ?", (pauta_id,)).fetchone()
+    return f["protocolo_id"] if f else None
+
+
+def _copiar_protocolo(cx: sqlite3.Connection, base: dict, nuevo_id: str, cliente_id: str, actor: str) -> None:
+    cx.execute("INSERT INTO protocolos (id, nombre, industria, origen, texto, creado_por, ts, cliente_id) "
+               "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+               (nuevo_id, base["nombre"], base["industria"], f"adaptado de {base['id']}", base["texto"], actor, db.ahora(),
+                cliente_id))
+    cx.commit()
+    if base["controles"]:
+        fijar_controles(cx, nuevo_id, base["controles"], actor)
+
+
+def instanciar(cx: sqlite3.Connection, base_id: str, cliente_id: str, actor: str, sufijo: str | None = None) -> dict:
+    """El protocolo de una empresa, copiado de la biblioteca de Factum, con una copia de cada pauta que el de la
+    biblioteca tiene como propia (ADR-0018). Desde acá cada copia itera sola: sus versiones, OT, propuestas y métricas no
+    tocan las de otro protocolo, de esta empresa o de otra.
+
+    `sufijo` distingue dos protocolos del mismo tipo en una empresa (una planta, un área). Los protocolos que además le
+    aplican a la pauta, como el de aislamiento, se copian una vez por empresa y se comparten dentro de ella."""
+    from app import acceso  # acá adentro: acceso depende del catálogo
+
+    _exige_persona(actor, "cargar el protocolo de una empresa")
+    base = leer_protocolo(cx, base_id)
+    if base["cliente"]:
+        raise ReglaDeNegocio(f"{base_id} es de la empresa {base['cliente']}: se copia desde la biblioteca, no desde otra empresa")
+    if not cx.execute("SELECT 1 FROM clientes WHERE id = ?", (cliente_id,)).fetchone():
+        raise db.NoExiste(f"cliente {cliente_id}")
+    marca = f"{cliente_id}--{sufijo}" if sufijo else cliente_id
+    if "--" in cliente_id or (sufijo and ("--" in sufijo or ":" in sufijo)):
+        raise ReglaDeNegocio("el cliente y el sufijo no pueden llevar «--» ni «:»")
+    nuevo_id = f"{base_id}--{marca}"
+    if cx.execute("SELECT 1 FROM protocolos WHERE id = ?", (nuevo_id,)).fetchone():
+        raise ReglaDeNegocio(f"el protocolo {nuevo_id} ya existe")
+    _copiar_protocolo(cx, base, nuevo_id, cliente_id, actor)
+    copias = {base_id: nuevo_id}
+    pautas = []
+    for pauta_id in base["propias"]:
+        version = ultima_aprobada(cx, pauta_id)
+        if version is None:
+            continue
+        original = db.leer_pauta(cx, pauta_id, version)
+        for otro in [p["id"] for p in protocolos_de(cx, pauta_id)]:
+            if otro not in copias:
+                copia = f"{otro}--{cliente_id}"
+                if not cx.execute("SELECT 1 FROM protocolos WHERE id = ?", (copia,)).fetchone():
+                    _copiar_protocolo(cx, leer_protocolo(cx, otro), copia, cliente_id, actor)
+                copias[otro] = copia
+        cumple = lambda cs: tuple(f"{copias.get(c.split(':')[0], c.split(':')[0])}:{c.split(':')[1]}" for c in cs)  # noqa: E731
+        from dataclasses import replace
+
+        pauta = replace(original, id=f"{pauta_id}--{marca}", version=1,
+                        pasos=tuple(replace(p, cumple=cumple(p.cumple)) for p in original.pasos))
+        db.guardar_pauta(cx, pauta)
+        for otro in [p["id"] for p in protocolos_de(cx, pauta_id)]:
+            atribuir(cx, pauta.id, copias[otro], actor)
+        fijar_duena(cx, pauta.id, nuevo_id, actor)
+        aprobar_pauta(cx, pauta.id, 1, actor)
+        acceso.habilitar(cx, cliente_id, pauta.id)
+        pautas.append({"id": pauta.id, "de": f"{pauta_id} v{version}"})
+    return {"protocolo": leer_protocolo(cx, nuevo_id), "pautas": pautas,
+            "tambien_aplican": sorted(v for k, v in copias.items() if k != base_id)}
+
+
+def controles_de(cx: sqlite3.Connection, pauta_id: str) -> list[dict]:
+    """Los protocolos que aplican a la pauta, cada uno con sus controles críticos aprobados."""
+    filas = cx.execute(
+        "SELECT p.id, p.nombre, p.controles FROM pauta_protocolo a JOIN protocolos p ON p.id = a.protocolo_id"
+        " WHERE a.pauta_id = ? ORDER BY p.id", (pauta_id,)).fetchall()
+    return [{"id": f["id"], "nombre": f["nombre"], "controles": json.loads(f["controles"] or "[]")} for f in filas]
 
 
 def leer_protocolo(cx: sqlite3.Connection, protocolo_id: str) -> dict:

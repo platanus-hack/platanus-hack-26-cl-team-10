@@ -96,6 +96,8 @@ class Paso:
     deteccion: Deteccion | None = None
     # id del paso cuya foto es el «antes»: el juez compara esa foto con la de ahora
     comparar_con: str | None = None
+    # qué controles críticos de qué protocolos cumple el paso, como «prot-aislamiento-01:A3» (ADR-0016)
+    cumple: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.tipo_evidencia is TipoEvidencia.SENSOR and self.sensor is None:
@@ -106,6 +108,9 @@ class Paso:
             raise ValueError(f"paso {self.id}: deteccion solo aplica a pasos de camara")
         if self.comparar_con is not None and self.tipo_evidencia is not TipoEvidencia.CAMARA:
             raise ValueError(f"paso {self.id}: comparar_con solo aplica a pasos de camara")
+        for c in self.cumple:
+            if c.count(":") != 1 or not all(c.split(":")):
+                raise ValueError(f"paso {self.id}: cumple lleva «protocolo:control», no «{c}»")
 
     @classmethod
     def desde_dict(cls, d: dict) -> Paso:
@@ -122,6 +127,7 @@ class Paso:
             sensor=Sensor(s["id"], s["espera"]) if s else None,
             deteccion=Deteccion(det["clase"], bool(det.get("presente", True))) if det else None,
             comparar_con=d.get("comparar_con"),
+            cumple=tuple(d.get("cumple") or ()),
         )
 
 

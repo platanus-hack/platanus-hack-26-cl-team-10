@@ -372,9 +372,10 @@ def montecarlo_peor_paso(pasos: int, ots: int, base: float, repeticiones: int = 
     return {"ingenua": ingenua / repeticiones, "fisher": fisher / repeticiones}
 
 
-def montecarlo_aviso(pasos: int, ots: int, base: float, recurrente: float | None, alfa: float,
+def montecarlo_aviso(pasos: int, ots: int, base: float, recurrente: float | None, alfa,
                      repeticiones: int = 500, semilla: int = 0) -> dict:
-    """El aviso en vivo: se prueba después de cada OT, como hace servicios._vigilar_patrones.
+    """El aviso en vivo: se prueba después de cada OT, como hace servicios._vigilar_patrones. `alfa` es un número fijo o
+    una función de la cantidad de OT, como `mejora.alfa_en_vivo`.
 
     `falso_aviso`: pautas donde en algún momento de las `ots` se marcó un paso sin patrón. `detecta_en`: la mediana
     de la OT en que se marcó el paso con patrón, y `detecta_antes_de`: la fracción que lo marcó dentro de las `ots`."""
@@ -387,7 +388,7 @@ def montecarlo_aviso(pasos: int, ots: int, base: float, recurrente: float | None
         for t in range(1, ots + 1):
             for j in range(pasos):
                 cuenta[j] += rng.random() < (recurrente if j == 0 and recurrente is not None else base)
-            r = recurrencia.recurrentes({f"p{j}": cuenta[j] for j in range(pasos)}, t, alfa)
+            r = recurrencia.recurrentes({f"p{j}": cuenta[j] for j in range(pasos)}, t, alfa(t) if callable(alfa) else alfa)
             marcados = {k for k, d in r.items() if d["recurrente"]}
             falso = falso or bool(marcados - ({"p0"} if recurrente is not None else set()))
             if recurrente is not None and primero is None and "p0" in marcados:
@@ -399,3 +400,98 @@ def montecarlo_aviso(pasos: int, ots: int, base: float, recurrente: float | None
     return {"falso_aviso": falsos / repeticiones,
             "detecta_antes_de": len(cuando) / repeticiones if recurrente is not None else None,
             "detecta_en": cuando[len(cuando) // 2] if cuando else None}
+
+
+# ─── Convergencia: varias vueltas de mejora, un protocolo por empresa en paralelo (ADR-0018) ─
+
+
+@dataclass
+class Caso:
+    """Un protocolo de una empresa, con la conducta de sus operarios: lo que itera por su cuenta."""
+
+    cliente: str
+    base: str
+    sufijo: str | None
+    pauta_base: str
+    patrones: Sequence[Patron]
+    ruido: float = 0.05
+
+
+def iterar_en_paralelo(casos: Sequence[Caso], iteraciones: int = 5, ots_por_iteracion: int = 30, semilla: int = 0,
+                       politica: str = "recurrencia") -> dict[str, list[dict]]:
+    """Corre las vueltas de mejora de cada caso sobre una misma base, como hace Factum con sus clientes.
+
+    En cada vuelta, cada protocolo ejecuta sus OT con su versión vigente. Después Factum lee las propuestas por
+    desviación de esa versión y, según la política:
+    - `recurrencia`: acepta las que se distinguen del ruido con el α del aviso (`recurrencia.en_vivo`, las mismas que le
+      llegan al supervisor) y escribe la versión siguiente;
+      si la propuesta dice `escalar`, no escribe otra versión: la lleva a la supervisión, y esa decisión queda firme
+      mientras dure la versión.
+    - `minimo`: acepta toda propuesta que nació con la regla de dos OT, como antes del 2026-11-21.
+    El efecto de la versión nueva es el declarado en PERFILES para la causa, y se aplica una vez por paso: un mismo
+    remedio no se acumula. Devuelve, por caso, una fila por vuelta.
+    """
+    from dataclasses import replace
+
+    from app import protocolos as semilla_
+
+    cx = db.conectar(":memory:")
+    _Servicios(cx, Bus(), _Video())
+    semilla_.cargar_semilla(cx)
+    estado = {}
+    for i, caso in enumerate(casos):
+        if not cx.execute("SELECT 1 FROM clientes WHERE id = ?", (caso.cliente,)).fetchone():
+            acceso.crear_cliente(cx, caso.cliente, f"Empresa {caso.cliente}", "mineria")
+        r = catalogo.instanciar(cx, caso.base, caso.cliente, "equipo:factum", caso.sufijo)
+        pauta_id = next(p["id"] for p in r["pautas"] if p["de"].startswith(caso.pauta_base + " "))
+        sim = Simulador(db.leer_pauta(cx, pauta_id, 1), cx=cx, cliente=caso.cliente)
+        clave = r["protocolo"]["id"]
+        estado[clave] = {"caso": caso, "sim": sim, "factores": {}, "remediados": set(), "escalados": set(), "historia": [],
+                         "semilla": semilla + 1000 * i}
+    for vuelta in range(1, iteraciones + 1):
+        for clave, e in estado.items():
+            caso, sim = e["caso"], e["sim"]
+            antes = len(sim.corrida.ots)
+            sim.correr(ots_por_iteracion, caso.patrones, ruido=caso.ruido, semilla=e["semilla"] + vuelta, factores=e["factores"])
+            nuevas = set(sim.corrida.ots[antes:])
+            pauta = sim.corrida.pauta
+            con_senal = {}
+            for v in sim.corrida.verdad:
+                if v["ot"] in nuevas and v["perfil"] != "ruido":
+                    con_senal[v["paso"]] = con_senal.get(v["paso"], 0) + 1
+            es = [x for x in sim.corrida.ejecuciones() if x.pauta.id == pauta.id]
+            props = [p for p in mejora.propuestas(cx, es, caso.cliente)
+                     if p["tipo"] == "desviacion" and p["pauta"] == pauta.id and p["version"] == pauta.version and p["estado"] == "abierta"]
+            if politica == "recurrencia":
+                # Una escalada queda firme dentro de la versión: Factum la llevó a la supervisión y no vuelve sobre ella
+                # porque una mirada siguiente la vea al borde del umbral (la validación oscila cerca de p = 0,05).
+                e["escalados"] |= {(pauta.version, p["paso"]) for p in props if p["escalar"]}
+                actuar = [p for p in props if (p["recurrencia"] or {}).get("en_vivo") and (pauta.version, p["paso"]) not in e["escalados"]]
+                escaladas = sorted(paso for v, paso in e["escalados"] if v == pauta.version)
+            else:
+                actuar, escaladas = props, []
+            for p in actuar:
+                mejora.revisar(cx, es, caso.cliente, p["id"], "aceptar", "", "supervisor:simulacion")
+            if actuar:
+                for patron in caso.patrones:
+                    senal = senal_esperada(pauta, patron.paso, PERFILES[patron.perfil].modo)
+                    perfil = PERFILES[patron.perfil]
+                    tocado = senal and any(p["paso"] == senal[0] for p in actuar)
+                    if tocado and patron.paso not in e["remediados"]:
+                        e["remediados"].add(patron.paso)
+                        if perfil.arreglable and perfil.efecto_v2 is not None:
+                            e["factores"][patron.perfil] = perfil.efecto_v2
+                sim.versionar(replace(pauta, version=pauta.version + 1))
+            e["historia"].append({
+                "vuelta": vuelta, "version": pauta.version, "ots": len(nuevas),
+                "desviaciones_con_patron": sum(con_senal.values()),
+                "tasa_del_patron": round(sum(con_senal.values()) / len(nuevas), 3) if nuevas else None,
+                "propuestas": [p["paso"] for p in props], "actuadas": [p["paso"] for p in actuar], "escaladas": escaladas,
+                "version_nueva": bool(actuar),
+            })
+    return {clave: e["historia"] for clave, e in estado.items()}
+
+
+def convergio(historia: Sequence[dict], ultimas: int = 2) -> bool:
+    """Convergió si en las últimas vueltas Factum no tuvo que escribir otra versión."""
+    return all(not h["version_nueva"] for h in historia[-ultimas:])

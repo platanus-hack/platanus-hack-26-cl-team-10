@@ -188,6 +188,13 @@ def markdown(r: dict) -> str:
         lineas += [f"- {x['que'].capitalize()} por {x['quien']}, {_cuando(x['hora'])} (evento {x['evento']})" for x in r["relevos"]]
     if r["pendientes"]:
         lineas += ["", "## Pendiente", "", ", ".join(r["pendientes"])]
+    if r.get("mejoras"):
+        lineas += ["", "## Mejoras sugeridas", ""]
+        for m in r["mejoras"]:
+            lineas.append(f"- **{m['titulo']}** ({m['tipo']}, {m['estado']}): {m['sugerencia']}")
+            lineas += [f"  - {c}" for c in m["cambios_resumen"]]
+            if not m["aplicable"] and m["por_que_no"]:
+                lineas.append(f"  - No se aplica sola: {m['por_que_no']}")
     lineas += ["", f"Armado desde los eventos {r['eventos']['primero']} a {r['eventos']['ultimo']} de la bitácora "
                    f"({r['eventos']['total']}). Nada de este reporte lo redactó un modelo."]
     return "\n".join(lineas) + "\n"

@@ -1,6 +1,6 @@
 # Simulación de la mejora continua
 
-> Generado por `scripts/simular_mejora.py` el 2026-11-21, con 2000 repeticiones por fila de Monte Carlo y 100 pautas de punta a punta. **Datos simulados.** Miden si el sistema distingue un patrón del ruido y si se adjudica mejoras que no causó; no miden cuánto se desvía un operario real ni cuánto sirve reescribir una pauta. Se regenera, no se edita a mano.
+> Generado por `scripts/simular_mejora.py` el 2026-11-22, con 2000 repeticiones por fila de Monte Carlo y 100 pautas de punta a punta. **Datos simulados.** Miden si el sistema distingue un patrón del ruido y si se adjudica mejoras que no causó; no miden cuánto se desvía un operario real ni cuánto sirve reescribir una pauta. Se regenera, no se edita a mano.
 
 La pauta es `pauta-polin-demo` (8 pasos, 6 controles críticos). Las OT pasan por `app/servicios.py` real; la conducta simulada queda aparte de la bitácora, así cada propuesta se puede revisar contra lo que de verdad pasó.
 
@@ -81,17 +81,36 @@ La v1 y la v2 con OT distintas, un paso al 30 %. Hasta el 2026-11-21 `mejora.py`
 
 ## 4 · El aviso en vivo al supervisor
 
-La recomendación le aparece al supervisor apenas un paso se vuelve recurrente: la prueba corre después de cada señal (`servicios._vigilar_patrones`). Mirar después de cada OT es probar muchas veces, y eso infla los avisos falsos; por eso el aviso usa un α más estricto que la columna `recurrencia` de las propuestas.
+La recomendación le aparece al supervisor apenas un paso se vuelve recurrente: la prueba corre después de cada señal (`servicios._vigilar_patrones`). Mirar después de cada OT es probar muchas veces, y con un α fijo mirar sin fin termina dando un aviso falso con seguridad. Por eso el aviso, la versión que escribe Factum y la escalada reparten su α entre las miradas: la k-ésima OT de una versión gasta 0.05·6/(π²k²) (`mejora.alfa_en_vivo`), y como esa serie suma 0.05, la probabilidad de un aviso falso en toda la vida de una versión no pasa de 0.05, por muchas OT que se ejecuten. El costo es detectar más tarde un patrón moderado; un paso que se salta en cada OT, con el resto limpio, sigue avisando a la tercera.
 
-| α del aviso | Aviso falso en 50 OT de solo ruido | Detecta un paso al 30 % dentro de 50 OT | OT de la detección (mediana) |
+| α del aviso | Aviso falso en 200 OT de solo ruido | Detecta un paso al 30 % dentro de 200 OT | OT de la detección (mediana) |
 |---|---|---|---|
-| 0.05 | 16 % | 99 % | 12 |
-| 0.01 | 5,2 % | 98 % | 16 |
-| 0.005 (el de `mejora.ALFA_AVISO`) | 2,9 % | 97 % | 18 |
+| 0,05 fijo | 33 % | 100 % | 11 |
+| 0,005 fijo | 4,8 % | 100 % | 18 |
+| repartido, `mejora.alfa_en_vivo` | 0,6 % | 100 % | 31 |
 
-De punta a punta, en la pauta del demo (`pauta-polin-estacion`, 7 pasos): el operario se acerca sin apagar el motor en el 30 % de las OT, con ruido al 5 % en el resto. En 100 corridas de 30 OT, la recomendación sobre «Apagar el motor» le llegó al supervisor en la OT 15 (mediana), no llegó en 10, y 2 corridas tuvieron además un aviso sobre otro paso. Si los demás pasos están limpios, el aviso llega a la tercera OT seguida que se salta el mismo paso (`tests/test_simulacion.py`).
+De punta a punta, en la pauta del demo (`pauta-polin-estacion`, 7 pasos): el operario se acerca sin apagar el motor en el 30 % de las OT, con ruido al 5 % en el resto. En 100 corridas de 30 OT, la recomendación sobre «Apagar el motor» le llegó al supervisor en la OT 17 (mediana), no llegó en 39, y 0 corridas tuvieron además un aviso sobre otro paso. Si los demás pasos están limpios, en una versión recién aprobada el aviso llega a la tercera OT seguida que se salta el mismo paso (`tests/test_simulacion.py`); si la versión ya trae 4 OT limpias, a la cuarta (`tests/test_mejora_y_metricas.py`), porque el α de cada mirada depende de cuántas OT lleva la versión.
 
-## 5 · Las escenas del demo, de punta a punta
+## 5 · Convergencia: varios protocolos mejorando en paralelo
+
+Cada empresa itera cada protocolo por su cuenta (ADR-0018). En cada vuelta, cada protocolo ejecuta sus OT con su versión vigente; después Factum lee sus propuestas por desviación y escribe la versión siguiente de las que se distinguen del ruido con el α repartido, o escala a la supervisión las que `mejora.py` marca `escalar`: un paso que vuelve a ser recurrente después de un cambio que no lo bajó. Una escalada queda firme mientras dure la versión. El efecto de cada versión es el declarado en los perfiles y se aplica una vez por paso. Se compara con la regla anterior, que versiona toda propuesta de dos OT.
+
+| Protocolo | Política | Convergió | Versiones escritas (mediana · máx.) | Tasa del patrón: 1.ª vuelta → últimas 3 | Escaló a la supervisión |
+|---|---|---|---|---|---|
+| Planta A: olvido en «Poner tu candado» | recurrencia, α repartido | 9 de 10 | 2 · 2 | 0.29 → 0.07 | 2 de 10 |
+| Planta A: olvido en «Poner tu candado» | regla de 2 OT | 0 de 10 | 12 · 12 | 0.29 → 0.07 | 0 de 10 |
+| Planta B: presión en «Volver a poner la tapa» | recurrencia, α repartido | 10 de 10 | 1 · 1 | 0.27 → 0.35 | 10 de 10 |
+| Planta B: presión en «Volver a poner la tapa» | regla de 2 OT | 0 de 10 | 12 · 12 | 0.27 → 0.35 | 0 de 10 |
+| Otra empresa: solo ruido | recurrencia, α repartido | 10 de 10 | 0 · 0 | 0.00 → 0.00 | 0 de 10 |
+| Otra empresa: solo ruido | regla de 2 OT | 0 de 10 | 11 · 12 | 0.00 → 0.00 | 0 de 10 |
+
+Con la recurrencia ningún protocolo pasó de 2 versiones en 12 vueltas; con la regla de 2 OT, hasta 12.
+
+10 semillas por política, 12 vueltas de 30 OT por protocolo, los tres protocolos sobre la misma base. «Convergió»: Factum no escribió otra versión en las 2 últimas vueltas. «Tasa del patrón»: la fracción de OT en que la conducta simulada se dio, sin contar el ruido.
+
+Lo que muestra: con la regla de 2 OT, Factum escribe una versión en casi todas las vueltas y en los tres protocolos, también en el que solo tiene ruido: no converge. Con la recurrencia y el α repartido, el protocolo con solo ruido no recibe ninguna versión, el de la presión recibe una, no mejora y se escala, y el del olvido baja su tasa con la verificación de THERP y para; si el resto del olvido sigue sobre el ruido, intenta una segunda versión y, como no lo baja, escala.
+
+## 6 · Las escenas del demo, de punta a punta
 
 50 OT con la v1 y 50 OT nuevas con la v2, ruido 5 % en todos los pasos. Cada tabla son las propuestas de la v1 con su validación contra la v2.
 

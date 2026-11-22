@@ -12,7 +12,8 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "seccionador", "espera": "abierto" }
+      "sensor": { "id": "seccionador", "espera": "abierto" },
+      "cumple": ["prot-aislamiento-01:A1"]
     },
     {
       "id": "p2",
@@ -22,7 +23,8 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "candado_mando", "espera": "cerrado" }
+      "sensor": { "id": "candado_mando", "espera": "cerrado" },
+      "cumple": ["prot-aislamiento-01:A2"]
     },
     {
       "id": "p3",
@@ -32,7 +34,8 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "tension", "espera": "ausente" }
+      "sensor": { "id": "tension", "espera": "ausente" },
+      "cumple": ["prot-aislamiento-01:A3"]
     },
     {
       "id": "p4",

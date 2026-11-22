@@ -2,7 +2,7 @@
 // (app/reporte.py), las propuestas de mejora (app/mejora.py) y la foto de la empresa (app/metricas.py).
 
 import { ALIMENTAN_MEJORAS, senalesDe } from '../api/mejoras'
-import type { CierreReporte, DesviacionReporte, EstadoGeneral, EstadoMejora, Evento, Mejora, Metricas, ReporteOt, SenalMejora } from '../api/tipos'
+import type { Borrador, CambioBorrador, CierreReporte, DesviacionReporte, EstadoGeneral, EstadoMejora, Evento, Mejora, Metricas, ReporteOt, SenalMejora } from '../api/tipos'
 import type { Mundo } from './mundo'
 
 /** Como mejora.MINIMO: una desviación suelta no es una propuesta. */
@@ -37,13 +37,14 @@ const esObservacion = (ev: Evento) => ev.tipo === 'observacion' && ALIMENTAN_MEJ
 
 export function mejorasDe(m: Mundo): Mejora[] {
   const ots = m.resumenes()
-  type Grupo = { ots: number; senales: Record<SenalMejora, number>; operarios: Set<string>; observaciones: Mejora['observaciones'] }
+  type Grupo = { ots: number; ids: string[]; senales: Record<SenalMejora, number>; operarios: Set<string>; observaciones: Mejora['observaciones'] }
   const grupos = new Map<string, Grupo>()
   for (const o of ots) {
     const eventos = m.eventos(o.ot)
     for (const [paso, senales] of senalesDe(eventos)) {
-      const g = grupos.get(paso) ?? { ots: 0, senales: { seguridad: 0, orden: 0, control: 0, conflicto: 0, persona: 0, observacion: 0 }, operarios: new Set(), observaciones: [] }
+      const g = grupos.get(paso) ?? { ots: 0, ids: [], senales: { seguridad: 0, orden: 0, control: 0, conflicto: 0, persona: 0, observacion: 0 }, operarios: new Set(), observaciones: [] }
       g.ots++
+      g.ids.push(o.ot)
       for (const s of SENALES) g.senales[s] += senales[s] ?? 0
       if (o.operador) g.operarios.add(o.operador)
       for (const ev of eventos) {
@@ -61,6 +62,11 @@ export function mejorasDe(m: Mundo): Mejora[] {
     const dominantes = SENALES.filter((s) => g.senales[s] > 0).sort((a, b) => g.senales[b] - g.senales[a])
     const pid = `${id}:v${version}:${pasoId}`
     const revision = m.revisionDe(pid)
+    const estado = revision ? ESTADO_DE[revision.decision] : 'abierta'
+    // Como app/sugerencias.py: si la señal que domina es la del sensor, el cambio no va en la pauta.
+    const porQueNo = dominantes[0] === 'persona'
+      ? 'La evidencia no vio el paso y una persona lo confirmó: hay que revisar el sensor o la cámara, no la pauta.'
+      : estado !== 'abierta' && estado !== 'aceptada' ? 'Ya se decidió.' : null
     salida.push({
       id: pid, pauta: id, nombre, version,
       paso: pasoId, titulo: paso.titulo, control_critico: paso.control_critico,
@@ -70,9 +76,14 @@ export function mejorasDe(m: Mundo): Mejora[] {
       motivo: `«${paso.titulo}» tuvo señales en ${g.ots} de ${ots.length} OT de la versión ${version}, con ${g.operarios.size} operarios distintos`,
       sugerencia: [...dominantes.map((s) => SUGERENCIAS[s]), ...(paso.control_critico ? [CONTROL_CRITICO] : [])].join(' '),
       // el mock no prueba la recurrencia (app/recurrencia.py) ni avisa en vivo: eso lo cubren los tests del servidor
+      tipo: 'desviacion',
+      conformidad: null,
       recurrencia: null,
       detectada: null,
-      estado: revision ? ESTADO_DE[revision.decision] : 'abierta',
+      ots: g.ids,
+      aplicable: porQueNo === null,
+      por_que_no: porQueNo,
+      estado,
       revision,
       validacion: null,
     })
@@ -181,7 +192,46 @@ export function reporteDe(m: Mundo, otId: string, nombreDe: (id: string) => stri
       .filter((e) => e.tipo === 'relevo_entregado' || e.tipo === 'relevo_recibido')
       .map((e) => ({ que: e.tipo === 'relevo_entregado' ? ('entregado' as const) : ('recibido' as const), quien: nombreDe(e.actor), resumen: e.detalle, hora: e.ts, evento: e.id })),
     eventos: { total: eventos.length, primero: eventos[0]?.id ?? null, ultimo: eventos.at(-1)?.id ?? null },
+    mejoras: [...mejorasDe(m), ...m.mejoras]
+      .filter((x) => x.tipo === 'conformidad' || x.ots.includes(otId))
+      .map((x) => ({
+        propuesta: x.id, tipo: x.tipo, titulo: x.titulo, sugerencia: x.sugerencia, estado: x.estado,
+        aplicable: x.aplicable, por_que_no: x.por_que_no,
+        cambios_resumen: x.aplicable ? borradorDe(m, x).cambios.map(resumenDeCambio) : [],
+      })),
   }
+}
+
+const resumenDeCambio = (c: CambioBorrador) =>
+  c.tipo === 'agrega' ? `Agrega «${c.despues.titulo}»`
+    : c.tipo === 'separa' ? `Separa «${c.antes?.titulo}» en dos pasos`
+      : `Reescribe «${c.despues.titulo}»: ${c.despues.instruccion}`
+
+/**
+ * El borrador del mock, con las reglas deterministas de app/sugerencias.py: una desviación reescribe el paso con una
+ * frase de cuándo está hecho; una falta de conformidad agrega el paso del control. No hay capa de LLM en el mock.
+ */
+export function borradorDe(m: Mundo, x: Mejora): Borrador {
+  const base = { propuesta: x.id, aplicable: x.aplicable, por_que_no: x.por_que_no, pauta: x.pauta, desde_version: x.version, version: x.version + 1, redactado_por: 'codigo' }
+  if (!x.aplicable) return { ...base, cambios: [], comprobacion: { valida: true, hallazgos_nuevos: [] } }
+  const paso = m.paso(x.paso ?? '')
+  const citadas = x.ots.length ? `En ${x.ots.join(' y ')} el paso dio señales.` : 'Lo dice la pauta misma, sin esperar ninguna OT.'
+  const cambio: CambioBorrador = x.tipo === 'conformidad'
+    ? {
+        tipo: 'agrega', paso: null, antes: null,
+        despues: { titulo: x.titulo, instruccion: `${x.titulo}, antes de seguir.`, tipo_evidencia: 'confirmacion', cumple: x.conformidad ? [`${x.conformidad.protocolo}:${x.conformidad.control}`] : [] },
+        porque: `${x.motivo} ${citadas}`, ots: x.ots,
+      }
+    : {
+        tipo: 'reescribe', paso: x.paso, antes: paso ? { titulo: paso.titulo, instruccion: paso.instruccion } : null,
+        despues: {
+          titulo: paso?.titulo ?? x.titulo,
+          instruccion: `${paso?.instruccion ?? ''} No sigas al paso siguiente hasta que este quede verificado.`.trim(),
+          tipo_evidencia: paso?.tipo_evidencia ?? 'confirmacion', cumple: [],
+        },
+        porque: `${citadas} ${x.sugerencia}`, ots: x.ots,
+      }
+  return { ...base, cambios: [cambio], comprobacion: { valida: true, hallazgos_nuevos: [] } }
 }
 
 const pct = (parte: number, total: number) => (total ? Math.round((1000 * parte) / total) / 10 : null)

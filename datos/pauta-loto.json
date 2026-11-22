@@ -22,7 +22,8 @@
       "capa_minima": 2,
       "control_critico": true,
       "pregunta_visual": "¿Hay un mouse de computador sobre la mesa?",
-      "deteccion": { "clase": "mouse", "presente": true }
+      "deteccion": { "clase": "mouse", "presente": true },
+      "cumple": ["prot-maqueta-01:M2"]
     },
     {
       "id": "l3",
@@ -32,7 +33,8 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "equipo", "espera": "frio" }
+      "sensor": { "id": "equipo", "espera": "frio" },
+      "cumple": ["prot-maqueta-01:M3"]
     },
     {
       "id": "l4",

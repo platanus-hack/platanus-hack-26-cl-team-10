@@ -24,6 +24,7 @@ dieron señales, para distinguir un paso que se salta uno de un paso que se salt
 
 from __future__ import annotations
 
+import math
 import sqlite3
 from collections import Counter, defaultdict
 
@@ -32,9 +33,16 @@ from app.catalogo import ReglaDeNegocio
 from app.metricas import Ejecucion
 
 MINIMO = 2
-# El aviso en vivo prueba después de cada señal, y mirar muchas veces infla los falsos avisos: con α = 0,05 y 50 OT
-# de solo ruido, el 17 % de las pautas daba un aviso falso; con 0,005, el 4,5 % (simulacion.md, «El aviso en vivo»).
-ALFA_AVISO = 0.005
+# Lo que se decide mirando una y otra vez los mismos datos (el aviso al supervisor, la versión que escribe Factum, la
+# escalada) reparte su α entre las miradas: la k-ésima OT de una versión gasta ALFA_VIDA·6/(π²k²), y como esa serie suma
+# ALFA_VIDA, la probabilidad de un aviso falso en toda la vida de una versión no pasa de ALFA_VIDA, por muchas OT que se
+# ejecuten. Con un α fijo, mirar sin fin termina dando un falso positivo seguro y la mejora no converge
+# (simulacion.md, «El aviso en vivo» y «Convergencia»).
+ALFA_VIDA = 0.05
+
+
+def alfa_en_vivo(ots: int) -> float:
+    return ALFA_VIDA * 6 / (math.pi ** 2 * max(1, ots) ** 2)
 DECISIONES = {"aceptar": "aceptada", "descartar": "descartada"}
 ALIMENTAN = ("pauta", "seguridad")
 SENALES = ("seguridad", "orden", "control", "conflicto", "persona", "observacion")
@@ -43,6 +51,9 @@ _ESQUEMA = """
 CREATE TABLE IF NOT EXISTS mejora_revisiones (
     id INTEGER PRIMARY KEY AUTOINCREMENT, cliente_id TEXT NOT NULL, propuesta_id TEXT NOT NULL,
     decision TEXT NOT NULL, nota TEXT NOT NULL, actor TEXT NOT NULL, ts TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS mejora_escaladas (
+    cliente_id TEXT NOT NULL, propuesta_id TEXT NOT NULL, ts TEXT NOT NULL, PRIMARY KEY (cliente_id, propuesta_id)
 );
 CREATE TABLE IF NOT EXISTS mejora_avisos (
     cliente_id TEXT NOT NULL, propuesta_id TEXT NOT NULL, ot_id TEXT NOT NULL, evento_id INTEGER, ts TEXT NOT NULL,
@@ -98,18 +109,20 @@ def avisos(cx: sqlite3.Connection, cliente_id: str) -> dict[str, dict]:
 def por_avisar(cx: sqlite3.Connection, es: list[Ejecucion], cliente_id: str, pauta_id: str, version: int) -> list[dict]:
     """Las propuestas de esa versión que acaban de volverse recurrentes y nadie avisó todavía.
 
-    Se avisa por recurrencia con ALFA_AVISO, no por MINIMO: lo que suena en la pantalla del supervisor tiene que
+    Se avisa por recurrencia con el α repartido de `alfa_en_vivo`, no por MINIMO: lo que suena en la pantalla del supervisor tiene que
     distinguirse del ruido aunque se pruebe después de cada OT (knowledge/projects/mejora-continua/simulacion.md)."""
     ya = avisos(cx, cliente_id)
-    de_la_version = [e for e in es if e.pauta.id == pauta_id and e.pauta.version == version]
-    if not de_la_version:
-        return []
-    pasos = de_la_version[0].pauta.pasos
-    con_senal = {p.id: sum(1 for e in de_la_version if _senales(e).get(p.id)) for p in pasos}
-    en_vivo = recurrencia.recurrentes(con_senal, len(de_la_version), ALFA_AVISO)
     return [p for p in propuestas(cx, es, cliente_id)
-            if p["pauta"] == pauta_id and p["version"] == version and p["estado"] == "abierta"
-            and en_vivo.get(p["paso"], {}).get("recurrente") and p["id"] not in ya]
+            if p["tipo"] == "desviacion" and p["pauta"] == pauta_id and p["version"] == version and p["estado"] == "abierta"
+            and (p["recurrencia"] or {}).get("en_vivo") and p["id"] not in ya]
+
+
+def registrar_escaladas(cx: sqlite3.Connection, propuestas_: list[dict], cliente_id: str) -> None:
+    for p in propuestas_:
+        if p.get("escalar"):
+            cx.execute("INSERT OR IGNORE INTO mejora_escaladas (cliente_id, propuesta_id, ts) VALUES (?, ?, ?)",
+                       (cliente_id, p["id"], db.ahora()))
+    cx.commit()
 
 
 def registrar_aviso(cx: sqlite3.Connection, cliente_id: str, propuesta_id: str, ot_id: str, evento_id: int | None, ts: str) -> None:
@@ -148,8 +161,13 @@ def propuestas(cx: sqlite3.Connection, es: list[Ejecucion], cliente_id: str) -> 
     for e in es:
         clave = (e.pauta.id, e.pauta.version)
         if clave not in pruebas:
-            pruebas[clave] = recurrencia.recurrentes(
-                {p.id: len(grupos.get((*clave, p.id), [])) for p in e.pauta.pasos}, ejecuciones_por_version[clave])
+            con_senal = {p.id: len(grupos.get((*clave, p.id), [])) for p in e.pauta.pasos}
+            pruebas[clave] = recurrencia.recurrentes(con_senal, ejecuciones_por_version[clave])
+            # `en_vivo`: con el α del aviso. Es el que usa todo lo que se decide mirando una y otra vez los mismos datos:
+            # el aviso al supervisor, la versión que escribe Factum y la escalada (simulacion.md, «Convergencia»)
+            for paso_id, d in recurrencia.recurrentes(con_senal, ejecuciones_por_version[clave],
+                                                             alfa_en_vivo(ejecuciones_por_version[clave])).items():
+                pruebas[clave][paso_id]["en_vivo"] = d["recurrente"]
 
     salida = []
     for (pauta_id, version, paso_id), del_paso in grupos.items():
@@ -176,10 +194,11 @@ def propuestas(cx: sqlite3.Connection, es: list[Ejecucion], cliente_id: str) -> 
             estado = "aplicada" if estado == "aceptada" else "superada"
             validacion = _validacion(es, pauta_id, version, paso_id, (ejecuciones, len(del_paso)), ultima)
         salida.append({
-            "id": pid, "pauta": pauta_id, "nombre": pauta.nombre, "version": version,
+            "id": pid, "tipo": "desviacion", "pauta": pauta_id, "nombre": pauta.nombre, "version": version,
             "protocolos": catalogo.protocolos_de(cx, pauta_id),
             "paso": paso_id, "titulo": paso.titulo, "control_critico": paso.control_critico,
             "ejecuciones": ejecuciones, "ots_con_senal": len(del_paso), "operarios_distintos": len(operarios),
+            "ots": sorted({e.ot["ot"] for e, _ in del_paso}),
             "senales": dict(senales),
             "observaciones": [{"categoria": o["categoria"], "texto": o["texto"]}
                               for e, _ in del_paso for o in e.observaciones
@@ -189,9 +208,124 @@ def propuestas(cx: sqlite3.Connection, es: list[Ejecucion], cliente_id: str) -> 
             "sugerencia": sugerencia,
             "recurrencia": pruebas[(pauta_id, version)].get(paso_id),
             "detectada": avisadas.get(pid),
+            "conformidad": None,
             "estado": estado, "revision": revision, "validacion": validacion,
         })
-    salida.sort(key=lambda p: (-p["ots_con_senal"], not p["control_critico"], p["id"]))
+    _escalar(salida)
+    # una escalada queda firme: la validación sobre datos que se acumulan oscila cerca de su umbral, y si la escalada
+    # se recalculara en cada mirada aparecería y desaparecería (simulacion.md, «Convergencia»)
+    firmes = {f["propuesta_id"] for f in cx.execute(
+        "SELECT propuesta_id FROM mejora_escaladas WHERE cliente_id = ?", (cliente_id,)).fetchall()}
+    for p in salida:
+        if p["id"] in firmes and not p.get("escalar"):
+            p["escalar"] = True
+            p["sugerencia"] = f"{ESCALAR} {p['sugerencia']}"
+    salida += _de_conformidad(cx, ejecuciones_por_version, cliente_id, revisiones)
+    for p in salida:
+        p["protocolo_dueno"] = catalogo.protocolo_dueno(cx, p["pauta"])
+        p.setdefault("escalar", False)
+        p["aplicable"], p["por_que_no"] = aplicabilidad(p)
+    salida.sort(key=lambda p: (p["tipo"] != "conformidad", -p["ots_con_senal"], not p["control_critico"], p["id"]))
+    return salida
+
+
+NO_APLICABLE = {
+    "persona": "La evidencia no vio el paso y lo confirmó una persona: se revisa el sensor o la pregunta de la cámara, no "
+               "la pauta.",
+    "observacion": "Lo que pesa son observaciones de los operarios: se leen antes de cambiar la pauta, no se aplican solas.",
+    "orden": "Los controles van en otro orden que el del protocolo: reordenarlos lo decide el equipo con quien hace la "
+             "tarea, no se aplica solo.",
+    "desconocido": "Un paso dice cumplir un control que el protocolo no declara: se corrige la marca o el protocolo.",
+}
+
+
+def aplicabilidad(p: dict) -> tuple[bool, str | None]:
+    """Si la propuesta trae un cambio de pauta que proponer (app/sugerencias.py) y, si no, por qué."""
+    if p["estado"] not in ("abierta", "aceptada"):
+        return False, f"La propuesta está {p['estado']}: ya no cambia la pauta."
+    if p.get("escalar"):
+        return False, "Se escaló: un cambio anterior a este paso no lo bajó, así que la causa no es la pauta."
+    if p["tipo"] == "conformidad":
+        t = p["conformidad"]["tipo"]
+        return (False, NO_APLICABLE[t]) if t in NO_APLICABLE else (True, None)
+    vivas = [s for s in SENALES if p["senales"].get(s)]
+    dominante = max(vivas, key=lambda s: (p["senales"][s], -SENALES.index(s))) if vivas else None
+    if dominante in (None, "persona", "observacion"):
+        return False, NO_APLICABLE.get(dominante or "observacion")
+    return True, None
+
+
+ESCALAR = ("Una versión anterior ya cambió este paso, no lo bajó, y en la versión nueva se sigue desviando de forma "
+           "recurrente: la pauta no es la causa. Antes de otra versión, revisar con la supervisión si es presión de tiempo o el equipo.")
+
+
+def _escalar(salida: list[dict]) -> None:
+    """La regla que hace converger la mejora (ADR-0018): si un paso vuelve a ser recurrente en la versión nueva después
+    de que se aplicó un cambio sobre él, y ese cambio no lo bajó (la validación no dice «mejoro»), no se propone otra
+    versión: se escala. Si el cambio lo bajó y queda un resto, otra vuelta sí tiene sentido. Sin esto, una causa que el texto no
+    arregla (la presión, el equipo) produce versiones sin fin (knowledge/projects/mejora-continua/simulacion.md)."""
+    por_paso: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for p in salida:
+        por_paso[(p["pauta"], p["paso"])].append(p)
+    for propuestas_ in por_paso.values():
+        propuestas_.sort(key=lambda p: p["version"])
+        for antes, ahora in zip(propuestas_, propuestas_[1:]):
+            no_bajo = (antes["validacion"] or {}).get("resultado") != "mejoro"
+            if antes["estado"] == "aplicada" and no_bajo and (ahora["recurrencia"] or {}).get("en_vivo"):
+                ahora["escalar"] = True
+                ahora["sugerencia"] = f"{ESCALAR} {ahora['sugerencia']}"
+
+
+SUGERENCIA_CONFORMIDAD = {
+    "falta": "El protocolo exige este control y ningún paso de la pauta lo cumple: la versión siguiente lo agrega como "
+             "un paso propio, con su evidencia.",
+    "juntos": "Dos controles van en un solo paso: la versión siguiente los separa, para que la evidencia compruebe cada "
+              "uno y su orden.",
+    "orden": "Los controles van en otro orden que el del protocolo: la versión siguiente los ordena como lo pide.",
+    "desconocido": "Un paso dice cumplir un control que el protocolo no declara: corregir la marca o el protocolo.",
+}
+
+
+def _de_conformidad(cx: sqlite3.Connection, ejecuciones: Counter, cliente_id: str, revisiones: dict) -> list[dict]:
+    """Los hallazgos de conformidad de las pautas habilitadas para la empresa, como propuestas de tipo «conformidad»
+    (ADR-0016). Nacen de la pauta misma, no de las OT: están desde que se aprueba la versión. Con una versión aprobada
+    más nueva, `validacion` dice si el hallazgo se cerró."""
+    habilitadas = [f["pauta_id"] for f in cx.execute(
+        "SELECT pauta_id FROM cliente_pautas WHERE cliente_id = ? ORDER BY pauta_id", (cliente_id,)).fetchall()]
+    salida = []
+    for pauta_id in habilitadas:
+        aprobadas = [f["version"] for f in cx.execute(
+            "SELECT version FROM aprobaciones WHERE pauta_id = ? ORDER BY version", (pauta_id,)).fetchall()]
+        if not aprobadas:
+            continue
+        ultima = aprobadas[-1]
+        de_la_ultima = {h["clave"] for h in catalogo.hallazgos_de_conformidad(cx, db.leer_pauta(cx, pauta_id, ultima))}
+        for version in aprobadas:
+            pauta = db.leer_pauta(cx, pauta_id, version)
+            aprobada_en = cx.execute("SELECT ts FROM aprobaciones WHERE pauta_id = ? AND version = ?",
+                                     (pauta_id, version)).fetchone()["ts"]
+            for h in catalogo.hallazgos_de_conformidad(cx, pauta):
+                pid = f"conformidad:{pauta_id}@{version}:{h['clave']}"
+                revision = revisiones.get(pid)
+                estado = DECISIONES.get(revision["decision"]) if revision else "abierta"
+                validacion = None
+                if version < ultima:
+                    estado = "aplicada" if estado == "aceptada" else "superada"
+                    validacion = {"version_nueva": ultima, "ejecuciones": 0, "ots_con_senal": 0, "p_valor": None,
+                                  "resultado": "se_repite" if h["clave"] in de_la_ultima else "mejoro"}
+                paso = pauta.paso(h["pasos"][0]) if h["pasos"] else None
+                salida.append({
+                    "id": pid, "tipo": "conformidad", "pauta": pauta_id, "nombre": pauta.nombre, "version": version,
+                    "protocolos": catalogo.protocolos_de(cx, pauta_id),
+                    "paso": paso.id if paso else None, "titulo": h["detalle"][0].upper() + h["detalle"][1:],
+                    "control_critico": True, "ejecuciones": ejecuciones[(pauta_id, version)], "ots_con_senal": 0,
+                    "operarios_distintos": 0, "ots": [], "senales": {s: 0 for s in SENALES}, "observaciones": [],
+                    "motivo": f"{h['protocolo']}: {h['detalle']}. Lo dice la pauta misma, sin esperar ninguna OT.",
+                    "sugerencia": SUGERENCIA_CONFORMIDAD[h["tipo"]], "recurrencia": None,
+                    "detectada": {"ot": None, "evento": None, "ts": aprobada_en},
+                    "conformidad": {k: h[k] for k in ("protocolo", "control", "tipo", "detalle", "pasos")},
+                    "estado": estado, "revision": revision, "validacion": validacion,
+                })
     return salida
 
 

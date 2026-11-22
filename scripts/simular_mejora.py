@@ -3,16 +3,19 @@
   uv run python scripts/simular_mejora.py                 # escribe knowledge/projects/mejora-continua/simulacion.md
   uv run python scripts/simular_mejora.py --rapido        # menos repeticiones, para probar
 
-Cinco partes: (1) fidelidad, que cada conducta simulada deja en la bitácora real la señal esperada; (2) el criterio,
+Seis partes: (1) fidelidad, que cada conducta simulada deja en la bitácora real la señal esperada; (2) el criterio,
 la regla «el mismo paso en 2 OT» contra la prueba de app/recurrencia.py, con y sin un patrón; (3) la validación de
-un cambio, con y sin efecto; (4) el aviso en vivo al supervisor; (5) las escenas del demo, de punta a punta por los servicios reales.
+un cambio, con y sin efecto; (4) el aviso en vivo al supervisor; (5) la convergencia de varios protocolos en paralelo;
+(6) las escenas del demo, de punta a punta por los servicios reales.
 """
 
 from __future__ import annotations
 
 import argparse
 import dataclasses
+import statistics
 import sys
+from multiprocessing import Pool
 from datetime import date
 from pathlib import Path
 
@@ -99,13 +102,12 @@ def validacion(rep: int) -> list[str]:
 
 
 def aviso(rep: int, semillas: int) -> list[dict]:
-    filas = ["| α del aviso | Aviso falso en 50 OT de solo ruido | Detecta un paso al 30 % dentro de 50 OT | OT de la detección (mediana) |",
+    filas = ["| α del aviso | Aviso falso en 200 OT de solo ruido | Detecta un paso al 30 % dentro de 200 OT | OT de la detección (mediana) |",
              "|---|---|---|---|"]
-    for alfa in (0.05, 0.01, mejora.ALFA_AVISO):
-        nulo = S.montecarlo_aviso(7, 50, 0.05, None, alfa, repeticiones=rep, semilla=1)
-        alt = S.montecarlo_aviso(7, 50, 0.05, 0.3, alfa, repeticiones=rep, semilla=2)
-        marca = " (el de `mejora.ALFA_AVISO`)" if alfa == mejora.ALFA_AVISO else ""
-        filas.append(f"| {alfa:g}{marca} | {pct(nulo['falso_aviso'])} | {pct(alt['detecta_antes_de'])} | {alt['detecta_en']} |")
+    for nombre, alfa in (("0,05 fijo", 0.05), ("0,005 fijo", 0.005), ("repartido, `mejora.alfa_en_vivo`", mejora.alfa_en_vivo)):
+        nulo = S.montecarlo_aviso(7, 200, 0.05, None, alfa, repeticiones=max(100, rep // 4), semilla=1)
+        alt = S.montecarlo_aviso(7, 200, 0.05, 0.3, alfa, repeticiones=max(100, rep // 4), semilla=2)
+        filas.append(f"| {nombre} | {pct(nulo['falso_aviso'])} | {pct(alt['detecta_antes_de'])} | {alt['detecta_en']} |")
     estacion = desde_json(DATOS / "pauta-polin-estacion.json")
     numeros, falsos, nunca = [], 0, 0
     for s in range(semillas):
@@ -120,7 +122,49 @@ def aviso(rep: int, semillas: int) -> list[dict]:
               f"motor en el 30 % de las OT, con ruido al 5 % en el resto. En {semillas} corridas de 30 OT, la recomendación sobre "
               f"«Apagar el motor» le llegó al supervisor en la OT {numeros[len(numeros) // 2] if numeros else '—'} (mediana), "
               f"no llegó en {nunca}, y {falsos} corridas tuvieron además un aviso sobre otro paso. Si los demás pasos están "
-              "limpios, el aviso llega a la tercera OT seguida que se salta el mismo paso (`tests/test_simulacion.py`)."]
+              "limpios, en una versión recién aprobada el aviso llega a la tercera OT seguida que se salta el mismo paso "
+              "(`tests/test_simulacion.py`); si la versión ya trae 4 OT limpias, a la cuarta "
+              "(`tests/test_mejora_y_metricas.py`), porque el α de cada mirada depende de cuántas OT lleva la versión."]
+    return filas
+
+
+CASOS_CONVERGENCIA = [
+    ("Planta A: olvido en «Poner tu candado»", S.Caso("oculta", "prot-correa-01", "planta-a", "pauta-polin-ct-01", [S.Patron("olvido", "p2", 0.3)])),
+    ("Planta B: presión en «Volver a poner la tapa»", S.Caso("oculta", "prot-correa-01", "planta-b", "pauta-polin-ct-01", [S.Patron("presion", "p7", 0.3)])),
+    ("Otra empresa: solo ruido", S.Caso("andina", "prot-correa-01", None, "pauta-polin-ct-01", [])),
+]
+
+
+def _una_convergencia(args):
+    politica, semilla, rondas, ots = args
+    r = S.iterar_en_paralelo([c for _, c in CASOS_CONVERGENCIA], iteraciones=rondas, ots_por_iteracion=ots,
+                             semilla=semilla, politica=politica)
+    return politica, list(r.values())
+
+
+def convergencia(semillas: int, rondas: int, ots: int) -> list[str]:
+    tareas = [(pol, s, rondas, ots) for pol in ("recurrencia", "minimo") for s in range(semillas)]
+    with Pool() as pool:
+        resultados = pool.map(_una_convergencia, tareas)
+    filas = ["| Protocolo | Política | Convergió | Versiones escritas (mediana · máx.) | Tasa del patrón: 1.ª vuelta → últimas 3 | Escaló a la supervisión |",
+             "|---|---|---|---|---|---|"]
+    for i, (nombre, _) in enumerate(CASOS_CONVERGENCIA):
+        for politica, etiqueta in (("recurrencia", "recurrencia, α repartido"), ("minimo", "regla de 2 OT")):
+            hs = [r[i] for pol, r in resultados if pol == politica]
+            conv = sum(S.convergio(h) for h in hs)
+            versiones = [sum(x["version_nueva"] for x in h) for h in hs]
+            ini = statistics.mean(h[0]["tasa_del_patron"] for h in hs)
+            fin = statistics.mean(statistics.mean(x["tasa_del_patron"] for x in h[-3:]) for h in hs)
+            escalo = sum(any(x["escaladas"] for x in h) for h in hs)
+            filas.append(f"| {nombre} | {etiqueta} | {conv} de {len(hs)} | {statistics.median(versiones):g} · {max(versiones)} | "
+                         f"{ini:.2f} → {fin:.2f} | {escalo} de {len(hs)} |")
+    maximo = {pol: max(sum(x["version_nueva"] for x in h) for p, r in resultados if p == pol for h in r)
+              for pol in ("recurrencia", "minimo")}
+    filas += ["", f"Con la recurrencia ningún protocolo pasó de {maximo['recurrencia']} versiones en {rondas} vueltas; con la "
+              f"regla de 2 OT, hasta {maximo['minimo']}."]
+    filas += ["", f"{semillas} semillas por política, {rondas} vueltas de {ots} OT por protocolo, los tres protocolos sobre la misma "
+              "base. «Convergió»: Factum no escribió otra versión en las 2 últimas vueltas. «Tasa del patrón»: la fracción de OT en "
+              "que la conducta simulada se dio, sin contar el ruido."]
     return filas
 
 
@@ -198,10 +242,28 @@ def main() -> int:
         *validacion(rep), "",
         "## 4 · El aviso en vivo al supervisor", "",
         "La recomendación le aparece al supervisor apenas un paso se vuelve recurrente: la prueba corre después de cada "
-        "señal (`servicios._vigilar_patrones`). Mirar después de cada OT es probar muchas veces, y eso infla los avisos "
-        "falsos; por eso el aviso usa un α más estricto que la columna `recurrencia` de las propuestas.", "",
+        "señal (`servicios._vigilar_patrones`). Mirar después de cada OT es probar muchas veces, y con un α fijo mirar sin fin "
+        "termina dando un aviso falso con seguridad. Por eso el aviso, la versión que escribe Factum y la escalada reparten "
+        f"su α entre las miradas: la k-ésima OT de una versión gasta {mejora.ALFA_VIDA:g}·6/(π²k²) (`mejora.alfa_en_vivo`), y "
+        f"como esa serie suma {mejora.ALFA_VIDA:g}, la probabilidad de un aviso falso en toda la vida de una versión no pasa de "
+        f"{mejora.ALFA_VIDA:g}, por muchas OT que se ejecuten. El costo es detectar más tarde un patrón moderado; un paso que "
+        "se salta en cada OT, con el resto limpio, sigue avisando a la tercera.", "",
         *aviso(rep, semillas), "",
-        "## 5 · Las escenas del demo, de punta a punta", "",
+        "## 5 · Convergencia: varios protocolos mejorando en paralelo", "",
+        "Cada empresa itera cada protocolo por su cuenta (ADR-0018). En cada vuelta, cada protocolo ejecuta sus OT con su "
+        "versión vigente; después Factum lee sus propuestas por desviación y escribe la versión siguiente de las que se "
+        "distinguen del ruido con el α repartido, o escala a la supervisión las que `mejora.py` marca `escalar`: un paso que "
+        "vuelve a ser recurrente después de un cambio que no lo bajó. Una escalada queda firme mientras dure la versión. "
+        "El efecto de cada versión es el declarado en los perfiles y se aplica una vez por paso. Se compara con la regla "
+        "anterior, que versiona toda propuesta de dos OT.", "",
+        *convergencia(*((3, 8, 20) if a.rapido else (10, 12, 30))), "",
+        "Lo que muestra: con la regla de 2 OT, Factum escribe una versión en casi todas las vueltas y en los tres protocolos, "
+        "también en el que solo tiene ruido: no converge. Con la recurrencia y el α repartido, el protocolo con solo ruido "
+        "no recibe ninguna versión, el de la presión recibe una, no mejora y se escala, y el del olvido baja su tasa con la "
+        "verificación de THERP y para; si el resto del olvido sigue sobre el ruido, intenta una segunda versión y, como no lo "
+        "baja, escala.", "",
+        "## 6 · Las escenas del demo, de punta a punta", "",
+
         "50 OT con la v1 y 50 OT nuevas con la v2, ruido 5 % en todos los pasos. Cada tabla son las propuestas de la v1 con su "
         "validación contra la v2.", "",
         *escenas(),

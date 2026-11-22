@@ -3,7 +3,7 @@
 import { http, HttpResponse, ws, type RequestHandler, type WebSocketHandler } from 'msw'
 import type { Persona } from '../api/tipos'
 import { config } from '../config'
-import { mejorasDe, metricasDe, reporteDe } from './analisis'
+import { borradorDe, mejorasDe, metricasDe, reporteDe } from './analisis'
 import { resumenDeRelevo, type Escenario, type Temporizador } from './escenarios'
 import { ErrorMock, type Mundo } from './mundo'
 import { CLAVE_MOCK, expiraMock, PERSONAS, personaDeCabecera, tokenMock } from './personas'
@@ -174,6 +174,12 @@ export function crearHandlers(
       const estado = new URL(request.url).searchParams.get('estado')
       // las que calcula el mock de su bitácora, más las que un test pone a mano en `m.mejoras`
       return HttpResponse.json([...mejorasDe(m), ...m.mejoras].filter((x) => !estado || x.estado === estado))
+    })))),
+
+    // El cambio concreto a la pauta que haría aplicar la propuesta (app/sugerencias.py).
+    http.get(`${raiz}/cliente/mejoras/:id/borrador`, vivo(conLogin(soloSupervisor(({ params }) => {
+      const x = [...mejorasDe(m), ...m.mejoras].find((p) => p.id === String(params.id))
+      return x ? HttpResponse.json(borradorDe(m, x)) : noExiste(`propuesta ${String(params.id)}`)
     })))),
 
     http.post(`${raiz}/cliente/mejoras/:id/revision`, vivo(conLogin(soloSupervisor(async ({ params, request }, p) => {

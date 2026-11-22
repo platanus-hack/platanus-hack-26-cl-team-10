@@ -32,11 +32,15 @@ function Recomendacion({ m, onRevisada, onPosponer }: { m: Mejora; onRevisada: (
         <Text fw={800}>
           «{m.titulo}» · {m.nombre} v{m.version}
         </Text>
-        <Text size="sm">
-          Se desvió en {r?.ots_con_senal ?? m.ots_con_senal} de {r?.ots ?? m.ejecuciones} OT, con {m.operarios_distintos}{' '}
-          {m.operarios_distintos === 1 ? 'operario' : 'operarios distintos'}
-          {m.control_critico ? '. Es un control crítico' : ''}. Factum lo detectó en la {m.detectada!.ot.toUpperCase()}.
-        </Text>
+        {m.tipo === 'conformidad' ? (
+          <Text size="sm">{m.motivo}</Text>
+        ) : (
+          <Text size="sm">
+            Se desvió en {r?.ots_con_senal ?? m.ots_con_senal} de {r?.ots ?? m.ejecuciones} OT, con {m.operarios_distintos}{' '}
+            {m.operarios_distintos === 1 ? 'operario' : 'operarios distintos'}
+            {m.control_critico ? '. Es un control crítico' : ''}. Factum lo detectó en la {m.detectada!.ot?.toUpperCase()}.
+          </Text>
+        )}
         <Text size="sm" c="roca.8">
           {m.sugerencia}
         </Text>
@@ -69,15 +73,21 @@ function Recomendacion({ m, onRevisada, onPosponer }: { m: Mejora; onRevisada: (
             <Button variant="default" onClick={() => setDescartando(true)}>
               Descartar
             </Button>
-            <Button
-              component={Link}
-              to={rutaDe(m.detectada!.ot)}
-              variant="default"
-              leftSection={<IconEye size={16} />}
-              aria-label={`Ver ${m.detectada!.ot}`}
-            >
-              Ver la OT
-            </Button>
+            {m.detectada!.ot ? (
+              <Button
+                component={Link}
+                to={rutaDe(m.detectada!.ot)}
+                variant="default"
+                leftSection={<IconEye size={16} />}
+                aria-label={`Ver ${m.detectada!.ot}`}
+              >
+                Ver la OT
+              </Button>
+            ) : (
+              <Button component={Link} to="/supervisor/mejoras" variant="default" leftSection={<IconEye size={16} />}>
+                Ver en mejoras
+              </Button>
+            )}
             <Button variant="subtle" onClick={onPosponer}>
               Más tarde
             </Button>

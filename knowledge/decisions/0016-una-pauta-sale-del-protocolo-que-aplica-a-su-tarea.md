@@ -40,6 +40,15 @@ Se guardan los hechos y las decisiones de las personas; se calcula lo que sale d
 
 Los controles de un protocolo los propone la skill que lee el protocolo (`reconocer-proceso`) y **los aprueba una persona del equipo**, una vez por versión del protocolo, como se aprueba una pauta. Para ICMM, elegir los controles críticos y asignarles un dueño son pasos deliberados del proceso, no un resultado automático (pasos 4 a 6, 79).
 
+### Lo que se construyó, el 2026-11-22
+
+- **Los controles como datos.** Cada protocolo guarda sus controles críticos (`controles`, con id, nombre y orden) y quién los aprobó y cuándo (`PUT /interno/protocolos/{id}/controles`). `prot-aislamiento-01` declara A1 aislar, A2 bloquear y A3 comprobar energía cero; `prot-maqueta-01`, los tres que imita (M1 apagar el motor, M2 trabar la parada, M3 esperar a que se enfríe).
+- **`cumple` en el paso**, como `prot-aislamiento-01:A3`. Se anota sobre la versión que ya existe: no cambia nada de lo que se ejecuta, y la semilla lo pone solo si es lo único que cambia. Una pauta que no anota ningún control de un protocolo recibe un aviso, no hallazgos: se escribió antes de que existiera el campo.
+- **La revisión de conformidad**, en `analisis.conformidad` y en el validador (C1 falta, C2 dos controles en un paso, C3 fuera de orden, C4 un control que el protocolo no declara). Sobre la semilla da 5 hallazgos: los 2 del cambio de rodillo y uno por cada pauta de la maqueta.
+- **El hallazgo como propuesta** de tipo `conformidad` en `GET /cliente/mejoras`, con la clave `conformidad:<pauta>@<versión>:<protocolo>:<control>:<tipo>`. Aparece apenas la pauta se habilita, sin ninguna OT; el supervisor lo acepta o lo descarta en la misma pantalla, y con una versión aprobada más nueva `validacion` dice si se cerró.
+- **La aprobación no deja sacar un control.** Una versión nueva no se aprueba si le falta un control crítico que la anterior cumplía (409). Lo que ya le faltaba a la anterior no bloquea: es un hallazgo abierto.
+- **Probado de punta a punta** en `tests/test_recorrido_interno.py`, por HTTP y con la clave del equipo: protocolo con controles, pauta sin A3 que el validador marca, aprobación, hallazgo visible sin OT, OT que se desvían hasta el aviso, revisión del supervisor, versión que saca el candado rechazada, versión con la prueba aprobada, y las dos propuestas en «mejoró» con las OT nuevas.
+
 ## Alternativas consideradas
 
 - **A — La atribución significa conformidad** (lo que se aplicó en el PR #65): una pauta que no cumple sale del protocolo. Es simple de leer, pero sin respaldo en las fuentes y con un efecto malo: la pauta defectuosa deja de parecer cubierta por el control que le falta, que es justo lo que hay que ver.
@@ -64,15 +73,18 @@ Los controles de un protocolo los propone la skill que lee el protocolo (`recono
 ## Pendientes y no verificado
 
 - **ISO 45001:2018, cláusula 10.2** (no conformidad y acción correctiva) respaldaría lo mismo, pero no se leyó: la norma es de pago. No se cita.
-- **Quién revisa un hallazgo**: el supervisor del cliente en `/supervisor/mejoras`, o el equipo en `/interno`. 1910.147 pide que revise alguien distinto de quien usa el procedimiento, (c)(6)(i)(A) (78). Para el demo alcanza el supervisor. `Candidata a validar`.
+- **Quién revisa un hallazgo**: decidido el 2026-11-22. Lo revisa el supervisor del cliente, que recibe el aviso; el equipo de Factum sigue cómo van las mejoras de todas las empresas en `/interno/mejoras`. 1910.147 pide que revise alguien distinto de quien usa el procedimiento, (c)(6)(i)(A) (78).
 - **`propuesta_id` de un hallazgo**: `mejora_revisiones` hoy guarda revisiones de propuestas calculadas por paso; un hallazgo necesita una clave estable con pauta, versión, protocolo, versión y control. No se probó.
-- **La norma de celdas robotizadas** que respalda `prot-brazo-01` no se buscó (sería ISO 10218). `Brecha`.
-- **`prot-inspeccion-correa-01`** existe solo en la base de la VM: se creó a mano y no está en `datos/`. Con esta decisión es otro protocolo de ejemplo sobre la maqueta. Hay que traerlo al repo o borrarlo.
+- **La norma de celdas robotizadas**: ISO 10218-2:2025 (REFERENCIAS 80). Su alcance cubre la mantención y trae cláusulas de energía peligrosa y de partida y rearranque inesperados, pero el texto de sus requisitos es de pago y no se leyó; `prot-brazo-01` no declara controles propios por eso. `Brecha`.
+- **`prot-inspeccion-correa-01`** existe solo en la base de la VM. Decidido el 2026-11-22: no se trae al repo, porque ningún protocolo documentado lo necesita. Borrarlo de la base pide quitarle antes su pauta.
 - ICMM se leyó en las definiciones, la tabla de pasos y la sección de qué es un control; el resto del documento, no.
+
+- **Un salto, dos señales.** Cuando el paso saltado es un control crítico, acercarse con la energía viva deja seguridad en ese paso y orden en el que se adelantó. Las dos se inflan la tasa de referencia de la prueba de recurrencia, y el aviso llega a la quinta OT en vez de la tercera. Contarlas como un incidente no se decidió.
+- **Los protocolos no tienen versiones todavía.** Sin ellas, un hallazgo no se reproduce contra el texto del protocolo de ese momento. `Brecha`.
 
 ## Referencias
 
-- REFERENCIAS 44, 45, 56, 78 y 79.
+- REFERENCIAS 44, 45, 56, 78, 79 y 80.
 - PR #66 (Daniel Godoy): `/supervisor/mejoras` y la revisión de propuestas en la web.
 - [ADR-0011](./0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md) y [ADR-0014](./0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md).
 - Código: `datos/protocolos.json`, `app/protocolos.py` (`cargar_semilla`), `app/catalogo.py` (atribuciones).

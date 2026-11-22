@@ -5,6 +5,7 @@ import { cerrarSesion, tokenDeSesion } from '../sesion/sesion'
 import type {
   Companero,
   DecisionMejora,
+  Borrador,
   Entrada,
   EstadoOt,
   Mejora,
@@ -86,6 +87,8 @@ export type Cliente = {
   listarMejoras(): Promise<Mejora[]>
   /** El supervisor acepta o descarta una propuesta. Descartar pide una nota (409 sin ella). */
   revisarMejora(propuestaId: string, decision: DecisionMejora, nota?: string): Promise<Mejora>
+  /** El cambio concreto a la pauta que haría aplicar la propuesta. 404 si no es de la empresa. Solo supervisor. */
+  leerBorrador(propuestaId: string): Promise<Borrador>
   /** La foto de la empresa: cumplimiento, evidencia y desviaciones. Solo supervisor. */
   leerMetricas(): Promise<Metricas>
 }
@@ -168,6 +171,7 @@ export function crearCliente(
     leerReporte: (id) => pedir('GET', `${otCliente(id)}/reporte`),
     listarMejoras: () => pedir('GET', '/cliente/mejoras'),
     revisarMejora: (id, decision, nota = '') => pedir('POST', `/cliente/mejoras/${encodeURIComponent(id)}/revision`, { decision, nota }),
+    leerBorrador: (id) => pedir('GET', `/cliente/mejoras/${encodeURIComponent(id)}/borrador`),
     leerMetricas: () => pedir('GET', '/cliente/metricas'),
   }
 }

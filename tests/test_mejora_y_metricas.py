@@ -96,11 +96,12 @@ class LaMejoraContinua(Base):
         self.assertEqual((p["ots_con_senal"], p["operarios_distintos"]), (2, 2))
         self.assertEqual((p["senales"]["orden"], p["senales"]["observacion"]), (1, 1))
         self.assertIn("punto de bloqueo", p["observaciones"][0]["texto"])
-        self.assertEqual([x["id"] for x in p["protocolos"]], ["prot-correa-01", "prot-maqueta-01"])
+        self.assertEqual([x["id"] for x in p["protocolos"]], ["prot-maqueta-01"])
 
     def test_una_sola_ot_con_senal_no_es_una_propuesta(self):
         for p in self.c.get("/cliente/mejoras", headers=self.carla).json():
-            self.assertGreaterEqual(p["ots_con_senal"], 2, p["id"])
+            if p["tipo"] == "desviacion":  # las de conformidad salen de la pauta misma, sin OT
+                self.assertGreaterEqual(p["ots_con_senal"], 2, p["id"])
         ids = {p["id"] for p in self.c.get("/cliente/mejoras", headers=self.carla).json()}
         self.assertNotIn("pauta-correa-ct-01:v1:p1", ids)
 
@@ -176,7 +177,9 @@ class LasMetricas(Base):
         self.assertEqual(m["pasos"]["verificados"], sum(m["pasos"]["por_evidencia"].values()))
         self.assertEqual(m["desviaciones"]["total"], sum(m["desviaciones"]["por_clase"].values()))
         self.assertEqual(m["observaciones"]["total"], 4)
-        self.assertEqual(m["mejoras"]["abierta"], 1)
+        # 1 por desviaciones y 5 de conformidad: el rodillo junta aislar y bloquear y no comprueba energía cero, y a cada
+        # pauta de la maqueta le falta uno de los controles que imita (ADR-0016)
+        self.assertEqual(m["mejoras"]["abierta"], 6)
         self.assertGreater(m["desviaciones"]["por_clase"]["seguridad"], 0)
 
     def test_un_paso_confirmado_por_persona_cuenta_como_desviacion_y_la_ot_deja_de_estar_limpia(self):
@@ -271,12 +274,15 @@ class ElAvisoAlSupervisor(Base):
         return ot
 
     def detectadas(self):
-        return [p for p in self.c.get("/cliente/mejoras", headers=self.carla).json() if p["detectada"]]
+        return [p for p in self.c.get("/cliente/mejoras", headers=self.carla).json() if p["detectada"] and p["tipo"] == "desviacion"]
 
-    def test_a_la_tercera_ot_que_se_acerca_sin_apagar_el_motor_aparece_la_recomendacion(self):
-        primeras = [self.acercarse_con_el_motor_encendido(i) for i in range(2)]
-        self.assertEqual(self.detectadas(), [], primeras)  # con dos OT todavía puede ser azar
-        tercera = self.acercarse_con_el_motor_encendido(2)
+    def test_a_la_cuarta_ot_que_se_acerca_sin_apagar_el_motor_aparece_la_recomendacion(self):
+        # La versión ya trae 4 OT de la semilla sin esa desviación. Con el α repartido entre las miradas
+        # (mejora.alfa_en_vivo) el aviso llega a la cuarta OT seguida que se salta el paso: con 8 OT en la versión,
+        # 4 de 4 nuevas con señal y el resto limpio ya no puede ser azar.
+        nuevas = [self.acercarse_con_el_motor_encendido(i) for i in range(3)]
+        self.assertEqual(self.detectadas(), [], nuevas)
+        tercera = self.acercarse_con_el_motor_encendido(3)
         [p] = self.detectadas()
         self.assertEqual((p["paso"], p["titulo"], p["detectada"]["ot"]), ("e1", "Apagar el motor", tercera))
         self.assertGreaterEqual(p["senales"]["seguridad"], 3)
@@ -287,3 +293,16 @@ class ElAvisoAlSupervisor(Base):
         # una cuarta OT no repite el aviso
         self.acercarse_con_el_motor_encendido(3)
         self.assertEqual(len(self.detectadas()), 1)
+
+
+class LaEscaladaQuedaFirme(Base):
+    def test_una_propuesta_escalada_sigue_escalada_aunque_la_validacion_oscile(self):
+        from app import api, mejora
+
+        pid = PROPUESTA_DE_LA_SEMILLA
+        antes = next(p for p in self.c.get("/cliente/mejoras", headers=self.carla).json() if p["id"] == pid)
+        self.assertFalse(antes["escalar"])
+        mejora.registrar_escaladas(api.cx, [{**antes, "escalar": True}], "oculta")
+        despues = next(p for p in self.c.get("/cliente/mejoras", headers=self.carla).json() if p["id"] == pid)
+        self.assertTrue(despues["escalar"])
+        self.assertIn("la pauta no es la causa", despues["sugerencia"])

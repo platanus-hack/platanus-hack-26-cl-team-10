@@ -15,7 +15,8 @@
       "sensor": {
         "id": "energia",
         "espera": "cortada"
-      }
+      },
+      "cumple": ["prot-aislamiento-01:A1"]
     },
     {
       "id": "p2",
@@ -28,7 +29,8 @@
       "sensor": {
         "id": "bloqueo",
         "espera": "puesto"
-      }
+      },
+      "cumple": ["prot-aislamiento-01:A2"]
     },
     {
       "id": "p3",
@@ -37,7 +39,8 @@
       "instruccion": "Da la orden de partida y mira que el brazo no se mueve.",
       "tipo_evidencia": "confirmacion",
       "capa_minima": 1,
-      "control_critico": true
+      "control_critico": true,
+      "cumple": ["prot-aislamiento-01:A3"]
     },
     {
       "id": "p4",

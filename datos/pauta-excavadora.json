@@ -22,7 +22,8 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "motor", "espera": "apagado" }
+      "sensor": { "id": "motor", "espera": "apagado" },
+      "cumple": ["prot-aislamiento-01:A1"]
     },
     {
       "id": "p3",
@@ -32,7 +33,8 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "palanca_seguridad", "espera": "bloqueada" }
+      "sensor": { "id": "palanca_seguridad", "espera": "bloqueada" },
+      "cumple": ["prot-aislamiento-01:A2"]
     },
     {
       "id": "p4",
@@ -42,7 +44,8 @@
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,
-      "sensor": { "id": "presion_hidraulica", "espera": "aliviada" }
+      "sensor": { "id": "presion_hidraulica", "espera": "aliviada" },
+      "cumple": ["prot-aislamiento-01:A3"]
     },
     {
       "id": "p5",

@@ -112,13 +112,40 @@ class ElAvisoEnVivo(unittest.TestCase):
         sim.correr(4, [S.Patron("presion", "e1", 1.0)], semilla=1)
         self.assertEqual(sim.corrida.avisos(), [])
 
-    def test_con_alfa_del_aviso_el_ruido_casi_no_avisa_aunque_se_mire_despues_de_cada_ot(self):
+    def test_con_el_alfa_repartido_el_ruido_casi_no_avisa_aunque_se_mire_despues_de_cada_ot(self):
         from app import mejora
 
-        laxo = S.montecarlo_aviso(7, 50, 0.05, None, 0.05, repeticiones=200, semilla=1)
-        estricto = S.montecarlo_aviso(7, 50, 0.05, None, mejora.ALFA_AVISO, repeticiones=200, semilla=1)
-        self.assertGreater(laxo["falso_aviso"], 0.1)
-        self.assertLess(estricto["falso_aviso"], 0.08)
+        laxo = S.montecarlo_aviso(7, 150, 0.05, None, 0.005, repeticiones=200, semilla=1)
+        repartido = S.montecarlo_aviso(7, 150, 0.05, None, mejora.alfa_en_vivo, repeticiones=200, semilla=1)
+        self.assertGreater(laxo["falso_aviso"], repartido["falso_aviso"])
+        self.assertLess(repartido["falso_aviso"], 0.05)  # la cota de toda la vida de la versión
+
+
+class LaConvergencia(unittest.TestCase):
+    """Tres protocolos que iteran en paralelo sobre una misma base (ADR-0018). La versión larga, con varias semillas y la
+    regla anterior como comparación, está en scripts/simular_mejora.py, sección 5."""
+
+    @classmethod
+    def setUpClass(cls):
+        casos = [S.Caso("oculta", "prot-correa-01", "planta-a", "pauta-polin-ct-01", [S.Patron("olvido", "p2", 0.5)]),
+                 S.Caso("oculta", "prot-correa-01", "planta-b", "pauta-polin-ct-01", [S.Patron("presion", "p7", 0.5)]),
+                 S.Caso("andina", "prot-correa-01", None, "pauta-polin-ct-01", [])]
+        r = S.iterar_en_paralelo(casos, iteraciones=4, ots_por_iteracion=15, semilla=0)
+        cls.olvido, cls.presion, cls.ruido = (r[f"prot-correa-01--{m}"] for m in ("oculta--planta-a", "oculta--planta-b", "andina"))
+
+    def test_con_solo_ruido_factum_no_escribe_ninguna_version(self):
+        self.assertFalse(any(h["version_nueva"] for h in self.ruido))
+
+    def test_la_presion_recibe_una_version_no_mejora_y_se_escala_sin_otra_version(self):
+        self.assertEqual(sum(h["version_nueva"] for h in self.presion), 1)
+        primera_escalada = next(i for i, h in enumerate(self.presion) if h["escaladas"])
+        self.assertFalse(any(h["version_nueva"] for h in self.presion[primera_escalada:]))
+        self.assertTrue(S.convergio(self.presion))
+
+    def test_el_olvido_baja_con_la_verificacion_y_deja_de_versionarse(self):
+        self.assertLess(self.olvido[-1]["tasa_del_patron"], self.olvido[0]["tasa_del_patron"] / 2)
+        self.assertLessEqual(sum(h["version_nueva"] for h in self.olvido), 2)
+        self.assertTrue(S.convergio(self.olvido))
 
 
 class DePuntaAPunta(unittest.TestCase):

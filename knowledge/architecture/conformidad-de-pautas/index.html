@@ -325,7 +325,7 @@
 
     <section id="simulacion">
       <h2>Simulación sobre la semilla de hoy</h2>
-      <p class="lead">Se aplicó a mano la revisión del paso 4 a las 10 pautas del repo, con los controles que declara cada protocolo en su texto. Ningún código lo calcula todavía.</p>
+      <p class="lead">La revisión del paso 4 sobre las 10 pautas del repo. La primera vez se hizo a mano; desde el 22 de noviembre la calcula <code>analisis.conformidad</code> y la columna «Con el diseño» es su salida, con la maqueta declarando los controles que imita.</p>
       <p>Se compararon tres momentos: antes del PR #65, cuando las pautas de la maqueta salían del protocolo de aislamiento; hoy, después del PR; y con este diseño, donde las de la maqueta salen solo de su protocolo de ejemplos.</p>
       <div class="chart" style="height:340px"><canvas id="grafico-hallazgos" aria-label="Hallazgos por pauta en los tres momentos"></canvas></div>
       <div class="tabla-wrap">
@@ -337,18 +337,18 @@
           <tr><td>Celda de media tensión</td><td data-label="Le aplican">aislamiento, celda</td><td data-label="Controles"><span class="ctl">A1</span><span class="ctl">A2</span><span class="ctl">A3</span> y las dos eléctricas</td><td class="n" data-label="Antes del #65">0</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
           <tr><td>Manguera de la excavadora</td><td data-label="Le aplican">aislamiento, excavadora</td><td data-label="Controles"><span class="ctl">A1</span><span class="ctl">A2</span><span class="ctl">A3</span> e implementos abajo</td><td class="n" data-label="Antes del #65">0</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
           <tr><td><b>Cambio de rodillo (CT-01)</b></td><td data-label="Le aplican">aislamiento, correa</td><td data-label="Controles"><span class="ctl">A1</span><span class="ctl">A2</span> juntos, <span class="ctl ctl--falta">A3</span> falta</td><td class="n" data-label="Antes del #65">2</td><td class="n" data-label="Hoy">2</td><td class="n" data-label="Con el diseño"><b>2</b></td></tr>
-          <tr><td>Polín, demo de 2 minutos</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra correa: <span class="ctl ctl--falta">A3</span> y la tapa faltan</td><td class="n" data-label="Antes del #65">2</td><td class="n" data-label="Hoy">2</td><td class="n" data-label="Con el diseño">0</td></tr>
-          <tr><td>Polín de la estación</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra correa: aísla en el mando; <span class="ctl ctl--falta">A2</span>, <span class="ctl ctl--falta">A3</span> y la tapa faltan</td><td class="n" data-label="Antes del #65">4</td><td class="n" data-label="Hoy">4</td><td class="n" data-label="Con el diseño">0</td></tr>
-          <tr><td>LOTO de escritorio</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra aislamiento: bloquea sin aislar; la prueba es la temperatura</td><td class="n" data-label="Antes del #65">2</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
+          <tr><td>Polín, demo de 2 minutos</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra la maqueta: <span class="ctl">M1</span><span class="ctl">M2</span>, <span class="ctl ctl--falta">M3</span> falta</td><td class="n" data-label="Antes del #65">2</td><td class="n" data-label="Hoy">2</td><td class="n" data-label="Con el diseño">1</td></tr>
+          <tr><td>Polín de la estación</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra la maqueta: <span class="ctl">M1</span><span class="ctl">M3</span>, <span class="ctl ctl--falta">M2</span> falta (no tiene candado)</td><td class="n" data-label="Antes del #65">4</td><td class="n" data-label="Hoy">4</td><td class="n" data-label="Con el diseño">1</td></tr>
+          <tr><td>LOTO de escritorio</td><td data-label="Le aplican">maqueta</td><td data-label="Controles">contra la maqueta: <span class="ctl">M2</span><span class="ctl">M3</span>, <span class="ctl ctl--falta">M1</span> falta</td><td class="n" data-label="Antes del #65">2</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">1</td></tr>
           <tr><td>Camión de extracción</td><td data-label="Le aplican">camión</td><td data-label="Controles">El protocolo no declara controles críticos</td><td class="n" data-label="Antes del #65">—</td><td class="n" data-label="Hoy">—</td><td class="n" data-label="Con el diseño">aviso</td></tr>
           <tr><td>Abrir una botella</td><td data-label="Le aplican">botella</td><td data-label="Controles">Ejemplo sin peligro: no tiene controles</td><td class="n" data-label="Antes del #65">0</td><td class="n" data-label="Hoy">0</td><td class="n" data-label="Con el diseño">0</td></tr>
-          <tr><td><b>Total</b></td><td></td><td></td><td class="n" data-label="Antes del #65"><b>10</b></td><td class="n" data-label="Hoy"><b>8</b></td><td class="n" data-label="Con el diseño"><b>2</b></td></tr>
+          <tr><td><b>Total</b></td><td></td><td></td><td class="n" data-label="Antes del #65"><b>10</b></td><td class="n" data-label="Hoy"><b>8</b></td><td class="n" data-label="Con el diseño"><b>5</b></td></tr>
         </tbody>
       </table>
       </div>
       <div class="callout callout--nota">
         <span class="callout__t">Qué dice la simulación</span>
-        <p>Con las atribuciones de hoy, el validador daría 8 hallazgos y 6 serían ruido: pautas de una maqueta comparadas contra el protocolo de una correa real. Con el criterio de alcance quedan los 2 que son de verdad, los del cambio de rodillo. Una pauta queda fuera: la de inspección de correa, que existe solo en la base del servidor y no en el repo.</p>
+        <p>Con las atribuciones de antes, el validador daba 8 hallazgos y 6 eran ruido: pautas de una maqueta comparadas contra el protocolo de una correa real. Con el criterio de alcance quedan los 2 del cambio de rodillo, que son de verdad, y uno por cada pauta de la maqueta contra los controles que la maqueta misma imita: el demo muestra un hallazgo sin mezclarlo con un equipo real. La de inspección de correa no está: existe solo en la base del servidor y, como no la respalda un protocolo documentado, no se trae al repo.</p>
       </div>
     </section>
 
@@ -360,8 +360,8 @@
       <table class="tabla">
         <thead><tr><th>Qué</th><th>Se guarda o se calcula</th><th>Dónde</th></tr></thead>
         <tbody>
-          <tr><td>El protocolo, por versión</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde">Tabla nueva de versiones; la de hoy queda como versión 1</td></tr>
-          <tr><td>Los controles críticos de cada versión</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde">Tabla nueva, con su aprobación por una persona</td></tr>
+          <tr><td>El protocolo, por versión</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde">Tabla nueva de versiones; la de hoy queda como versión 1. <b>Pendiente:</b> todavía no se versiona</td></tr>
+          <tr><td>Los controles críticos</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde">Hoy: columnas <code>controles</code>, <code>controles_por</code> y <code>controles_en</code> del protocolo, por <code>PUT /interno/protocolos/{id}/controles</code>; queda quién los aprobó y cuándo. Por versión cuando el protocolo se versione</td></tr>
           <tr><td>Qué control cumple cada paso</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde">Campo <code>cumple</code> del paso, en el JSON versionado de la pauta</td></tr>
           <tr><td>El hallazgo</td><td data-label="Se guarda o se calcula"><span class="chip">Se calcula</span></td><td data-label="Dónde">El validador, cada vez: siempre da lo mismo para los mismos datos</td></tr>
           <tr><td>La revisión del hallazgo</td><td data-label="Se guarda o se calcula"><span class="chip chip--brand">Se guarda</span></td><td data-label="Dónde"><code>mejora_revisiones</code>, la misma de las propuestas, sin borrar nada</td></tr>
@@ -420,7 +420,8 @@ propuesta_id = "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01@1:A3"</pre>
           <tr><td>Validador de pautas</td><td data-label="De dónde viene">ADR-0015, <code>/interno/pautas/validar</code></td><td data-label="Qué aporta">Calcula los hallazgos de conformidad</td><td data-label="Estado"><span class="chip chip--warn">Se extiende</span></td></tr>
           <tr><td>Semilla que converge</td><td data-label="De dónde viene">PR #65</td><td data-label="Qué aporta">Un despliegue deja la base con las atribuciones del repo, sin cambios a mano</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
           <tr><td>Protocolo de la maqueta</td><td data-label="De dónde viene">PR #65</td><td data-label="Qué aporta">El lugar de las pautas de ejemplo, fuera de los protocolos de equipos reales</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
-          <tr><td>Versiones de protocolo, controles y campo <code>cumple</code></td><td data-label="De dónde viene">Este diseño</td><td data-label="Qué aporta">Lo que hace comprobable y reproducible la conformidad</td><td data-label="Estado"><span class="chip">Nuevo</span></td></tr>
+          <tr><td>Controles como datos, campo <code>cumple</code>, revisión de conformidad, propuestas de tipo «conformidad» y aprobación que no deja sacar un control</td><td data-label="De dónde viene">Este diseño</td><td data-label="Qué aporta">Lo que hace comprobable la conformidad. Probado de punta a punta en <code>tests/test_recorrido_interno.py</code></td><td data-label="Estado"><span class="chip chip--warn">En revisión</span></td></tr>
+          <tr><td>Versiones de protocolo</td><td data-label="De dónde viene">Este diseño</td><td data-label="Qué aporta">Que un hallazgo se pueda reproducir contra la versión del protocolo de ese momento</td><td data-label="Estado"><span class="chip">Pendiente</span></td></tr>
         </tbody>
       </table>
       </div>
@@ -461,6 +462,11 @@ propuesta_id = "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01@1:A3"</pre>
           <tr><td class="num">22 nov 2026</td><td data-label="Decisión">Las pautas de la maqueta salen de un protocolo de ejemplos redactado por el equipo (PR #65, ya en producción).</td><td data-label="Quién">Equipo</td></tr>
           <tr><td class="num">22 nov 2026</td><td data-label="Decisión">El hallazgo de conformidad es una salida del validador de pautas.</td><td data-label="Quién">Equipo</td></tr>
           <tr><td class="num">22 nov 2026</td><td data-label="Decisión">Los controles críticos de cada protocolo se guardan como datos y los aprueba una persona, una vez por versión.</td><td data-label="Quién">Equipo</td></tr>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión">Revisa el hallazgo el supervisor del cliente, que recibe el aviso; el equipo de Factum sigue cómo van las mejoras de todas las empresas en <code>/interno/mejoras</code>.</td><td data-label="Quién">Pancho</td></tr>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión">El protocolo de la maqueta declara los controles que imita (M1 apagar el motor, M2 trabar la parada, M3 esperar a que se enfríe), para que el demo muestre hallazgos.</td><td data-label="Quién">Pancho</td></tr>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión">El protocolo de inspección de correa de la VM no se trae al repo: ningún protocolo documentado lo necesita.</td><td data-label="Quién">Pancho</td></tr>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión">Para el brazo se buscó ISO 10218-2:2025 (REFERENCIAS 80). Su alcance cubre la mantención; el texto de sus requisitos es de pago y no se leyó, así que el protocolo no dice cumplirla.</td><td data-label="Quién">Pancho</td></tr>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión"><code>cumple</code> se anota sobre la versión que ya existe, sin abrir una nueva: no cambia nada de lo que se ejecuta. La semilla lo hace solo si es lo único que cambia.</td><td data-label="Quién">Equipo</td></tr>
           <tr><td class="num">—</td><td data-label="Decisión">Atribución por alcance y conformidad aparte (ADR-0016): en revisión.</td><td data-label="Quién">Pendiente</td></tr>
         </tbody>
       </table>
@@ -470,10 +476,9 @@ propuesta_id = "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01@1:A3"</pre>
     <section id="preguntas">
       <h2>Preguntas abiertas</h2>
       <ol class="preguntas">
-        <li>¿Quién revisa un hallazgo con un cliente real: su supervisor o el equipo de Factum?<small>1910.147 pide que revise alguien distinto de quien usa el procedimiento. Para el demo alcanza el supervisor. Como las pautas las arma el equipo (ADR-0011), otra opción es que una pauta con hallazgo no se apruebe sin la justificación del equipo, y que el supervisor la vea como información.</small></li>
-        <li>¿El protocolo de la maqueta declara los controles que imita, para que el demo muestre hallazgos?<small>Las propuestas por desviación ya no lo necesitan: la alerta de seguridad cuenta en el paso en curso.</small></li>
-        <li>¿Se trae al repo el protocolo de inspección de correa, que existe solo en la base del servidor, o se borra?</li>
-        <li>¿Se busca y se lee ISO 10218 para el protocolo del brazo, que hoy no tiene norma?</li>
+        <li>¿Cuándo se versionan los protocolos?<small>Sin versiones, un hallazgo no se puede reproducir contra el texto del protocolo de ese momento. Los controles ya guardan quién los aprobó y cuándo.</small></li>
+        <li>¿Se cuenta como un solo incidente la seguridad y el orden que deja un mismo salto?<small>Cuando el paso saltado es un control crítico, acercarse con la energía viva deja señal en dos pasos, y el aviso al supervisor llega a la quinta OT en vez de la tercera (<code>tests/test_recorrido_interno.py</code>).</small></li>
+        <li>¿Se borra de la VM el protocolo de inspección de correa?<small>No se trae al repo; borrarlo de la base pide quitarle antes su pauta.</small></li>
       </ol>
     </section>
   </article>
@@ -494,7 +499,7 @@ propuesta_id = "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01@1:A3"</pre>
       datasets: [
         { label: 'Antes del #65', data: [2, 2, 4, 2], backgroundColor: C.gris },
         { label: 'Hoy', data: [2, 2, 4, 0], backgroundColor: C.accent },
-        { label: 'Con el diseño', data: [2, 0, 0, 0], backgroundColor: C.brand }
+        { label: 'Con el diseño', data: [2, 1, 1, 1], backgroundColor: C.brand }
       ]
     },
     options: {

@@ -1,6 +1,6 @@
 # Ajuste de pinza en brazo robótico
 
-> Redactado por el equipo de Factum para el demo del ADR-0010; no es el procedimiento de una operación real. La secuencia de aislar, bloquear y comprobar energía cero sale de REFERENCIAS 56. La norma de seguridad de celdas robotizadas que lo respalda no se buscó: `Brecha`.
+> Redactado por el equipo de Factum para el demo del ADR-0010; no es el procedimiento de una operación real. La secuencia de aislar, bloquear y comprobar energía cero sale de REFERENCIAS 56. La norma de celdas robotizadas es ISO 10218-2:2025 (REFERENCIAS 80): su alcance cubre la mantención y pide proteger contra la partida y el rearranque inesperados (5.7.3, 5.8.10, ISO 14118). El texto de sus requisitos es de pago y no se leyó, así que este protocolo no dice cumplirla: `Brecha`.
 
 ## 1. Alcance
 

@@ -300,6 +300,7 @@ class Servicios:
         ot = db.leer_ot(self.cx, ot_id)
         ots = acceso.ots_de(self.cx, {"cliente": {"id": cliente_id}, "rol": "supervisor"}, self._ots_en_sesion())
         es = metricas.ejecuciones(self.cx, ots)
+        mejora.registrar_escaladas(self.cx, mejora.propuestas(self.cx, es, cliente_id), cliente_id)
         for p in mejora.por_avisar(self.cx, es, cliente_id, ot["pauta_id"], ot["pauta_version"]):
             ev = self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.PROPUESTA_PAUTA, ts=db.ahora(), actor="sistema",
                                      paso_id=p["paso"], detalle=mejora.texto_del_aviso(p),

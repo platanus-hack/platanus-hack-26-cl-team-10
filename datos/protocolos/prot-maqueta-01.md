@@ -18,18 +18,28 @@ La maqueta no tiene un punto de aislación ni un punto de bloqueo real. El botó
 | Acercarse al equipo | La mano a menos de la distancia que mide el sensor (`operario`) |
 | El polín o la herramienta | Latas, plumones o un lápiz que la cámara reconoce |
 
-## 3. Lo que sí se puede mostrar
+## 3. Los controles que imita
+
+Son tres, en este orden, y cada pauta de este protocolo los tiene que traer (ADR-0016). Imitan los de `prot-aislamiento-01` con lo que la maqueta tiene; no los cumplen.
+
+| Control | Imita | Cómo se comprueba en la maqueta |
+|---|---|---|
+| M1 · Apagar el motor | Aislar | `energia = cortada` |
+| M2 · Trabar la parada | Bloquear | `bloqueo = puesto`, o la cámara ve el dispositivo de bloqueo |
+| M3 · Esperar a que se enfríe | Comprobar energía cero | `equipo = frio`; no es una prueba de partida |
+
+## 4. Lo que sí se puede mostrar
 
 - **El orden:** acercarse con el motor encendido es peligro, y Factum avisa al instante.
 - **Los controles que no se deshacen:** soltar la traba con alguien cerca abre una alerta hasta que se repone.
 - **La cámara como evidencia:** un paso que se comprueba mirando se cierra cuando el VLM responde que sí, y un reemplazo se juzga comparando la foto de antes con la de ahora.
 
-## 4. Pautas de ejemplo
+## 5. Pautas de ejemplo
 
 - `pauta-polin-demo`: el cambio de polín en 2 minutos, con plumones como polines y el botón trabado como candado.
 - `pauta-polin-estacion`: el cambio del polín rojo con lo que el ESP32 mide de verdad (motor, distancia y temperatura) y latas como polines. No tiene candado.
 - `pauta-loto-escritorio`: un bloqueo de escritorio, con un mouse como dispositivo de bloqueo y un lápiz como herramienta.
 
-## 5. Registros
+## 6. Registros
 
 Los de cualquier OT: quién la ejecutó, cuándo se cerró cada paso, las alertas con su inicio y su fin, y la foto con que la cámara cerró cada paso que se comprueba mirando.

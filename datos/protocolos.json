@@ -11,6 +11,30 @@
       "pauta-celda-mt-01",
       "pauta-excavadora-01",
       "pauta-brazo-01"
+    ],
+    "propias": [],
+    "controles": [
+      {
+        "id": "A1",
+        "nombre": "Aislar",
+        "orden": 1,
+        "exige": "Separar el equipo de su fuente de energía en el punto de aislación",
+        "evidencia": "El estado del punto de aislación"
+      },
+      {
+        "id": "A2",
+        "nombre": "Bloquear",
+        "orden": 2,
+        "exige": "Candado y tarjeta personales en el punto de bloqueo, no en el mando",
+        "evidencia": "El candado puesto"
+      },
+      {
+        "id": "A3",
+        "nombre": "Comprobar energía cero",
+        "orden": 3,
+        "exige": "Demostrar que el equipo no responde después de bloquear y antes de tocar nada",
+        "evidencia": "El equipo no se mueve o el instrumento marca cero"
+      }
     ]
   },
   {
@@ -21,9 +45,11 @@
     "documento": "protocolos/prot-correa-01.md",
     "pautas": [
       "pauta-correa-ct-01",
-      "pauta-polin-ct-01",
-      "pauta-polin-demo",
-      "pauta-polin-estacion"
+      "pauta-polin-ct-01"
+    ],
+    "propias": [
+      "pauta-correa-ct-01",
+      "pauta-polin-ct-01"
     ]
   },
   {
@@ -33,6 +59,9 @@
     "origen": "Redactado por el equipo de Factum desde las normas de REFERENCIAS 48 a 51. No es el procedimiento de un cliente.",
     "documento": "protocolos/prot-celda-mt-01.md",
     "pautas": [
+      "pauta-celda-mt-01"
+    ],
+    "propias": [
       "pauta-celda-mt-01"
     ]
   },
@@ -44,6 +73,9 @@
     "documento": "protocolos/prot-excavadora-01.md",
     "pautas": [
       "pauta-excavadora-01"
+    ],
+    "propias": [
+      "pauta-excavadora-01"
     ]
   },
   {
@@ -53,6 +85,9 @@
     "origen": "Redactado por el equipo de Factum para el demo del ADR-0010. No es el procedimiento de un cliente.",
     "documento": "protocolos/prot-brazo-01.md",
     "pautas": [
+      "pauta-brazo-01"
+    ],
+    "propias": [
       "pauta-brazo-01"
     ]
   },
@@ -64,6 +99,9 @@
     "documento": "protocolos/prot-camion-rigido-01.md",
     "pautas": [
       "pauta-camion-detencion-01"
+    ],
+    "propias": [
+      "pauta-camion-detencion-01"
     ]
   },
   {
@@ -73,6 +111,9 @@
     "origen": "Redactado por el equipo de Factum para el demo. No es el procedimiento de un cliente.",
     "documento": "protocolos/prot-botella-01.md",
     "pautas": [
+      "pauta-botella-01"
+    ],
+    "propias": [
       "pauta-botella-01"
     ]
   },
@@ -86,6 +127,34 @@
       "pauta-polin-demo",
       "pauta-polin-estacion",
       "pauta-loto-escritorio"
+    ],
+    "propias": [
+      "pauta-loto-escritorio",
+      "pauta-polin-demo",
+      "pauta-polin-estacion"
+    ],
+    "controles": [
+      {
+        "id": "M1",
+        "nombre": "Apagar el motor",
+        "orden": 1,
+        "exige": "Imita aislar: el motor apagado con su botón",
+        "evidencia": "energia = cortada"
+      },
+      {
+        "id": "M2",
+        "nombre": "Trabar la parada",
+        "orden": 2,
+        "exige": "Imita bloquear: el botón de parada trabado, o el dispositivo de bloqueo sobre la mesa",
+        "evidencia": "bloqueo = puesto, o la cámara ve el dispositivo"
+      },
+      {
+        "id": "M3",
+        "nombre": "Esperar a que se enfríe",
+        "orden": 3,
+        "exige": "Imita comprobar energía cero; no es una prueba de partida",
+        "evidencia": "equipo = frio"
+      }
     ]
   }
 ]
