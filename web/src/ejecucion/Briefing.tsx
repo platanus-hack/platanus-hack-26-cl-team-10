@@ -1,3 +1,4 @@
+import { enPalabras } from '../gestion/sensores'
 import { Button, Container, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core'
 import { IconAlertTriangle, IconCheck, IconHandFinger, IconUserCheck } from '@tabler/icons-react'
 import type { EstadoOt, Evento } from '../api/tipos'
@@ -73,7 +74,7 @@ export function Briefing({ ot, bitacora, alertas, relevo, onRecibido }: Props) {
               ))}
               {alertas.map((a) => (
                 <Text key={a.id} size="sm" fw={700}>
-                  {a.detalle}
+                  {enPalabras(a.detalle)}
                 </Text>
               ))}
             </Stack>

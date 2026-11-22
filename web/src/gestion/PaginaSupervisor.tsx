@@ -1,5 +1,5 @@
-import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core'
-import { IconAlertTriangle, IconEye, IconPlus, IconUser } from '@tabler/icons-react'
+import { Alert, Anchor, Button, Card, Collapse, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title, Tooltip, UnstyledButton, VisuallyHidden } from '@mantine/core'
+import { IconAlertTriangle, IconChevronRight, IconEye, IconPlus, IconUser } from '@tabler/icons-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/cliente'
@@ -7,6 +7,7 @@ import type { OtPedida, PautaResumen, Persona } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { recordarNombres, useNombres } from '../sesion/usuarios'
 import { campana } from './campana'
+import { fraseCorta } from './sensores'
 import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, VERIFICACION, type Incidente } from './estados'
 import industrial from './industrial.module.css'
 import estilos from './TarjetaOt.module.css'
@@ -149,30 +150,30 @@ function Ver({ ot, ancho = false }: { ot: OtVista; ancho?: boolean }) {
 function BarraIncidentes({ incidentes }: { incidentes: Incidente[] }) {
   const nombreDe = useNombres()
   if (incidentes.length === 0) return null
+  // Compacta: una línea por OT, con lo que pasa en pocas palabras. El detalle está en la vista en vivo.
   return (
-    <Paper radius="md" p="md" bg="peligro.6" role="alert" aria-label="Incidentes en curso">
-      <Stack gap="sm">
-        <Group gap="xs" c="var(--f-peligro-sobre)">
-          <IconAlertTriangle size={24} />
-          <Text fw={900} size="lg" c="var(--f-peligro-sobre)">
-            {incidentes.length === 1 ? 'Un incidente en curso' : `${incidentes.length} incidentes en curso`}
-          </Text>
-        </Group>
+    <Paper radius="md" p="sm" withBorder role="alert" aria-label="Incidentes en curso" style={{ borderLeft: '4px solid var(--mantine-color-peligro-6)' }} bg="peligro.0">
+      <Group gap="xs" mb={6} c="peligro.7">
+        <IconAlertTriangle size={18} />
+        <Text fw={800} c="peligro.7">
+          {incidentes.length === 1 ? 'Un incidente en curso' : `${incidentes.length} incidentes en curso`}
+        </Text>
+      </Group>
+      <Stack gap={4}>
         {incidentes.map((i) => (
-          <Paper key={i.ot} radius="sm" p="sm">
-            <Group justify="space-between" wrap="nowrap" gap="md">
-              <Stack gap={2}>
-                <Text fw={800}>
-                  {i.ot.toUpperCase()}
-                  {i.operador ? `, ${nombreDe(i.operador)}` : ''}
-                </Text>
-                <Text size="sm">{i.que}</Text>
-              </Stack>
-              <Button component={Link} to={rutaDe(i.ot)} variant="default" leftSection={<IconEye size={18} />} style={{ flexShrink: 0 }} aria-label={`Ver ${i.ot} en vivo`}>
-                Ver en vivo
-              </Button>
-            </Group>
-          </Paper>
+          <Group key={i.ot} justify="space-between" wrap="nowrap" gap="sm">
+            <Text size="sm" truncate>
+              <Text span fw={700}>
+                {i.ot.toUpperCase()}
+                {i.operador ? ` · ${nombreDe(i.operador)}` : ''}
+              </Text>
+              {' — '}
+              {fraseCorta(i.que)}
+            </Text>
+            <Button component={Link} to={rutaDe(i.ot)} variant="subtle" color="peligro" size="compact-sm" leftSection={<IconEye size={16} />} style={{ flexShrink: 0 }} aria-label={`Ver ${i.ot} en vivo`}>
+              Ver
+            </Button>
+          </Group>
         ))}
       </Stack>
     </Paper>
@@ -237,24 +238,51 @@ function TarjetaOt({ ot: o, operadores, onListo }: { ot: OtVista; operadores: Op
   )
 }
 
-/** Las OT en grupos, con las que se ejecutan ahora arriba. */
+/** Si un grupo está abierto: lo elige el supervisor y se recuerda. Por omisión, todos abiertos menos «Completas». */
+function useAbierto(titulo: string): [boolean, () => void] {
+  const clave = `factum.grupo.${titulo}`
+  const [abierto, setAbierto] = useState(() => {
+    const guardado = localStorage.getItem(clave)
+    return guardado === null ? titulo !== 'Completas' : guardado === '1'
+  })
+  const alternar = () =>
+    setAbierto((a) => {
+      localStorage.setItem(clave, a ? '0' : '1')
+      return !a
+    })
+  return [abierto, alternar]
+}
+
+function Grupo({ titulo, ots, operadores, onListo }: { titulo: string; ots: OtVista[]; operadores: Operadores; onListo: () => Promise<void> }) {
+  const [abierto, alternar] = useAbierto(titulo)
+  return (
+    <Stack component="section" aria-label={titulo} gap="sm">
+      <UnstyledButton onClick={alternar} aria-expanded={abierto} w="100%">
+        <Title order={3} className={industrial.seccion} m={0}>
+          <IconChevronRight size={16} aria-hidden style={{ transform: abierto ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }} />
+          {titulo}
+          <span className={industrial.dato} aria-label={`${titulo}: ${ots.length}`}>
+            {ots.length}
+          </span>
+        </Title>
+      </UnstyledButton>
+      <Collapse expanded={abierto} transitionDuration={200} keepMounted keepMountedMode="display-none">
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+          {ots.map((o) => (
+            <TarjetaOt key={o.ot} ot={o} operadores={operadores} onListo={onListo} />
+          ))}
+        </SimpleGrid>
+      </Collapse>
+    </Stack>
+  )
+}
+
+/** Las OT en grupos, con las que se ejecutan ahora arriba. Cada grupo se pliega. */
 function Grupos({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Operadores; onListo: () => Promise<void> }) {
   return (
-    <Stack gap="xl">
+    <Stack gap="lg">
       {enGrupos(ots).map((g) => (
-        <Stack key={g.titulo} component="section" aria-label={g.titulo} gap="sm">
-          <Title order={3} className={industrial.seccion}>
-            {g.titulo}
-            <span className={industrial.dato} aria-label={`${g.titulo}: ${g.ots.length}`}>
-              {g.ots.length}
-            </span>
-          </Title>
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-            {g.ots.map((o) => (
-              <TarjetaOt key={o.ot} ot={o} operadores={operadores} onListo={onListo} />
-            ))}
-          </SimpleGrid>
-        </Stack>
+        <Grupo key={g.titulo} titulo={g.titulo} ots={g.ots} operadores={operadores} onListo={onListo} />
       ))}
     </Stack>
   )
@@ -351,10 +379,11 @@ export function PaginaSupervisor() {
       <FranjaDesactualizada error={ots ? error : null} />
       <Pagina>
         <Stack gap="lg">
+          {/* Sin título a la vista: la página es la lista. Queda para los lectores de pantalla. */}
           <Group justify="space-between">
-            <Title order={2} className={industrial.titular}>
-              Órdenes de trabajo
-            </Title>
+            <VisuallyHidden>
+              <Title order={2}>Órdenes de trabajo</Title>
+            </VisuallyHidden>
             <PedirOt onPedida={alPedir} />
           </Group>
           <BarraIncidentes incidentes={incidentes ?? []} />

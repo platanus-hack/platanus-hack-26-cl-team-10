@@ -1,5 +1,5 @@
-import { Button, Center, Collapse, Loader, ScrollArea, SegmentedControl, Stack, Text, Title, UnstyledButton } from '@mantine/core'
-import { IconArrowLeft, IconCheck, IconChevronRight, IconX } from '@tabler/icons-react'
+import { Button, Center, Collapse, Group, Loader, Popover, ScrollArea, SegmentedControl, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { IconAlertTriangle, IconArrowLeft, IconCheck, IconChevronRight, IconX } from '@tabler/icons-react'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { senalesDe } from '../api/mejoras'
@@ -50,29 +50,77 @@ function EnVivo({ conexion }: { conexion: Conexion }) {
   )
 }
 
-/** Las alertas abiertas, arriba y en rojo. «Ver en la bitácora» lleva a su evento. */
+/** Cuánto sigue a la vista una alerta después de resolverse: una lectura que entra y sale no hace parpadear la pantalla. */
+const RETENER_MS = 3000
+
+function useRetenidas(alertas: Evento[]): Evento[] {
+  const [ultimas, setUltimas] = useState<{ de: Evento[]; vigentes: Evento[] }>({ de: alertas, vigentes: alertas })
+  // Mientras hay alertas, son las que se muestran y quedan guardadas (se ajusta durante el render, sin efecto).
+  if (alertas.length > 0 && ultimas.de !== alertas) setUltimas({ de: alertas, vigentes: alertas })
+  useEffect(() => {
+    if (alertas.length > 0) return
+    const reloj = setTimeout(() => setUltimas({ de: alertas, vigentes: [] }), RETENER_MS)
+    return () => clearTimeout(reloj)
+  }, [alertas])
+  return alertas.length > 0 ? alertas : ultimas.vigentes
+}
+
+/**
+ * Las alertas abiertas, en una etiqueta roja chica junto a «En vivo». Al tocarla se abre el detalle en palabras: qué
+ * pasa, desde cuándo, qué hacer y «Ver en la bitácora». Lo que se resuelve sigue unos segundos, sin parpadear.
+ */
 function Incidentes({ alertas, ot, onVer }: { alertas: Evento[]; ot: EstadoOt | null; onVer(id: number): void }) {
-  if (alertas.length === 0) return null
+  const visibles = useRetenidas(alertas)
+  const [abierto, setAbierto] = useState(false)
+  if (visibles.length === 0) return null
+  const resueltas = alertas.length === 0
   return (
-    <Stack gap="sm" role="alert" aria-label="Alertas abiertas">
-      {alertas.map((a) => {
-        const { texto, ayuda } = queDice(a, ot)
-        return (
-          <div key={a.id} className={estilos.alarma}>
-            <div>
-              <strong>
-                {tituloDe(a)}, desde las {hora(a.ts)}
-              </strong>
-              <p>{enPalabras(texto)}</p>
-              {ayuda && <small>{ayuda}</small>}
-            </div>
-            <Button variant="default" onClick={() => onVer(a.id)} style={{ flexShrink: 0 }}>
-              Ver en la bitácora
-            </Button>
-          </div>
-        )
-      })}
-    </Stack>
+    <div role="alert" aria-label="Alertas abiertas">
+      <Popover opened={abierto} onChange={setAbierto} position="bottom-end" width={360} withArrow shadow="md" withinPortal={false}>
+        <Popover.Target>
+          <Button
+            size="compact-sm"
+            color={resueltas ? 'roca' : 'peligro'}
+            leftSection={<IconAlertTriangle size={14} />}
+            onClick={() => setAbierto((a) => !a)}
+            aria-expanded={abierto}
+          >
+            {visibles.length === 1 ? tituloDe(visibles[0]!) : `${visibles.length} alertas`}
+          </Button>
+        </Popover.Target>
+        <Popover.Dropdown>
+          <Stack gap="md">
+            {visibles.map((a) => {
+              const { texto, ayuda } = queDice(a, ot)
+              return (
+                <Stack key={a.id} gap={4}>
+                  <Text fw={700}>
+                    {tituloDe(a)}, desde las {hora(a.ts)}
+                  </Text>
+                  <Text size="sm">{enPalabras(texto)}</Text>
+                  {ayuda && (
+                    <Text size="sm" c="roca.7">
+                      {ayuda}
+                    </Text>
+                  )}
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    w="fit-content"
+                    onClick={() => {
+                      setAbierto(false)
+                      onVer(a.id)
+                    }}
+                  >
+                    Ver en la bitácora
+                  </Button>
+                </Stack>
+              )
+            })}
+          </Stack>
+        </Popover.Dropdown>
+      </Popover>
+    </div>
   )
 }
 
@@ -497,7 +545,6 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
       <Pagina>
         <Stack gap="lg" className={estilos.vista} data-nivel={calificacion?.nivel ?? 'ok'}>
           <Stack gap="md">
-            {volver}
             <div className={estilos.cabecera}>
               <div>
                 <Title order={2} className={estilos.ot}>
@@ -506,7 +553,16 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
                 <p className={estilos.titular}>{nombre}</p>
               </div>
               <div className={estilos.cabeceraDerecha}>
-                <EnVivo conexion={s.conexion} />
+                <Group gap="sm" wrap="nowrap">
+                  <Incidentes
+                    alertas={s.alertas}
+                    ot={ot}
+                    onVer={(id) => {
+                      setElegida('vivo')
+                      setElegido(id)
+                    }}
+                  />
+                </Group>
                 <SegmentedControl
                   aria-label="Qué ver de la OT"
                   value={vista}
@@ -520,14 +576,6 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
             </div>
           </Stack>
 
-          <Incidentes
-            alertas={s.alertas}
-            ot={ot}
-            onVer={(id) => {
-              setElegida('vivo')
-              setElegido(id)
-            }}
-          />
           {/* Primero que la OT terminó, después lo que dejó para la pauta. */}
           {ot?.completa && vista === 'vivo' && (
             <div className={estilos.franja} style={colores('franja', 'verificado')}>
@@ -554,6 +602,7 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
               <div className={estilos.rejilla}>
                 <div className={estilos.col}>
                   <Camara edgeId={enEstacion} vistas={v.vistas} ot={ot} />
+                  <EnVivo conexion={s.conexion} />
                   <Verificacion calificacion={calificacion} />
                 </div>
                 <div className={estilos.col}>

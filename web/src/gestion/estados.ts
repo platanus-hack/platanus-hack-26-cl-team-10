@@ -1,4 +1,5 @@
 import type { CalificacionOt, EstadoGeneral, EstadoOt, Nivel, OtResumen } from '../api/tipos'
+import { enPalabras } from './sensores'
 import type { Rol } from '../sesion/usuarios'
 
 /**
@@ -89,7 +90,7 @@ export function avisoDe(o: { estado: EstadoGeneral; calificacion: CalificacionOt
   const c = o.calificacion
   if (o.estado === 'completa' || !c || c.nivel === 'ok') return null
   const grave = c.avisos.find((a) => a.nivel === c.nivel) ?? c
-  return { nivel: c.nivel, que: grave.motivos[0] ?? (c.nivel === 'error' ? 'Hay un control que no se cumple' : 'Hay algo que revisar') }
+  return { nivel: c.nivel, que: (grave.motivos[0] && enPalabras(grave.motivos[0])) ?? (c.nivel === 'error' ? 'Hay un control que no se cumple' : 'Hay algo que revisar') }
 }
 
 /** Un incidente: una OT abierta cuya calificación es «detente». `que` es el motivo más grave. */

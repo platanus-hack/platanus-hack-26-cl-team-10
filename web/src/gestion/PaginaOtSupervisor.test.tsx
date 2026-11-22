@@ -85,7 +85,7 @@ it('watching changes nothing: no session, no declaration', async () => {
   expect(screen.queryByRole('list', { name: 'Lecturas de la estación' })).toBeNull()
 })
 
-it('an incident arrives live: red on top, marked open in the log, and «Ver en la bitácora» picks it', async () => {
+it('an incident arrives live: a small red tag that opens the detail, marked open in the log, and «Ver en la bitácora» picks it', async () => {
   abrir('ot-13', 'incidente')
   await screen.findByText('En vivo')
   expect(screen.queryByRole('alert', { name: 'Alertas abiertas' })).toBeNull()
@@ -96,20 +96,25 @@ it('an incident arrives live: red on top, marked open in the log, and «Ver en l
     evidencia: { tipo: 'sensor', guarda: 'abierta', energia: 'viva', clave: 'seguridad:guarda' },
   })
 
+  // Arriba queda una etiqueta roja chica; al tocarla, el detalle.
   const arriba = await screen.findByRole('alert', { name: 'Alertas abiertas' })
-  expect(within(arriba).getByText('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBeInTheDocument()
+  expect(within(arriba).queryByText('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBeNull()
+  await userEvent.click(within(arriba).getByRole('button', { expanded: false }))
+  expect(await within(arriba).findByText('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBeInTheDocument()
   expect(await screen.findByText('Detente')).toBeInTheDocument()
   // La lectura llega por el stream, sin recargar.
   await waitFor(() => expect(within(sensor('Energía')).getByText('viva')).toBeInTheDocument())
 
   const item = document.getElementById(`bitacora-${alerta.id}`)!
   expect(item).toHaveTextContent('Peligro (abierta)')
-  await userEvent.click(within(arriba).getByRole('button', { name: 'Ver en la bitácora' }))
+  // jsdom no mide: el globo queda «oculto» hasta que se posiciona, aunque en el navegador se ve.
+  await userEvent.click(within(arriba).getByRole('button', { name: 'Ver en la bitácora', hidden: true }))
   await waitFor(() => expect(document.getElementById(`bitacora-${alerta.id}`)).toHaveAttribute('data-elegido'))
 
   // Se resuelve: sale de arriba y queda en la bitácora como resuelta.
   m.agregar('ot-13', { tipo: 'alerta_resuelta', actor: 'sistema', capa: 1, detalle: 'Se normalizó', evidencia: { resuelve: alerta.id } })
-  await waitFor(() => expect(screen.queryByRole('alert', { name: 'Alertas abiertas' })).toBeNull())
+  // Sale de arriba unos segundos después, para no parpadear si vuelve.
+  await waitFor(() => expect(screen.queryByRole('alert', { name: 'Alertas abiertas' })).toBeNull(), { timeout: 5000 })
   expect(within(bitacora()).getByText('Alerta resuelta')).toBeInTheDocument()
 })
 

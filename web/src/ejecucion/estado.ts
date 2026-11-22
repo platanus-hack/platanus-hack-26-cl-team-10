@@ -6,6 +6,7 @@
 // mientras se espera una respuesta («comprobando») y cuando la evidencia no llega («sin_senal»).
 // Ver knowledge/architecture/FRONTEND.md §6.
 
+import { enPalabras } from '../gestion/sensores'
 import type { CalificacionOt, EstadoOt, EstadoPasoApi, Evento, PasoEstado, Snapshot } from '../api/tipos'
 
 export type EstadoUi = 'pendiente' | 'en_curso' | 'comprobando' | 'sin_senal' | 'verificado' | 'warn' | 'confirmado'
@@ -257,7 +258,8 @@ export function frasesDeLaOt(ot: EstadoOt): string[] {
 }
 
 /** «GUARDA ABIERTA CON ENERGÍA VIVA. Detener…» → «Guarda abierta con energía viva. Detener…». */
-function comoOracion(texto: string): string {
+function comoOracion(crudo: string): string {
+  const texto = enPalabras(crudo)
   const m = /^([^.:]+)([.:])/.exec(texto)
   if (!m || m[1].length < 4 || m[1] !== m[1].toUpperCase() || !/[A-ZÁÉÍÓÚÑ]/.test(m[1])) return texto
   const minusculas = m[1].toLowerCase()

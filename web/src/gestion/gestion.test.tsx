@@ -323,6 +323,16 @@ describe('supervisor dashboard', () => {
     expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12', 'OT-14'])
   })
 
+  it('each group folds, and the choice is remembered', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    const grupo = await screen.findByRole('region', { name: 'Asignadas, sin empezar' })
+    const titulo = within(grupo).getByRole('button', { expanded: true })
+    await userEvent.click(titulo)
+    expect(titulo).toHaveAttribute('aria-expanded', 'false')
+    expect(localStorage.getItem('factum.grupo.Asignadas, sin empezar')).toBe('0')
+  })
+
   it('hides the groups that have no OT, «En ejecución» included', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
@@ -424,14 +434,15 @@ describe('supervisor dashboard', () => {
     })
     act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
     const barra = await screen.findByRole('alert', { name: 'Incidentes en curso' })
-    expect(within(barra).getByText('OT-13, Bruno Díaz')).toBeInTheDocument()
-    expect(within(barra).getByText('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBeInTheDocument()
+    expect(within(barra).getByText('OT-13 · Bruno Díaz')).toBeInTheDocument()
+    // En una línea y sin mayúsculas gritadas: el detalle completo está en la vista en vivo.
+    expect(within(barra).getByText(/Guarda abierta con energía viva$/)).toBeInTheDocument()
     expect(within(await tarjeta('ot-13')).getByText('Detente')).toBeInTheDocument()
     expect(sonar).toHaveBeenCalledOnce()
 
     // El mismo incidente no vuelve a sonar.
     act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
-    await waitFor(() => expect(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByText('OT-13, Bruno Díaz')).toBeInTheDocument())
+    await waitFor(() => expect(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByText('OT-13 · Bruno Díaz')).toBeInTheDocument())
     expect(sonar).toHaveBeenCalledOnce()
 
     await userEvent.click(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByRole('link', { name: 'Ver ot-13 en vivo' }))
@@ -506,6 +517,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     m.mejoras = [recomendacion(true)]
     act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     expect(within(zona).getByText('Factum propone mejorar una pauta')).toBeInTheDocument()
     expect(within(zona).getByText('Cambio de polín en la cinta')).toBeInTheDocument()
     expect(within(zona).getByText('versión 8 · 1 cambio')).toBeInTheDocument()
@@ -527,6 +539,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     expect(within(zona).getAllByRole('button', { name: /Aplicar/ })).toHaveLength(1)
     expect(within(zona).getByText('Agrega «Bloquear el encendido»')).toBeInTheDocument()
     expect(within(zona).getByRole('button', { name: 'El protocolo lo exige y hoy ningún paso de la pauta lo hace.' })).toBeInTheDocument()
@@ -542,6 +555,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     expect(within(zona).getByText(/^No cambia: «/)).toBeInTheDocument()
     expect(within(zona).getByRole('button', { name: /se revisa el sensor/ })).toBeInTheDocument()
     expect(within(zona).getByText('sin cambios a la pauta')).toBeInTheDocument()
@@ -554,6 +568,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: /Cambio de polín en la cinta/ })) // la pauta parte cerrada
     await userEvent.click(within(zona).getByRole('button', { name: 'Ahora no' }))
     expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull()
     expect(m.mejoras[0]!.estado).toBe('abierta')
