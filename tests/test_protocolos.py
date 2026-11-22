@@ -350,7 +350,15 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual((ahora, antes), (b"\xff\xd8con el nuevo\xff\xd9", b"\xff\xd8con el rojo\xff\xd9"))
         alertas += self.leer(operario="ausente") + self.leer(energia="viva")
         self.assertEqual(alertas, [])
-        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 6))
+        self.assertEqual((self.s.ots()[0]["estado_general"], self.cerrados()), ("completa", 7))
+
+    def test_estacion_encender_el_motor_sin_alejarse_avisa_y_no_cierra(self):
+        self.estacion(equipo="frio"), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
+        self.declarar("este es el polín rojo", foto=b"con el rojo")
+        self.declarar("lo reemplacé", foto=b"con el nuevo")
+        alertas = self.leer(energia="viva")  # junto a la cinta
+        self.assertTrue(any(a.startswith("PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO") for a in alertas), alertas)
+        self.assertEqual(self.cerrados(), 5)
 
     def test_estacion_sacar_el_polin_rojo_sin_poner_otro_no_cierra_el_paso(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente"), self.leer(equipo="frio")
@@ -371,9 +379,9 @@ class AislarBloquearYComprobar(Base):
         self.assertEqual([p for p, _, _ in self.juez], [])  # ni se le preguntó a la cámara
 
     def test_estacion_con_el_equipo_ya_frio_no_avisa_al_empezar(self):
-        # shortcut: «Apagar el motor» no lleva control_critico porque, con el paso actual crítico,
-        # desviacion_de_orden toma «equipo = frio» por un paso adelantado y abre la demo con un error.
-        # Marcarlo crítico cuando esa regla distinga una condición de una acción del operario.
+        # «Apagar el motor» no lleva control_critico porque, con el paso actual crítico, la lectura repetida
+        # de «equipo = frio» sonaba ORDEN INVERTIDO. Desde el 2026-11-21 el orden solo mira lecturas que
+        # cambian (tests/test_orden_en_reposo.py): marcarlo crítico ya es decisión de la pauta, no del código.
         self.assertEqual(self.estacion(equipo="frio"), [])
 
 

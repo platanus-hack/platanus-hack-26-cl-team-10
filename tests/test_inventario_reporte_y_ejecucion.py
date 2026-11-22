@@ -136,8 +136,10 @@ class ElValidadorConLasComprobacionesDeAnalisis(Base):
     """Las de app/analisis.py (ADR-0015), por la misma ruta: un solo validador para la API y para las skills."""
 
     def test_una_regla_de_seguridad_que_dispara_en_una_ejecucion_correcta(self):
-        r = self.validar(pauta("pauta-polin-estacion"))
-        self.assertIn(("A2", "e6"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
+        d = pauta("pauta-polin-estacion")
+        d["pasos"] = [p for p in d["pasos"] if p["id"] != "e6"]  # la v4: repone la corriente con el operario junto a la cinta
+        r = self.validar(d)
+        self.assertIn(("A2", "e7"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
 
     def test_un_paso_que_se_cierra_solo(self):
         d = pauta("pauta-polin-demo")

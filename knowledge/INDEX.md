@@ -31,6 +31,7 @@
 
 - [Servicios en vivo · PRD](./projects/servicios-en-vivo/PRD.md): atribuir lo del edge a la OT en curso, calificarlo y llevarlo a la UI por WebSocket, y el CRUD con las reglas de negocio.
 - [Skills · PRD](./projects/skills/PRD.md): las ocho skills que un agente usa en `.claude/skills/`: reconocer un proceso y generar su pauta con la capa que corresponde a cada paso, optimizarla con las tres capas, y del lado del cliente pedir, ejecutar, reportar y medir. Cómo se hace hoy en una planta, cómo se mide cada skill y qué les da la API.
+- [Simulación de la mejora continua](./projects/mejora-continua/simulacion.md): OT simuladas con conductas erróneas por causa (olvido, presión, sensor que falla, ruido), por los servicios reales. Mide si la mejora continua distingue un patrón del ruido y si se adjudica mejoras que no causó. Generada por `scripts/simular_mejora.py`.
 - [Escenarios por industria · PRD](./projects/escenarios-por-industria/PRD.md): cada forma de ejecutar un paso (saltarlo, decirlo antes, deshacer un control) en minería, eléctrica y construcción, contra cada barrera, con las reglas de capa 1 por industria y su norma. Con la [simulación de capa 2](./projects/escenarios-por-industria/capa2-simulacion.md).
 
 ## Research

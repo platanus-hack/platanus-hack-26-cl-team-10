@@ -1,16 +1,13 @@
 """FRENTE 1 — protocolo a pasos.
 
-El protocolo ya es un recurso: se carga, se lee, se corrige y se le atribuyen pautas
-(app/catalogo.py, rutas /interno/protocolos). Lo que sigue siendo un stub es extraer
-los pasos: `extraer_pasos` devuelve la pauta del demo que está en datos/pauta-correa.json,
-y las pautas de datos/ están escritas a mano.
+El protocolo es un recurso del servicio interno: se carga, se lee, se corrige y se le
+atribuyen pautas (app/catalogo.py, rutas /interno/protocolos). El cliente no crea
+protocolos ni pautas (ADR-0011): los arma el equipo de Factum al entrar a la operación,
+con la skill `reconocer-proceso`, y lo que esa skill afirma lo comprueba el código
+(app/analisis.py, `POST /interno/pautas/validar`; ADR-0015) antes de que una persona
+apruebe la pauta (ADR-0003). Por eso la API no tiene una ruta que convierta un PDF.
 
-Lo que hay que construir acá: recibir el PDF del cliente, extraer los pasos, y
-por cada paso decidir su tipo_evidencia y su pregunta_visual. Lo demás del
-sistema no cambia, porque el contrato de salida es el mismo: una Pauta.
-
-Regla que no se puede saltar (ADR-0003): una persona aprueba la pauta convertida
-antes de que se use. El stub la marca como aprobada porque es una pauta de demo.
+Acá queda leer las pautas de datos/ y cargar la semilla de protocolos.
 """
 
 from __future__ import annotations
@@ -34,11 +31,6 @@ def desde_json(ruta: Path | str = PAUTA_DEMO) -> Pauta:
         equipo=d["equipo"],
         pasos=tuple(Paso.desde_dict(x) for x in d["pasos"]),
     )
-
-
-def extraer_pasos(pdf: bytes) -> Pauta:  # noqa: ARG001
-    """TODO frente 1: PDF → pasos. Por ahora ignora el PDF y devuelve el demo."""
-    return desde_json()
 
 
 def cargar_semilla(cx, actor: str = "equipo:factum") -> dict:

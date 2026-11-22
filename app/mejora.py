@@ -11,7 +11,12 @@ El ciclo:
    cuándo, y nada se borra: una revisión nueva se agrega encima de la anterior.
 4. **Versión nueva.** El equipo de Factum escribe y aprueba la versión siguiente de la pauta
    (`/interno`), a partir de las aceptadas. La propuesta pasa a `aplicada`.
-5. **Comprobación.** Con las OT de la versión nueva se mide si el paso dejó de desviarse.
+5. **Comprobación.** Con las OT de la versión nueva se mide si el paso dejó de desviarse. «mejoro» pide que la
+   baja no se explique por azar (Fisher exacta, app/recurrencia.py); con pocas OT es «sin_evidencia».
+
+Cada propuesta trae además `recurrencia`: si las OT con señal de ese paso superan lo que se desvía el resto de su
+pauta, corregido por cuántos pasos se prueban a la vez. MINIMO decide que la propuesta nazca, como pide el
+ADR-0014; `recurrencia.recurrente` dice si se distingue del ruido. La simulación de app/simulacion.py mide los dos.
 
 Agrupa por paso y por pauta, nunca por persona: de los operarios solo se cuenta cuántos distintos
 dieron señales, para distinguir un paso que se salta uno de un paso que se saltan muchos.
@@ -22,23 +27,33 @@ from __future__ import annotations
 import sqlite3
 from collections import Counter, defaultdict
 
-from app import catalogo, db
+from app import catalogo, db, recurrencia
 from app.catalogo import ReglaDeNegocio
 from app.metricas import Ejecucion
 
 MINIMO = 2
+# El aviso en vivo prueba después de cada señal, y mirar muchas veces infla los falsos avisos: con α = 0,05 y 50 OT
+# de solo ruido, el 17 % de las pautas daba un aviso falso; con 0,005, el 4,5 % (simulacion.md, «El aviso en vivo»).
+ALFA_AVISO = 0.005
 DECISIONES = {"aceptar": "aceptada", "descartar": "descartada"}
 ALIMENTAN = ("pauta", "seguridad")
-SENALES = ("orden", "control", "conflicto", "persona", "observacion")
+SENALES = ("seguridad", "orden", "control", "conflicto", "persona", "observacion")
 
 _ESQUEMA = """
 CREATE TABLE IF NOT EXISTS mejora_revisiones (
     id INTEGER PRIMARY KEY AUTOINCREMENT, cliente_id TEXT NOT NULL, propuesta_id TEXT NOT NULL,
     decision TEXT NOT NULL, nota TEXT NOT NULL, actor TEXT NOT NULL, ts TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS mejora_avisos (
+    cliente_id TEXT NOT NULL, propuesta_id TEXT NOT NULL, ot_id TEXT NOT NULL, evento_id INTEGER, ts TEXT NOT NULL,
+    PRIMARY KEY (cliente_id, propuesta_id)
+);
 """
 
 SUGERENCIAS = {
+    "seguridad": "Con este paso todavía abierto se dio una condición de peligro: se hizo lo que viene antes de "
+                 "terminarlo. Revisar con quien hace la tarea por qué se salta, y si la pauta deja claro que sin este "
+                 "paso no se avanza.",
     "orden": "El paso se hace antes de su turno: revisar si el orden de la pauta calza con cómo se trabaja en el "
              "equipo, o si el paso anterior se puede cumplir antes.",
     "control": "Un control se deshizo antes de tiempo: revisar si la pauta deja claro hasta cuándo se mantiene.",
@@ -74,30 +89,67 @@ def _revisiones(cx: sqlite3.Connection, cliente_id: str) -> dict[str, dict]:
     return {f["propuesta_id"]: {"decision": f["decision"], "nota": f["nota"], "por": f["actor"], "ts": f["ts"]} for f in filas}
 
 
+def avisos(cx: sqlite3.Connection, cliente_id: str) -> dict[str, dict]:
+    """Las propuestas que ya se le avisaron al supervisor: cuándo y en qué OT se detectó el patrón."""
+    filas = cx.execute("SELECT * FROM mejora_avisos WHERE cliente_id = ?", (cliente_id,)).fetchall()
+    return {f["propuesta_id"]: {"ot": f["ot_id"], "evento": f["evento_id"], "ts": f["ts"]} for f in filas}
+
+
+def por_avisar(cx: sqlite3.Connection, es: list[Ejecucion], cliente_id: str, pauta_id: str, version: int) -> list[dict]:
+    """Las propuestas de esa versión que acaban de volverse recurrentes y nadie avisó todavía.
+
+    Se avisa por recurrencia con ALFA_AVISO, no por MINIMO: lo que suena en la pantalla del supervisor tiene que
+    distinguirse del ruido aunque se pruebe después de cada OT (knowledge/projects/mejora-continua/simulacion.md)."""
+    ya = avisos(cx, cliente_id)
+    de_la_version = [e for e in es if e.pauta.id == pauta_id and e.pauta.version == version]
+    if not de_la_version:
+        return []
+    pasos = de_la_version[0].pauta.pasos
+    con_senal = {p.id: sum(1 for e in de_la_version if _senales(e).get(p.id)) for p in pasos}
+    en_vivo = recurrencia.recurrentes(con_senal, len(de_la_version), ALFA_AVISO)
+    return [p for p in propuestas(cx, es, cliente_id)
+            if p["pauta"] == pauta_id and p["version"] == version and p["estado"] == "abierta"
+            and en_vivo.get(p["paso"], {}).get("recurrente") and p["id"] not in ya]
+
+
+def registrar_aviso(cx: sqlite3.Connection, cliente_id: str, propuesta_id: str, ot_id: str, evento_id: int | None, ts: str) -> None:
+    cx.execute("INSERT OR IGNORE INTO mejora_avisos (cliente_id, propuesta_id, ot_id, evento_id, ts) VALUES (?, ?, ?, ?, ?)",
+               (cliente_id, propuesta_id, ot_id, evento_id, ts))
+    cx.commit()
+
+
+def texto_del_aviso(p: dict) -> str:
+    r = p["recurrencia"]
+    return (f"Factum encontró un patrón en «{p['titulo']}»: señales en {r['ots_con_senal']} de {r['ots']} OT de la "
+            f"versión {p['version']}, con {p['operarios_distintos']} operarios distintos. {p['sugerencia']}")
+
+
 def _validacion(es: list[Ejecucion], pauta_id: str, version: int, paso_id: str, antes: tuple[int, int], nueva: int) -> dict:
     # Solo cuentan las OT que ya pasaron por el paso: una OT que nadie ejecutó no prueba que el paso mejoró.
     despues = [e for e in es if e.pauta.id == pauta_id and e.pauta.version == nueva
                and (paso_id in e.verificados or _senales(e).get(paso_id))]
     con_senal = sum(1 for e in despues if _senales(e).get(paso_id))
-    tasa_antes = antes[1] / antes[0] if antes[0] else 0
-    if not despues:
-        resultado = "sin_datos"
-    elif con_senal / len(despues) < tasa_antes:
-        resultado = "mejoro"
-    else:
-        resultado = "se_repite"
-    return {"version_nueva": nueva, "ejecuciones": len(despues), "ots_con_senal": con_senal, "resultado": resultado}
+    c = recurrencia.comprobar_cambio(antes, (len(despues), con_senal))
+    return {"version_nueva": nueva, "ejecuciones": len(despues), "ots_con_senal": con_senal, **c}
 
 
 def propuestas(cx: sqlite3.Connection, es: list[Ejecucion], cliente_id: str) -> list[dict]:
     """Las propuestas de la empresa, las que más pesan primero: más OT con señal, control crítico antes."""
     revisiones = _revisiones(cx, cliente_id)
+    avisadas = avisos(cx, cliente_id)
     grupos: dict[tuple[str, int, str], list[tuple[Ejecucion, Counter]]] = defaultdict(list)
     ejecuciones_por_version: Counter = Counter()
     for e in es:
         ejecuciones_por_version[(e.pauta.id, e.pauta.version)] += 1
         for paso, senales in _senales(e).items():
             grupos[(e.pauta.id, e.pauta.version, paso)].append((e, senales))
+
+    pruebas: dict[tuple[str, int], dict[str, dict]] = {}
+    for e in es:
+        clave = (e.pauta.id, e.pauta.version)
+        if clave not in pruebas:
+            pruebas[clave] = recurrencia.recurrentes(
+                {p.id: len(grupos.get((*clave, p.id), [])) for p in e.pauta.pasos}, ejecuciones_por_version[clave])
 
     salida = []
     for (pauta_id, version, paso_id), del_paso in grupos.items():
@@ -135,6 +187,8 @@ def propuestas(cx: sqlite3.Connection, es: list[Ejecucion], cliente_id: str) -> 
             "motivo": f"«{paso.titulo}» tuvo señales en {len(del_paso)} de {ejecuciones} OT de la versión {version}, "
                       f"con {len(operarios)} operarios distintos",
             "sugerencia": sugerencia,
+            "recurrencia": pruebas[(pauta_id, version)].get(paso_id),
+            "detectada": avisadas.get(pid),
             "estado": estado, "revision": revision, "validacion": validacion,
         })
     salida.sort(key=lambda p: (-p["ots_con_senal"], not p["control_critico"], p["id"]))

@@ -350,9 +350,9 @@ ol.plan li{margin:0 0 8px}
     <div class="cadena">
       <div class="eslabon"><b>Protocolo del cliente</b><small>El procedimiento que ya tiene, en PDF o papel</small></div>
       <div class="fl">→</div>
-      <div class="eslabon stubito"><span class="sello-stub">NO CONSTRUIDO</span><b>Extraer los pasos</b><small><code>protocolos.extraer_pasos</code></small></div>
+      <div class="eslabon"><b>Extraer los pasos</b><small>El equipo, con la skill <code>reconocer-proceso</code></small></div>
       <div class="fl">→</div>
-      <div class="eslabon"><b>Pauta en JSON</b><small><code>POST /pautas</code> · nace sin aprobar</small></div>
+      <div class="eslabon"><b>Pauta en JSON</b><small><code>POST /pautas</code> con la clave del equipo · nace sin aprobar</small></div>
       <div class="fl">→</div>
       <div class="eslabon"><b>Validación</b><small><code>contratos.Paso</code> y <code>catalogo.pauta_desde_dict</code></small></div>
       <div class="fl">→</div>
@@ -362,14 +362,13 @@ ol.plan li{margin:0 0 8px}
     </div>
   </div>
 
-  <div class="bloque stub">
-    <span class="sello-stub">DISEÑADO · NO CONSTRUIDO</span>
+  <div class="bloque">
     <h3>La conversión de protocolo a pauta</h3>
     <div class="dos">
-      <div class="hoy"><b>Lo que hay hoy</b><code>protocolos.extraer_pasos(pdf)</code> ignora el PDF y devuelve <code>datos/pauta-correa.json</code>. Ninguna ruta de la API la llama ni recibe un PDF. Las cuatro pautas de <code>datos/</code> las escribió una persona, campo por campo. El atajo del demo, <code>POST /pauta/demo?pauta=correa|loto</code>, carga ese JSON y lo deja aprobado con el actor <code>supervisor:demo</code>.</div>
+      <div class="hoy"><b>Lo que hay hoy</b>Es parte del servicio, no algo que haga el cliente (ADR-0011): el equipo de Factum entra a la operación y convierte el protocolo con la skill <code>reconocer-proceso</code>. Lo que la skill afirma lo comprueba <code>app/analisis.py</code> sin modelo (citas literales, factibilidad contra la estación, pasos que se cierran solos, reglas que disparan en una ejecución correcta) por <code>POST /interno/pautas/validar</code> (ADR-0015). Por eso la API no recibe un PDF, y las rutas que crean, aprueban pautas o abren OT sin empresa piden la clave del equipo.</div>
       <div class="manana"><b>Lo que lo reemplaza</b>Una llamada a un modelo de lenguaje: entra el protocolo y salen sus pautas, cada paso con su <code>tipo_evidencia</code> y su <code>pregunta_visual</code>. Es el plan del 2026-11-21, y está en la pantalla 10. El contrato de salida no cambia: una <code>Pauta</code>, que pasa por la misma validación y espera la misma aprobación. El ADR-0006 da el porqué: la OT nace del protocolo que el cliente ya tiene, no de una falla.</div>
     </div>
-    <p class="nota" style="margin:10px 0 0">Lo que sí funciona hoy, y es todo lo que está de aquí hacia abajo: una pauta ya escrita entra por <code>POST /pautas</code>, se valida, se aprueba y se versiona.</p>
+    <p class="nota" style="margin:10px 0 0">Lo de aquí hacia abajo: una pauta ya escrita entra por <code>POST /pautas</code> con la clave del equipo, se valida, una persona la aprueba y se versiona.</p>
   </div>
 
   <div class="bloque">
@@ -701,7 +700,7 @@ ol.plan li{margin:0 0 8px}
     <div class="tres">
       <div class="hoy"><b>El aviso al oído</b><code>interrumpe</code> viaja como bandera en la respuesta y la OT queda en <code>error</code>, pero ninguna página de <code>app/estatico/</code> reproduce audio. El auricular del FLUJO está diseñado, no construido.</div>
       <div class="hoy"><b>La justificación redactada</b>Los motivos viajan sin redactar. Según <code>scoring.py</code> son la entrada del modelo que redacta la justificación, y ese modelo no está.</div>
-      <div class="hoy"><b>Preguntarle a la bitácora</b><code>cerebro.responder</code> calza la pregunta con el título de cada paso por las primeras cinco letras de cada palabra, y <code>redactar_resumen</code> arma un texto fijo. Lo que los reemplaza, según <code>cerebro.py</code>: un modelo que recibe el registro completo de la OT, sin recuperación ni base vectorial, con el texto determinista como respaldo.</div>
+      <div class="hoy"><b>Preguntarle a la bitácora</b>Construido el 2026-11-21: <code>cerebro.redactar_resumen</code> y <code>cerebro.responder</code> le entregan a Claude el registro completo de la OT, sin recuperación ni base vectorial. Cada frase cita sus eventos y el código la rechaza si cita uno que no existe o calla un conflicto o una alerta; entonces queda el texto determinista.</div>
     </div>
   </div>
   <div class="pie"><button data-ir="capas">← 4 · Las tres capas</button><button data-ir="sistema">6 · Software y hardware →</button></div>
@@ -2040,7 +2039,7 @@ AL_ENTRAR.celda = paso => { const n = parseInt(paso, 10); if (n > 0 && n < GUION
 // ─── 9 · Requerimientos contra evidencia ────────────────────────────────────
 const brazoPasa = k => DISENO[k].filter(c => c.sello === "pasa").length;
 const REQ = [
-  ["RF", "Convertir el protocolo del cliente en una pauta comprobable", "CONTEXTO, el flujo; ADR-0006", "falta", "<code>protocolos.extraer_pasos</code> es un stub y las pautas se escriben a mano. Con el plan del 2026-11-21 es una llamada a un modelo. Pantalla 10."],
+  ["RF", "Convertir el protocolo del cliente en una pauta comprobable", "CONTEXTO, el flujo; ADR-0006", "parcial", "Lo hace el equipo como parte del servicio, con la skill <code>reconocer-proceso</code> y el comprobador de <code>app/analisis.py</code> (ADR-0011, ADR-0015). El cliente no crea pautas."],
   ["RF", "Una persona aprueba la pauta, y cada cambio es una versión nueva", "ADR-0003; PRD de servicios, CA8 y CA9", "cumple", "<code>catalogo.crear_pauta</code> y <code>aprobar_pauta</code>, con sus tests. Se prueba en la pantalla 1."],
   ["RF", "La OT nace de una pauta aprobada y guarda qué versión ejecuta", "ADR-0006; CA8", "cumple", "<code>catalogo.abrir_ot</code>. Pantalla 2."],
   ["RF", "Un sistema externo genera la OT por API, desde una pauta de un protocolo", "Plan del 2026-11-21; ADR-0006", "parcial", "<code>POST /ot/{id}/abrir</code> ya la genera desde una pauta aprobada. Falta el recurso protocolo y que la pauta sepa a cuál pertenece. Pantalla 10."],
@@ -2054,7 +2053,7 @@ const REQ = [
   ["RF", "Cada evento y cada OT llevan su calificación, con certeza y motivos", "ADR-0007; PRD de servicios, O3", "cumple", "<code>scoring.py</code>. Pantalla 5."],
   ["RF", "La pantalla lo recibe todo al instante y recupera lo perdido al reconectar", "PRD de servicios, O2; CA6 y CA7", "cumple", "<code>bus.py</code> y <code>WS /ot/{id}/stream</code>."],
   ["RF", "El operario recibe el aviso por voz en el momento", "CONTEXTO; guion del demo", "falta", "No está en <code>main</code>. Según el SEGUIMIENTO, la voz vive en la rama <code>feat/front-y-servicios</code>."],
-  ["RF", "El turno siguiente retoma desde el último paso verificado y puede preguntar", "CONTEXTO; LOGICA, relevo de turno", "parcial", "El estado se lee de la bitácora y el traspaso se firma. El resumen y las preguntas son stubs sin modelo."],
+  ["RF", "El turno siguiente retoma desde el último paso verificado y puede preguntar", "CONTEXTO; LOGICA, relevo de turno", "cumple", "El estado se lee de la bitácora y el traspaso se firma. El resumen y las preguntas los redacta Claude citando eventos, y el código comprueba las citas."],
   ["RF", "Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta", "CONTEXTO; LOGICA; REFERENCIAS 33", "parcial", "<code>reglas.propuesta_de_mejora</code> las agrupa por paso desde dos OT. Aprobar la propuesta y crear la versión sigue siendo a mano."],
   ["RF", "El equipo se detiene por su cuenta cuando alguien entra con la energía viva", "ADR-0010", "falta", "Pide el relé y que el firmware actúe. Está simulado en la pantalla 8."],
   ["RNF", "Un modelo nunca contradice a un sensor, y solo la capa 1 interrumpe", "ADR-0004; LOGICA", "cumple", "Por construcción en <code>scoring.py</code>, y el patrón F5 lo comprueba en cada caso."],
@@ -2105,7 +2104,7 @@ const PLAN = [
     "Guardar el documento y darle un id. Una tabla y una ruta.",
     "Es lo que el cliente ya tiene: su procedimiento de bloqueo, su pauta de mantención, su instructivo de operación. No se le pide que lo reescriba."],
   ["pautas", "2 · Pautas", "las crea un modelo de lenguaje",
-    "<code>protocolos.extraer_pasos</code> devuelve la pauta de la correa, escrita a mano. Lo que ya sirve: el contrato valida cualquier pauta que entre (pantalla 1), y <code>verificacion.py</code> ya hace una llamada a un modelo con la salida obligada a un esquema.",
+    "La hace el equipo con la skill <code>reconocer-proceso</code>, no una ruta del cliente (ADR-0011). Lo que ya sirve: el contrato valida cualquier pauta que entre (pantalla 1), y <code>verificacion.py</code> ya hace una llamada a un modelo con la salida obligada a un esquema.",
     "La llamada. Entran el protocolo completo y el inventario de la estación; sale una lista de pautas con la forma de <code>Pauta</code>. Lo mal formado lo rechaza el contrato. Cada pauta se guarda como versión 1, sin aprobar, atada a su protocolo.",
     "El documento entero cabe en el contexto del modelo, así que no hay recuperación ni base vectorial: es el mismo criterio que <code>cerebro.py</code> fija para el relevo."],
   ["ot", "3 · OT", "las genera un servicio por API",

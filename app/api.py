@@ -19,7 +19,7 @@ from typing import Literal
 from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from app import (acceso, catalogo, cerebro, db, escenarios, inventario, mejora, metricas, protocolos, referencia, reporte,
                  semilla, skills, verificacion)
@@ -215,6 +215,9 @@ class LecturaEdge(BaseModel):
     sensor_id: str
     valor: str
     seq: int | None = None
+    # La hora en que el edge leyó el sensor, ISO 8601 con zona («2026-11-21T22:57:43.120+00:00»). Opcional: con ella,
+    # cada alerta y veredicto que cause la lectura guarda su latencia en `evidencia.lectura`.
+    medido_en: AwareDatetime | None = None
 
 
 @app.get("/")
@@ -230,10 +233,11 @@ def pagina_ensayo() -> FileResponse:
 
 
 @app.post("/pauta/demo")
-def cargar_pauta_demo(pauta: str = "correa") -> dict:
-    """Frente 1: cuando exista PDF→pasos, este endpoint recibe el PDF.
+def cargar_pauta_demo(pauta: str = "correa", x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Carga y aprueba una pauta de demo. Del equipo: pide la clave (ADR-0011).
     `pauta`: `correa` (cambio de rodillo), `polin` (cambio de polín en la estación: motor, distancia,
     temperatura y cámara) o `loto` (bloqueo con cámara y ESP32)."""
+    _solo_equipo(x_clave_equipo)
     if pauta not in PAUTAS_DEMO:
         raise HTTPException(404, f"pauta de demo desconocida: {pauta}; hay {sorted(PAUTAS_DEMO)}")
     pauta = protocolos.desde_json(PAUTAS_DEMO[pauta])
@@ -245,8 +249,10 @@ def cargar_pauta_demo(pauta: str = "correa") -> dict:
 
 @app.post("/ot/{ot_id}/abrir")
 def abrir_ot(ot_id: str, actor: str = "sistema", pauta_id: str = PAUTA_DEMO,
-             version: int | None = None) -> dict:
-    """La OT nace de una pauta APROBADA y guarda qué versión ejecuta (ADR-0003, ADR-0006)."""
+             version: int | None = None, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """La OT nace de una pauta APROBADA y guarda qué versión ejecuta (ADR-0003, ADR-0006). Abre una OT sin empresa,
+    así que pide la clave del equipo: el cliente pide la suya en `POST /cliente/ots` (ADR-0011)."""
+    _solo_equipo(x_clave_equipo)
     return catalogo.abrir_ot(cx, ot_id, pauta_id, actor, version)
 
 
@@ -259,8 +265,10 @@ def listar_pautas() -> list[dict]:
 
 
 @app.post("/pautas", status_code=201)
-def crear_pauta(pauta: dict) -> dict:
-    """Crear y cambiar son lo mismo: la versión siguiente. Nace sin aprobar."""
+def crear_pauta(pauta: dict, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Crear y cambiar son lo mismo: la versión siguiente. Nace sin aprobar. Las pautas las arma el equipo, no el
+    cliente: pide la clave del equipo (ADR-0011)."""
+    _solo_equipo(x_clave_equipo)
     try:
         return catalogo.crear_pauta(cx, pauta)
     except (KeyError, ValueError) as e:
@@ -281,7 +289,9 @@ def versiones_de_pauta(pauta_id: str) -> list[dict]:
 
 
 @app.post("/pautas/{pauta_id}/versiones/{version}/aprobar")
-def aprobar_pauta(pauta_id: str, version: int, a: Aprobacion) -> dict:
+def aprobar_pauta(pauta_id: str, version: int, a: Aprobacion, x_clave_equipo: str | None = Header(default=None)) -> dict:
+    """Pide la clave del equipo (ADR-0011)."""
+    _solo_equipo(x_clave_equipo)
     return catalogo.aprobar_pauta(cx, pauta_id, version, a.actor)
 
 
@@ -567,8 +577,9 @@ def _relevo_entregar(ot_id: str, actor: str) -> dict:
     pauta = db.leer_pauta(cx, fila["pauta_id"], fila["pauta_version"])
     evs = db.eventos(cx, ot_id)
     estado = cerebro.estado_de_ot(pauta, evs)
-    resumen = cerebro.redactar_resumen(estado, evs)
-    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(), actor=actor, detalle=resumen))
+    resumen, redaccion = cerebro.redactar_resumen(estado, evs)
+    servicios.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.RELEVO_ENTREGADO, ts=db.ahora(), actor=actor, detalle=resumen,
+                             evidencia=redaccion))
     return {"resumen": resumen, "estado": estado}
 
 
@@ -915,7 +926,9 @@ def sensor(lec: LecturaSensor) -> dict:
 @app.post("/edge/{edge_id}/lecturas")
 def lecturas_edge(edge_id: str, lecturas: list[LecturaEdge]) -> list[dict]:
     """Lo que manda el edge, en lote. Se atribuye a la OT que ese edge está ejecutando."""
-    return [servicios.recibir_lectura(edge_id, l.sensor_id, l.valor, l.seq) for l in lecturas]
+    return [servicios.recibir_lectura(edge_id, l.sensor_id, l.valor, l.seq,
+                                      l.medido_en.isoformat(timespec="milliseconds") if l.medido_en else None)
+            for l in lecturas]
 
 
 @app.post("/ot/{ot_id}/sesion")

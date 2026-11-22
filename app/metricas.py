@@ -106,7 +106,8 @@ def leer(cx: sqlite3.Connection, ot: dict) -> Ejecucion:
         if ev.tipo is TipoEvento.ALERTA:
             clave = (ev.evidencia or {}).get("clave", "")
             clase, _, resto = clave.partition(":")
-            a = Alerta(clase, resto if clase in ("orden", "control") else None, _hora(ev.ts))
+            paso = resto if clase in ("orden", "control") else (ev.evidencia or {}).get("paso") if clase == "seguridad" else None
+            a = Alerta(clase, paso, _hora(ev.ts))
             e.alertas.append(a)
             abiertas[ev.id] = a
             if a.paso:

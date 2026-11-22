@@ -6,6 +6,7 @@ import type {
   Companero,
   Entrada,
   EstadoOt,
+  Mejora,
   OtDetalle,
   OtPedida,
   OtResumen,
@@ -76,6 +77,10 @@ export type Cliente = {
   recibirTurno(otId: string, actor: string): Promise<{ firmado_por: string }>
   /** Asigna o reasigna el operador de la OT. Quién asigna lo sabe la API por el token. */
   asignar(otId: string, operador: string): Promise<OtResumen>
+  /** Las propuestas abiertas de mejora de las pautas de la empresa. Solo supervisor. */
+  listarMejoras(): Promise<Mejora[]>
+  /** Acepta o descarta una propuesta; descartar pide una nota (409 sin ella). */
+  revisarMejora(id: string, decision: 'aceptar' | 'descartar', nota: string): Promise<Mejora>
 }
 
 /** De dónde sale el token y qué hacer cuando la API deja de reconocerlo. */
@@ -153,6 +158,9 @@ export function crearCliente(
     entregarTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/entregar?actor=${encodeURIComponent(actor)}`),
     recibirTurno: (id, actor) => pedir('POST', `${ot(id)}/relevo/recibir?actor=${encodeURIComponent(actor)}`),
     asignar: (id, operador) => pedir('POST', `${otCliente(id)}/asignar`, { operador }),
+    listarMejoras: () => pedir('GET', '/cliente/mejoras?estado=abierta'),
+    revisarMejora: (id, decision, nota) =>
+      pedir('POST', `/cliente/mejoras/${encodeURIComponent(id)}/revision`, { decision, nota }),
   }
 }
 

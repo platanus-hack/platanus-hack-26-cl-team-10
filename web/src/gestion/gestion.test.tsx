@@ -14,7 +14,7 @@ import { Mundo } from '../mocks/mundo'
 import { PAUTA_DEMO } from '../mocks/pauta'
 import { RequiereRol } from '../sesion/RequiereRol'
 import { ANA, BRUNO, CLAVE_MOCK, SUPERVISORA, entrarComo } from '../mocks/personas'
-import type { Persona } from '../api/tipos'
+import type { Mejora, Persona } from '../api/tipos'
 import { leerSesion, tokenDeSesion } from '../sesion/sesion'
 import { tema } from '../tema'
 import { Inicio } from './Inicio'
@@ -467,4 +467,67 @@ it('the demo handover: Carla assigns, Ana sees it, hands over, Bruno takes it', 
   await entrarConFormulario(BRUNO)
   await userEvent.click(within(await tarjeta('ot-14')).getByRole('button', { name: /Comenzar|Continuar/ }))
   expect(await screen.findByText('ejecución de ot-14')).toBeInTheDocument()
+})
+
+describe('Factum recommendations on the supervisor screen', () => {
+  const recomendacion = (detectada: boolean): Mejora => ({
+    id: 'pauta-polin-estacion:v5:e1', pauta: 'pauta-polin-estacion', nombre: 'Cambio de polín en la cinta', version: 5,
+    paso: 'e1', titulo: 'Apagar el motor', control_critico: false, ejecuciones: 3, ots_con_senal: 3, operarios_distintos: 2,
+    senales: { seguridad: 3 }, motivo: '«Apagar el motor» tuvo señales en 3 de 3 OT',
+    sugerencia: 'Con este paso todavía abierto se dio una condición de peligro.',
+    recurrencia: { ots_con_senal: 3, ots: 3, tasa: 1, tasa_del_resto: 0.05, p_valor: 0.0001, recurrente: true },
+    detectada: detectada ? { ot: 'ot-13', evento: 40, ts: '2026-11-21T22:10:00+00:00' } : null,
+    estado: 'abierta',
+  })
+
+  it('appears and chimes as soon as Factum detects the pattern, without naming the operator', async () => {
+    const sonar = vi.spyOn(campana, 'sonar').mockImplementation(() => {})
+    m.mejoras = [recomendacion(false)]
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    await tarjeta('ot-13')
+    expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull()
+
+    m.mejoras = [recomendacion(true)]
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
+    const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    expect(within(zona).getByText('Factum encontró un patrón')).toBeInTheDocument()
+    expect(within(zona).getByText(/«Apagar el motor»/)).toBeInTheDocument()
+    expect(within(zona).getByText(/Se desvió en 3 de 3 OT, con 2 operarios distintos/)).toBeInTheDocument()
+    expect(within(zona).queryByText(/Bruno|Ana/)).toBeNull()
+    expect(sonar).toHaveBeenCalledOnce()
+    expect(within(zona).getByRole('link', { name: 'Ver ot-13' })).toHaveAttribute('href', '/supervisor/ot/ot-13')
+  })
+
+  it('accepting it sends the review and takes it off the screen', async () => {
+    m.mejoras = [recomendacion(true)]
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: 'Aceptar la recomendación' }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull())
+    expect(m.mejoras[0]!.estado).toBe('aceptada')
+  })
+
+  it('discarding it asks why first', async () => {
+    m.mejoras = [recomendacion(true)]
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: 'Descartar' }))
+    const confirmar = within(zona).getByRole('button', { name: 'Descartar' })
+    expect(confirmar).toBeDisabled()
+    await userEvent.type(within(zona).getByLabelText('Por qué la descartas'), 'fue una prueba del demo')
+    await userEvent.click(confirmar)
+    await waitFor(() => expect(m.mejoras[0]!.estado).toBe('descartada'))
+  })
+
+  it('a recommendation already detected on arrival shows, but does not chime', async () => {
+    const sonar = vi.spyOn(campana, 'sonar').mockImplementation(() => {})
+    m.mejoras = [recomendacion(true)]
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    expect(await screen.findByRole('region', { name: 'Recomendaciones de Factum' })).toBeInTheDocument()
+    expect(sonar).not.toHaveBeenCalled()
+  })
 })

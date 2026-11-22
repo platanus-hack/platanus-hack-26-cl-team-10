@@ -1,7 +1,7 @@
 {
   "id": "pauta-polin-estacion",
   "nombre": "Cambio de polín en la cinta · estación del demo",
-  "version": 4,
+  "version": 5,
   "equipo": "cinta a escala (ESP32: motor con botón, distancia y temperatura; cámara)",
   "pasos": [
     {
@@ -53,8 +53,18 @@
     {
       "id": "e6",
       "orden": 6,
+      "titulo": "Alejarte de la cinta",
+      "instruccion": "Antes de encender el motor, aléjate de la cinta hasta que el sensor deje de verte.",
+      "tipo_evidencia": "sensor",
+      "capa_minima": 1,
+      "control_critico": true,
+      "sensor": { "id": "operario", "espera": "ausente" }
+    },
+    {
+      "id": "e7",
+      "orden": 7,
       "titulo": "Dejar la cinta andando",
-      "instruccion": "Aléjate de la cinta y aprieta el botón para encender el motor.",
+      "instruccion": "Desde donde estás, lejos de la cinta, aprieta el botón para encender el motor.",
       "tipo_evidencia": "sensor",
       "capa_minima": 1,
       "control_critico": true,

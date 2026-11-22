@@ -38,7 +38,7 @@ from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import asdict
 
-from app import acceso, catalogo, db, verificacion
+from app import acceso, catalogo, db, mejora, metricas, verificacion
 from app.analisis import requiere
 from app.bus import Bus, canal_edge, canal_ot
 from app.catalogo import ReglaDeNegocio
@@ -58,6 +58,8 @@ from app.scoring import Nivel, avisos, calificar_evento, capa2, frescura, peor, 
 from app.video import RAIZ, SEGUNDOS_GUARDADOS, Video
 
 log = logging.getLogger(__name__)
+# La lectura que se está procesando en este hilo, para que lo que ella cause lleve su hora de medición.
+_hilo = threading.local()
 
 HISTORIA_MAX = 300
 SEQ_RECORDADOS = 500
@@ -110,6 +112,37 @@ def _edad_s(ts: str) -> float:
     from datetime import UTC, datetime
 
     return (datetime.now(UTC) - datetime.fromisoformat(ts)).total_seconds()
+
+
+def _es_senal(ev: Evento) -> bool:
+    """Lo que alimenta la mejora continua (mejora._senales): alertas de seguridad, orden o control, conflictos,
+    pasos confirmados por una persona y observaciones sobre la pauta o la seguridad."""
+    e = ev.evidencia or {}
+    if ev.tipo is TipoEvento.ALERTA:
+        return str(e.get("clave", "")).split(":")[0] in ("seguridad", "orden", "control")
+    if ev.tipo is TipoEvento.VEREDICTO:
+        return ev.estado is Estado.EN_CONFLICTO or e.get("tipo") == "persona"
+    return ev.tipo is TipoEvento.OBSERVACION and e.get("categoria") in ("pauta", "seguridad")
+
+
+def _ahora_ms() -> str:
+    """db.ahora() redondea al segundo; una latencia se mide en milisegundos."""
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
+
+
+def _latencia(medida: dict, escrito_en: str) -> dict:
+    """De la medición en el edge a la recepción y al evento escrito, en milisegundos. Con relojes distintos en el
+    edge y el servidor la resta arrastra su diferencia: los dos tienen que estar sincronizados por NTP."""
+    from datetime import datetime
+
+    try:
+        t0 = datetime.fromisoformat(medida["medido_en"])
+        ms = lambda ts: round((datetime.fromisoformat(ts) - t0).total_seconds() * 1000)  # noqa: E731
+        return {**medida, "ms_hasta_recibir": ms(medida["recibida_en"]), "ms_hasta_el_evento": ms(escrito_en)}
+    except (ValueError, TypeError):
+        return {**medida, "error": "medido_en no es una hora ISO 8601 con zona"}
 
 
 class Servicios:
@@ -247,9 +280,32 @@ class Servicios:
 
     def agregar(self, ev: Evento) -> Evento:
         """Toda escritura a la bitácora pasa por acá para que la UI la vea al instante."""
+        medida = getattr(_hilo, "lectura", None)
+        if medida is not None and ev.tipo in (TipoEvento.ALERTA, TipoEvento.VEREDICTO):
+            ev.evidencia = {**(ev.evidencia or {}), "lectura": _latencia(medida, _ahora_ms())}
         db.agregar(self.cx, ev)
         self.bus.publicar(canal_ot(ev.ot_id), {"tipo": "evento", "evento": evento_dict(ev)})
+        if _es_senal(ev):
+            self._vigilar_patrones(ev.ot_id)
         return ev
+
+    def _vigilar_patrones(self, ot_id: str) -> None:
+        """Apenas una señal vuelve recurrente un paso, la recomendación queda en la bitácora de la OT donde se vio, una
+        vez por propuesta, y el supervisor la encuentra en `GET /cliente/mejoras` con `detectada`. Cuenta pasos y OT,
+        nunca personas (ADR-0013)."""
+        fila = self.cx.execute("SELECT cliente_id FROM ot_cliente WHERE ot_id = ?", (ot_id,)).fetchone()
+        if fila is None:
+            return
+        cliente_id = fila["cliente_id"]
+        ot = db.leer_ot(self.cx, ot_id)
+        ots = acceso.ots_de(self.cx, {"cliente": {"id": cliente_id}, "rol": "supervisor"}, self._ots_en_sesion())
+        es = metricas.ejecuciones(self.cx, ots)
+        for p in mejora.por_avisar(self.cx, es, cliente_id, ot["pauta_id"], ot["pauta_version"]):
+            ev = self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.PROPUESTA_PAUTA, ts=db.ahora(), actor="sistema",
+                                     paso_id=p["paso"], detalle=mejora.texto_del_aviso(p),
+                                     evidencia={"tipo": "propuesta", "propuesta": p["id"], "recurrencia": p["recurrencia"],
+                                                "senales": {k: v for k, v in p["senales"].items() if v}}))
+            mejora.registrar_aviso(self.cx, cliente_id, p["id"], ot_id, ev.id, ev.ts)
 
     def alertas_activas(self, ot_id: str) -> dict[str, Evento]:
         """Clave → evento que la abrió, para las alertas que todavía no se resolvieron."""
@@ -458,13 +514,23 @@ class Servicios:
     # ─── Lo que llega del edge ─────────────────────────────────────────────
 
     def recibir_lectura(
-        self, edge_id: str, sensor_id: str, valor: str, seq: int | None = None
+        self, edge_id: str, sensor_id: str, valor: str, seq: int | None = None, medido_en: str | None = None
     ) -> dict:
+        """`medido_en` es la hora en que el edge leyó el sensor (ISO 8601 con zona). Si llega, cada alerta o veredicto
+        que esta lectura cause guarda en `evidencia.lectura` cuánto tardó desde la medición hasta quedar escrito."""
+        _hilo.lectura = {"sensor": sensor_id, "medido_en": medido_en, "recibida_en": _ahora_ms()} if medido_en else None
+        try:
+            return self._recibir_lectura(edge_id, sensor_id, valor, seq)
+        finally:
+            _hilo.lectura = None
+
+    def _recibir_lectura(self, edge_id: str, sensor_id: str, valor: str, seq: int | None) -> dict:
         if seq is not None:
             if seq in self._seq[edge_id]:
                 return {"duplicada": True, "ot": None, "eventos": []}
             self._seq[edge_id].append(seq)
 
+        anterior = db.estado_sensores(self.cx).get(sensor_id)
         db.escribir_sensor(self.cx, sensor_id, valor)
         lectura = {"tipo": "lectura", "edge_id": edge_id, "sensor_id": sensor_id, "valor": valor, "ts": db.ahora()}
         self.bus.publicar(canal_edge(edge_id), lectura)
@@ -479,7 +545,7 @@ class Servicios:
             *self._seguridad(ot_id, sensor_id, valor),
             *self._paso_por_sensor(ot_id, sensor_id),
             *self._controles(ot_id, sensor_id, valor),
-            *self._orden(ot_id, sensor_id, valor),
+            *self._orden(ot_id, sensor_id, valor, cambio=anterior != valor),
             *self._senal(ot_id, sensor_id, valor),
         ]
         calificacion = self.publicar_calificacion(ot_id)
@@ -501,10 +567,17 @@ class Servicios:
         sensores = db.estado_sensores(self.cx)
         alertas = {_clave_seguridad(a.detalle): a for a in reglas_seguridad(sensores)}
         activas = {k: e for k, e in self.alertas_activas(ot_id).items() if k.startswith("seguridad:")}
+        # El paso en curso cuando se dio el peligro: el que el operario no terminó antes de hacer lo que vino después.
+        # Así la mejora continua ve en qué paso se repite (acercarse con el motor encendido cae en «Apagar el motor»).
+        en_curso = None
+        if alertas.keys() - activas.keys():
+            pauta, estados = self._pauta_y_estados(ot_id)
+            actual = paso_actual(pauta, estados)
+            en_curso = actual.id if actual else None
         nuevos = [
             self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.ALERTA, ts=db.ahora(), actor="sistema",
                                 estado=a.estado, capa=a.capa, detalle=a.detalle,
-                                evidencia={**(a.evidencia or {}), "clave": clave}))
+                                evidencia={**(a.evidencia or {}), "clave": clave, "paso": en_curso}))
             for clave, a in alertas.items() if clave not in activas
         ]
         nuevos += [
@@ -558,9 +631,14 @@ class Servicios:
                                           "valor": sensores.get(ev.get("sensor"))}))
         return nuevos
 
-    def _orden(self, ot_id: str, sensor_id: str, valor: str) -> list[Evento]:
+    def _orden(self, ot_id: str, sensor_id: str, valor: str, cambio: bool = True) -> list[Evento]:
         pauta, estados = self._pauta_y_estados(ot_id)
         nuevos = self._resolver_orden(ot_id)
+        if not cambio:
+            # El edge repite cada lectura cada pocos segundos. Un valor que no cambió no es algo que el operario
+            # hizo fuera de orden: es el estado en que ya estaba el equipo («equipo = frio» en reposo sonaba
+            # ORDEN INVERTIDO en las 10 corridas LOTO de la VM del 2026-11-21).
+            return nuevos
         # Deshacer un control ya cuenta como control perdido: no se avisa dos veces lo mismo.
         perdido = any(k.startswith("control:") and (e.evidencia or {}).get("sensor") == sensor_id
                       for k, e in self.alertas_activas(ot_id).items())

@@ -269,10 +269,10 @@ class PorHTTP(unittest.TestCase):
         f = self.c.get("/cliente/ots/ot-1017/ficha", headers=ana).json()
         self.assertEqual((f["cliente"]["nombre"], f["operador_nombre"], f["pedida_por_nombre"], f["estado_general"], f["paso_actual"]),
                          ("Oculta", "Ana Rojas", "Carla Muñoz", "asignada", "e1"))
-        self.assertEqual((f["pauta"], f["version"], f["nombre"]), ("pauta-polin-estacion", 4, "Cambio de polín en la cinta · estación del demo"))
+        self.assertEqual((f["pauta"], f["version"], f["nombre"]), ("pauta-polin-estacion", 5, "Cambio de polín en la cinta · estación del demo"))
         self.assertEqual([p["id"] for p in f["protocolos"]], ["prot-aislamiento-01", "prot-correa-01"])
         self.assertEqual([(p["id"], p["tipo_evidencia"]) for p in f["pasos"]],
-                         [("e1", "sensor"), ("e2", "sensor"), ("e3", "sensor"), ("e4", "camara"), ("e5", "camara"), ("e6", "sensor")])
+                         [("e1", "sensor"), ("e2", "sensor"), ("e3", "sensor"), ("e4", "camara"), ("e5", "camara"), ("e6", "sensor"), ("e7", "sensor")])
         self.assertEqual((f["pasos"][0]["sensor"], f["pasos"][0]["instruccion"][:16]), ({"id": "energia", "espera": "cortada"}, "Aprieta el botón"))
         self.assertEqual(self.c.get("/ot/ot-1017/ficha").json(), f)  # sin clave de equipo el servidor está abierto, como en local
         # la estación la ejecuta a nombre de su operadora y la ficha lo refleja
@@ -287,7 +287,7 @@ class PorHTTP(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAVE_EQUIPO": "secreta"}):
             f = self.c.get("/ot/ot-1017/ficha").json()
             self.assertEqual((f["cliente"], f["operador_nombre"], f["pedida_por_nombre"]), (None, None, None))
-            self.assertEqual((f["operador"], len(f["pasos"])), ("operario:1", 6))
+            self.assertEqual((f["operador"], len(f["pasos"])), ("operario:1", 7))
             self.assertEqual(self.c.get("/ot/ot-1017/ficha", headers={"X-Clave-Equipo": "secreta"}).json()["cliente"]["id"], "oculta")
 
     def test_el_equipo_deja_la_ot_del_demo_pedida_por_su_supervisor_y_asignada_a_su_operador(self):

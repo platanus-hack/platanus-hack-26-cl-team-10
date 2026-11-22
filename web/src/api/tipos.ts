@@ -167,3 +167,38 @@ export type RespuestaDeclarar = {
 
 /** POST /ot/{id}/pasos/{paso}/confirmar: una persona cierra el paso en curso aunque la evidencia no lo muestre. */
 export type RespuestaConfirmar = RespuestaDeclarar
+
+/** Si un paso se desvía más que el resto de su pauta (app/recurrencia.py). */
+export type Recurrencia = {
+  ots_con_senal: number
+  ots: number
+  tasa: number | null
+  tasa_del_resto: number
+  p_valor: number
+  recurrente: boolean
+}
+
+export type EstadoMejora = 'abierta' | 'aceptada' | 'descartada' | 'aplicada' | 'superada'
+
+/**
+ * Una propuesta para mejorar un paso de una pauta (`GET /cliente/mejoras`, app/mejora.py). `detectada` dice cuándo
+ * y en qué OT Factum la avisó: solo las recurrentes se avisan. Cuenta OT y operarios distintos, nunca nombra a nadie.
+ */
+export type Mejora = {
+  id: string
+  pauta: string
+  nombre: string
+  version: number
+  paso: string
+  titulo: string
+  control_critico: boolean
+  ejecuciones: number
+  ots_con_senal: number
+  operarios_distintos: number
+  senales: Record<string, number>
+  motivo: string
+  sugerencia: string
+  recurrencia: Recurrencia | null
+  detectada: { ot: string; evento: number | null; ts: string } | null
+  estado: EstadoMejora
+}

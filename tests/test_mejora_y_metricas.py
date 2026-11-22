@@ -153,7 +153,8 @@ class LaMejoraContinua(Base):
         self.ejecutar_hasta_p3(ot, self.ana, "edge-mejora")
         self.assertEqual(self.c.get(f"/cliente/ots/{ot}", headers=self.carla).json()["version"], 2)
         v = self.propuesta()["validacion"]
-        self.assertEqual((v["version_nueva"], v["ejecuciones"], v["ots_con_senal"], v["resultado"]), (2, 1, 0, "mejoro"))
+        # bajó a 0 de 1, pero una OT no alcanza para decir que mejoró: puede ser azar (app/recurrencia.py)
+        self.assertEqual((v["version_nueva"], v["ejecuciones"], v["ots_con_senal"], v["resultado"]), (2, 1, 0, "sin_evidencia"))
 
     def test_si_en_la_version_nueva_el_paso_se_sigue_desviando_lo_dice(self):
         pauta = {**json.loads((protocolos.DATOS / "pauta-polin-demo.json").read_text()), "version": 2}
@@ -254,3 +255,35 @@ class LasMetricas(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ElAvisoAlSupervisor(Base):
+    """Apenas un paso se vuelve recurrente, la recomendación le llega al supervisor (servicios._vigilar_patrones)."""
+
+    def acercarse_con_el_motor_encendido(self, i):
+        ot = self.ot_asignada(pauta="pauta-polin-estacion")
+        edge = f"edge-aviso-{i}"
+        self.assertEqual(self.c.post(f"/cliente/ots/{ot}/sesion", json={"edge_id": edge}, headers=self.ana).status_code, 200)
+        lecturas = [("energia", "viva"), ("operario", "ausente"), ("equipo", "caliente"), ("operario", "presente"),
+                    ("energia", "cortada")]
+        self.c.post(f"/edge/{edge}/lecturas", json=[{"sensor_id": s, "valor": v} for s, v in lecturas])
+        self.c.delete(f"/edge/{edge}/sesion")
+        return ot
+
+    def detectadas(self):
+        return [p for p in self.c.get("/cliente/mejoras", headers=self.carla).json() if p["detectada"]]
+
+    def test_a_la_tercera_ot_que_se_acerca_sin_apagar_el_motor_aparece_la_recomendacion(self):
+        primeras = [self.acercarse_con_el_motor_encendido(i) for i in range(2)]
+        self.assertEqual(self.detectadas(), [], primeras)  # con dos OT todavía puede ser azar
+        tercera = self.acercarse_con_el_motor_encendido(2)
+        [p] = self.detectadas()
+        self.assertEqual((p["paso"], p["titulo"], p["detectada"]["ot"]), ("e1", "Apagar el motor", tercera))
+        self.assertGreaterEqual(p["senales"]["seguridad"], 3)
+        eventos = self.c.get(f"/cliente/ots/{tercera}/eventos", headers=self.carla).json()
+        aviso = next(e for e in eventos if e["tipo"] == "propuesta_pauta")
+        self.assertIn("«Apagar el motor»", aviso["detalle"])
+        self.assertNotIn("Ana", aviso["detalle"])
+        # una cuarta OT no repite el aviso
+        self.acercarse_con_el_motor_encendido(3)
+        self.assertEqual(len(self.detectadas()), 1)

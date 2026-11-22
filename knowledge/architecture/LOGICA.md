@@ -133,6 +133,10 @@ Límite conocido y aceptado: esto funciona mientras el registro de una OT quepa 
 
 Una desviación suelta no es una propuesta. La propuesta nace cuando el **mismo** paso de la misma versión tiene señales en ejecuciones distintas: alertas de orden o de control, conflictos, pasos confirmados por una persona porque la evidencia no los vio, y lo que observaron los operarios. El supervisor la valida, el equipo escribe la versión nueva y la misma propuesta dice después si el paso dejó de desviarse ([ADR-0014](../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)).
 
+Una alerta de seguridad también es una señal, y cuenta en el paso que estaba en curso cuando se dio el peligro: acercarse con el motor encendido cuenta en «Apagar el motor».
+
+**El aviso al supervisor llega apenas el patrón se distingue del ruido**, no cuando el paso junta dos OT: el paso tiene que desviarse más que el resto de su pauta, con un α de 0,005 porque la prueba corre después de cada señal. Si los demás pasos están limpios, eso pasa a la tercera OT que se salta el mismo paso. Se avisa una vez por propuesta: queda un evento `propuesta_pauta` en la OT donde se detectó y la propuesta trae `detectada`. Por qué esos números está en la [simulación](../projects/mejora-continua/simulacion.md).
+
 La vista del supervisor **agrupa por pauta y por área antes que por persona**: un paso que se saltan muchos operarios que normalmente cumplen apunta a la pauta, no a ellos (REFERENCIAS 33). Y dos cuidados que son regla, no consejo:
 
 - **Un paso de seguridad que se salta seguido no se vuelve prescindible.** Que se repita la desviación es señal de que la pauta está mal escrita o es impracticable, no de que el paso sobre.

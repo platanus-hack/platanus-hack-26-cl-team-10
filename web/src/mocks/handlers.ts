@@ -147,6 +147,22 @@ export function crearHandlers(
       return HttpResponse.json({ ot: id, pauta: m.pauta.id, version, nombre, protocolos: PROTOCOLOS, cliente: p.cliente.id }, { status: 201 })
     })))),
 
+    // Las propuestas de mejora de la empresa (app/mejora.py). En el mock las pone el test o el escenario.
+    http.get(`${raiz}/cliente/mejoras`, vivo(conLogin(soloSupervisor(({ request }) => {
+      const estado = new URL(request.url).searchParams.get('estado')
+      return HttpResponse.json(m.mejoras.filter((x) => !estado || x.estado === estado))
+    })))),
+
+    http.post(`${raiz}/cliente/mejoras/:id/revision`, vivo(conLogin(soloSupervisor(async ({ params, request }) => {
+      const mejora = m.mejoras.find((x) => x.id === String(params.id))
+      if (!mejora) return noExiste(`propuesta ${String(params.id)}`)
+      const { decision, nota } = ((await request.json().catch(() => null)) ?? {}) as { decision?: string; nota?: string }
+      if (decision !== 'aceptar' && decision !== 'descartar') return regla(`la decisión ${String(decision)} no existe; hay aceptar, descartar`)
+      if (decision === 'descartar' && !nota?.trim()) return regla('descartar una propuesta necesita una nota que diga por qué')
+      mejora.estado = decision === 'aceptar' ? 'aceptada' : 'descartada'
+      return HttpResponse.json(mejora)
+    })))),
+
     // Asigna una OT sin operador o reasigna una entregada (app/catalogo.py, asignacion).
     http.post(`${raiz}/cliente/ots/:id/asignar`, vivo(conLogin(soloSupervisor(async ({ params, request }, p) => {
       const id = otDe(params)

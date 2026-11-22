@@ -37,7 +37,7 @@ Las pautas nuevas separan tres pasos que antes iban juntos o faltaban: aislar la
 
 ## Pendientes y no verificado
 
-- La extracción de pasos con un modelo sigue siendo un stub (`protocolos.extraer_pasos`): hoy las pautas de la semilla se escribieron a mano a partir de cada documento. `Brecha`.
+- La extracción de pasos la hace el equipo con la skill `reconocer-proceso` y su comprobador ([ADR-0015](./0015-reconocer-procesos-con-skills-de-agente-y-un-criterio.md)), no una ruta de la API. El stub `protocolos.extraer_pasos` se borró el 2026-11-21: el cliente no convierte protocolos, eso es parte del servicio.
 - El servicio del cliente no identifica al cliente: cualquiera que llegue a la API puede pedir una OT, y `solicitante` es un texto libre. Falta una credencial por cliente. `Brecha`.
 - Las rutas públicas anteriores (`POST /pautas`, `POST /ot`) siguen abiertas y permiten crear pautas sin protocolo. No se cerraron para no romper la pantalla del demo ni el banco de casos. `Brecha`.
 - Los seis protocolos de la semilla los redactó el equipo, con la estructura de los manuales de REFERENCIAS 56 a 66; ninguno es el documento real de un cliente. El del camión rígido resume una guía pública de un tercero y guarda su enlace, sin copiar su texto. `Candidata a validar` con un protocolo real.

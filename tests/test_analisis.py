@@ -43,6 +43,11 @@ class Citas(unittest.TestCase):
         }
         self.assertEqual(analisis.citas_sin_respaldo(borrador, texto), ["p2", "p3"])
 
+    def test_una_cita_de_menos_de_cuatro_palabras_no_respalda_nada(self):
+        borrador = {"pauta": {"pasos": [{"id": "p1"}, {"id": "p2"}]},
+                    "analisis": {"pasos": {"p1": {"cita": "la"}, "p2": {"cita": "corta la energía y pon"}}}}
+        self.assertEqual(analisis.citas_sin_respaldo(borrador, "Corta la energía y pon tu candado."), ["p1"])
+
     def test_una_negrita_pegada_a_una_coma_no_rompe_la_cita(self):
         borrador = {"pauta": {"pasos": [{"id": "p8"}]},
                     "analisis": {"pasos": {"p8": {"cita": "Sacar tu candado, con todos fuera de la correa."}}}}
@@ -84,13 +89,10 @@ class AlertasEnEjecucionCorrecta(unittest.TestCase):
         self.assertIn("GUARDA ABIERTA", r[0]["aviso"])
 
     def test_ninguna_pauta_de_datos_dispara_una_regla_al_ejecutarse_bien(self):
-        # La del demo físico repone la corriente (e6) sin un paso que aleje al operario, que e2 dejó junto a
-        # la cinta: seguida al pie de la letra, salta «persona junto a la máquina con el motor encendido».
-        # Está avisado en el ADR-0015; cuando la pauta lo resuelva, esta excepción sobra.
-        conocidas = {"pauta-polin-estacion.json": ["e6"]}
+        # La del demo físico reponía la corriente sin un paso que alejara al operario; desde la v5 lo tiene (e6).
         for ruta in sorted(DATOS.glob("pauta-*.json")):
             pasos = [a["paso"] for a in analisis.alertas_en_ejecucion_correcta(desde_json(ruta))]
-            self.assertEqual(pasos, conocidas.get(ruta.name, []), ruta.name)
+            self.assertEqual(pasos, [], ruta.name)
 
 
 class Criterio(unittest.TestCase):
@@ -124,7 +126,8 @@ class Historia(unittest.TestCase):
             "b": ot((4, "p1", V, 1), (5, "alerta", {"pendiente": "p3", "clave": "orden:p5"}), (6, "p4", V, None)),
         }
         h = analisis.historia(POLIN, ots)
-        self.assertEqual(h["p1"]["segundos"], 180.0)   # mediana de 2 y 4 minutos
+        self.assertIsNone(h["p1"]["segundos"])         # el primero incluiría la espera hasta que alguien toma la OT
+        self.assertEqual(h["p2"]["segundos"], 240.0)   # de 2 a 6 minutos
         self.assertEqual(h["p2"]["conflicto"], 1)      # dos eventos, una OT
         self.assertEqual(h["p3"]["por_persona"], 1)    # sensor cerrado por una persona
         self.assertEqual(h["p3"]["alerta"], 1)

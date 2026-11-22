@@ -11,6 +11,8 @@ import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, type Incident
 import estilos from './TarjetaOt.module.css'
 import { EstadoBadge, Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
 import { mensajeDe, useOts, type OtVista } from './useOts'
+import { Recomendaciones } from './Recomendaciones'
+import { useRecomendaciones } from './useRecomendaciones'
 
 /** Los operadores de la empresa (`GET /cliente/operadores`), con sus nombres para toda la pantalla. */
 function useOperadores() {
@@ -374,6 +376,7 @@ export function PaginaSupervisor() {
   const operadores = useOperadores()
   const incidentes = useMemo(() => (ots ? incidentesDe(ots) : null), [ots])
   useCampanaDeIncidentes(incidentes)
+  const recomendaciones = useRecomendaciones()
   const [pedida, setPedida] = useState<OtPedida | null>(null)
   if (!usuario) return null
 
@@ -381,6 +384,7 @@ export function PaginaSupervisor() {
   const deOperadores: Operadores = { lista: operadores.operadores, error: operadores.error }
   const actualizar = () => {
     void recargar()
+    void recomendaciones.recargar()
     if (!operadores.operadores) void operadores.recargar()
   }
   const alPedir = async (o: OtPedida) => {
@@ -404,6 +408,7 @@ export function PaginaSupervisor() {
             </Group>
           </Group>
           <BarraIncidentes incidentes={incidentes ?? []} />
+          <Recomendaciones recomendaciones={recomendaciones.recomendaciones} quitar={recomendaciones.quitar} />
           {pedida && (
             <Alert color="verificado" variant="light" withCloseButton onClose={() => setPedida(null)} closeButtonLabel="Cerrar aviso">
               Pediste la {pedida.ot.toUpperCase()}, {pedida.nombre}. Queda por asignar.

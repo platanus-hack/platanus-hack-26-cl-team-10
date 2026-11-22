@@ -53,6 +53,12 @@ class _Servicios(Servicios):
     def _cuadro_de_paso(self, ot_id, paso_id):
         return b""
 
+    def agregar(self, ev):
+        if (ev.evidencia or {}).get("semilla"):
+            # que nadie lea «la cámara responde que sí (90%)» como si una cámara hubiera mirado
+            ev.detalle = f"{ev.detalle} · dato de ejemplo: ninguna cámara miró este paso"
+        return super().agregar(ev)
+
 
 @contextmanager
 def _reloj(desde: datetime) -> Iterator[None]:

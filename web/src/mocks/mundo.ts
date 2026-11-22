@@ -8,6 +8,7 @@ import type {
   EstadoGeneral,
   EstadoOt,
   Evento,
+  Mejora,
   MensajeStream,
   OtResumen,
   PasoEstado,
@@ -57,6 +58,9 @@ export class Mundo {
     this._caido = valor
     if (cae) for (const fn of this.alCaer) fn()
   }
+
+  /** Las propuestas de mejora de la empresa, como `GET /cliente/mejoras`. Un test las pone a mano. */
+  mejoras: Mejora[] = []
 
   private ots = new Map<string, OtMock>()
   private siguienteId = 1

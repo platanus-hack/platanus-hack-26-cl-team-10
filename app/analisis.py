@@ -32,6 +32,9 @@ PARTE_LENTA = 0.4     # un paso que se lleva esta fracción del tiempo de la pau
 # ─── Lo que dice el protocolo ───────────────────────────────────────────────
 
 
+MIN_PALABRAS_CITA = 4  # «la» o «energía» aparecen en cualquier protocolo: una cita tan corta no señala nada
+
+
 def _plano(texto: str) -> str:
     """Sin formato Markdown ni espacios de más: una cita se busca por sus palabras."""
     # las marcas de énfasis se quitan sin dejar espacio: «**candado**, con» es «candado, con»
@@ -48,7 +51,7 @@ def citas_sin_respaldo(borrador: Mapping, texto: str) -> list[str]:
     por_paso = borrador.get("analisis", {}).get("pasos", {})
     return [
         p["id"] for p in borrador["pauta"]["pasos"]
-        if not (cita := _plano(por_paso.get(p["id"], {}).get("cita", ""))) or cita not in plano
+        if len((cita := _plano(por_paso.get(p["id"], {}).get("cita", ""))).split()) < MIN_PALABRAS_CITA or cita not in plano
     ]
 
 
@@ -137,16 +140,17 @@ def historia(pauta: Pauta, ots: Mapping[str, Sequence[Evento]]) -> dict[str, dic
     conflicto: OT donde lo declarado y la evidencia no coincidieron.
     por_persona: OT donde alguien lo confirmó contra el sensor o la cámara.
     alerta: OT donde este paso quedó saltado (orden invertido) o se deshizo (control perdido).
-    segundos: mediana desde que se cerró el paso anterior hasta que se cerró este.
+    segundos: mediana desde que se cerró el paso anterior hasta que se cerró este; el primero que se cierra no tiene.
     """
     h = {p.id: {"ots": len(ots), "verificado": 0, "conflicto": 0, "por_persona": 0, "alerta": 0, "segundos": []}
          for p in pauta.pasos}
     confirma = {p.id for p in pauta.pasos if p.tipo_evidencia is TipoEvidencia.CONFIRMACION}
     for eventos in ots.values():
         visto: set[tuple[str, str]] = set()
-        # shortcut: el primer paso se mide desde que se abrió la OT, que incluye la espera; cuando se
-        # registre `paso_iniciado`, medir desde ahí
-        anterior = eventos[0].ts if eventos else None
+        # El primer paso no tiene tiempo, como en app/metricas.py: desde que se abrió la OT corre también la
+        # espera hasta que alguien la toma, y eso hacía que el criterio de PARTE_LENTA marcara siempre el
+        # primer paso. Cuando se registre `paso_iniciado`, medir desde ahí.
+        anterior: str | None = None
 
         def contar(paso_id: str | None, que: str) -> bool:
             nuevo = paso_id in h and (paso_id, que) not in visto
@@ -165,8 +169,9 @@ def historia(pauta: Pauta, ots: Mapping[str, Sequence[Evento]]) -> dict[str, dic
                 if ev.capa is None and ev.paso_id not in confirma:
                     contar(ev.paso_id, "por_persona")
                 if contar(ev.paso_id, "verificado"):
-                    h[ev.paso_id]["segundos"].append(
-                        (datetime.fromisoformat(ev.ts) - datetime.fromisoformat(anterior)).total_seconds())
+                    if anterior is not None:
+                        h[ev.paso_id]["segundos"].append(
+                            (datetime.fromisoformat(ev.ts) - datetime.fromisoformat(anterior)).total_seconds())
                     anterior = ev.ts
     for d in h.values():
         d["segundos"] = round(median(d["segundos"]), 1) if d["segundos"] else None
