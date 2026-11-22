@@ -107,6 +107,8 @@ Y dos reglas que **sí dependen de la pauta**, porque leen qué pasos están cer
 | Orden invertido | Llega la lectura que cierra un paso posterior mientras el paso en curso, que es control crítico, sigue abierto | Cuando se hace el paso saltado o se deshace lo adelantado | El orden lo comprueba la capa 1 (punto 2 de arriba). Es el bloqueo saltado del demo, y la causa de la muerte que investigó MSHA en 2025: el procedimiento existía y no se aplicó (47). Si el paso pendiente no es crítico no se avisa: cerrar la guarda porque sonó una alerta no vale una interrupción |
 | Control crítico deshecho | El sensor de un control crítico ya verificado deja de marcar lo que el paso exige, antes del paso de la pauta que lo deshace | Cuando el sensor vuelve | Las protecciones se reponen antes de volver a servicio y la reposición va en orden inverso (44, 48, 52). Deja de mirar cuando solo quedan pasos de confirmación, que es cuando la pauta devuelve el equipo a servicio |
 
+**Una lectura no cierra su paso mientras ese mismo sensor sostiene un peligro.** Si «Encender el sistema» espera `energia = viva` y el motor se enciende con alguien junto a la cinta, la alerta suena y el paso sigue abierto: se cierra con la lectura siguiente del motor, cuando la persona ya se alejó. Sin esto la OT quedaría completa con el peligro a la vista (`servicios._paso_por_sensor`, `datos/pauta-polin-corto.json`).
+
 Agregar una regla de seguridad es una decisión de producto, no un detalle de implementación: va en este documento. Cada una tiene sus escenarios en las tres industrias ([escenarios por industria](../projects/escenarios-por-industria/PRD.md)).
 
 ## Dónde una persona tiene que aprobar
@@ -146,6 +148,7 @@ Hay dos clases de propuesta. Las de **desviación** salen de cómo se ejecutó l
 |---|---|
 | Conformidad `falta` | Agrega un paso de confirmación que cumple el control, justo después del paso que cumple el control anterior según el orden del protocolo, o al principio |
 | Conformidad `juntos` | Separa: el paso original queda con el primer control y se agrega a continuación un paso de confirmación con el segundo |
+| Desviación dominada por seguridad, en un paso que al cerrarse con su sensor arma un peligro del que una persona sale con un gesto que otro sensor ve (`reglas.antes_de_cerrar`: encender con alguien cerca) | Agrega antes un paso de sensor, control crítico, que pide ese gesto («Alejarte del equipo», `operario = ausente`). Si la pauta ya lo pide antes, reescribe como la fila siguiente |
 | Desviación dominada por seguridad, orden, control o conflicto | Reescribe la instrucción del paso con cuándo está hecho y qué no se hace antes («No sigas al paso siguiente hasta que…»), sin cambiar su evidencia ni su orden |
 | Conformidad `orden` o `desconocido`; desviación dominada por confirmaciones de persona u observaciones; propuesta escalada, descartada, aplicada o superada | No aplicable: lo decide una persona, o el problema es el sensor y no la pauta |
 

@@ -18,7 +18,7 @@ import sqlite3
 from collections.abc import Sequence
 from dataclasses import replace
 
-from app import analisis, catalogo, cerebro, db, mejora
+from app import analisis, catalogo, cerebro, db, mejora, reglas
 from app.catalogo import ReglaDeNegocio
 from app.contratos import Paso, Pauta, TipoEvidencia
 
@@ -171,6 +171,19 @@ def _aplicar(cx: sqlite3.Connection, pasos: _Pasos, p: dict) -> list[dict]:
         return []
     original = pasos.paso(p["paso"])
     clase = _dominante(p["senales"])
+    if clase == "seguridad" and original.sensor:
+        # El peligro lo arma el propio paso al cerrarse (encender con alguien cerca): reescribirlo no lo evita, falta
+        # el paso que deja a la persona a salvo antes. Si la pauta ya lo pide antes, queda la reescritura de abajo.
+        i = pasos.indice(p["paso"])
+        pedido = {s.sensor.id: s.sensor.espera for _, s in pasos.filas[:i] if s.sensor}  # lo último que pide cada sensor
+        faltan = [n for n in reglas.antes_de_cerrar(original.sensor) if pedido.get(n.sensor.id) != n.sensor.espera]
+        ots = list(p.get("ots") or [])
+        if faltan:
+            return [{"tipo": "agrega", "clave": pasos.insertar(pasos.indice(p["paso"]), n), "antes": None,
+                     "antes_de": original.titulo, "ots": ots,
+                     "porque": f"«{original.titulo}» se hizo sin «{n.titulo}» antes{' en ' + _lista(ots) if ots else ''}: "
+                               f"se abrió una alerta de seguridad, y la versión {p['version']} no tiene un paso que lo pida."}
+                    for n in faltan]
     frase = f"No sigas al paso siguiente hasta que {_hecho(original)}: {FRASE[clase]}."
     instruccion = original.instruccion if frase in original.instruccion else f"{original.instruccion.rstrip()} {frase}"
     pasos.cambiar(p["paso"], replace(original, instruccion=instruccion))
@@ -222,7 +235,8 @@ def _armar(cx: sqlite3.Connection, origen: Pauta, propuestas: Sequence[dict], ve
                         "despues": {"titulo": paso.titulo, "instruccion": paso.instruccion,
                                     "tipo_evidencia": str(paso.tipo_evidencia), "cumple": list(paso.cumple)},
                         "porque": c["porque"], "ots": c["ots"], "propuesta": c["propuesta"],
-                        "_despues_de": c.get("despues_de"), "_separado_de": c.get("separado_de")})
+                        "_despues_de": c.get("despues_de"), "_separado_de": c.get("separado_de"),
+                        "_antes_de": c.get("antes_de")})
     return nueva, cambios
 
 
@@ -263,7 +277,9 @@ def resumen(cambios: Sequence[dict]) -> list[str]:
     salida = []
     for c in cambios:
         t = c["despues"]["titulo"]
-        if c["tipo"] == "agrega":
+        if c["tipo"] == "agrega" and c.get("_antes_de"):
+            salida.append(f"Agrega «{t}» antes de «{c['_antes_de']}»")
+        elif c["tipo"] == "agrega":
             salida.append(f"Agrega «{t}» después de «{c['_despues_de']}»" if c.get("_despues_de") else f"Agrega «{t}» al principio")
         elif c["tipo"] == "separa":
             salida.append(f"Separa «{t}» de «{c['_separado_de']}» en un paso propio")
@@ -301,6 +317,10 @@ def resumen_de(cx: sqlite3.Connection, propuesta: dict) -> list[str]:
 
 
 def _por_que_corto(c: dict, propuesta: dict) -> str:
+    if c["tipo"] == "agrega" and propuesta["tipo"] == "desviacion":
+        r = propuesta.get("recurrencia") or {}
+        n, total = r.get("ots_con_senal", propuesta["ots_con_senal"]), r.get("ots", propuesta["ejecuciones"])
+        return f"En {n} de {total} OT el paso siguiente se hizo en una condición de peligro: la pauta no pide esto antes."
     if c["tipo"] == "agrega":
         return "El protocolo lo exige y hoy ningún paso de la pauta lo hace."
     if c["tipo"] == "separa":

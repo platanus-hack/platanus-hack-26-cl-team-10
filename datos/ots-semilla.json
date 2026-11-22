@@ -54,6 +54,24 @@
     {"ot": "ot-1018", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:2", "cerrar": 0},
     {"ot": "ot-1019", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:1", "cerrar": 0},
     {"ot": "ot-1020", "pauta": "pauta-botella-01", "hace_dias": 1, "operador": "operario:2", "cerrar": "todos"},
-    {"ot": "ot-1021", "pauta": "pauta-botella-01", "hace_dias": 0, "operador": "operario:1", "cerrar": 0}
+    {"ot": "ot-1021", "pauta": "pauta-botella-01", "hace_dias": 0, "operador": "operario:1", "cerrar": 0},
+    {"ot": "ot-1022", "pauta": "pauta-polin-corto", "hace_dias": 0, "operador": "operario:2", "cerrar": 1, "entregar": true,
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["operario", "ausente"]]}]},
+    {"ot": "ot-1023", "pauta": "pauta-polin-corto", "hace_dias": 3, "operador": "operario:1", "cerrar": "todos",
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["operario", "ausente"]]},
+       {"antes_del_paso": 2, "lecturas": [["operario", "presente"]]},
+       {"antes_del_paso": 5, "lecturas": [["operario", "ausente"], ["energia", "viva"]]}]},
+    {"ot": "ot-1024", "pauta": "pauta-polin-corto", "hace_dias": 2, "operador": "operario:2", "cerrar": "todos",
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["operario", "ausente"]]},
+       {"antes_del_paso": 2, "lecturas": [["operario", "presente"]]},
+       {"antes_del_paso": 5, "lecturas": [["operario", "ausente"], ["energia", "viva"]]}]},
+    {"ot": "ot-1025", "pauta": "pauta-polin-corto", "hace_dias": 1, "operador": "operario:1", "cerrar": "todos",
+     "intercalar": [
+       {"antes_del_paso": 1, "lecturas": [["energia", "viva"], ["operario", "ausente"]]},
+       {"antes_del_paso": 2, "lecturas": [["operario", "presente"]]},
+       {"antes_del_paso": 5, "lecturas": [["operario", "ausente"], ["energia", "viva"]]}]}
   ]
 }

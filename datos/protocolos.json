@@ -149,5 +149,18 @@
         "evidencia": "bloqueo = puesto, o la cámara ve el dispositivo"
       }
     ]
+  },
+  {
+    "id": "prot-cinta-corto-01",
+    "nombre": "Cambio de polín en la cinta · protocolo corto",
+    "industria": "demo",
+    "origen": "Redactado por el equipo de Factum para el demo. No es el procedimiento de un cliente.",
+    "documento": "protocolos/prot-cinta-corto-01.md",
+    "pautas": [
+      "pauta-polin-corto"
+    ],
+    "propias": [
+      "pauta-polin-corto"
+    ]
   }
 ]

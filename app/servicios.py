@@ -669,8 +669,13 @@ class Servicios:
             or paso.sensor.id != sensor_id
         ):
             return []
-        v = evaluar(paso, None, db.estado_sensores(self.cx))
+        sensores = db.estado_sensores(self.cx)
+        v = evaluar(paso, None, sensores)
         if v.estado is not Estado.VERIFICADO:
+            return []
+        # Una lectura no cierra su paso mientras ese mismo sensor sostiene un peligro (LOGICA): «Encender» con alguien
+        # junto a la máquina sigue abierto hasta que se aleja, y lo cierra la lectura siguiente del motor.
+        if any(sensor_id in (a.evidencia or {}) for a in reglas_seguridad(sensores)):
             return []
         return [
             self.agregar(Evento(ot_id=ot_id, tipo=TipoEvento.VEREDICTO, ts=db.ahora(), actor="sistema",

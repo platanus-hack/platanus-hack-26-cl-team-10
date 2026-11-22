@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping, Sequence
 
-from app.contratos import Capa, Estado, Evento, Paso, Pauta, TipoEvidencia, Veredicto
+from app.contratos import Capa, Estado, Evento, Paso, Pauta, Sensor, TipoEvidencia, Veredicto
 
 # Un juez de capa 3 recibe la pregunta visual y devuelve (respuesta, confianza).
 # El frente 3 reemplaza el stub por una llamada real a un VLM.
@@ -210,6 +210,27 @@ def reglas_seguridad(sensores: Mapping[str, str]) -> list[Veredicto]:
         )
         for condicion, aviso, fuente in _PELIGROS
         if all(sensores.get(k) == v for k, v in condicion.items())
+    ]
+
+
+# Cómo sale una persona de un peligro con un gesto que el sensor ve: (sensor, valor peligroso) → valor a salvo, y el
+# título y la instrucción del paso que lo pide. Con esto la mejora continua propone el paso que le falta a una pauta
+# (app/sugerencias.py). Un peligro que no está acá no se arregla agregando un paso solo.
+_SALIDAS: dict[tuple[str, str], tuple[str, str, str]] = {
+    ("operario", "presente"): ("ausente", "Alejarte del equipo",
+                               "Aléjate del equipo hasta que el sensor deje de verte."),
+}
+
+
+def antes_de_cerrar(sensor: Sensor) -> list[Paso]:
+    """Los pasos que tienen que estar hechos antes de uno que se cierra con `sensor`, para que al cerrarse no arme un
+    peligro de _PELIGROS: antes de dejar `energia = viva`, `operario = ausente`."""
+    return [
+        Paso(id="__nuevo", orden=0, titulo=titulo, instruccion=instruccion, tipo_evidencia=TipoEvidencia.SENSOR,
+             capa_minima=1, control_critico=True, sensor=Sensor(otro, a_salvo))
+        for condicion, _, _ in _PELIGROS if condicion.get(sensor.id) == sensor.espera
+        for otro, valor in condicion.items() if (otro, valor) in _SALIDAS
+        for a_salvo, titulo, instruccion in [_SALIDAS[otro, valor]]
     ]
 
 
