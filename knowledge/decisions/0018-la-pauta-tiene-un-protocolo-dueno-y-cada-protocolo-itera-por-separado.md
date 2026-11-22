@@ -59,7 +59,7 @@ No es la alternativa C que descartó el ADR-0016. Esa separaba «aplica a» de �
 
 Desde el PR #74, «escribe cada versión nueva» es `POST /interno/pautas/{id}/version-siguiente` (`app/sugerencias.py`): junta los cambios de las propuestas aceptadas de la última versión aprobada, la guarda sin aprobar con los mismos protocolos que aplican y el mismo protocolo dueño, y una persona del equipo la aprueba. Una propuesta con `escalar` no trae cambio (`aplicable` false), así que la regla que hace converger el ciclo también rige ahí: lo escalado no entra a la versión siguiente.
 
-Desde el PR #77 el supervisor también la dispara: «Aplicar los N cambios» en el aviso (`POST /cliente/pautas/{id}/mejoras/aplicar`) acepta todas las propuestas avisadas de la pauta y llama a la misma función. La versión queda sin aprobar y la aprobación sigue siendo del equipo, con el rechazo si pierde un control crítico.
+Desde el PR #78 el supervisor también la dispara: «Aplicar los N cambios» en el aviso (`POST /cliente/pautas/{id}/mejoras/aplicar`) acepta todas las propuestas avisadas de la pauta y llama a la misma función. La versión queda sin aprobar y la aprobación sigue siendo del equipo, con el rechazo si pierde un control crítico.
 
 ## Referencias
 
