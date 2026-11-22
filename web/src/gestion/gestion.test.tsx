@@ -1,7 +1,7 @@
 // Las pantallas de gestión de punta a punta contra el mock (MSW en Node), con las mismas rutas que App.
 
 import { MantineProvider } from '@mantine/core'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -422,7 +422,7 @@ describe('supervisor dashboard', () => {
       tipo: 'alerta', actor: 'sistema', estado: 'en_conflicto', capa: 1, detalle: 'GUARDA ABIERTA CON ENERGÍA VIVA.',
       evidencia: { tipo: 'sensor', guarda: 'abierta', energia: 'viva', clave: 'seguridad:guarda' },
     })
-    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
+    act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
     const barra = await screen.findByRole('alert', { name: 'Incidentes en curso' })
     expect(within(barra).getByText('OT-13, Bruno Díaz')).toBeInTheDocument()
     expect(within(barra).getByText('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBeInTheDocument()
@@ -430,7 +430,7 @@ describe('supervisor dashboard', () => {
     expect(sonar).toHaveBeenCalledOnce()
 
     // El mismo incidente no vuelve a sonar.
-    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
+    act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
     await waitFor(() => expect(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByText('OT-13, Bruno Díaz')).toBeInTheDocument())
     expect(sonar).toHaveBeenCalledOnce()
 
@@ -504,7 +504,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull()
 
     m.mejoras = [recomendacion(true)]
-    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
+    act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
     expect(within(zona).getByText('Factum propone mejorar una pauta')).toBeInTheDocument()
     expect(within(zona).getByText('Cambio de polín en la cinta')).toBeInTheDocument()

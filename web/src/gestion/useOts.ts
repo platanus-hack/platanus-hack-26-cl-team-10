@@ -6,9 +6,25 @@ import { avanceDe, avanceDelResumen, estadoDe, type Avance } from './estados'
 /** `calificacion`: todo bien, atención o detente, como la trae `GET /cliente/ots`; null en las sin asignar. */
 export type OtVista = Omit<OtResumen, 'calificacion'> & { estado: EstadoGeneral; avance: Avance | null; calificacion: CalificacionOt | null }
 
-export const RECARGA_MS = 5000
+/** Cada cuánto se vuelve a leer la lista: lo bastante seguido para que el supervisor no tenga que pedirlo. */
+export const RECARGA_MS = 2000
 /** Menor que RECARGA_MS: una recarga colgada falla antes de que empiece la siguiente. */
-export const LIMITE_MS = 4000
+export const LIMITE_MS = 1800
+
+/** Vuelve a leer apenas la pestaña vuelve a estar a la vista: lo que pasó mientras tanto aparece sin esperar el reloj. */
+export function useAlVolver(recargar: () => unknown) {
+  useEffect(() => {
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') void recargar()
+    }
+    window.addEventListener('focus', alVolver)
+    document.addEventListener('visibilitychange', alVolver)
+    return () => {
+      window.removeEventListener('focus', alVolver)
+      document.removeEventListener('visibilitychange', alVolver)
+    }
+  }, [recargar])
+}
 
 export function mensajeDe(e: unknown): string {
   return e instanceof ApiError ? e.message : 'Algo salió mal al hablar con la API'
@@ -84,6 +100,7 @@ export function useOts(cadaMs: number = RECARGA_MS, limiteMs: number = LIMITE_MS
     const reloj = setInterval(() => void recargar(), cadaMs)
     return () => clearInterval(reloj)
   }, [recargar, cadaMs])
+  useAlVolver(recargar)
 
   return { ots, error, recargar }
 }

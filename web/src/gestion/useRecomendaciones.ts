@@ -2,14 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/cliente'
 import type { ResumenMejoras } from '../api/tipos'
 import { campana } from './campana'
-import { RECARGA_MS } from './useOts'
+import { useAlVolver } from './useOts'
+
+/** El resumen de mejoras pesa más que la lista y cambia menos: se lee cada 5 s. */
+const RECARGA_MEJORAS_MS = 5000
 
 /**
  * El aviso de mejoras: por pauta, la versión siguiente que Factum armaría con lo que ya avisó (`GET /cliente/mejoras/resumen`).
  * Se lee cada `cadaMs`, como las OT. Suena una vez cuando aparece una propuesta nueva con la página abierta; lo que ya
  * estaba al entrar se muestra sin sonar.
  */
-export function useRecomendaciones(cadaMs: number = RECARGA_MS) {
+export function useRecomendaciones(cadaMs: number = RECARGA_MEJORAS_MS) {
   const [resumen, setResumen] = useState<ResumenMejoras[] | null>(null)
   const recargar = useCallback(async () => {
     try {
@@ -23,6 +26,7 @@ export function useRecomendaciones(cadaMs: number = RECARGA_MS) {
     const id = setInterval(() => void recargar(), cadaMs)
     return () => clearInterval(id)
   }, [recargar, cadaMs])
+  useAlVolver(recargar)
 
   const vistas = useRef<Set<string> | null>(null)
   useEffect(() => {
