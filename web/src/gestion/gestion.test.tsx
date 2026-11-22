@@ -526,7 +526,7 @@ describe('today', () => {
     expect(within(actividad).getAllByRole('row', { hidden: true })).toHaveLength(8) // el encabezado y 7 días
     await userEvent.click(within(actividad).getByText('Año'))
     await waitFor(() => expect(within(actividad).getAllByRole('row', { hidden: true })).toHaveLength(13)) // el encabezado y 12 meses
-    expect(within(screen.getByRole('region', { name: 'Hoy, en frases' })).getByText(/desviaci/)).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Resumen del día' })).getByLabelText(/^Desviaciones: \d+$/)).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Recomendaciones' })).getByText(/Nada que recomendar/)).toBeInTheDocument()
     expect(within(ahora).getByRole('link', { name: 'Ver todas las OT' })).toHaveAttribute('href', '/supervisor')
   })

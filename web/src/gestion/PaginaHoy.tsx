@@ -1,5 +1,5 @@
 import { Anchor, Group, Paper, Progress, SimpleGrid, Stack, Text, Title, Tooltip, VisuallyHidden } from '@mantine/core'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/cliente'
 import type { Metricas } from '../api/tipos'
@@ -8,6 +8,7 @@ import { useNombres } from '../sesion/usuarios'
 import { avisoDe, enGrupos, incidentesDe, VERIFICACION } from './estados'
 import { Actividad } from './Actividad'
 import { BarraIncidentes, IdOt } from './incidentes'
+import industrial from './industrial.module.css'
 import { Recomendaciones } from './Recomendaciones'
 import { rutaDe, useCampanaDeIncidentes } from './rutaDeOt'
 import { fraseCorta } from './sensores'
@@ -80,30 +81,55 @@ function EnCurso({ o }: { o: OtVista }) {
 
 const CLASE: Record<string, string> = { seguridad: 'de seguridad', orden: 'de orden', control: 'de control', conflicto: 'de evidencia', persona: 'que cerró una persona' }
 
-/** Cómo va el día, en frases: lo que se terminó, lo que se desvió y cuánto tarda. */
+const minutos = (m: number | null) => (m === null ? '—' : m < 1 ? '< 1 min' : `${Math.round(m)} min`)
+
+/** Un dato del día: qué es, el número grande y, debajo, de dónde sale en palabras. */
+function DatoDelDia({ nombre, valor, children }: { nombre: string; valor: string; children: ReactNode }) {
+  return (
+    <li className={industrial.celda}>
+      <p className={industrial.rotulo}>{nombre}</p>
+      <p className={industrial.numero} aria-label={`${nombre}: ${valor}`}>
+        {valor}
+      </p>
+      <Text size="xs" c="dimmed" mt={4}>
+        {children}
+      </Text>
+    </li>
+  )
+}
+
+/**
+ * El día en cuatro datos, cada uno con su número y de dónde sale: cuántas OT salieron limpias, cuántas desviaciones y
+ * de qué tipo (las de seguridad, en rojo), cuánto tarda en corregirse una y cuánto dura una OT.
+ */
 function ElDia({ m }: { m: Metricas | null }) {
   if (!m) return <Text c="dimmed">Cargando lo de hoy…</Text>
   const { cumplimiento: c, desviaciones: d } = m
   const clases = Object.entries(d.por_clase)
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1])
-    .map(([k, n]) => `${n} ${CLASE[k] ?? k}`)
-  const lineas = [
-    c.completas
-      ? `${c.sin_desviaciones} de ${c.completas} OT completas salieron sin desviaciones${c.porcentaje !== null ? ` (${Math.round(c.porcentaje)} %)` : ''}.`
-      : 'Todavía no se completa ninguna OT hoy.',
-    d.total ? `${d.total} ${d.total === 1 ? 'desviación' : 'desviaciones'}: ${clases.join(', ')}.` : 'Ninguna desviación hoy.',
-    d.minutos_medios_para_resolver !== null ? `Una desviación se corrige en ${Math.round(d.minutos_medios_para_resolver)} min, en promedio.` : null,
-    m.minutos_medios_de_ejecucion !== null ? `Una OT tarda ${Math.round(m.minutos_medios_de_ejecucion)} min, en promedio.` : null,
-  ].filter(Boolean)
   return (
-    <Stack gap={6}>
-      {lineas.map((l) => (
-        <Text key={l} size="sm">
-          {l}
-        </Text>
-      ))}
-    </Stack>
+    <ul className={industrial.celdas}>
+      <DatoDelDia nombre="Sin desviaciones" valor={c.porcentaje !== null ? `${Math.round(c.porcentaje)} %` : '—'}>
+        {c.completas ? `${c.sin_desviaciones} de ${c.completas} OT completas` : 'Ninguna OT completa todavía'}
+      </DatoDelDia>
+      <DatoDelDia nombre="Desviaciones" valor={String(d.total)}>
+        {clases.length === 0
+          ? 'Ninguna hoy'
+          : clases.map(([k, n], i) => (
+              <Text key={k} span inherit c={k === 'seguridad' ? 'peligro.7' : undefined} fw={k === 'seguridad' ? 700 : undefined}>
+                {i ? ' · ' : ''}
+                {n} {CLASE[k] ?? k}
+              </Text>
+            ))}
+      </DatoDelDia>
+      <DatoDelDia nombre="Se corrige en" valor={minutos(d.minutos_medios_para_resolver)}>
+        por desviación, en promedio
+      </DatoDelDia>
+      <DatoDelDia nombre="Dura una OT" valor={minutos(m.minutos_medios_de_ejecucion)}>
+        de inicio a fin, en promedio
+      </DatoDelDia>
+    </ul>
   )
 }
 
@@ -135,12 +161,10 @@ export function PaginaHoy() {
           <BarraIncidentes incidentes={incidentes ?? []} />
           <EstadoLista cargando={ots === null} error={error} vacia={false} textoVacia="" onReintentar={() => void recargar()} />
           <Actividad />
-          <Paper withBorder radius="md" p="md" aria-label="Hoy, en frases" component="section">
-            <Text fw={800} mb="xs">
-              Resumen del día
-            </Text>
+          <Stack component="section" aria-label="Resumen del día" gap="xs">
+            <Text fw={800}>Resumen del día</Text>
             <ElDia m={m} />
-          </Paper>
+          </Stack>
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
             <Paper component="section" aria-label="En curso ahora" withBorder radius="md" p="md">
               <Group justify="space-between" mb="xs">
