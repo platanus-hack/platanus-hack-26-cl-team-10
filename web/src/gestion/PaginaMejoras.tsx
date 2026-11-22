@@ -100,7 +100,7 @@ function Texto({ titulo, t }: { titulo: string; t: { titulo: string; instruccion
 }
 
 /** El cambio concreto a la pauta que haría aplicar la propuesta: antes y después de cada paso, con por qué. */
-export function VistaBorrador({ propuesta }: { propuesta: string }) {
+function VistaBorrador({ propuesta }: { propuesta: string }) {
   const [b, setB] = useState<Borrador | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -164,7 +164,7 @@ function CambioPropuesto({ p }: { p: Mejora }) {
  * Aplicar es un toque: acepta la propuesta y Factum arma y aprueba la versión siguiente con su cambio. Sin cambio que
  * aplicar (el sensor, una escalada), se acepta para que Factum lo vea. Descartar pide antes el motivo.
  */
-export function Decidir({ p, alDecidir, alCancelar }: { p: Mejora; alDecidir(): void; alCancelar?: () => void }) {
+function Decidir({ p, alDecidir, alCancelar }: { p: Mejora; alDecidir(): void; alCancelar?: () => void }) {
   const [descartando, setDescartando] = useState(false)
   const [nota, setNota] = useState('')
   const [enviando, setEnviando] = useState<DecisionMejora | null>(null)

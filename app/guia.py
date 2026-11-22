@@ -185,7 +185,10 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
   `recurrencia` dice si el paso se desvía más que el resto de la pauta, y con `en_vivo` el supervisor ya recibió el aviso.
   Las de conformidad nacen de la pauta misma, sin OT, cuando no cumple un control crítico de su protocolo. Cada una dice
   si trae un cambio que aplicar (`aplicable`, `por_que_no`), y `GET /cliente/mejoras/{{propuesta_id}}/borrador` (el id va
-  codificado en la URL) muestra ese cambio, paso por paso. El reporte de la OT trae las mejoras en que esa OT aportó. El
+  codificado en la URL) muestra ese cambio, paso por paso. `GET /cliente/mejoras/resumen` lo junta por pauta: la versión
+  siguiente que Factum armaría con todo lo que ya avisó, qué cambia y por qué, y qué no y por qué no; el supervisor lo
+  aplica entero con `POST /cliente/pautas/{{pauta_id}}/mejoras/aplicar`, que acepta esas propuestas y arma la versión
+  sin aprobar. El reporte de la OT trae las mejoras en que esa OT aportó. El
   supervisor la acepta («Aplicar») o la descarta en `POST /cliente/mejoras/{{propuesta_id}}/revision`; con las aceptadas,
   el equipo arma la versión siguiente sin aprobar en `POST /interno/pautas/{{pauta_id}}/version-siguiente` y la aprueba
   aparte, y la propuesta dice después en `validacion` si el paso dejó de desviarse.

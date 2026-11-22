@@ -265,6 +265,22 @@ export type CambioBorrador = {
 }
 
 /** `GET /cliente/mejoras/{id}/borrador`: el cambio concreto a la pauta que haría aplicar la propuesta. */
+/** `GET /cliente/mejoras/resumen`: por pauta, la versión siguiente que Factum armaría con sus propuestas avisadas. */
+export type ResumenMejoras = {
+  pauta: string
+  nombre: string
+  desde_version: number
+  version: number
+  /** Qué cambia y por qué, una línea por paso. */
+  cambios: { que: string; porque: string; propuesta: string }[]
+  /** Lo que Factum vio pero no cambia en la pauta, y por qué no. */
+  sin_cambio: { que: string; por_que_no: string | null; propuesta: string }[]
+  propuestas: string[]
+}
+
+/** `POST /cliente/pautas/{id}/mejoras/aplicar`. `version` es null si todavía no se pudo armar; `aviso` dice por qué. */
+export type AplicacionMejoras = { aceptadas: string[]; version: { version: number } | null; aviso: string | null }
+
 export type Borrador = {
   propuesta: string
   aplicable: boolean

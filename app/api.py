@@ -782,6 +782,37 @@ def borrador_de_mejora(propuesta_id: str, authorization: str | None = Header(def
     return sugerencias.borrador(cx, m)
 
 
+@app.get("/cliente/mejoras/resumen")
+def resumen_de_mejoras(authorization: str | None = Header(default=None)) -> list[dict]:
+    """Lo que ve el supervisor en el aviso: por cada pauta con propuestas abiertas que Factum ya avisó, la versión
+    siguiente que armaría con todas juntas, qué cambia y por qué (`cambios`, una línea por paso), y lo que no cambia y
+    por qué no (`sin_cambio`: lo que es del sensor, de las observaciones o de la supervisión). Lo arma el código, sin
+    modelo. Se aplica entero con `POST /cliente/pautas/{pauta_id}/mejoras/aplicar`. Solo supervisor."""
+    p = _supervisor(authorization)
+    return sugerencias.resumen_por_pauta(cx, mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"]))
+
+
+@app.post("/cliente/pautas/{pauta_id}/mejoras/aplicar")
+def aplicar_mejoras(pauta_id: str, authorization: str | None = Header(default=None)) -> dict:
+    """Un toque para todo el resumen de una pauta: acepta sus propuestas abiertas que Factum avisó, y Factum arma con
+    ellas la versión siguiente, sin aprobar (`version`); la aprueba el equipo con la ruta de siempre, que la rechaza si
+    pierde un control crítico. Si no se puede armar todavía (ya hay una versión sin aprobar, o ninguna trae un cambio),
+    las propuestas quedan aceptadas igual y `aviso` dice por qué. Solo supervisor; 404 si la pauta no tiene nada que
+    aplicar para su empresa."""
+    p = _supervisor(authorization)
+    es = _ejecuciones(p)
+    ids = [m["id"] for m in mejora.propuestas(cx, es, p["cliente"]["id"])
+           if m["pauta"] == pauta_id and m["estado"] == "abierta" and m["detectada"]]
+    if not ids:
+        raise db.NoExiste(f"propuestas abiertas de {pauta_id}")
+    for i in ids:
+        mejora.revisar(cx, es, p["cliente"]["id"], i, "aceptar", "", p["id"])
+    try:
+        return {"aceptadas": ids, "version": sugerencias.version_siguiente(cx, pauta_id, p["id"]), "aviso": None}
+    except ReglaDeNegocio as e:
+        return {"aceptadas": ids, "version": None, "aviso": str(e)}
+
+
 @app.post("/cliente/mejoras/{propuesta_id}/revision")
 def revisar_mejora(propuesta_id: str, r: Revision, authorization: str | None = Header(default=None)) -> dict:
     """El supervisor valida una propuesta: aceptarla la manda al equipo de Factum para la versión siguiente de la pauta;

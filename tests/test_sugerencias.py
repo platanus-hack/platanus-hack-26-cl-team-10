@@ -132,6 +132,35 @@ class LasMejorasSugeridas(recorrido.DelProtocoloALaMejoraContinua):
         self.assertEqual((estados[conf["id"]], estados[desv["id"]]), ("aplicada", "aplicada"))
         self.assertEqual(self.c.post("/interno/pautas/pauta-prueba-01/version-siguiente", json={"actor": "x"}).status_code, 401)
 
+    def resumen(self):
+        return [r for r in self.c.get("/cliente/mejoras/resumen", headers=self.carla).json() if r["pauta"] == "pauta-prueba-01"]
+
+    def test_el_resumen_junta_por_pauta_que_cambia_y_por_que(self):
+        [r] = self.resumen()
+        self.assertEqual((r["pauta"], r["desde_version"], r["version"], r["sin_cambio"]), ("pauta-prueba-01", 1, 2, []))
+        self.assertEqual([(c["que"], c["porque"]) for c in r["cambios"]],
+                         [("Agrega «Comprobar energía cero» después de «Poner tu candado»",
+                           "El protocolo lo exige y hoy ningún paso de la pauta lo hace.")])
+        self.desviacion(6)
+        [r] = self.resumen()
+        self.assertEqual(r["cambios"][0]["que"], "Agrega «Comprobar energía cero» después de «Poner tu candado»")
+        reescribe = [c for c in r["cambios"] if c["que"].startswith("Reescribe «Cortar la energía»")]
+        self.assertEqual(len(reescribe), 1, r["cambios"])
+        self.assertRegex(reescribe[0]["porque"], r"^Se desvió en \d de 6 OT")
+        self.assertEqual(self.c.get("/cliente/mejoras/resumen", headers=self.ana).status_code, 403)
+
+    def test_aplicar_el_resumen_acepta_todo_y_factum_arma_la_version(self):
+        r = self.c.post("/cliente/pautas/pauta-prueba-01/mejoras/aplicar", headers=self.carla)
+        self.assertEqual(r.status_code, 200, r.text)
+        r = r.json()
+        self.assertEqual((r["version"]["version"], r["aviso"], len(r["aceptadas"])), (2, None, 1))
+        self.assertEqual([c["tipo"] for c in r["version"]["cambios"]], ["agrega"])
+        self.assertEqual(self.resumen(), [])
+        versiones = self.c.get("/pautas/pauta-prueba-01/versiones", headers=CLAVE).json()
+        self.assertIsNone(next(v for v in versiones if v["version"] == 2)["aprobada_por"])
+        self.assertEqual(self.c.post("/cliente/pautas/pauta-prueba-01/mejoras/aplicar", headers=self.carla).status_code, 404)
+        self.assertEqual(self.c.post("/cliente/pautas/pauta-prueba-01/mejoras/aplicar", headers=self.ana).status_code, 403)
+
     def test_la_propuesta_de_otra_empresa_no_se_ve(self):
         m = self.conformidad()
         self.assertEqual(self.borrador(m, self.ana).status_code, 403)
