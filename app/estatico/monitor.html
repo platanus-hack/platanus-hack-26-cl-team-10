@@ -474,7 +474,7 @@ const FORMATO = {
   motor: v => v === "activo" ? "activo" : "inactivo", equipo: v => v === "frio" ? "equipo frío" : "equipo caliente",
   dist_cm: v => `a ${v} cm`, temp_c: v => `${v} °C`, hum_pct: v => `${v} %`,
 };
-let edge = "edge-mac";
+let edge = "workstation";
 const temperaturas = [];
 function pintarSensor(id, valor, vivo) {
   if (id === "energia") { id = "motor"; valor = valor === "viva" ? "activo" : "detenido"; }  // el mismo dato del ESP32
