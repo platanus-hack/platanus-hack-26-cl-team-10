@@ -191,8 +191,9 @@ def markdown(r: dict) -> str:
     if r.get("mejoras"):
         lineas += ["", "## Mejoras sugeridas", ""]
         for m in r["mejoras"]:
-            lineas.append(f"- **{m['titulo']}** ({m['tipo']}, {m['estado']}): {m['sugerencia']}")
-            lineas += [f"  - {c}" for c in m["cambios_resumen"]]
+            lineas.append(f"- **{m['cambios_resumen'][0] if m['cambios_resumen'] else m['titulo']}** ({m['estado']})")
+            lineas += [f"  - {c}" for c in m["cambios_resumen"][1:]]
+            lineas += [f"  - Por qué: {m['porque']}", f"  - Cómo se sabrá si funcionó: {m['como_se_mide']}"]
             if not m["aplicable"] and m["por_que_no"]:
                 lineas.append(f"  - No se aplica sola: {m['por_que_no']}")
     lineas += ["", f"Armado desde los eventos {r['eventos']['primero']} a {r['eventos']['ultimo']} de la bitácora "

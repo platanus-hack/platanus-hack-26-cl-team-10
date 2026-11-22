@@ -198,6 +198,12 @@ export function reporteDe(m: Mundo, otId: string, nombreDe: (id: string) => stri
         propuesta: x.id, tipo: x.tipo, titulo: x.titulo, sugerencia: x.sugerencia, estado: x.estado,
         aplicable: x.aplicable, por_que_no: x.por_que_no,
         cambios_resumen: x.aplicable ? borradorDe(m, x).cambios.map(resumenDeCambio) : [],
+        porque: x.tipo === 'conformidad'
+          ? `El protocolo de seguridad pide «${x.conformidad?.nombres[0] ?? x.titulo}» y hoy la pauta no tiene ningún paso que lo haga.`
+          : `«${x.titulo}» no se hizo como dice la pauta en ${x.ots_con_senal} de ${x.ejecuciones} trabajos.`,
+        como_se_mide: x.tipo === 'conformidad'
+          ? 'Se cumple cuando la versión nueva de la pauta tenga ese paso.'
+          : `Hoy falla en ${x.ots_con_senal} de ${x.ejecuciones} trabajos. Con la versión nueva, Factum vuelve a contar: si falla claramente menos, el cambio sirvió.`,
       })),
   }
 }

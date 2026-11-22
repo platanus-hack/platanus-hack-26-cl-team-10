@@ -763,7 +763,7 @@ def _mejoras_del_reporte(p: dict, r: dict) -> list[dict]:
             continue
         salida.append({"propuesta": m["id"], "tipo": m["tipo"], "titulo": m["titulo"], "sugerencia": m["sugerencia"],
                        "estado": m["estado"], "aplicable": m["aplicable"], "por_que_no": m["por_que_no"],
-                       "cambios_resumen": sugerencias.resumen_de(cx, m)})
+                       "cambios_resumen": sugerencias.resumen_de(cx, m), **sugerencias.para_una_persona(m)})
     return salida
 
 

@@ -315,6 +315,43 @@ def _sin_cambio(p: dict) -> dict:
     return {"que": que, "por_que_no": p["por_que_no"], "propuesta": p["id"]}
 
 
+def _lista_nombres(nombres: Sequence[str]) -> str:
+    return " y ".join(f"«{n}»" for n in nombres)
+
+
+def para_una_persona(p: dict) -> dict:
+    """Por qué conviene la mejora y cómo se sabrá si funcionó, con palabras de quien conoce el trabajo, no la estadística."""
+    v = p.get("validacion")
+    if p["tipo"] == "conformidad":
+        c = p["conformidad"] or {}
+        nombres = c.get("nombres") or []
+        porque = {
+            "falta": f"El protocolo de seguridad pide {_lista_nombres(nombres)} y hoy la pauta no tiene ningún paso que lo haga.",
+            "juntos": f"El protocolo pide {_lista_nombres(nombres)} por separado, y la pauta los tiene en un mismo paso: así no se "
+                      "puede comprobar que se hizo cada uno.",
+            "orden": f"La pauta pide {_lista_nombres(nombres[::-1])} en el orden contrario al del protocolo.",
+        }.get(c.get("tipo"), "Un paso de la pauta no calza con el protocolo de seguridad.")
+        como = ("Se cumple cuando la versión nueva de la pauta tenga ese paso. Antes de usarla, Factum revisa que no se pierda "
+                "ningún otro control de seguridad.")
+        if v:
+            como = ("La versión nueva ya lo tiene." if v["resultado"] == "mejoro"
+                    else "La versión nueva todavía no lo arregla.")
+        return {"porque": porque, "como_se_mide": como}
+    r = p.get("recurrencia") or {}
+    n, total = r.get("ots_con_senal", p["ots_con_senal"]), r.get("ots", p["ejecuciones"])
+    porque = f"«{p['titulo']}» no se hizo como dice la pauta en {n} de {total} trabajos."
+    como = (f"Hoy falla en {n} de {total} trabajos. Con la versión nueva, Factum vuelve a contar: si falla claramente menos, "
+            "el cambio sirvió. Si todavía hay pocos trabajos, espera a tener más antes de decirlo, para no confundir suerte "
+            "con mejora.")
+    if v:
+        antes = f"Antes fallaba en {n} de {total} trabajos; con la versión nueva, en {v['ots_con_senal']} de {v['ejecuciones']}."
+        como = {"mejoro": f"{antes} Funcionó.",
+                "sin_evidencia": f"{antes} Va mejor, pero con tan pocos trabajos todavía puede ser suerte.",
+                "se_repite": f"{antes} Sigue fallando: hay que buscar otra causa, no otro texto.",
+                "sin_datos": "La versión nueva todavía no se ha usado: no hay con qué comparar."}[v["resultado"]]
+    return {"porque": porque, "como_se_mide": como}
+
+
 def resumen_por_pauta(cx: sqlite3.Connection, propuestas: Sequence[dict]) -> list[dict]:
     """Lo que Factum propone, en pocas líneas: por cada pauta con propuestas abiertas que ya avisó, la versión siguiente
     que armaría con todas juntas, qué cambia y por qué, y lo que no cambia y por qué no. Solo el código; no guarda nada."""

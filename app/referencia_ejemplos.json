@@ -998,7 +998,9 @@
           "por_que_no": null,
           "cambios_resumen": [
             "Reescribe «Acercarte a la correa»: dice cuándo el paso está hecho y qué no se hace antes"
-          ]
+          ],
+          "porque": "«Acercarte a la correa» no se hizo como dice la pauta en 2 de 3 trabajos.",
+          "como_se_mide": "Hoy falla en 2 de 3 trabajos. Con la versión nueva, Factum vuelve a contar: si falla claramente menos, el cambio sirvió. Si todavía hay pocos trabajos, espera a tener más antes de decirlo, para no confundir suerte con mejora."
         }
       ]
     }

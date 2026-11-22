@@ -40,14 +40,16 @@ const desviar = (m: Mundo, otId: string) => {
   cerrarSolo(m, otId, pendiente)
 }
 
-it('lists the suggested improvements the OT contributed to, with the change and a link to review them', async () => {
+it('puts the suggested improvements on top, with the change, why, how it will be measured, and a link to review them', async () => {
   abrir('ot-12', (m) => {
     desviar(m, 'ot-12')
     desviar(m, 'ot-13')
   })
   const seccion = await screen.findByRole('region', { name: 'Mejoras sugeridas' })
-  expect(within(seccion).getByText(adelantado.titulo)).toBeInTheDocument()
   expect(within(seccion).getByText(new RegExp(`^Reescribe «${adelantado.titulo}»`))).toBeInTheDocument()
+  expect(within(seccion).getByText(/no se hizo como dice la pauta en 2 de \d+ trabajos\./)).toBeInTheDocument()
+  expect(within(seccion).getByText(/^Hoy falla en 2 de \d+ trabajos\./)).toBeInTheDocument()
+  expect(within(seccion).queryByText(/mediana|desvío|p_valor/)).toBeNull()
   expect(within(seccion).getByRole('link', { name: 'Revisarlas en mejoras' })).toHaveAttribute('href', '/supervisor/mejoras')
 })
 

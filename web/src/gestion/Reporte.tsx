@@ -1,11 +1,11 @@
-import { Alert, Anchor, Box, Center, Group, Loader, Stack, Table, Text, Title } from '@mantine/core'
-import { IconCamera, IconCheck, IconGauge, IconMessage, IconUser, IconWifiOff } from '@tabler/icons-react'
+import { Alert, Anchor, Box, Center, Collapse, Group, Loader, Paper, Stack, Table, Text, Title, UnstyledButton } from '@mantine/core'
+import { IconCamera, IconCheck, IconChevronRight, IconGauge, IconMessage, IconUser, IconWifiOff } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../api/cliente'
 import type { CierreReporte, DesviacionReporte, PasoReporte, ReporteOt } from '../api/tipos'
 import industrial from './industrial.module.css'
-import { NOMBRE_CLASE, NOMBRE_SENSOR } from './sensores'
+import { enPalabras, NOMBRE_CLASE, NOMBRE_SENSOR } from './sensores'
 import { mensajeDe } from './useOts'
 
 const hora = (ts: string) => new Date(ts).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
@@ -66,28 +66,53 @@ function Dato({ nombre, valor }: { nombre: string; valor: string }) {
   )
 }
 
-function Desviacion({ d, r }: { d: DesviacionReporte; r: ReporteOt }) {
-  const orden = r.pasos.find((p) => p.paso === d.paso)?.orden
+/** Una vez que pasó: la hora, qué decía (en palabras) y si se corrigió. */
+function Vez({ d }: { d: DesviacionReporte }) {
   // Un conflicto entre la palabra y la evidencia no se «resuelve»: el paso se cierra después o queda así.
   const cierre = d.clase === 'conflicto' ? null : d.resuelta ? `Se corrigió en ${entre(d.abierta, d.resuelta)}` : 'Sigue abierta'
-  const grave = d.clase === 'seguridad'
   return (
-    <Box component="li" p="sm" style={{ borderLeft: `4px solid var(--mantine-color-${grave ? 'peligro' : 'precaucion'}-6)`, borderRadius: 'var(--mantine-radius-sm)' }} bg={grave ? 'peligro.0' : 'precaucion.0'}>
-      <Group justify="space-between" wrap="nowrap" gap="sm" align="flex-start">
-        <Text fw={800}>
-          {d.que}
-          {orden ? `, en el paso ${orden}` : ''}
-        </Text>
-        <Text size="sm" c="roca.7" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-          {hora(d.abierta)}
-        </Text>
-      </Group>
-      <Text size="sm">{d.detalle}</Text>
+    <Group component="li" gap="md" wrap="nowrap" align="baseline" py={4}>
+      <Text size="sm" c="roca.7" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+        {hora(d.abierta)}
+      </Text>
+      <Text size="sm" style={{ flex: 1 }}>
+        {enPalabras(d.detalle)}
+      </Text>
       {cierre && (
-        <Text size="sm" fw={700}>
+        <Text size="sm" fw={600} c={d.resuelta ? 'roca.7' : 'precaucion.8'} style={{ whiteSpace: 'nowrap' }}>
           {cierre}
         </Text>
       )}
+    </Group>
+  )
+}
+
+/** Las veces que pasó lo mismo en el mismo paso, juntas y plegadas: el título dice qué, dónde y cuántas veces. */
+function GrupoDeDesviaciones({ que, ds }: { que: string; ds: DesviacionReporte[] }) {
+  const [abierto, setAbierto] = useState(false)
+  const grave = ds.some((d) => d.clase === 'seguridad')
+  const abiertas = ds.filter((d) => d.clase !== 'conflicto' && !d.resuelta).length
+  return (
+    <Box component="li" style={{ borderLeft: `4px solid var(--mantine-color-${grave ? 'peligro' : 'precaucion'}-6)` }} bg={grave ? 'peligro.0' : 'precaucion.0'}>
+      <UnstyledButton onClick={() => setAbierto((a) => !a)} aria-expanded={abierto} w="100%" p="sm">
+        <Group justify="space-between" wrap="nowrap" gap="sm">
+          <Group gap={6} wrap="nowrap">
+            <IconChevronRight size={16} aria-hidden style={{ transform: abierto ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }} />
+            <Text fw={700}>{que}</Text>
+          </Group>
+          <Text size="sm" c="roca.7" style={{ whiteSpace: 'nowrap' }}>
+            {ds.length === 1 ? '1 vez' : `${ds.length} veces`}
+            {abiertas > 0 ? ` · ${abiertas} sin corregir` : ''}
+          </Text>
+        </Group>
+      </UnstyledButton>
+      <Collapse expanded={abierto} transitionDuration={200} keepMounted keepMountedMode="display-none">
+        <Box component="ul" px="sm" pb="sm" m={0} style={{ listStyle: 'none' }}>
+          {ds.map((d) => (
+            <Vez key={d.evento} d={d} />
+          ))}
+        </Box>
+      </Collapse>
     </Box>
   )
 }
@@ -130,6 +155,12 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
 
   const { resultado, personas, tiempos } = r
   const estado = !r.completa ? 'En curso' : resultado.sin_desviaciones ? 'Completa, sin desviaciones' : 'Completa, con desviaciones'
+  const grupos = new Map<string, DesviacionReporte[]>()
+  for (const d of r.desviaciones) {
+    const orden = r.pasos.find((p) => p.paso === d.paso)?.orden
+    const clave = `${d.que}${orden ? `, en el paso ${orden}` : ''}`
+    grupos.set(clave, [...(grupos.get(clave) ?? []), d])
+  }
   return (
     <section aria-label="Reporte de la OT">
       <Stack gap="lg">
@@ -152,6 +183,48 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
           <Dato nombre="Cerrados por una persona" valor={String(resultado.confirmados_por_persona)} />
           <Dato nombre="Duración" valor={tiempos.inicio && tiempos.fin ? entre(tiempos.inicio, tiempos.fin) : tiempos.inicio ? 'Sin terminar' : 'Sin empezar'} />
         </ul>
+
+        {r.mejoras.length > 0 && (
+          <Paper component="section" aria-label="Mejoras sugeridas" withBorder radius="md" p="md" style={{ borderLeft: '4px solid var(--mantine-color-mejora-6)' }}>
+            <Stack gap="md">
+              <Group justify="space-between">
+                <Title order={4} className={industrial.seccion} m={0}>
+                  Qué cambiaría Factum en la pauta
+                </Title>
+                <Anchor component={Link} to="/supervisor/mejoras" size="sm">
+                  Revisarlas en mejoras
+                </Anchor>
+              </Group>
+              {r.mejoras.map((x) => (
+                <Stack key={x.propuesta} gap={4}>
+                  <Text fw={700}>{x.cambios_resumen[0] ?? x.titulo}</Text>
+                  {x.cambios_resumen.slice(1).map((c) => (
+                    <Text key={c} fw={700}>
+                      {c}
+                    </Text>
+                  ))}
+                  <Text size="sm">
+                    <Text span fw={600} c="roca.7">
+                      Por qué:{' '}
+                    </Text>
+                    {x.porque}
+                  </Text>
+                  <Text size="sm">
+                    <Text span fw={600} c="roca.7">
+                      Cómo se sabrá si funcionó:{' '}
+                    </Text>
+                    {x.como_se_mide}
+                  </Text>
+                  {!x.aplicable && x.por_que_no && (
+                    <Text size="sm" c="roca.7">
+                      No se cambia en la pauta: {x.por_que_no}
+                    </Text>
+                  )}
+                </Stack>
+              ))}
+            </Stack>
+          </Paper>
+        )}
 
         <Text size="sm" c="roca.7">
           La pidió {personas.pidio}. {personas.a_cargo ? `A cargo de ${personas.a_cargo}.` : 'Sin operador a cargo.'}
@@ -200,48 +273,18 @@ export function Reporte({ otId, alDia }: { otId: string; alDia: number }) {
         <Stack gap="xs">
           <Title order={4} className={industrial.seccion}>
             Desviaciones
+            {r.desviaciones.length > 0 && <span className={industrial.dato}>{r.desviaciones.length}</span>}
           </Title>
           {r.desviaciones.length === 0 ? (
             <Text c="roca.7">Ninguna: cada paso se hizo en su turno y con su evidencia.</Text>
           ) : (
             <Stack gap={6} component="ul" style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Desviaciones">
-              {r.desviaciones.map((d) => (
-                <Desviacion key={d.evento} d={d} r={r} />
+              {[...grupos].map(([que, ds]) => (
+                <GrupoDeDesviaciones key={que} que={que} ds={ds} />
               ))}
             </Stack>
           )}
         </Stack>
-
-        {r.mejoras.length > 0 && (
-          <Stack gap="xs" component="section" aria-label="Mejoras sugeridas">
-            <Group justify="space-between">
-              <Title order={4} className={industrial.seccion}>
-                Mejoras sugeridas
-              </Title>
-              <Anchor component={Link} to="/supervisor/mejoras" size="sm">
-                Revisarlas en mejoras
-              </Anchor>
-            </Group>
-            <Stack gap="sm" component="ul" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {r.mejoras.map((x) => (
-                <Box key={x.propuesta} component="li">
-                  <Text fw={700}>{x.titulo}</Text>
-                  <Text size="sm">{x.sugerencia}</Text>
-                  {x.cambios_resumen.map((c) => (
-                    <Text key={c} size="sm" c="accion.7">
-                      {c}
-                    </Text>
-                  ))}
-                  {!x.aplicable && x.por_que_no && (
-                    <Text size="sm" c="roca.7">
-                      {x.por_que_no}
-                    </Text>
-                  )}
-                </Box>
-              ))}
-            </Stack>
-          </Stack>
-        )}
 
         {r.observaciones.length > 0 && (
           <Stack gap="xs">
