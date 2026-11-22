@@ -523,12 +523,26 @@ describe('today', () => {
     const actividad = screen.getByRole('region', { name: 'Actividad' })
     expect(within(actividad).getAllByText('OT completas')[0]).toBeVisible()
     expect(within(actividad).getAllByText('Desviaciones')[0]).toBeVisible()
-    expect(within(actividad).getAllByRole('row', { hidden: true })).toHaveLength(14) // 7 días, en cada gráfico
+    expect(within(actividad).getAllByRole('row', { hidden: true })).toHaveLength(8) // el encabezado y 7 días
     await userEvent.click(within(actividad).getByText('Año'))
-    await waitFor(() => expect(within(actividad).getAllByRole('row', { hidden: true })).toHaveLength(24)) // 12 meses
+    await waitFor(() => expect(within(actividad).getAllByRole('row', { hidden: true })).toHaveLength(13)) // el encabezado y 12 meses
     expect(within(screen.getByRole('region', { name: 'Hoy, en frases' })).getByText(/desviaci/)).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Recomendaciones' })).getByText(/Nada que recomendar/)).toBeInTheDocument()
     expect(within(ahora).getByRole('link', { name: 'Ver todas las OT' })).toHaveAttribute('href', '/supervisor')
+  })
+})
+
+describe('ordering from the header', () => {
+  it('«Pedir OT» is in the top band on every supervisor page, and takes you to the list with the new OT', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor/hoy')
+    await screen.findByRole('region', { name: 'En curso ahora' })
+    await userEvent.click(screen.getByRole('button', { name: 'Pedir OT' }))
+    const modal = await screen.findByRole('dialog', { name: 'Pedir una OT' })
+    await userEvent.click(await within(modal).findByRole('radio', { name: `${PAUTA_DEMO.nombre}` }))
+    await userEvent.click(within(modal).getByRole('button', { name: 'Pedir esta OT' }))
+    expect(await screen.findByText(`Pediste la OT-0004, ${PAUTA_DEMO.nombre}. Queda por asignar.`)).toBeInTheDocument()
+    expect(await screen.findByText('Por asignar (2)')).toBeInTheDocument()
   })
 })
 
@@ -538,7 +552,10 @@ describe('protocols', () => {
     abrir('/supervisor/protocolos')
     const protocolo = await screen.findByRole('region', { name: 'Aislamiento y bloqueo de energías' })
     expect(within(protocolo).getByText(PAUTA_DEMO.nombre)).toBeInTheDocument()
-    expect(within(protocolo).getByText(/por empezar/)).toBeInTheDocument()
+    // Una columna por estado, y quiénes tienen sus OT: en el mock, las 3 por empezar (una sin asignar), de Ana y Bruno.
+    const fila = within(protocolo).getByText(PAUTA_DEMO.nombre).closest('tr')!
+    expect(within(fila).getByText('Ana Rojas, Bruno Díaz')).toBeInTheDocument()
+    expect(within(fila).getByText('3')).toBeInTheDocument()
     await userEvent.click(within(protocolo).getByRole('link', { name: `Ver las OT de ${PAUTA_DEMO.nombre}` }))
     expect(await screen.findByText(/^Pauta: /)).toBeInTheDocument()
     expect(screen.getAllByText(/^OT-\d+$/)).toHaveLength(3)

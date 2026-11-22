@@ -1,9 +1,9 @@
-import { Alert, Badge, Button, CloseButton, Group, Modal, Pagination, Progress, Radio, SegmentedControl, Select, Stack, Table, Text, TextInput, Title, Tooltip, VisuallyHidden } from '@mantine/core'
-import { IconPlus, IconSearch } from '@tabler/icons-react'
+import { Alert, Badge, CloseButton, Group, Pagination, Progress, SegmentedControl, Select, Stack, Table, Text, TextInput, Title, Tooltip, VisuallyHidden } from '@mantine/core'
+import { IconSearch } from '@tabler/icons-react'
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { api } from '../api/cliente'
-import type { OtPedida, PautaResumen, Persona } from '../api/tipos'
+import type { OtPedida, Persona } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { recordarNombres, useNombres } from '../sesion/usuarios'
 import { fraseCorta } from './sensores'
@@ -278,89 +278,23 @@ function TablaOts({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Op
   )
 }
 
-/** El supervisor pide una OT de una de las pautas de su empresa; nace sin operador. */
-function PedirOt({ onPedida }: { onPedida: (o: OtPedida) => Promise<void> }) {
-  const [abierto, setAbierto] = useState(false)
-  const [pautas, setPautas] = useState<PautaResumen[] | null>(null)
-  const [elegida, setElegida] = useState<string | null>(null)
-  const [enviando, setEnviando] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const abrir = () => {
-    setAbierto(true)
-    setElegida(null)
-    setError(null)
-    api.listarPautas().then(setPautas, (e: unknown) => setError(mensajeDe(e)))
-  }
-
-  const pedir = async () => {
-    if (!elegida) return
-    setEnviando(true)
-    setError(null)
-    try {
-      const o = await api.pedirOt(elegida)
-      setAbierto(false)
-      await onPedida(o)
-    } catch (e) {
-      setError(mensajeDe(e))
-    } finally {
-      setEnviando(false)
-    }
-  }
-
-  return (
-    <>
-      <Button leftSection={<IconPlus size={16} />} onClick={abrir}>
-        Pedir OT
-      </Button>
-      <Modal opened={abierto} onClose={() => setAbierto(false)} title="Pedir una OT" centered size="lg">
-        <Stack gap="md">
-          <Text c="roca.7">Elige qué trabajo hay que hacer. La OT queda por asignar.</Text>
-          {pautas === null && !error && <Text c="roca.6">Cargando pautas…</Text>}
-          {pautas && pautas.length === 0 && <Text c="roca.6">Tu empresa no tiene pautas habilitadas.</Text>}
-          {pautas && pautas.length > 0 && (
-            <Radio.Group value={elegida} onChange={setElegida} label="Pauta" name="pauta">
-              <Stack gap="sm" mt="xs">
-                {pautas.map((p) => (
-                  <Radio key={p.id} value={p.id} label={p.nombre} description={`${p.equipo}, ${p.pasos} pasos`} />
-                ))}
-              </Stack>
-            </Radio.Group>
-          )}
-          {error && (
-            <Text c="peligro" role="alert">
-              {error}
-            </Text>
-          )}
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={() => void pedir()} loading={enviando} disabled={!elegida}>
-              Pedir esta OT
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </>
-  )
-}
-
 export function PaginaSupervisor() {
   const usuario = useSesion()
   const { ots, error, recargar } = useOts(RECARGA_MS, LIMITE_MS, 'en_ejecucion')
   const operadores = useOperadores()
   const incidentes = useMemo(() => (ots ? incidentesDe(ots) : null), [ots])
   useCampanaDeIncidentes(incidentes)
-  const [pedida, setPedida] = useState<OtPedida | null>(null)
+  // «Pedir OT» vive en la banda: al pedir, navega aquí con la OT en el estado, para decirlo.
+  const location = useLocation()
+  const navigate = useNavigate()
+  const pedida = (location.state as { pedida?: OtPedida } | null)?.pedida ?? null
+  useEffect(() => {
+    if (pedida) void recargar()
+  }, [pedida, recargar])
   if (!usuario) return null
 
   const lista = ots ?? []
   const deOperadores: Operadores = { lista: operadores.operadores, error: operadores.error }
-  const alPedir = async (o: OtPedida) => {
-    setPedida(o)
-    await recargar()
-  }
 
   return (
     <>
@@ -368,15 +302,11 @@ export function PaginaSupervisor() {
       <FranjaDesactualizada error={ots ? error : null} />
       <Pagina>
         <Stack gap="lg">
-          <Group justify="space-between" align="center">
-            <VisuallyHidden>
-              <Title order={2}>Órdenes de trabajo</Title>
-            </VisuallyHidden>
-            <span />
-            <PedirOt onPedida={alPedir} />
-          </Group>
+          <VisuallyHidden>
+            <Title order={2}>Órdenes de trabajo</Title>
+          </VisuallyHidden>
           {pedida && (
-            <Alert color="verificado" variant="light" withCloseButton onClose={() => setPedida(null)} closeButtonLabel="Cerrar aviso">
+            <Alert color="verificado" variant="light" withCloseButton onClose={() => void navigate('.', { replace: true, state: null })} closeButtonLabel="Cerrar aviso">
               Pediste la {pedida.ot.toUpperCase()}, {pedida.nombre}. Queda por asignar.
             </Alert>
           )}
