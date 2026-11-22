@@ -102,7 +102,7 @@ En oscuro:
 
 | Token | Hex | Uso |
 |---|---|---|
-| Tinta | `#0a0c0a` | Fondo, con una trama de líneas finas |
+| Tinta | `#0a0c0a` | Fondo, liso |
 | Panel | `#101310` | Celdas y tarjetas |
 | Línea | `#252a23` y `#3d4439` | Separadores de celdas y bordes |
 | Lima | `#d4ff9e` | Verificado, y la marca |
@@ -123,7 +123,7 @@ El logo es `project-logo.png`: una cruz lima y «Factum» en matriz de puntos, s
 
 - **`<Marca>`** (`web/src/Marca.tsx`) lo dibuja en SVG, calcado del PNG punto por punto: no depende de que cargue una letra. La cruz y el nombre van siempre juntos; la cruz sola en una barra se lee como un botón de «agregar».
 - **Vive sobre tinta, y solo arriba.** La banda de arriba (`Encabezado` y `BarraOt`) y el panel del login son tinta. Lo de trabajo va debajo: en claro para el operario y en oscuro para el supervisor, donde una línea separa la banda. `SOBRE_TINTA` en `tema.ts` trae el fondo, el texto y el foco del teclado en lima, porque el azul no se ve sobre tinta.
-- **La letra** es Bitcount Prop Single, servida por el front (`@fontsource-variable/bitcount-prop-single`). En las vistas oscuras va en los títulos y en los valores grandes; en el login, además, en la frase «Cada paso verificado queda como un hecho.»
+- **La letra** es Bitcount Prop Single, servida por el front (`@fontsource-variable/bitcount-prop-single`). Desde el 2026-11-22 va solo en el logo y en el login, en la frase «Cada paso verificado queda como un hecho.»: en las pantallas de trabajo, los títulos y los valores van en la letra del texto, que se lee más limpio.
 - **El favicon** (`web/public/favicon.svg`) es la cruz lima sobre tinta, con el trazo más grueso que en el logo para que se lea a 16 px.
 
 | Token | Hex | Uso |
@@ -139,14 +139,15 @@ El tema vive en `web/src/tema.ts`, con los colores, sus usos por esquema, las le
 
 Las vistas del supervisor y el login se ven como el monitor de Jona (`app/estatico/monitor.html`). Sus clases están en `web/src/gestion/industrial.module.css`:
 
-- **Rótulos** en mayúsculas monoespaciadas. El título de una sección va entre corchetes: `[// SENSORES ]`.
+- **Rótulos chicos** en mayúsculas monoespaciadas (la ficha de la OT, los contadores, el estado de cada paso). El título de una sección va en la letra del texto, sin corchetes, con su número a la derecha.
 - **Celdas, no tarjetas:** grupos de datos separados por una línea de 1 px (la ficha de la OT, los contadores, los sensores).
-- **Títulos y valores grandes** en la letra de puntos.
+- **Títulos, valores y botones** en la letra del texto, con mayúscula inicial. Desde el 2026-11-22 ya no van en la letra de puntos ni los botones en mayúsculas monoespaciadas, y el fondo no lleva trama: Pancho pidió bajar el ruido.
+- **Una sola etiqueta por tarjeta de OT:** la verificación. El estado ya lo dice el grupo («Por asignar», «Asignadas, sin empezar»), y un grupo sin OT no se muestra.
 - **Esquinas casi rectas:** ningún radio pasa de unos pocos píxeles, en toda la app.
 - **El video** lleva esquineros de visor que toman el color de la verificación, y el paso en curso encima.
 - **Los pasos van numerados** (`01`, `02`), con su estado a la derecha.
 
-El operario conserva su fondo claro y sus colores ISO. De este lenguaje toma solo las formas y la letra de botones e insignias, que salen del tema.
+El operario conserva su fondo claro y sus colores ISO. De este lenguaje toma solo las formas y las insignias, que salen del tema.
 
 ## 5. Diego — gestión
 

@@ -96,11 +96,10 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
                       aria-current={aqui ? 'page' : undefined}
                       px={10}
                       py={8}
-                      fz={13}
-                      fw={500}
-                      tt="uppercase"
+                      fz={14}
+                      fw={600}
                       c={aqui ? MARCA.hueso : MARCA.tenue}
-                      style={{ fontFamily: 'var(--f-mono)', letterSpacing: '0.09em', boxShadow: aqui ? `inset 0 -2px ${MARCA.lima}` : undefined }}
+                      style={{ boxShadow: aqui ? `inset 0 -2px ${MARCA.lima}` : undefined }}
                     >
                       {nombre}
                     </UnstyledButton>

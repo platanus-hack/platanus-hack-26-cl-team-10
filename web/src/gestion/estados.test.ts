@@ -78,9 +78,9 @@ describe('enGrupos', () => {
     expect(enGrupos(ots)[0].ots.map((o) => o.ot)).toEqual(['ot-3', 'ot-2', 'ot-1', 'ot-4'])
   })
 
-  it('keeps «En ejecución» on top even when nothing is running, and drops the other empty groups', () => {
+  it('drops the empty groups, «En ejecución» included', () => {
     const ots = [{ ot: 'ot-1', estado: 'asignada' as const, calificacion: calif('ok') }]
-    expect(enGrupos(ots).map((g) => [g.titulo, g.ots.length])).toEqual([['En ejecución', 0], ['Asignadas, sin empezar', 1]])
+    expect(enGrupos(ots).map((g) => [g.titulo, g.ots.length])).toEqual([['Asignadas, sin empezar', 1]])
     expect(enGrupos([])).toEqual([])
   })
 })
