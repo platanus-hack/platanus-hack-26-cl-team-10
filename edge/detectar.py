@@ -1,6 +1,6 @@
 """Detecta objetos por texto (YOLO-World, sin entrenar) en la última foto del colector.
 
-Uso: .venv/bin/python detectar.py [--clases "soda can" "bottle"] [--foto ruta.jpg] [--conf 0.15]
+Uso: .venv/bin/python detectar.py [--clases "soda can" "bottle"] [--foto ruta.jpg] [--conf 0.15] [--pesos ../datos/modelos/yolo-factum.pt]
 Guarda la foto anotada en data/detecciones/.
 """
 import argparse
@@ -21,10 +21,11 @@ def main():
     ap.add_argument("--clases", nargs="+", default=["soda can"])
     ap.add_argument("--foto", type=Path)
     ap.add_argument("--conf", type=float, default=0.15)
+    ap.add_argument("--pesos", default="yolov8s-worldv2.pt", help="o el modelo afinado con entrenar.py")
     a = ap.parse_args()
 
     foto = a.foto or ultima_foto()
-    modelo = YOLOWorld("yolov8s-worldv2.pt")  # se descarga la primera vez (~25 MB)
+    modelo = YOLOWorld(a.pesos)  # el base se descarga la primera vez (~25 MB)
     modelo.set_classes(a.clases)
     r = modelo.predict(str(foto), conf=a.conf, verbose=False)[0]
 
