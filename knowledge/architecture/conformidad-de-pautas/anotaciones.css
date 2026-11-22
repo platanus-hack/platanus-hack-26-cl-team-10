@@ -1,0 +1,29 @@
+/* anotaciones.css · estilos de anotaciones.js. Como documento.css, no escribe colores ni fuentes:
+   lee las variables de marca.css. Texto desde 15 px. */
+.nota-ancla{position:relative;padding-right:52px}
+.anotar{position:absolute;top:50%;right:0;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;display:grid;place-items:center;padding:0;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--muted);transition:color .15s,border-color .15s,background .15s}
+.paso-h.nota-ancla .anotar{top:0;transform:none}
+.anotar:hover{color:var(--brand);border-color:var(--brand)}
+.anotar.con-nota{background:var(--brand);border-color:var(--brand);color:var(--paper)}
+.anotar:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.notas-zona:empty{display:none}
+.notas-zona{margin:12px 0 4px}
+.notas-zona button{font:600 15px/1 var(--fuente);border-radius:999px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+.notas-zona button.pri{background:var(--brand);border-color:var(--brand);color:var(--paper)}
+.nota-c{background:var(--brand-soft);border-left:3px solid var(--brand);border-radius:12px;padding:12px 16px}
+.nota-c p{margin:0;white-space:pre-wrap}
+.nota-c__pie{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:15px}
+.nota-c__pie span{margin-right:auto}
+.nota-c__pie button{padding:7px 12px}
+.nota-form textarea{display:block;width:100%;box-sizing:border-box;font:400 16px/1.5 var(--fuente);color:var(--ink);background:var(--paper);border:1px solid var(--borde-fuerte,var(--line));border-radius:12px;padding:12px 14px;resize:vertical}
+.nota-form textarea:focus{outline:2px solid var(--brand);outline-offset:1px}
+.nota-form__acciones{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+
+.notas-barra{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;display:flex;gap:6px;align-items:center;background:var(--deep);color:var(--on-deep);border-radius:999px;padding:6px 6px 6px 18px;box-shadow:var(--sombra);font-size:15px;max-width:calc(100% - 24px)}
+.notas-barra[hidden]{display:none}
+.notas-barra span{margin-right:6px;white-space:nowrap}
+.notas-barra button{font:600 15px/1 var(--fuente);border:0;border-radius:999px;padding:10px 14px;cursor:pointer;background:none;color:var(--on-deep)}
+.notas-barra button.pri{background:var(--paper);color:var(--ink)}
+.notas-barra button:focus-visible{outline:2px solid var(--on-deep);outline-offset:1px}
+body{padding-bottom:72px}
+@media print{.anotar,.nota-form,.notas-barra{display:none}.nota-ancla{padding-right:0}}
