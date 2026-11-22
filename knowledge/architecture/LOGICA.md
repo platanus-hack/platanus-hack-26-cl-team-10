@@ -22,6 +22,7 @@ Una unidad de la pauta que se puede cerrar con evidencia. Sale de convertir el p
 | `deteccion` | objeto o nulo | Solo en pasos `camara`: `{clase, presente}`. Qué clase del modelo del edge lo responde en capa 2 (presente o ya retirada). Si el modelo no está seguro, o no busca esa clase, decide el VLM (capa 3). El detector del edge suma a sus clases las que pide la pauta de la OT en sesión |
 | `control_critico` | sí · no | Si su falla permite un evento de alta consecuencia |
 | `capa_minima` | 1 · 2 · 3 | La capa más baja que puede cerrarlo |
+| `cumple` | lista de `protocolo:control` | Qué controles críticos del protocolo cumple el paso, como `prot-aislamiento-01:A3`. Con esto se comprueba que la pauta cumple su protocolo ([ADR-0016](../decisions/0016-una-pauta-sale-del-protocolo-que-aplica-a-su-tarea.md)) |
 
 ### Evento
 
@@ -38,10 +39,10 @@ El evento **es** la bitácora. La tabla solo admite agregar filas: nada se edita
 | `actor` | `operario:A` · `sistema` · `supervisor:X` | Quién |
 | `capa` | 1 · 2 · 3 o nulo | Qué capa decidió |
 | `declarado` | texto o nulo | Lo que dijo el operario, literal |
-| `evidencia` | objeto o nulo | El valor del sensor o la foto, con su hora |
+| `evidencia` | objeto o nulo | El valor del sensor o la foto, con su hora. Si el edge manda `medido_en` con la lectura, el evento que esa lectura causa guarda en `evidencia.lectura` la hora de medición y cuánto tardó en llegar y en escribirse |
 | `detalle` | texto | Por qué se decidió así, legible por una persona |
 
-Tipos de evento: `ot_abierta` · `ot_asignada` · `paso_iniciado` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` · `relevo_recibido` · `propuesta_pauta`.
+Tipos de evento: `ot_abierta` · `ot_asignada` · `paso_iniciado` · `declaracion` · `veredicto` · `alerta` · `alerta_resuelta` · `relevo_entregado` · `relevo_recibido` · `propuesta_pauta` · `observacion`.
 
 Una alerta no se borra cuando su condición desaparece: entra un `alerta_resuelta` que apunta a ella (`evidencia.resuelve`) con la lectura que la normalizó. Así la bitácora muestra cuándo empezó y cuándo terminó, y la UI saca el aviso en vivo. Ver [ADR-0007](../decisions/0007-servicios-en-vivo-sesion-stream-y-calificacion.md).
 
@@ -114,9 +115,9 @@ Del [ADR-0003](../decisions/0003-patrones-de-arquitectura-para-el-mvp.md): nada 
 
 1. **Convertir el protocolo en pauta.** El sistema propone los pasos y su tipo de evidencia; una persona los aprueba antes de que la pauta se use.
 2. **Abrir la OT.** El sistema la propone, una persona la confirma.
-3. **Cambiar la pauta matriz.** El sistema propone, el supervisor aprueba o rechaza.
+3. **Cambiar la pauta matriz.** El sistema propone el cambio; el supervisor lo acepta o lo descarta; el equipo de Factum arma la versión nueva con las aceptadas y la aprueba. La aprobación rechaza una versión que deja sin cumplir un control crítico que la anterior cumplía.
 
-Cada OT guarda **qué versión de la pauta ejecutó**. Sin eso, una propuesta de mejora no se puede evaluar contra lo que realmente se corrió.
+Cada OT guarda **qué versión de la pauta ejecutó**. Sin eso, una propuesta de mejora no se puede evaluar contra lo que realmente se corrió. Y cada empresa itera su propia copia de un protocolo: las propuestas y sus versiones se cuentan por empresa y por protocolo dueño de la pauta ([ADR-0018](../decisions/0018-la-pauta-tiene-un-protocolo-dueno-y-cada-protocolo-itera-por-separado.md)).
 
 ## Relevo de turno
 
@@ -131,11 +132,28 @@ Límite conocido y aceptado: esto funciona mientras el registro de una OT quepa 
 
 ## Cuándo el sistema propone cambiar la pauta
 
-Una desviación suelta no es una propuesta. La propuesta nace cuando el **mismo** paso de la misma versión tiene señales en ejecuciones distintas: alertas de orden o de control, conflictos, pasos confirmados por una persona porque la evidencia no los vio, y lo que observaron los operarios. El supervisor la valida, el equipo escribe la versión nueva y la misma propuesta dice después si el paso dejó de desviarse ([ADR-0014](../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)).
+Hay dos clases de propuesta. Las de **desviación** salen de cómo se ejecutó la pauta; las de **conformidad**, de la pauta misma comparada con su protocolo ([ADR-0014](../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md), [ADR-0016](../decisions/0016-una-pauta-sale-del-protocolo-que-aplica-a-su-tarea.md)).
 
-Una alerta de seguridad también es una señal, y cuenta en el paso que estaba en curso cuando se dio el peligro: acercarse con el motor encendido cuenta en «Apagar el motor».
+**Desviación.** Una desviación suelta no es una propuesta. La propuesta aparece cuando el **mismo** paso de la misma versión tiene señales en dos o más OT: alertas de seguridad, de orden o de control, conflictos, pasos confirmados por una persona porque la evidencia no los vio, y lo que observaron los operarios. Una alerta de seguridad cuenta en el paso que estaba en curso cuando se dio el peligro: acercarse con el motor encendido cuenta en «Apagar el motor». Cada propuesta trae su `recurrencia`: si el paso se desvía más que el resto de su pauta, con una binomial exacta contra la tasa de los demás pasos y la corrección de Holm (`app/recurrencia.py`).
 
-**El aviso al supervisor llega apenas el patrón se distingue del ruido**, no cuando el paso junta dos OT: el paso tiene que desviarse más que el resto de su pauta, con un α de 0,005 porque la prueba corre después de cada señal. Si los demás pasos están limpios, eso pasa a la tercera OT que se salta el mismo paso. Se avisa una vez por propuesta: queda un evento `propuesta_pauta` en la OT donde se detectó y la propuesta trae `detectada`. Por qué esos números está en la [simulación](../projects/mejora-continua/simulacion.md).
+**El aviso al supervisor llega apenas el patrón se distingue del ruido**, no cuando el paso junta dos OT. Como la prueba corre después de cada señal, mirar una y otra vez los mismos datos inflaría las falsas alarmas: el aviso usa un α que se reparte entre las miradas (`mejora.alfa_en_vivo`, α = 0,05 · 6 / (π² k²) con k OT de la versión), así que la probabilidad de una falsa alarma en toda la vida de la versión queda bajo 0,05. Esa prueba es `recurrencia.en_vivo`. Con una versión que ya trae 4 OT limpias y el resto de la pauta sin señales, el aviso llega a la cuarta OT seguida que se salta el paso (`tests/test_mejora_y_metricas.py`). Si el paso saltado es control crítico, cada salto deja dos señales (seguridad en ese paso y orden en el que se adelantó), que inflan la tasa de referencia: en `tests/test_recorrido_interno.py`, sin OT previas, el aviso llega a la sexta. Contarlas como un solo incidente está abierto. Se avisa una vez por propuesta: queda un evento `propuesta_pauta` en la OT donde se detectó y la propuesta trae `detectada`. Por qué esos números está en la [simulación](../projects/mejora-continua/simulacion.md).
+
+**Conformidad.** Si un control crítico del protocolo no lo cumple ningún paso (`falta`), dos controles van en un mismo paso (`juntos`), van en otro orden (`orden`) o un paso dice cumplir un control que el protocolo no declara (`desconocido`), la propuesta aparece apenas la versión se aprueba y se habilita, sin esperar ninguna OT.
+
+**El cambio propuesto.** Cada propuesta dice si trae un cambio de pauta que aplicar (`aplicable`) y, si no, por qué (`por_que_no`). Las reglas, que arma el código sin modelo (`app/sugerencias.py`):
+
+| Propuesta | Cambio |
+|---|---|
+| Conformidad `falta` | Agrega un paso de confirmación que cumple el control, justo después del paso que cumple el control anterior según el orden del protocolo, o al principio |
+| Conformidad `juntos` | Separa: el paso original queda con el primer control y se agrega a continuación un paso de confirmación con el segundo |
+| Desviación dominada por seguridad, orden, control o conflicto | Reescribe la instrucción del paso con cuándo está hecho y qué no se hace antes («No sigas al paso siguiente hasta que…»), sin cambiar su evidencia ni su orden |
+| Conformidad `orden` o `desconocido`; desviación dominada por confirmaciones de persona u observaciones; propuesta escalada, descartada, aplicada o superada | No aplicable: lo decide una persona, o el problema es el sensor y no la pauta |
+
+El borrador se comprueba contra los controles del protocolo antes de mostrarse: si dejara de cumplir uno que la versión de origen cumplía, `comprobacion.valida` es falso. Un modelo (Claude, `CEREBRO_MODELO`) puede reescribir el título, la instrucción y el porqué de los pasos que el borrador ya cambia; el código descarta su texto si cita una OT que no respalda la propuesta o si toca otra cosa. Sin `ANTHROPIC_API_KEY` queda el texto del código. El reporte de la OT usa solo el texto del código.
+
+**Quién hace qué.** El supervisor recibe el aviso, ve el cambio y lo acepta («Aplicar» en su pantalla) o lo descarta con una nota. No crea la versión: el equipo de Factum junta las aceptadas de la última versión aprobada en la versión siguiente, que queda sin aprobar (`POST /interno/pautas/{id}/version-siguiente`), y la aprueba. Con OT de la versión nueva, la propuesta dice si el paso dejó de desviarse: `mejoro` solo si la baja no se explica por azar (Fisher exacta de una cola), `sin_evidencia` si con pocas OT la baja puede ser casualidad, `se_repite` si no bajó.
+
+**Cuándo no se propone otra versión.** Si un cambio ya aplicado a un paso no lo bajó y en la versión nueva el paso vuelve a ser recurrente en vivo, la propuesta se escala (`escalar`): la causa no es el texto de la pauta sino algo que la supervisión tiene que revisar, como la presión de tiempo o el equipo. La escalada queda firme aunque la validación oscile cerca de su umbral. Esta regla es la que hace converger la mejora: sin ella, una causa que el texto no arregla produce versiones sin fin ([ADR-0018](../decisions/0018-la-pauta-tiene-un-protocolo-dueno-y-cada-protocolo-itera-por-separado.md), [simulación](../projects/mejora-continua/simulacion.md)).
 
 La vista del supervisor **agrupa por pauta y por área antes que por persona**: un paso que se saltan muchos operarios que normalmente cumplen apunta a la pauta, no a ellos (REFERENCIAS 33). Y dos cuidados que son regla, no consejo:
 
@@ -149,6 +167,7 @@ La vista del supervisor **agrupa por pauta y por área antes que por persona**: 
 - Qué algoritmo usa la capa 2. Para el demo, sin ciclo de trabajo, basta el desvío robusto contra la historia normal. Con un ciclo de carga, como en una subestación o una excavadora, hace falta saber en qué parte del ciclo va el equipo ([simulación](../projects/escenarios-por-industria/capa2-simulacion.md)). `Brecha`.
 - La latencia del aviso de punta a punta, y si el auricular convive con la protección auditiva de una planta. `Brecha`.
 - Qué evidencia exige una auditoría y cuánto tiempo se guarda. `Brecha`.
+- Si el par de señales que deja un mismo salto de un control crítico (seguridad y orden) cuenta como un incidente o como dos. Hoy cuenta como dos y retrasa el aviso. `Brecha`.
 
 ## Fuentes
 

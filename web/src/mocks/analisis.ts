@@ -213,14 +213,14 @@ const resumenDeCambio = (c: CambioBorrador) =>
  */
 export function borradorDe(m: Mundo, x: Mejora): Borrador {
   const base = { propuesta: x.id, aplicable: x.aplicable, por_que_no: x.por_que_no, pauta: x.pauta, desde_version: x.version, version: x.version + 1, redactado_por: 'codigo' }
-  if (!x.aplicable) return { ...base, cambios: [], comprobacion: { valida: true, hallazgos_nuevos: [] } }
+  if (!x.aplicable) return { ...base, cambios: [], comprobacion: null }
   const paso = m.paso(x.paso ?? '')
   const citadas = x.ots.length ? `En ${x.ots.join(' y ')} el paso dio señales.` : 'Lo dice la pauta misma, sin esperar ninguna OT.'
   const cambio: CambioBorrador = x.tipo === 'conformidad'
     ? {
         tipo: 'agrega', paso: null, antes: null,
         despues: { titulo: x.titulo, instruccion: `${x.titulo}, antes de seguir.`, tipo_evidencia: 'confirmacion', cumple: x.conformidad ? [`${x.conformidad.protocolo}:${x.conformidad.control}`] : [] },
-        porque: `${x.motivo} ${citadas}`, ots: x.ots,
+        porque: `${x.motivo} ${citadas}`, ots: x.ots, propuesta: x.id,
       }
     : {
         tipo: 'reescribe', paso: x.paso, antes: paso ? { titulo: paso.titulo, instruccion: paso.instruccion } : null,
@@ -229,7 +229,7 @@ export function borradorDe(m: Mundo, x: Mejora): Borrador {
           instruccion: `${paso?.instruccion ?? ''} No sigas al paso siguiente hasta que este quede verificado.`.trim(),
           tipo_evidencia: paso?.tipo_evidencia ?? 'confirmacion', cumple: [],
         },
-        porque: `${citadas} ${x.sugerencia}`, ots: x.ots,
+        porque: `${citadas} ${x.sugerencia}`, ots: x.ots, propuesta: x.id,
       }
   return { ...base, cambios: [cambio], comprobacion: { valida: true, hallazgos_nuevos: [] } }
 }

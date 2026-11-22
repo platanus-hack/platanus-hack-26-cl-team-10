@@ -1,6 +1,6 @@
 # Referencias
 
-> Documento vivo. Las 77 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
+> Documento vivo. Las 80 referencias verificadas, numeradas. El [FLUJO](../../architecture/FLUJO.md), las decisiones y el [board](./board-mantenimiento-verificado.html) las citan por número: una nueva va al final de su grupo con el número siguiente, y los números existentes no se reordenan.
 >
 > De casi todas se leyó solo el resumen. Las leídas completas tienen nota en [notas/](./notas/).
 

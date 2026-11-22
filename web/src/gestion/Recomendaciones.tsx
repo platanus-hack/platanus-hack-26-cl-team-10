@@ -68,7 +68,7 @@ function Recomendacion({ m, onRevisada, onPosponer }: { m: Mejora; onRevisada: (
         ) : (
           <Group gap="sm">
             <Button color="accion" loading={enviando} onClick={() => void revisar('aceptar')}>
-              Aceptar la recomendación
+              {m.aplicable ? 'Aplicar la recomendación' : 'Aceptar la recomendación'}
             </Button>
             <Button variant="default" onClick={() => setDescartando(true)}>
               Descartar

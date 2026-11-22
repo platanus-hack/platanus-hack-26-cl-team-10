@@ -30,6 +30,7 @@ Lo arma el código, no un modelo. Trae:
 - `pasos`: cada uno con su estado, con qué se cerró (`cerrado_con`), su capa, su hora, sus intentos y el `evento` que lo sostiene;
 - `desviaciones`, `confirmados_por_persona`, `observaciones` y `relevos`, cada uno con su `evento`;
 - `pendientes`, `tiempos` y `resultado`.
+- `mejoras`, solo si lo pide un supervisor (para el operario va vacía): las propuestas de mejora de esa pauta y versión en que esta OT aportó, y las de conformidad, cada una con `cambios_resumen`, el cambio a la pauta en una línea por paso («Agrega…», «Separa…», «Reescribe…»). En el Markdown es la sección «Mejoras sugeridas». Son sugerencias: aplicarlas es aceptarlas en la skill `medir-y-mejorar`, y la versión nueva la arma Factum.
 
 Si piden el reporte, **entrega el Markdown tal cual**. No lo resumas por tu cuenta: resumir es elegir qué callar.
 

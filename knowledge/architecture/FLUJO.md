@@ -9,7 +9,7 @@ flowchart TD
     A0["2 · Cliente: entrega el procedimiento que ya tiene"] --> B1
     A2 --> B1["2 · Sistema: lo vuelve pauta comprobable, o redacta el borrador"]
     B2["2 · Operario experto: hace la tarea y corrige"] <--> B1
-    B1 --> B3["2 · Supervisor: aprueba la pauta matriz"]
+    B1 --> B3["2 · Factum: aprueba la pauta matriz"]
   end
   subgraph C["Ciclo: en cada OT"]
     C1["3 · Calendario, pedido o falla del equipo"] --> C2["3 · Sistema: genera la OT desde la pauta"]
@@ -18,12 +18,13 @@ flowchart TD
     D1 -- "avisa por audio si falta un paso" --> D2
     D1 --> F1["5 · Sistema: bitácora con los pasos verificados"]
     F1 --> F2["5 · Turno siguiente: retoma desde el último paso verificado"]
-    F1 --> G1["6 · Sistema: propone un cambio a la pauta"]
-    G1 --> G2["6 · Supervisor: aprueba o rechaza, y ve dónde se saltan pasos"]
+    F1 --> G1["6 · Sistema: avisa del patrón y propone el cambio a la pauta"]
+    G1 --> G2["6 · Supervisor: acepta o descarta, y ve dónde se saltan pasos"]
+    G2 --> G3["6 · Factum: arma la versión siguiente con las aceptadas"]
     F1 -.-> H1["7 · Visión: predecir con el historial limpio"]
   end
   B3 -- "pauta vigente" --> C2
-  G2 -- "la pauta mejora" --> B3
+  G3 -- "la pauta mejora" --> B3
   H1 -. "anticipa la falla" .-> C1
 ```
 
@@ -40,7 +41,7 @@ Sensores inalámbricos pegados al equipo y la cámara del operario. Nada toca el
 
 ## 2. Identificar y estandarizar
 
-Hay dos entradas. Si el cliente ya tiene el procedimiento, que es el cliente objetivo, el sistema lo carga y lo vuelve una pauta comprobable: cada paso declara qué evidencia lo cierra. Si no lo tiene, un técnico experto hace la tarea con la cámara, el sistema redacta un borrador, el experto lo corrige y el supervisor lo aprueba.
+Hay dos entradas. Si el cliente ya tiene el procedimiento, que es el cliente objetivo, el sistema lo carga y lo vuelve una pauta comprobable: cada paso declara qué evidencia lo cierra. Si no lo tiene, un técnico experto hace la tarea con la cámara, el sistema redacta un borrador, el experto lo corrige y el equipo de Factum lo aprueba. Las pautas las arma y aprueba Factum, no el cliente ([ADR-0011](../decisions/0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md)).
 
 - **Evidencia.** Un VLM sin entrenar describió por su cuenta el 54,6% de las fases de un montaje, y el 68% cuando se le dio la pauta correcta. Alcanza para un borrador, no para una pauta. Sus descripciones libres sí recogen ajustes e inspecciones que el experto hace sin decirlos (9). `Confirmada`.
 - **Construcción.** El modelo redacta y pregunta; el experto corrige. La cámara cenital cubrió más fases que la frontal: 80% frente a 56% (9). El planteamiento del equipo habla de entregar el protocolo tras una ejecución observada; con esa evidencia, lo que sale de una ejecución es el borrador.
@@ -76,12 +77,12 @@ La bitácora no se escribe: es la lista de pasos verificados con su evidencia. E
 
 ## 6. Mejorar la pauta
 
-Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta matriz. El supervisor aprueba o rechaza. El mismo dato le muestra en qué áreas y en qué pautas se saltan más pasos, para supervisar en persona solo los trabajos de mayor riesgo.
+Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta matriz, y también las faltas de la pauta frente a su protocolo, como un control crítico que ningún paso cumple. Apenas un paso se desvía más que el resto de su pauta, el supervisor recibe el aviso «Factum encontró un patrón». Cada propuesta trae el cambio concreto: qué paso agrega, separa o reescribe, con el antes, el después y las OT que lo respaldan. El supervisor lo acepta («Aplicar») o lo descarta. El reporte de cada OT lista las mejoras en que esa OT aportó. El equipo de Factum junta las aceptadas en la versión siguiente y la aprueba; después, la misma propuesta dice si el paso dejó de desviarse. El mismo dato le muestra al supervisor en qué áreas y en qué pautas se saltan más pasos, para supervisar en persona solo los trabajos de mayor riesgo. Las reglas están en [LOGICA](./LOGICA.md#cuándo-el-sistema-propone-cambiar-la-pauta).
 
 - **Evidencia.** Muchas desviaciones nacen de la presión de la jefatura y de pautas mal hechas, no del operario (33). Plant Memory reconoce que sus cambios se auditan, pero no se versionan ni se revierten (7). `Confirmada`.
-- **Construcción.** Cada pauta lleva número de versión y cada OT guarda cuál ejecutó. El sistema propone y una persona aprueba. La vista del supervisor agrupa por pauta y por área antes que por persona: un paso que se saltan muchos operarios que normalmente cumplen apunta a la pauta. En un paso de seguridad, que se salte seguido no lo vuelve prescindible.
+- **Construcción.** Cada pauta lleva número de versión y cada OT guarda cuál ejecutó. El sistema propone, el supervisor acepta y Factum aprueba la versión; la aprobación rechaza una versión que deja sin cumplir un control crítico. La vista del supervisor agrupa por pauta y por área antes que por persona: un paso que se saltan muchos operarios que normalmente cumplen apunta a la pauta. En un paso de seguridad, que se salte seguido no lo vuelve prescindible. Si un cambio ya aplicado no bajó la desviación, no se propone otra versión: se escala a la supervisión, porque la causa no es la pauta. La [simulación](../projects/mejora-continua/simulacion.md) comprueba que así la mejora converge.
 - **Leer.** (33), (34), (35), (28), (25) y (7).
-- **Por decidir.** Cuándo una desviación es error del operario y cuándo es una pauta mala. `Brecha`.
+- **Por decidir.** Cuándo una desviación es error del operario y cuándo es una pauta mala: la escalada cubre el caso en que cambiar el texto no bastó, pero no lo distingue de entrada. `Brecha`.
 
 ## 7. Predecir (visión)
 

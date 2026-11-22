@@ -5,7 +5,9 @@ description: Analiza cómo se ejecutó una pauta en sus órdenes de trabajo (con
 
 # Optimizar un proceso
 
-Sale una **propuesta**: un borrador con la versión siguiente de la pauta y la razón de cada cambio. La aprueba o la rechaza el supervisor ([LOGICA](../../../knowledge/architecture/LOGICA.md#cuándo-el-sistema-propone-cambiar-la-pauta)).
+Sale una **propuesta**: un borrador con la versión siguiente de la pauta y la razón de cada cambio. El supervisor acepta o descarta las propuestas de su empresa; la versión nueva la arma y la aprueba el equipo de Factum ([LOGICA](../../../knowledge/architecture/LOGICA.md#cuándo-el-sistema-propone-cambiar-la-pauta)).
+
+**Si las propuestas aceptadas son aplicables, el servidor ya trae el cambio.** Cada propuesta de `GET /interno/mejoras` con `aplicable` verdadero tiene un borrador determinista (agrega el control que falta, separa dos controles juntos o reescribe el paso que se desvía), y `POST /interno/pautas/{pauta_id}/version-siguiente` con `{"actor": "equipo:<quien>"}` junta los de todas las aceptadas de la última versión aprobada en una versión **sin aprobar** (409 si no hay aceptadas aplicables o si ya hay una sin aprobar). Revísala y apruébala con `POST /pautas/{pauta_id}/versiones/{version}/aprobar`, que la rechaza si pierde un control crítico. Esta skill es para lo que ese borrador no cubre: lo que no es aplicable (`por_que_no`), un paso lento, un sensor que no ve el paso, o un cambio que pide mirar fotos y video.
 
 ## 1. Mirar los números
 
@@ -60,4 +62,4 @@ uv run python scripts/analizar.py pauta datos/borradores/<pauta-id>-v<n+1>.json 
 
 Contra un servidor, `POST /interno/pautas/validar` corre las mismas comprobaciones sobre la pauta nueva sin guardarla.
 
-Entrega la tabla, los cambios con sus OT y lo que **no** propusiste y por qué. No cargues ni apruebes la versión nueva: eso lo pide el supervisor.
+Entrega la tabla, los cambios con sus OT y lo que **no** propusiste y por qué. No cargues ni apruebes la versión nueva por tu cuenta: la carga y la aprueba una persona del equipo de Factum, después de que el supervisor aceptó las propuestas.

@@ -492,6 +492,70 @@
       }
     ]
   },
+  "GET /cliente/mejoras/{propuesta_id}/borrador": {
+    "respuesta": {
+      "propuesta": "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01:A1+A2:juntos",
+      "aplicable": true,
+      "por_que_no": null,
+      "pauta": "pauta-correa-ct-01",
+      "desde_version": 1,
+      "version": 2,
+      "cambios": [
+        {
+          "tipo": "separa",
+          "paso": "p2",
+          "antes": null,
+          "despues": {
+            "titulo": "Bloquear",
+            "instruccion": "Candado y tarjeta personales en el punto de bloqueo, no en el mando. Hazlo y confírmalo antes de seguir: lo exige prot-aislamiento-01.",
+            "tipo_evidencia": "confirmacion",
+            "cumple": [
+              "prot-aislamiento-01:A2"
+            ]
+          },
+          "porque": "prot-aislamiento-01 pide A2 Bloquear como un control propio: en un mismo paso con A1 la evidencia no comprueba que se hizo, ni en su orden.",
+          "ots": [],
+          "propuesta": "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01:A1+A2:juntos"
+        }
+      ],
+      "redactado_por": "codigo",
+      "comprobacion": {
+        "valida": true,
+        "hallazgos_nuevos": [],
+        "conformidad_despues": {
+          "hallazgos": [
+            {
+              "clave": "prot-aislamiento-01:A3:falta",
+              "protocolo": "prot-aislamiento-01",
+              "control": "A3",
+              "tipo": "falta",
+              "pasos": [],
+              "detalle": "ningún paso cumple A3 Comprobar energía cero"
+            }
+          ],
+          "cumplen": [
+            {
+              "protocolo": "prot-aislamiento-01",
+              "control": "A1",
+              "pasos": [
+                "p1"
+              ]
+            },
+            {
+              "protocolo": "prot-aislamiento-01",
+              "control": "A2",
+              "pasos": [
+                "p2"
+              ]
+            }
+          ],
+          "avisos": [
+            "prot-correa-01 no declara controles críticos: no se le puede exigir nada a la pauta"
+          ]
+        }
+      }
+    }
+  },
   "POST /cliente/mejoras/{propuesta_id}/revision": {
     "pedido": {
       "decision": "aceptar",

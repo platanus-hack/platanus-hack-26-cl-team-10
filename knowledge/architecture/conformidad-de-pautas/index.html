@@ -28,7 +28,7 @@
 <header class="top">
   <div class="wrap">
     <span class="marca"><img src="logo.svg" alt=""><span><b>Factum</b><i>Diseño</i></span></span>
-    <p class="tipo"><span class="chip chip--tipo">Documento de diseño</span><span class="chip chip--linea">En revisión</span></p>
+    <p class="tipo"><span class="chip chip--tipo">Documento de diseño</span><span class="chip chip--linea">Aceptado · en main</span></p>
     <p class="top__meta">ADR-0016 · 22 de noviembre de 2026</p>
     <h1>Una pauta sale del protocolo que aplica a su tarea, y cumplirlo se comprueba aparte</h1>
     <p class="top__lead">Qué significa que una pauta salga de un protocolo, cómo se descubre que le falta un control crítico y quién lo corrige, sin esconder la falta.</p>
@@ -191,7 +191,7 @@
           <li class="ahora">Versiones del protocolo; la versión 1 es la de hoy</li>
           <li>La sección «Alcance» de cada protocolo, que ya existe en todos</li>
         </ul>
-        <details class="hoy"><summary>Cómo es hoy</summary><p><code>PUT /interno/protocolos/{id}</code> reescribe el texto y no queda la versión anterior. La semilla crea el protocolo si falta y nunca cambia su texto.</p></details>
+        <details class="hoy"><summary>Cómo es hoy</summary><p><code>PUT /interno/protocolos/{id}</code> reescribe el texto y no queda la versión anterior. La semilla crea el protocolo si falta y nunca cambia su texto; sí actualiza sus controles. Las versiones de protocolo siguen pendientes.</p></details>
       </div>
 
       <!-- Paso 2 -->
@@ -213,7 +213,7 @@
           <li class="ahora">Que proponga controles críticos con orden y evidencia</li>
           <li class="ahora">La tabla de controles por versión y su aprobación</li>
         </ul>
-        <details class="hoy"><summary>Cómo es hoy</summary><p>Los controles críticos viven solo en el texto del protocolo. Las pautas marcan algunos pasos con <code>control_critico: true</code>, sin decir qué control cumplen ni de qué protocolo.</p></details>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>Desde el PR #74, los controles críticos de cada protocolo son datos (<code>controles</code>, con id, nombre y orden; <code>PUT /interno/protocolos/{id}/controles</code>), con quién los fijó y cuándo. Cada paso dice qué control cumple con <code>cumple</code> («<code>prot-aislamiento-01:A3</code>»). Los protocolos de la semilla que los declaran son <code>prot-aislamiento-01</code> (A1 a A3) y <code>prot-maqueta-01</code> (M1 a M3).</p></details>
       </div>
 
       <!-- Paso 3 -->
@@ -244,7 +244,7 @@
           <li class="ahora">El campo <code>cumple</code> en cada paso</li>
           <li class="ahora">Atribuir por alcance, con el criterio de este documento</li>
         </ul>
-        <details class="hoy"><summary>Cómo es hoy</summary><p>La atribución existe, pero sin un criterio escrito. El PR #65 sacó tres pautas de la maqueta del protocolo de aislamiento porque no lo cumplían; el resultado se sostiene, pero por otra razón: la maqueta no tiene el peligro real.</p></details>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>El criterio está escrito en el ADR-0016: se atribuye por alcance. Las pautas de la maqueta salen solo de <code>prot-maqueta-01</code>, porque la maqueta no tiene el peligro de una correa real; ya no salen de <code>prot-correa-01</code> ni de <code>prot-aislamiento-01</code>. Además, cada pauta tiene un protocolo dueño, el que la itera (ADR-0018).</p></details>
       </div>
 
       <!-- Paso 4 -->
@@ -271,7 +271,7 @@
           <li>El validador de pautas, con sus revisiones de sensores (ADR-0015)</li>
           <li class="ahora">La revisión de conformidad contra los controles aprobados</li>
         </ul>
-        <details class="hoy"><summary>Cómo es hoy</summary><p>El validador revisa que los sensores de la pauta existan en la estación y que las reglas se puedan evaluar. No sabe qué controles exige cada protocolo.</p></details>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>Desde el PR #74, el validador (<code>POST /interno/pautas/validar</code>) devuelve además <code>conformidad</code> y los hallazgos C1 (falta un control), C2 (dos controles en un paso), C3 (otro orden) y C4 (un control que el protocolo no declara), con <code>analisis.conformidad</code>. Si el protocolo no declara controles, o la pauta no anotó <code>cumple</code> para él, avisa en vez de reportar hallazgos.</p></details>
       </div>
 
       <!-- Paso 5 -->
@@ -297,7 +297,7 @@
           <li>La pantalla de propuestas y su revisión (PR #66, ADR-0014)</li>
           <li class="ahora">El tipo «conformidad» en esa misma pantalla</li>
         </ul>
-        <details class="hoy"><summary>Cómo es hoy</summary><p>En <code>main</code>, la pantalla muestra propuestas que nacen cuando el mismo paso se desvía en dos o más OT. En revisión, todavía fuera de <code>main</code>: cada propuesta trae <code>recurrencia</code>, que dice si el paso se desvía más que el resto de su pauta (binomial exacta con Holm, <code>app/recurrencia.py</code>); el supervisor recibe «Factum encontró un patrón» apenas un paso se vuelve recurrente, con la campana; y la validación de una versión nueva dice «sin evidencia» cuando la baja puede ser azar. Una falta de la pauta misma, que no depende de ninguna OT, no aparece en ninguna parte.</p></details>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>En <code>main</code> desde el PR #74. La pantalla de mejoras muestra en el mismo lugar las propuestas por desviación y las de conformidad, que nacen de la pauta sin esperar ninguna OT. Cada propuesta por desviación trae <code>recurrencia</code>, que dice si el paso se desvía más que el resto de su pauta (binomial exacta con Holm, <code>app/recurrencia.py</code>); el supervisor recibe «Factum encontró un patrón» apenas un paso se vuelve recurrente, con la campana; y la validación de una versión nueva dice «sin evidencia» cuando la baja puede ser azar. Cada propuesta trae también el cambio concreto a la pauta («Ver el cambio») y el reporte de la OT lista las mejoras en que aportó.</p></details>
       </div>
 
       <!-- Paso 6 -->
@@ -319,7 +319,7 @@
           <li>La propuesta pasa a «aplicada» con la versión nueva (ADR-0014)</li>
           <li class="ahora">La versión que propone la mejora continua se valida contra los controles antes de aprobarse</li>
         </ul>
-        <details class="hoy"><summary>Cómo es hoy</summary><p>Igual. Lo nuevo es que el validador confirma que la versión nueva cierra el hallazgo, y que ninguna versión nueva, salga de un hallazgo o de una desviación repetida, puede sacar un control crítico. Hoy esa regla vive solo en el texto de la skill <code>optimizar-proceso</code> («lo que no se propone nunca»).</p></details>
+        <details class="hoy"><summary>Cómo es hoy</summary><p>En <code>main</code> desde el PR #74. Con la versión nueva aprobada, la propuesta de conformidad dice si el hallazgo se cerró («mejoró» o «se repite»). Y la aprobación (<code>catalogo.aprobar_pauta</code>) rechaza con 409 una versión que deja sin cumplir un control crítico que la anterior cumplía, para los protocolos que la versión anterior anotó. La versión siguiente la puede armar el equipo con las propuestas aceptadas (<code>POST /interno/pautas/{id}/version-siguiente</code>), y pasa por la misma aprobación.</p></details>
       </div>
     </section>
 
@@ -397,7 +397,7 @@ propuesta_id = "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01@1:A3"</pre>
         <div class="caja"><h3>Sin falsas alarmas de la maqueta</h3><p>Las pautas de ejemplo dejan de compararse contra protocolos de equipos reales: de 8 hallazgos posibles quedan los 2 verdaderos.</p></div>
         <div class="caja"><h3>Un hallazgo se puede reproducir</h3><p>Con protocolos versionados, «la pauta v1 contra el protocolo v1» se puede volver a calcular meses después, aunque el texto del protocolo haya cambiado.</p></div>
         <div class="caja"><h3>Una pantalla, dos fuentes de mejora</h3><p>El supervisor revisa en el mismo lugar lo que se desvía en las OT y lo que le falta a la pauta. No hay una pantalla nueva.</p></div>
-        <div class="caja"><h3>Lo que señaló el PR #66</h3><p>Acercarse con el motor encendido no producía propuesta en la pauta de la estación, porque la alerta de seguridad no quedaba en ningún paso. Ya se resolvió aparte, en revisión: la alerta cuenta en el paso que estaba en curso, así que alimenta la mejora de «Apagar el motor» sin marcarlo crítico. Si el protocolo de la maqueta declara los controles que imita, el validador mostrará además que ese paso no está marcado como control.</p></div>
+        <div class="caja"><h3>Lo que señaló el PR #66</h3><p>Acercarse con el motor encendido no producía propuesta en la pauta de la estación, porque la alerta de seguridad no quedaba en ningún paso. Ya se resolvió aparte, en <code>main</code> desde el PR #74: la alerta cuenta en el paso que estaba en curso, así que alimenta la mejora de «Apagar el motor» sin marcarlo crítico. Si el protocolo de la maqueta declara los controles que imita, el validador mostrará además que ese paso no está marcado como control.</p></div>
         <div class="caja"><h3>Un freno para la mejora continua</h3><p>La mejora continua propone versiones nuevas cuando un paso se salta seguido. Con la conformidad, ninguna de esas versiones puede sacar o juntar un control crítico: lo impide el validador, no solo el texto de una skill.</p></div>
         <div class="caja"><h3>Citas correctas</h3><p>El protocolo de aislamiento deja de citar 1910.147 por una referencia que solo cuenta cuántas veces se cita esa norma, y la cita por su texto, como modelo.</p></div>
       </div>
@@ -413,14 +413,15 @@ propuesta_id = "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01@1:A3"</pre>
           <tr><td>Bitácora que solo agrega</td><td data-label="De dónde viene">ADR-0003</td><td data-label="Qué aporta">El patrón: los hechos se guardan, el resto se calcula</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
           <tr><td>Atribución de muchos a muchos</td><td data-label="De dónde viene">ADR-0011</td><td data-label="Qué aporta">La relación que este diseño define</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
           <tr><td>Propuestas de mejora y su revisión</td><td data-label="De dónde viene">ADR-0014, <code>app/mejora.py</code></td><td data-label="Qué aporta">La tabla <code>mejora_revisiones</code> y el ciclo aceptar, versión nueva, comprobar</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
-          <tr><td>Recurrencia, aviso en vivo y validación estadística</td><td data-label="De dónde viene"><code>app/recurrencia.py</code>, <code>servicios._vigilar_patrones</code></td><td data-label="Qué aporta">Qué desviación es un patrón y cuál es ruido, el aviso al supervisor apenas aparece y «sin evidencia» cuando una baja puede ser azar. Medido en la simulación de la mejora continua (<code>knowledge/projects/mejora-continua/simulacion.md</code>)</td><td data-label="Estado"><span class="chip chip--warn">En revisión</span></td></tr>
-          <tr><td>Alerta de seguridad en el paso en curso</td><td data-label="De dónde viene"><code>servicios._seguridad</code>, <code>metricas.leer</code></td><td data-label="Qué aporta">Que el peligro más importante del demo, acercarse con el motor encendido, alimente la mejora del paso que se saltó</td><td data-label="Estado"><span class="chip chip--warn">En revisión</span></td></tr>
+          <tr><td>Recurrencia, aviso en vivo y validación estadística</td><td data-label="De dónde viene"><code>app/recurrencia.py</code>, <code>servicios._vigilar_patrones</code></td><td data-label="Qué aporta">Qué desviación es un patrón y cuál es ruido, el aviso al supervisor apenas aparece y «sin evidencia» cuando una baja puede ser azar. Medido en la simulación de la mejora continua (<code>knowledge/projects/mejora-continua/simulacion.md</code>)</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
+          <tr><td>Alerta de seguridad en el paso en curso</td><td data-label="De dónde viene"><code>servicios._seguridad</code>, <code>metricas.leer</code></td><td data-label="Qué aporta">Que el peligro más importante del demo, acercarse con el motor encendido, alimente la mejora del paso que se saltó</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
           <tr><td>Pantalla de mejoras del supervisor</td><td data-label="De dónde viene">PR #66, Daniel</td><td data-label="Qué aporta">Dónde se revisa un hallazgo, con aceptar y descartar con motivo</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
           <tr><td>Skill que reconoce procesos</td><td data-label="De dónde viene">ADR-0015</td><td data-label="Qué aporta">Lee el protocolo y propone sus controles críticos</td><td data-label="Estado"><span class="chip chip--warn">Se extiende</span></td></tr>
           <tr><td>Validador de pautas</td><td data-label="De dónde viene">ADR-0015, <code>/interno/pautas/validar</code></td><td data-label="Qué aporta">Calcula los hallazgos de conformidad</td><td data-label="Estado"><span class="chip chip--warn">Se extiende</span></td></tr>
           <tr><td>Semilla que converge</td><td data-label="De dónde viene">PR #65</td><td data-label="Qué aporta">Un despliegue deja la base con las atribuciones del repo, sin cambios a mano</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
           <tr><td>Protocolo de la maqueta</td><td data-label="De dónde viene">PR #65</td><td data-label="Qué aporta">El lugar de las pautas de ejemplo, fuera de los protocolos de equipos reales</td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
-          <tr><td>Controles como datos, campo <code>cumple</code>, revisión de conformidad, propuestas de tipo «conformidad» y aprobación que no deja sacar un control</td><td data-label="De dónde viene">Este diseño</td><td data-label="Qué aporta">Lo que hace comprobable la conformidad. Probado de punta a punta en <code>tests/test_recorrido_interno.py</code></td><td data-label="Estado"><span class="chip chip--warn">En revisión</span></td></tr>
+          <tr><td>Controles como datos, campo <code>cumple</code>, revisión de conformidad, propuestas de tipo «conformidad» y aprobación que no deja sacar un control</td><td data-label="De dónde viene">Este diseño</td><td data-label="Qué aporta">Lo que hace comprobable la conformidad. Probado de punta a punta en <code>tests/test_recorrido_interno.py</code></td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
+          <tr><td>El cambio que propone cada propuesta y la versión siguiente con las aceptadas</td><td data-label="De dónde viene"><code>app/sugerencias.py</code>, PR #74</td><td data-label="Qué aporta">El supervisor ve el cambio y lo aplica aceptándolo; el equipo arma la versión, que pasa por la misma aprobación. Probado en <code>tests/test_sugerencias.py</code></td><td data-label="Estado"><span class="chip chip--ok">Existe</span></td></tr>
           <tr><td>Versiones de protocolo</td><td data-label="De dónde viene">Este diseño</td><td data-label="Qué aporta">Que un hallazgo se pueda reproducir contra la versión del protocolo de ese momento</td><td data-label="Estado"><span class="chip">Pendiente</span></td></tr>
         </tbody>
       </table>
@@ -467,7 +468,7 @@ propuesta_id = "conformidad:pauta-correa-ct-01@1:prot-aislamiento-01@1:A3"</pre>
           <tr><td class="num">22 nov 2026</td><td data-label="Decisión">El protocolo de inspección de correa de la VM no se trae al repo: ningún protocolo documentado lo necesita.</td><td data-label="Quién">Pancho</td></tr>
           <tr><td class="num">22 nov 2026</td><td data-label="Decisión">Para el brazo se buscó ISO 10218-2:2025 (REFERENCIAS 80). Su alcance cubre la mantención; el texto de sus requisitos es de pago y no se leyó, así que el protocolo no dice cumplirla.</td><td data-label="Quién">Pancho</td></tr>
           <tr><td class="num">22 nov 2026</td><td data-label="Decisión"><code>cumple</code> se anota sobre la versión que ya existe, sin abrir una nueva: no cambia nada de lo que se ejecuta. La semilla lo hace solo si es lo único que cambia.</td><td data-label="Quién">Equipo</td></tr>
-          <tr><td class="num">—</td><td data-label="Decisión">Atribución por alcance y conformidad aparte (ADR-0016): en revisión.</td><td data-label="Quién">Pendiente</td></tr>
+          <tr><td class="num">22 nov 2026</td><td data-label="Decisión">Atribución por alcance y conformidad aparte (ADR-0016): aceptada y construida; entró a <code>main</code> con el PR #74.</td><td data-label="Quién">Pancho</td></tr>
         </tbody>
       </table>
       </div>

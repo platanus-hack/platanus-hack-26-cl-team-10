@@ -282,11 +282,11 @@ class ElAvisoAlSupervisor(Base):
         # 4 de 4 nuevas con señal y el resto limpio ya no puede ser azar.
         nuevas = [self.acercarse_con_el_motor_encendido(i) for i in range(3)]
         self.assertEqual(self.detectadas(), [], nuevas)
-        tercera = self.acercarse_con_el_motor_encendido(3)
+        cuarta = self.acercarse_con_el_motor_encendido(3)
         [p] = self.detectadas()
-        self.assertEqual((p["paso"], p["titulo"], p["detectada"]["ot"]), ("e1", "Apagar el motor", tercera))
+        self.assertEqual((p["paso"], p["titulo"], p["detectada"]["ot"]), ("e1", "Apagar el motor", cuarta))
         self.assertGreaterEqual(p["senales"]["seguridad"], 3)
-        eventos = self.c.get(f"/cliente/ots/{tercera}/eventos", headers=self.carla).json()
+        eventos = self.c.get(f"/cliente/ots/{cuarta}/eventos", headers=self.carla).json()
         aviso = next(e for e in eventos if e["tipo"] == "propuesta_pauta")
         self.assertIn("«Apagar el motor»", aviso["detalle"])
         self.assertNotIn("Ana", aviso["detalle"])

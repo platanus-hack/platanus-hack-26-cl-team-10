@@ -685,7 +685,10 @@ def reporte_de_la_ot(ot_id: str, formato: Literal["json", "markdown"] = Query(de
     """El reporte de la OT, armado desde la bitácora por el código y no por un modelo: cada paso con la evidencia que lo
     cerró, su capa, su hora y sus intentos; las desviaciones con su clase y cuánto tardaron en resolverse; las
     confirmaciones por persona con su motivo; las observaciones; los relevos; y lo que quedó pendiente. Cada línea trae
-    el `evento` que la sostiene, para citarlo. 404 si la OT no es suya."""
+    el `evento` que la sostiene, para citarlo. Para el supervisor, `mejoras` lista las propuestas de la pauta y versión
+    de la OT en que esta OT aportó, y las de conformidad, cada una con su cambio en una línea por paso
+    (`cambios_resumen`, sección «Mejoras sugeridas» en markdown); para el operario es una lista vacía. 404 si la OT no
+    es suya."""
     p = _persona(authorization)
     ot = acceso.ot_de(cx, p, ot_id, servicios._ots_en_sesion())
     nombres = {x["id"]: x["nombre"] for x in acceso.nombres_de(cx, p["cliente"]["id"])}
@@ -732,10 +735,18 @@ def observar(ot_id: str, o: Observacion, authorization: str | None = Header(defa
 @app.get("/cliente/mejoras")
 def mejoras_del_cliente(estado: Literal["abierta", "aceptada", "descartada", "aplicada", "superada"] | None = None,
                         authorization: str | None = Header(default=None)) -> list[dict]:
-    """Las propuestas para mejorar las pautas de la empresa, las que más pesan primero. Una nace cuando el mismo paso
-    de la misma versión tuvo señales en dos o más OT: alertas de orden o de control, conflictos, pasos que confirmó una
-    persona porque la evidencia no los vio, y observaciones de los operarios. Cuando hay una versión nueva, `validacion`
-    dice si el paso dejó de desviarse. Solo supervisor."""
+    """Las propuestas para mejorar las pautas de la empresa, primero las de conformidad. Son de dos tipos:
+
+    - `desviacion`: el mismo paso de la misma versión tuvo señales en dos o más OT (alertas de seguridad, de orden o de
+      control, conflictos, pasos que confirmó una persona porque la evidencia no los vio, y observaciones de los
+      operarios). `recurrencia` dice si el paso se desvía más que el resto de su pauta (binomial exacta con Holm) y
+      `en_vivo` si lo hace con el α del aviso; solo entonces se avisa al supervisor y queda `detectada`.
+    - `conformidad`: la pauta no cumple un control crítico de su protocolo (falta, va junto con otro, en otro orden, o
+      el control no existe). Nace de la pauta misma, sin esperar OT (ADR-0016).
+
+    Cada una trae `ots`, `aplicable` y `por_que_no`: si tiene un cambio de pauta que proponer, que se ve en
+    `/cliente/mejoras/{id}/borrador`. Cuando hay una versión aprobada más nueva, `validacion` dice si el paso dejó de
+    desviarse (Fisher exacta) y `escalar` si un cambio anterior no lo bajó. Solo supervisor."""
     p = _supervisor(authorization)
     todas = mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"])
     return [m for m in todas if estado is None or m["estado"] == estado]
@@ -759,8 +770,11 @@ def _mejoras_del_reporte(p: dict, r: dict) -> list[dict]:
 @app.get("/cliente/mejoras/{propuesta_id}/borrador")
 def borrador_de_mejora(propuesta_id: str, authorization: str | None = Header(default=None)) -> dict:
     """El cambio concreto que la propuesta haría en la versión siguiente de la pauta: qué pasos agrega, separa o
-    reescribe, con el antes y el después y las OT que lo respaldan, comprobado contra los controles del protocolo. No
-    guarda nada: «Aplicar» es aceptar la propuesta, y la versión la arma Factum. 404 si no es de su empresa."""
+    reescribe, con el antes y el después y las OT que lo respaldan, comprobado contra los controles del protocolo
+    (`comprobacion`). Lo arma el código; con `ANTHROPIC_API_KEY`, un modelo puede reescribir el título, la instrucción y
+    el porqué, y el código descarta su texto si cita una OT ajena o toca otra cosa (`redactado_por`). Si la propuesta no
+    es aplicable, `cambios` va vacío y `por_que_no` dice por qué. No guarda nada: «Aplicar» es aceptar la propuesta, y
+    la versión la arma Factum. Solo supervisor; 404 si no es de su empresa."""
     p = _supervisor(authorization)
     m = next((m for m in mejora.propuestas(cx, _ejecuciones(p), p["cliente"]["id"]) if m["id"] == propuesta_id), None)
     if m is None:
@@ -771,8 +785,9 @@ def borrador_de_mejora(propuesta_id: str, authorization: str | None = Header(def
 @app.post("/cliente/mejoras/{propuesta_id}/revision")
 def revisar_mejora(propuesta_id: str, r: Revision, authorization: str | None = Header(default=None)) -> dict:
     """El supervisor valida una propuesta: aceptarla la manda al equipo de Factum para la versión siguiente de la pauta;
-    descartarla la cierra y pide una nota. Se puede cambiar de opinión: queda la última. 404 si no es de su empresa;
-    409 si la pauta ya tiene una versión más nueva."""
+    descartarla la cierra y pide una nota. En la pantalla, «Aplicar» una propuesta aplicable es aceptarla. Se puede
+    cambiar de opinión: queda la última. 404 si no es de su empresa; 409 si la pauta ya tiene una versión aprobada más
+    nueva."""
     p = _supervisor(authorization)
     return mejora.revisar(cx, _ejecuciones(p), p["cliente"]["id"], propuesta_id, r.decision, r.nota, p["id"])
 
@@ -902,7 +917,7 @@ def validar_pauta(v: PautaAValidar, x_clave_equipo: str | None = Header(default=
 def mejoras_de_todos(estado: Literal["abierta", "aceptada", "descartada", "aplicada", "superada"] | None = "aceptada",
                      x_clave_equipo: str | None = Header(default=None)) -> list[dict]:
     """Las propuestas de mejora de cada empresa, con su `cliente`. Por defecto, las que un supervisor aceptó: son las
-    que el equipo lleva a la versión siguiente de la pauta."""
+    que `POST /interno/pautas/{pauta_id}/version-siguiente` lleva a la versión siguiente de la pauta."""
     _solo_equipo(x_clave_equipo)
     salida = []
     for c in acceso.listar_clientes(cx):

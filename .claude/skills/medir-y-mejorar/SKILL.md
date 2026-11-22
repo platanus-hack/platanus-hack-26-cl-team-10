@@ -44,20 +44,31 @@ Dilo con el número y su base: «2 de 9 OT completas tuvieron desviaciones», no
 
 ## Las propuestas de mejora
 
-Una propuesta nace cuando el mismo paso de la misma versión tuvo señales en dos o más OT: alertas de orden o de control, conflictos, confirmaciones por persona y observaciones de los operarios. Cada una trae su motivo, sus señales, lo que observaron, una sugerencia y cuántos operarios distintos dieron señales (nunca quiénes).
+Hay dos tipos, en `tipo`:
+
+- **`desviacion`**: el mismo paso de la misma versión tuvo señales en dos o más OT: alertas de seguridad, de orden o de control, conflictos, confirmaciones por persona y observaciones de los operarios. Trae su motivo, sus señales, lo que observaron, las OT (`ots`), una sugerencia y cuántos operarios distintos dieron señales (nunca quiénes). `recurrencia` dice si el paso se desvía más que el resto de su pauta: con pocas OT, dos señales pueden ser azar, y entonces dilo. Cuando `recurrencia.en_vivo` es verdadero, Factum ya le avisó al supervisor en la OT de `detectada`.
+- **`conformidad`**: la pauta no cumple un control crítico de su protocolo (le falta, va junto con otro en un paso, va en otro orden). No depende de ninguna OT: está desde que se aprobó la versión.
+
+`aplicable` dice si la propuesta trae un cambio de pauta; si no, `por_que_no` dice por qué (un sensor que no ve el paso, un orden que decide el equipo, una escalada).
 
 ```bash
 curl -s "$FACTUM_URL/cliente/mejoras?estado=abierta" -H "$H"
 ```
 
-Explícale cada una al supervisor: qué paso, qué se repite y qué sugiere. **Él decide.** Cuando lo diga:
+Explícale cada una al supervisor: qué paso, qué se repite y qué sugiere. Si es aplicable, muéstrale el cambio concreto, con el antes y el después de cada paso y las OT que lo respaldan:
+
+```bash
+curl -s "$FACTUM_URL/cliente/mejoras/<id>/borrador" -H "$H"   # el id lleva «:» y «@»: va codificado en la URL
+```
+
+`comprobacion.valida` dice si el cambio sigue cumpliendo los controles del protocolo, y `redactado_por` si el texto lo escribió el código o el modelo. Entrega el cambio tal cual: no lo reescribas por tu cuenta. **Él decide.** «Aplicar» es aceptar. Cuando lo diga:
 
 ```bash
 curl -s -X POST "$FACTUM_URL/cliente/mejoras/<id>/revision" -H "$H" -H 'content-type: application/json' \
   -d '{"decision":"aceptar","nota":"<su razón>"}'
 ```
 
-Descartar pide una nota que diga por qué. Lo aceptado lo lleva el equipo de Factum a la versión siguiente de la pauta: eso no lo hace el supervisor ni esta skill. Después, la misma propuesta trae `validacion`: si el paso dejó de desviarse en la versión nueva (`mejoro`), si se sigue desviando (`se_repite`) o si todavía nadie la ejecutó (`sin_datos`).
+Descartar pide una nota que diga por qué. Lo aceptado lo lleva el equipo de Factum a la versión siguiente de la pauta, y la aprueba aparte: eso no lo hace el supervisor ni esta skill. Después, la misma propuesta queda `aplicada` y trae `validacion`: si el paso dejó de desviarse en la versión nueva (`mejoro`), si la baja todavía puede ser azar (`sin_evidencia`, con su `p_valor`), si se sigue desviando (`se_repite`) o si todavía nadie la ejecutó (`sin_datos`). Si un cambio no bajó el paso y se sigue desviando, la propuesta de la versión nueva viene con `escalar`: la causa no es el texto de la pauta, y se conversa con la supervisión antes de otra versión.
 
 ## Lo que no se hace nunca
 
