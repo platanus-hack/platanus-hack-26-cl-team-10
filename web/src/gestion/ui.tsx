@@ -178,15 +178,17 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
       <Container size={1360} px="md">
         <Group justify="space-between" wrap="nowrap" gap="sm" h={56}>
           {supervisor ? (
-            // Con el menú abierto, el logo vive en el menú: aquí se esconde para que no haya dos.
+            // Al abrir, este logo no salta: se queda donde está mientras la página se corre (vuelve 240 px), gira su cruz
+            // y se funde con el del menú, que entra por debajo (index.css, .logo-banda).
             <UnstyledButton
+              className="logo-banda"
               aria-label="Abrir el menú"
               aria-expanded={menu}
               onClick={() => setMenu(true)}
               py={6}
-              style={{ borderRadius: 4, visibility: menu ? 'hidden' : undefined }}
+              style={{ borderRadius: 4, pointerEvents: menu ? 'none' : undefined }}
             >
-              <Marca alto={20} />
+              <Marca alto={20} girada={menu} />
             </UnstyledButton>
           ) : (
             <Group gap="md" wrap="nowrap">
