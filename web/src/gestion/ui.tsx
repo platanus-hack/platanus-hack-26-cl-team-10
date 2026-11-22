@@ -61,7 +61,8 @@ export function VerificacionBadge({ nivel, size = 'md' }: { nivel: Nivel; size?:
 }
 
 const SECCIONES_SUPERVISOR = [
-  { a: '/supervisor', nombre: 'Supervisión' },
+  { a: '/supervisor/hoy', nombre: 'Hoy' },
+  { a: '/supervisor', nombre: 'Órdenes de trabajo' },
   { a: '/supervisor/protocolos', nombre: 'Protocolos' },
   { a: '/supervisor/mejoras', nombre: 'Mejoras' },
 ]

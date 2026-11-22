@@ -96,7 +96,7 @@ export type Cliente = {
   /** Acepta todo el resumen de una pauta; Factum arma la versión siguiente sin aprobar. Solo supervisor. */
   aplicarMejoras(pautaId: string): Promise<AplicacionMejoras>
   /** La foto de la empresa: cumplimiento, evidencia y desviaciones. Solo supervisor. */
-  leerMetricas(): Promise<Metricas>
+  leerMetricas(desde?: string): Promise<Metricas>
 }
 
 /** De dónde sale el token y qué hacer cuando la API deja de reconocerlo. */
@@ -180,7 +180,7 @@ export function crearCliente(
     leerBorrador: (id) => pedir('GET', `/cliente/mejoras/${encodeURIComponent(id)}/borrador`),
     resumenDeMejoras: () => pedir('GET', '/cliente/mejoras/resumen'),
     aplicarMejoras: (id) => pedir('POST', `/cliente/pautas/${encodeURIComponent(id)}/mejoras/aplicar`),
-    leerMetricas: () => pedir('GET', '/cliente/metricas'),
+    leerMetricas: (desde) => pedir('GET', desde ? `/cliente/metricas?desde=${encodeURIComponent(desde)}` : '/cliente/metricas'),
   }
 }
 

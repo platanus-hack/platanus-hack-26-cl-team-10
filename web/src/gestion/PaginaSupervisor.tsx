@@ -1,20 +1,19 @@
-import { Alert, Anchor, Badge, Button, CloseButton, Group, Modal, Pagination, Paper, Progress, Radio, SegmentedControl, Select, Stack, Table, Text, TextInput, Title, Tooltip, VisuallyHidden } from '@mantine/core'
-import { IconAlertTriangle, IconEye, IconPlus, IconSearch } from '@tabler/icons-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Alert, Badge, Button, CloseButton, Group, Modal, Pagination, Progress, Radio, SegmentedControl, Select, Stack, Table, Text, TextInput, Title, Tooltip, VisuallyHidden } from '@mantine/core'
+import { IconPlus, IconSearch } from '@tabler/icons-react'
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import { api } from '../api/cliente'
 import type { OtPedida, PautaResumen, Persona } from '../api/tipos'
 import { useSesion } from '../sesion/sesion'
 import { recordarNombres, useNombres } from '../sesion/usuarios'
-import { campana } from './campana'
 import { fraseCorta } from './sensores'
-import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, VERIFICACION, type Incidente } from './estados'
+import { IdOt } from './incidentes'
+import { rutaDe, useCampanaDeIncidentes } from './rutaDeOt'
+import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, VERIFICACION } from './estados'
 import industrial from './industrial.module.css'
 import estilos from './TarjetaOt.module.css'
 import { Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
 import { LIMITE_MS, mensajeDe, RECARGA_MS, useOts, type OtVista } from './useOts'
-import { Recomendaciones } from './Recomendaciones'
-import { useRecomendaciones } from './useRecomendaciones'
 
 /** Los operadores de la empresa (`GET /cliente/operadores`), con sus nombres para toda la pantalla. */
 function useOperadores() {
@@ -48,68 +47,6 @@ function Operador({ ot }: { ot: OtVista }) {
       {ot.estado === 'entregada' ? entregado : 'Nadie'}
     </Text>
   )
-}
-
-const rutaDe = (ot: string) => `/supervisor/ot/${encodeURIComponent(ot)}`
-
-/** El id de la OT lleva a su vista en vivo: cámara, sensores y bitácora. */
-function IdOt({ ot }: { ot: string }) {
-  return (
-    <Anchor component={Link} to={rutaDe(ot)} fw={500} ff="var(--f-mono)" c="var(--f-accion-texto)" underline="hover" style={{ letterSpacing: '0.06em' }}>
-      {ot.toUpperCase()}
-    </Anchor>
-  )
-}
-
-/** Lo que pide mirar ya: OT abiertas en «detente». Cada una lleva a su vista en vivo. */
-function BarraIncidentes({ incidentes }: { incidentes: Incidente[] }) {
-  const nombreDe = useNombres()
-  if (incidentes.length === 0) return null
-  // Compacta: una línea por OT, con lo que pasa en pocas palabras. El detalle está en la vista en vivo.
-  return (
-    <Paper radius="md" p="sm" withBorder role="alert" aria-label="Incidentes en curso" style={{ borderLeft: '4px solid var(--mantine-color-peligro-6)' }} bg="peligro.0">
-      <Group gap="xs" mb={6} c="peligro.7">
-        <IconAlertTriangle size={18} />
-        <Text fw={800} c="peligro.7">
-          {incidentes.length === 1 ? 'Un incidente en curso' : `${incidentes.length} incidentes en curso`}
-        </Text>
-      </Group>
-      <Stack gap={4}>
-        {incidentes.map((i) => (
-          <Group key={i.ot} justify="space-between" wrap="nowrap" gap="sm">
-            <Text size="sm" truncate>
-              <Text span fw={700}>
-                {i.ot.toUpperCase()}
-                {i.operador ? ` · ${nombreDe(i.operador)}` : ''}
-              </Text>
-              {' — '}
-              {fraseCorta(i.que)}
-            </Text>
-            <Button component={Link} to={rutaDe(i.ot)} variant="subtle" color="peligro" size="compact-sm" leftSection={<IconEye size={16} />} style={{ flexShrink: 0 }} aria-label={`Ver ${i.ot} en vivo`}>
-              Ver
-            </Button>
-          </Group>
-        ))}
-      </Stack>
-    </Paper>
-  )
-}
-
-/** Suena una vez por incidente nuevo; los que ya estaban al entrar no suenan. */
-function useCampanaDeIncidentes(incidentes: Incidente[] | null) {
-  const vistos = useRef<Set<string> | null>(null)
-  useEffect(() => {
-    if (!incidentes) return
-    const claves = new Set(incidentes.map((i) => `${i.ot}:${i.que}`))
-    if (vistos.current && [...claves].some((k) => !vistos.current!.has(k))) campana.sonar()
-    vistos.current = claves
-  }, [incidentes])
-  // El primer toque en la página deja el audio listo, por si se entró recargando.
-  useEffect(() => {
-    const preparar = () => campana.preparar()
-    window.addEventListener('pointerdown', preparar, { once: true })
-    return () => window.removeEventListener('pointerdown', preparar)
-  }, [])
 }
 
 const POR_PAGINA = 25
@@ -415,7 +352,6 @@ export function PaginaSupervisor() {
   const operadores = useOperadores()
   const incidentes = useMemo(() => (ots ? incidentesDe(ots) : null), [ots])
   useCampanaDeIncidentes(incidentes)
-  const recomendaciones = useRecomendaciones()
   const [pedida, setPedida] = useState<OtPedida | null>(null)
   if (!usuario) return null
 
@@ -428,7 +364,7 @@ export function PaginaSupervisor() {
 
   return (
     <>
-      <Encabezado usuario={usuario} seccion="Supervisión" />
+      <Encabezado usuario={usuario} seccion="Órdenes de trabajo" />
       <FranjaDesactualizada error={ots ? error : null} />
       <Pagina>
         <Stack gap="lg">
@@ -439,8 +375,6 @@ export function PaginaSupervisor() {
             <span />
             <PedirOt onPedida={alPedir} />
           </Group>
-          <BarraIncidentes incidentes={incidentes ?? []} />
-          <Recomendaciones recomendaciones={recomendaciones.recomendaciones} quitar={recomendaciones.quitar} />
           {pedida && (
             <Alert color="verificado" variant="light" withCloseButton onClose={() => setPedida(null)} closeButtonLabel="Cerrar aviso">
               Pediste la {pedida.ot.toUpperCase()}, {pedida.nombre}. Queda por asignar.

@@ -104,5 +104,5 @@ export function incidentesDe(ots: { ot: string; operador?: string | null; estado
 }
 
 export function inicioDe(rol: Rol): string {
-  return rol === 'supervisor' ? '/supervisor' : '/operador'
+  return rol === 'supervisor' ? '/supervisor/hoy' : '/operador'
 }
