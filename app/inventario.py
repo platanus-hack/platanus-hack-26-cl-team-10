@@ -113,9 +113,9 @@ def inventario(cx: sqlite3.Connection, detector=None, sesiones: list[dict] | Non
             if paso.sensor:
                 usos[paso.sensor.id].append({"pauta": p.id, "version": p.version, "paso": paso.id, "titulo": paso.titulo,
                                              "espera": paso.sensor.espera, "control_critico": paso.control_critico})
-            if paso.deteccion:
-                clases_usadas[paso.deteccion.clase].append({"pauta": p.id, "version": p.version, "paso": paso.id,
-                                                            "titulo": paso.titulo, "presente": paso.deteccion.presente})
+            for clase in (paso.deteccion.clases if paso.deteccion else ()):
+                clases_usadas[clase].append({"pauta": p.id, "version": p.version, "paso": paso.id, "titulo": paso.titulo,
+                                             "presente": paso.deteccion.presente or clase != paso.deteccion.clase})
     peligros: dict[str, list[dict]] = defaultdict(list)
     for condicion, aviso, fuente in _PELIGROS:
         for sensor in condicion:
@@ -296,9 +296,10 @@ def validar(cx: sqlite3.Connection, d: dict, inv: dict | None = None, reposo: di
                 if not s["numerico"] and paso.sensor.espera not in valores:
                     hallazgos.append(_hallazgo("I2", paso.id, f"{paso.sensor.id} = {paso.sensor.espera} nunca se vio; se "
                                                f"conocen {', '.join(sorted(valores)) or 'ninguno'}"))
-        if paso.deteccion and inv["detector"]["en_servidor"] and paso.deteccion.clase not in inv["detector"]["clases"]:
-            hallazgos.append(_hallazgo("I3", paso.id, f"el detector no conoce «{paso.deteccion.clase}»: el paso irá "
-                                       "siempre a la capa 3"))
+        for clase in (paso.deteccion.clases if paso.deteccion and inv["detector"]["en_servidor"] else ()):
+            if clase not in inv["detector"]["clases"]:
+                hallazgos.append(_hallazgo("I3", paso.id, f"el detector no conoce «{clase}»: el paso irá "
+                                           "siempre a la capa 3"))
     # Conformidad (ADR-0016): los controles críticos de los protocolos que aplican, los ya atribuidos más el que se nombra.
     aplican = {p["id"]: p for p in catalogo.controles_de(cx, pauta.id)}
     if protocolo_id and protocolo_id not in aplican:

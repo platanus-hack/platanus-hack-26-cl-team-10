@@ -17,7 +17,7 @@ Dos modos de detección (--deteccion):
 Correr en Terminal.app (permiso de cámara): correr_edge.command, o
   .venv/bin/python edge.py --servidor http://localhost:8000
 """
-import argparse, json, threading, time
+import argparse, json, os, threading, time
 import urllib.request
 
 import cv2
@@ -75,7 +75,7 @@ def clases_de_la_ot(servidor, edge_id):
         return None
 
 
-def hilo_detecciones(canal, ultimo, base, conf, stats, servidor, edge_id):
+def hilo_detecciones(canal, ultimo, base, conf, stats, servidor, edge_id, pesos=MODELO):
     import torch
     from ultralytics import YOLOWorld
     device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -88,7 +88,7 @@ def hilo_detecciones(canal, ultimo, base, conf, stats, servidor, edge_id):
             nuevas = clases if pedidas is None and clases else base + [c for c in pedidas or [] if c not in base]
             if nuevas != clases:
                 clases = nuevas
-                modelo = YOLOWorld(MODELO)  # uno nuevo por lista: set_classes después de predecir falla en MPS
+                modelo = YOLOWorld(pesos)  # uno nuevo por lista: set_classes después de predecir falla en MPS
                 modelo.set_classes(clases)
                 print(f"[detector] clases: {', '.join(clases)}")
         cuadro = ultimo["img"]
@@ -96,7 +96,7 @@ def hilo_detecciones(canal, ultimo, base, conf, stats, servidor, edge_id):
             time.sleep(0.01); continue
         visto = cuadro
         r = modelo.predict(cuadro, conf=conf, device=device, imgsz=640, verbose=False)[0]
-        msg = {"tipo": "detecciones", "modelo": MODELO, "ts": time.time(), "objetos": objetos_de(r, clases),
+        msg = {"tipo": "detecciones", "modelo": os.path.basename(pesos), "ts": time.time(), "objetos": objetos_de(r, clases),
                "clases": clases}  # el servidor solo cree "ya no está" de un detector que buscaba la clase
         if canal.mandar(json.dumps(msg), binario=False):
             stats["det"] += 1
@@ -179,8 +179,9 @@ def main():
     ap.add_argument("--ancho", type=int, default=960, help="ancho del JPEG enviado (alto en 16:9)")
     ap.add_argument("--calidad", type=int, default=65, help="calidad JPEG 1-100")
     # "soda can" va junto a "red soda can" para que una lata de otro color no caiga en la roja
-    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil", "soda can", "red soda can"],
+    ap.add_argument("--clases", nargs="+", default=["mouse", "pencil", "soda can", "red soda can", "green soda can"],
                     help="las que el detector busca siempre; se suman las que pida la pauta de la OT en sesión")
+    ap.add_argument("--pesos", default=MODELO, help="modelo afinado con entrenar.py, p. ej. ../datos/modelos/yolo-factum.pt")
     ap.add_argument("--conf", type=float, default=0.25, help="piso para mandar una detección")
     ap.add_argument("--deteccion", choices=["servidor", "edge"], default="servidor",
                     help="dónde corre YOLO: servidor (por defecto, el edge solo manda video y sensores) o edge (acá)")
@@ -200,7 +201,7 @@ def main():
         raise SystemExit(f"No pude abrir la cámara {a.camara}: corre esto en Terminal.app (permiso de cámara)")
 
     if a.deteccion == "edge":
-        threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats, servidor, a.edge),
+        threading.Thread(target=hilo_detecciones, args=(canal, ultimo, a.clases, a.conf, stats, servidor, a.edge, a.pesos),
                          daemon=True).start()
     if a.puerto:
         threading.Thread(target=hilo_sensores, args=(servidor, a.edge, a.puerto, stats, a.dist_max, a.temp_max),

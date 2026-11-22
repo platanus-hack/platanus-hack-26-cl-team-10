@@ -76,10 +76,26 @@ class Deteccion:
 
     presente=True: el paso se cumple cuando el objeto se ve con certeza alta.
     presente=False: se cumple cuando el objeto ya no se ve (p. ej. herramienta retirada).
+    en_su_lugar: con presente=False, la clase que además tiene que verse con certeza alta
+    (el repuesto). Sin ella, tapar la cámara también cierra el paso.
     """
 
     clase: str
     presente: bool = True
+    en_su_lugar: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.en_su_lugar and self.presente:
+            raise ValueError("deteccion: en_su_lugar solo aplica con presente=false")
+
+    @property
+    def clases(self) -> tuple[str, ...]:
+        """Todas las clases que el detector tiene que buscar para cerrar el paso."""
+        return (self.clase, self.en_su_lugar) if self.en_su_lugar else (self.clase,)
+
+    def como_dict(self) -> dict:
+        return {"clase": self.clase, "presente": self.presente,
+                **({"en_su_lugar": self.en_su_lugar} if self.en_su_lugar else {})}
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,7 +141,7 @@ class Paso:
             control_critico=d.get("control_critico", False),
             pregunta_visual=d.get("pregunta_visual"),
             sensor=Sensor(s["id"], s["espera"]) if s else None,
-            deteccion=Deteccion(det["clase"], bool(det.get("presente", True))) if det else None,
+            deteccion=Deteccion(det["clase"], bool(det.get("presente", True)), det.get("en_su_lugar")) if det else None,
             comparar_con=d.get("comparar_con"),
             cumple=tuple(d.get("cumple") or ()),
         )

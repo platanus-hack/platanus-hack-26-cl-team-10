@@ -144,6 +144,27 @@ class ElModeloDelServidor(unittest.TestCase):
         spec.loader.exec_module(modulo)  # no importa ultralytics hasta exportar
         self.assertEqual(modulo.clases_de(sorted(PAUTA_DEMO.parent.glob("pauta-*.json"))), ["green soda can", "mouse", "pencil", "red soda can"])
 
+    def test_la_escena_de_entrenamiento_etiqueta_lo_que_quedo_a_la_vista(self):
+        import numpy as np
+
+        spec = importlib.util.spec_from_file_location("entrenar", PAUTA_DEMO.parents[1] / "edge" / "entrenar.py")
+        entrenar = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(entrenar)  # no importa ultralytics hasta entrenar
+        recorte, mascara = np.full((40, 20, 3), 255, np.uint8), np.full((40, 20), 255, np.uint8)
+        # de pie y entero: 100 px de alto y 50 de ancho en el centro de un cuadro de 400 x 200
+        fondo = np.zeros((200, 400, 3), np.uint8)
+        caja = entrenar.pegar(fondo, recorte, mascara, 100, 0, 200, 100)
+        for v, esperado in zip(caja, (0.5, 0.5, 50 / 400, 100 / 200)):
+            self.assertAlmostEqual(v, esperado, delta=0.01)
+        self.assertEqual(fondo[100, 200].tolist(), [255, 255, 255])
+        # acostado y a medias fuera del borde izquierdo: la caja es solo la mitad que se ve
+        cx, _, ancho, alto = entrenar.pegar(np.zeros((200, 400, 3), np.uint8), recorte, mascara, 100, 90, 0, 100)
+        self.assertAlmostEqual(cx - ancho / 2, 0, delta=0.01)
+        self.assertAlmostEqual(ancho, 50 / 400, delta=0.01)
+        self.assertAlmostEqual(alto, 50 / 200, delta=0.02)
+        self.assertIsNone(entrenar.pegar(fondo, recorte, mascara, 100, 0, -500, 100))
+        self.assertAlmostEqual(entrenar.iou((0.5, 0.5, 0.2, 0.2), (0.6, 0.5, 0.2, 0.2)), 1 / 3)
+
 
 if __name__ == "__main__":
     unittest.main()

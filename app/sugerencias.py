@@ -62,7 +62,7 @@ def _a_dict(pauta: Pauta) -> dict:
         if p.sensor:
             d["sensor"] = {"id": p.sensor.id, "espera": p.sensor.espera}
         if p.deteccion:
-            d["deteccion"] = {"clase": p.deteccion.clase, "presente": p.deteccion.presente}
+            d["deteccion"] = p.deteccion.como_dict()
         if p.comparar_con:
             d["comparar_con"] = p.comparar_con
         if p.cumple:

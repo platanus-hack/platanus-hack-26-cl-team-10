@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factum · Cada trabajo deja hechos</title>
+<meta name="description" content="Factum comprueba cada paso de un trabajo con sensores y cámara, mientras el operario lo ejecuta. Con lo que queda registrado, el procedimiento mejora de una versión a la siguiente.">
+<meta name="theme-color" content="#0a0c0a">
+<link rel="canonical" href="https://factum.zupal.cl/">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://factum.zupal.cl/">
+<meta property="og:title" content="Factum · Cada trabajo deja hechos">
+<meta property="og:description" content="Comprueba cada paso de un trabajo con sensores y cámara. Con lo que queda registrado, el procedimiento mejora de una versión a la siguiente.">
+<meta property="og:image" content="https://factum.zupal.cl/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitcount+Prop+Single:wght@300..600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/estilo.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="marca" viewBox="0 0 764.5 97">
+    <path d="M48.5 0V97M0 48.5H97" stroke="#d4ff9e" stroke-width="10" fill="none"/>
+    <path d="M163.3 8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M179.1 8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M194.9 8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M210.7 8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M163.3 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M163.3 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M163.3 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M179.1 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M194.9 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M163.3 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M163.3 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M261.5 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M277.3 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M293.1 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M308.9 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M261.5 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M277.3 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M293.1 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M308.9 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M245.7 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M308.9 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M261.5 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M277.3 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M308.9 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M359.7 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M375.5 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M391.3 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M407.1 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M343.9 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M343.9 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M343.9 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M407.1 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M359.7 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M375.5 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M391.3 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M457.9 8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M442.1 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M457.9 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M473.7 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M489.5 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M457.9 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M457.9 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M457.9 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M473.7 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M489.5 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M524.5 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M587.7 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M524.5 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M587.7 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M524.5 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M587.7 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M524.5 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M571.9 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M587.7 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M540.3 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M556.1 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M587.7 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M622.7 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M654.3 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M670.1 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M717.5 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M733.3 23.8a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M622.7 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M638.5 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M685.9 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M701.7 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M749.1 39.6a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M622.7 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M685.9 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M749.1 55.4a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M622.7 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M685.9 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M749.1 71.2a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M622.7 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M685.9 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0M749.1 87a7.7 7.7 0 1 0 15.4 0a7.7 7.7 0 1 0 -15.4 0" fill="#eef2e9"/>
+  </symbol>
+</svg>
+
+<a class="saltar" href="#contenido">Ir al contenido</a>
+
+<header class="barra" id="barra">
+  <div class="ancho barra-fila">
+    <a class="marca" href="/" aria-label="Factum, inicio"><svg role="img" aria-label="Factum"><use href="#marca"/></svg></a>
+    <nav class="menu" aria-label="Secciones">
+      <a href="#hecho">Producto</a>
+      <a href="#mejora">Mejora continua</a>
+      <a href="#industrias">Industrias</a>
+      <a href="#estado">Qué funciona hoy</a>
+      <a href="#docs">Docs</a>
+    </nav>
+    <div class="barra-acciones">
+      <a class="boton" href="https://factum-tau.vercel.app/login">Entrar</a>
+    </div>
+  </div>
+</header>
+
+<main id="contenido">
+
+<section class="portada">
+  <div class="film" id="film">
+    <canvas id="film-lienzo" role="img" aria-label="Una correa transportadora de una faena minera en tres dimensiones, con su tablero, la caja de bloqueo, la tapa protectora y la cámara. El operario saca la tapa sin haber cortado la corriente, Factum lo detiene, y después comprueba el cambio del polín paso a paso."></canvas>
+    <div class="film-marco" id="film-marco" aria-hidden="true">
+      <i class="esq"></i><i class="esq"></i><i class="esq"></i><i class="esq"></i>
+      <div class="visor-arriba"><span class="pill" id="film-estado"></span><div class="avisos" id="film-avisos"></div></div>
+      <div class="film-pie"><p class="film-tramo" id="film-tramo"></p><div class="linea" id="film-linea"></div></div>
+    </div>
+  </div>
+  <div class="ancho portada-fila">
+    <div class="portada-texto">
+      <h1>Cada trabajo deja hechos.</h1>
+      <p class="bajada">Factum comprueba cada paso de un trabajo con sensores y cámara, mientras el operario lo ejecuta. Con lo que queda registrado, el procedimiento mejora de una versión a la siguiente.</p>
+      <p class="acciones">
+        <a class="boton boton-grande" href="#mejora">Cómo mejora el procedimiento</a>
+        <a class="boton boton-grande boton-linea" href="#industrias">Ver un trabajo paso a paso</a>
+      </p>
+      <p class="origen">Hecho en Platanus Hack 26, Santiago. Track Physical World.</p>
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="problema">
+  <div class="ancho">
+    <h2 data-aparece>El procedimiento existe. Nadie sabe si se cumplió.</h2>
+    <p class="entrada" data-aparece>Una operación con equipos críticos ya tiene sus procedimientos escritos. Lo que no tiene es cómo comprobar que se siguieron: hoy depende de lo que cada persona anota al terminar.</p>
+    <div class="tres cifras">
+      <div class="cifra" data-aparece>
+        <p class="cifra-numero">19 de 26</p>
+        <div class="puntos" id="puntos" role="img" aria-label="26 puntos, 19 de ellos encendidos"></div>
+        <p>incidentes fatales entre las empresas miembro de ICMM en 2025 tuvieron la misma falla: el control existía y se ejecutó mal.</p>
+        <p class="fuente"><a href="https://www.icmm.com/en-gb/research/health-safety/benchmarking-2025-safety-data">ICMM, Safety Performance 2025</a>. De 28 incidentes, 26 quedaron clasificados.</p>
+      </div>
+      <div class="cifra" data-aparece>
+        <p class="cifra-numero">Escrito y sin aplicar</p>
+        <p>En 2025 la agencia de seguridad minera de Estados Unidos investigó una muerte en una correa transportadora. La correa no se desenergizó ni se bloqueó. La mina tenía un procedimiento de bloqueo escrito.</p>
+        <p class="fuente"><a href="https://www.msha.gov/data-reports/fatality-reports/2025/march-5-2025-fatality/final-report">MSHA, informe final del 5 de marzo de 2025</a>.</p>
+      </div>
+      <div class="cifra" data-aparece>
+        <p class="cifra-numero">97 a 226 días</p>
+        <p>El tiempo medio entre fallas de un mismo equipo cambia de 97 a 226 días según cómo se agrupen sus órdenes de trabajo. El registro escrito a mano no alcanza como dato.</p>
+        <p class="fuente"><a href="https://papers.phmsociety.org/index.php/phme/article/download/2950/1760">Bikaun y Hodkiewicz, 2021</a>.</p>
+      </div>
+    </div>
+    <p class="remate" data-aparece>Y cuando un paso se salta una y otra vez, muchas veces el problema no es el operario: es un procedimiento mal escrito o la presión por terminar. <span class="fuente"><a href="https://acelab.tamu.edu/wp-content/uploads/sites/23/2020/09/1-s2.0-S0950423020305519-main.pdf">Peres, Smith y Sasangohar, 2020</a>, en petroquímica.</span></p>
+  </div>
+</section>
+
+<section class="seccion" id="hecho">
+  <div class="ancho">
+    <h2 data-aparece>Un paso hecho tiene evidencia.</h2>
+    <p class="entrada" data-aparece>Factum viene de «hecho». Partimos del procedimiento que ya tienes y definimos, paso por paso, qué lo da por hecho: un sensor, la cámara o la confirmación de una persona. Decir «listo» no cierra un paso que mide un sensor.</p>
+    <p class="entrada" data-aparece>Decide en tres capas, y decide la primera que puede.</p>
+    <div class="pegado">
+      <ol class="pegado-pasos" id="capas">
+        <li data-tramo="1" data-vista="general" data-pie="El operario entra a la celda con el brazo con corriente. Regla fija, sin IA: responde igual cada vez.">
+          <span class="capa-numero">Capa 1</span>
+          <h3>Sensores y reglas</h3>
+          <p>Deciden el orden y todo lo que se puede medir. Si el operario entra a la celda con el brazo con corriente, Factum se lo dice por voz en ese momento: lo corrige ahí, no en el informe del día siguiente. Es la única capa que interrumpe.</p>
+          <code>corriente del brazo: con corriente · persona en la celda: sí → detente</code>
+        </li>
+        <li data-tramo="3" data-vista="frontal" data-pie="La corriente está cortada y el pulsador marca el candado puesto. Cada lectura llega de la placa con su hora.">
+          <span class="capa-numero">Capa 2</span>
+          <h3>Detector y señales</h3>
+          <p>Un detector reconoce en la imagen lo que el paso pide ver, y las mediciones avisan cuando una se sale de lo normal. Si el detector duda, no decide: el paso sube a la capa siguiente.</p>
+          <code>corriente del brazo: sin corriente · candado: puesto</code>
+        </li>
+        <li data-tramo="6" data-vista="camara" data-pie="El operario declara el paso y la cámara, que mira la celda desde arriba, responde sobre este cuadro si la pinza quedó cerrada.">
+          <span class="capa-numero">Capa 3</span>
+          <h3>Modelo de visión</h3>
+          <p>Responde solo lo que nada más puede ver, como una pinza cerrada sobre su pieza. Lo que ve aparece en pantalla, pero no suena: una alarma que se equivoca enseña a ignorarla.</p>
+          <p>Por eso un modelo nunca contradice a un sensor. En un estudio de 2026, un modelo de visión general detectó 3 de 12 cambios de orden y rechazó 5 de 12 ejecuciones correctas. <span class="fuente"><a href="https://doi.org/10.1109/ACCESS.2026.3747249">Sabetta y otros, IEEE Access</a>.</span></p>
+          <code>la cámara responde que sí (91%)</code>
+        </li>
+      </ol>
+      <figure class="pegado-escena">
+        <div class="marco">
+          <canvas id="capas-lienzo" role="img" aria-label="La celda de un brazo robótico vista según la capa que se está leyendo: general con los sensores, de frente con las lecturas, y desde la cámara de Factum."></canvas>
+          <i class="esq"></i><i class="esq"></i><i class="esq"></i><i class="esq"></i>
+          <div class="visor-arriba" aria-hidden="true"><span class="pill" id="capas-estado"></span></div>
+        </div>
+        <figcaption id="capas-pie"></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="registro">
+  <div class="ancho">
+    <h2 data-aparece>El reporte ya está escrito.</h2>
+    <div class="operacion">
+      <div class="prosa" data-aparece="hijos">
+        <p>Cada paso cerrado queda en el registro con su evidencia, su hora y quién lo cerró. El registro solo agrega: nada se edita ni se borra.</p>
+        <p>De ahí sale el reporte de la orden de trabajo. Nadie lo redacta después, y ninguna desviación registrada queda fuera.</p>
+        <p>Si el trabajo dura más de un turno, quien llega ve qué pasos están cerrados, con qué evidencia y cuál sigue. Un conflicto pendiente se hereda: no se limpia al cambiar de turno.</p>
+      </div>
+      <figure class="bitacora" data-aparece>
+        <table>
+          <caption>Registro de ejemplo: cambio de polín en la correa CT-01</caption>
+          <tbody>
+            <tr><td>10:42:07</td><th scope="row">Parar la correa</th><td>correa: parada</td></tr>
+            <tr class="desvio"><td>10:43:10</td><th scope="row">Cortar la corriente</th><td>detenido: sacó la tapa protectora con la corriente puesta</td></tr>
+            <tr><td>10:44:31</td><th scope="row">Cortar la corriente</th><td>corriente del motor: sin corriente</td></tr>
+            <tr><td>10:45:02</td><th scope="row">Poner tu candado</th><td>candado: puesto</td></tr>
+            <tr><td>10:45:40</td><th scope="row">Probar que no arranca</th><td>lo dice la persona</td></tr>
+            <tr><td>10:58:55</td><th scope="row">Cambiar el polín</th><td>la cámara responde que sí (91%)</td></tr>
+          </tbody>
+        </table>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="mejora">
+  <div class="ancho">
+    <h2 data-aparece>El mismo paso, en dos trabajos.</h2>
+    <p class="entrada" data-aparece>Un trabajo deja hechos. Varios trabajos dejan un patrón, y con ese patrón el procedimiento cambia.</p>
+    <div class="pegado">
+      <ol class="pegado-pasos ciclo" id="ciclo">
+        <li data-fase="1">
+          <h3>Señales</h3>
+          <p>Factum junta lo que pasó en cada paso: un aviso por orden, un control que se deshizo antes de tiempo, un conflicto entre lo dicho y lo medido, un paso que una persona tuvo que confirmar, y lo que el operario dejó anotado.</p>
+        </li>
+        <li data-fase="2">
+          <h3>Propuesta</h3>
+          <p>Cuando el mismo paso da señales en dos o más trabajos, Factum propone cambiarlo. Una desviación suelta no es una propuesta.</p>
+        </li>
+        <li data-fase="3">
+          <h3>Decisión</h3>
+          <p>El supervisor la acepta o la descarta, con una nota. Factum propone; una persona decide.</p>
+        </li>
+        <li data-fase="4">
+          <h3>Versión nueva</h3>
+          <p>El procedimiento pasa a la versión siguiente. A ese procedimiento comprobable y versionado le decimos pauta. Cada orden de trabajo guarda qué versión ejecutó.</p>
+        </li>
+        <li data-fase="5">
+          <h3>Comprobación</h3>
+          <p>Con los trabajos de la versión nueva, Factum dice si ese paso dejó de desviarse o si se repite.</p>
+          <p>Un paso de seguridad que se salta seguido no se elimina. Que se repita dice que está mal escrito o que así no se puede cumplir.</p>
+        </li>
+      </ol>
+      <figure class="pegado-escena">
+        <div class="informe" id="informe" data-fase="1"></div>
+        <figcaption>Seis ejecuciones del simulador sobre la misma pauta. Las columnas son ejecuciones, no personas.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="principio">
+  <div class="ancho">
+    <h2 data-aparece>Mira el paso, no a la persona.</h2>
+    <div class="tres prosa" data-aparece="hijos">
+      <p>Un paso que se saltan muchos operarios que normalmente cumplen apunta al procedimiento, no a ellos.</p>
+      <p>Por eso las métricas y las propuestas se agrupan por procedimiento, equipo, paso y día. Nunca por persona. Una propuesta dice cuántos operarios distintos dieron la señal, no quiénes.</p>
+      <p>Factum no reemplaza al supervisor ni mira la operación todo el día. Hace que cada trabajo quede comprobado sin poner un supervisor encima de cada uno.</p>
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="actores">
+  <div class="ancho">
+    <h2 data-aparece>Qué cambia para cada uno.</h2>
+    <dl class="tres actores" data-aparece="hijos">
+      <div>
+        <dt>El operario</dt>
+        <dd>Tiene un respaldo. Si se le pasa un control crítico, lo sabe antes de que sea un accidente. Su trabajo queda demostrado con evidencia. Y lo que observa en terreno, como una pieza gastada o un paso que no calza con el equipo, queda registrado y puede cambiar el procedimiento.</dd>
+      </div>
+      <div>
+        <dt>El supervisor</dt>
+        <dd>Deja de revisar todo por igual. Ve en qué procedimientos y en qué equipos se desvían más pasos, y va en persona a los trabajos de mayor riesgo. Recibe propuestas con su evidencia y decide cuáles se aplican.</dd>
+      </div>
+      <div>
+        <dt>La operación</dt>
+        <dd>Sabe que cada trabajo se hizo como dice el procedimiento. Tiene un registro que sirve como dato. Y puede comparar cada versión del procedimiento con la anterior.</dd>
+      </div>
+    </dl>
+    <p class="remate" data-aparece>Tus datos salen por API: cumplimiento, desviaciones y tiempos, por procedimiento, equipo, paso y día. Se calculan del registro cada vez que los pides, así que no hay un número guardado que se desfase.</p>
+  </div>
+</section>
+
+<section class="seccion" id="industrias">
+  <div class="ancho">
+    <h2 data-aparece>Otro equipo, el mismo ciclo.</h2>
+    <p class="entrada" data-aparece>Lo que cambia es el procedimiento. Lo demás es igual: pasos con evidencia, aviso en el momento, registro y mejora. Hoy 72 escenarios de minería, eléctrica y construcción corren contra las mismas reglas de seguridad.</p>
+    <div class="estacion" id="estacion">
+      <div class="estacion-casos" role="group" aria-label="Estación">
+        <button data-caso="electrica" aria-pressed="true"><b>Energía</b><span>mantenimiento del interruptor en una celda de media tensión</span></button>
+        <button data-caso="construccion" aria-pressed="false"><b>Construcción</b><span>cambio de manguera hidráulica en una excavadora</span></button>
+      </div>
+      <div class="estacion-cuerpo">
+        <div class="marco estacion-visor">
+          <canvas id="estacion-lienzo" role="img" aria-label="La estación elegida en tres dimensiones, con las lecturas de sus sensores. Se puede girar arrastrando."></canvas>
+          <i class="esq"></i><i class="esq"></i><i class="esq"></i><i class="esq"></i>
+          <div class="visor-arriba" aria-hidden="true"><span class="pill" id="estacion-estado"></span><div class="avisos" id="estacion-avisos"></div></div>
+          <p class="visor-ayuda" aria-hidden="true">Arrastra para girar</p>
+        </div>
+        <div class="estacion-lado">
+          <p class="estacion-pauta" id="estacion-pauta"></p>
+          <ol class="pasos" id="estacion-pasos"></ol>
+        </div>
+      </div>
+      <div class="estacion-relato">
+        <div class="relato" aria-live="polite"><h3 id="estacion-t"></h3><p id="estacion-x"></p></div>
+        <div class="mando">
+          <button class="boton boton-linea" id="estacion-atras">Atrás</button>
+          <button class="boton boton-linea" id="estacion-sigue">Siguiente</button>
+          <button class="boton" id="estacion-auto" aria-pressed="false">Reproducir</button>
+          <span class="cuenta" id="estacion-cuenta"></span>
+        </div>
+        <div class="linea" id="estacion-linea"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="estado">
+  <div class="ancho">
+    <h2 data-aparece>Qué funciona hoy.</h2>
+    <p class="entrada" data-aparece>Factum nació en Platanus Hack 26. Todavía no opera en una faena.</p>
+    <dl class="tres actores" data-aparece="hijos">
+      <div>
+        <dt>Funciona</dt>
+        <dd>La comprobación de cada paso con sensores, detector y modelo de visión. Las reglas de seguridad de tres industrias. El registro que solo agrega. Las órdenes de trabajo por empresa. Las propuestas de mejora, su decisión y las métricas, por API.</dd>
+      </div>
+      <div>
+        <dt>En construcción</dt>
+        <dd>Convertir tu procedimiento en pasos comprobables lo hace hoy nuestro equipo, con un borrador que redacta un agente. La versión nueva también la redacta nuestro equipo. Las propuestas y las métricas aún no tienen pantalla propia. No hemos medido en terreno las falsas alarmas ni el tiempo del aviso.</dd>
+      </div>
+      <div>
+        <dt>Después</dt>
+        <dd>Anticipar la falla. Llega con el historial que deja este ciclo, no antes.</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<section class="seccion" id="docs">
+  <div class="ancho">
+    <h2 data-aparece>La documentación es pública.</h2>
+    <p class="entrada" data-aparece>La API, las decisiones y lo que falta están publicados en el repositorio.</p>
+    <div class="docs" data-aparece="hijos">
+      <div>
+        <h3>Para integrar</h3>
+        <ul class="enlaces">
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/app/README.md"><b>Guía del servidor</b><span>Cómo se corre la API y qué hace cada servicio.</span><i>GitHub</i></a></li>
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/tree/main/.claude/skills"><b>Skills para agentes</b><span>Pedir una orden de trabajo, ejecutarla, sacar su reporte, y medir y mejorar la pauta.</span><i>GitHub</i></a></li>
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/architecture/API.md"><b>La API frente a los estándares</b><span>Qué cumple hoy y qué falta decidir.</span><i>GitHub</i></a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Para entender</h3>
+        <ul class="enlaces">
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/INDEX.md"><b>Índice del knowledge</b><span>Por dónde empezar: contexto, arquitectura, decisiones e investigación.</span><i>GitHub</i></a></li>
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/architecture/LOGICA.md"><b>Cómo decide Factum</b><span>Qué cierra un paso, qué interrumpe al operario y cuándo se propone cambiar la pauta.</span><i>GitHub</i></a></li>
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md"><b>Mejora continua y métricas</b><span>Por qué una propuesta necesita dos trabajos y por qué nada se agrupa por persona.</span><i>GitHub</i></a></li>
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/decisions/0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md"><b>El copiloto del operario</b><span>Por qué Factum no se presenta como un supervisor que mira todo el tiempo.</span><i>GitHub</i></a></li>
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/projects/research/research.md"><b>Investigación</b><span>Las cifras de esta página, con su fuente y su estado de verificación.</span><i>GitHub</i></a></li>
+          <li><a href="https://github.com/platanus-hack/platanus-hack-26-cl-team-10/blob/main/knowledge/roadmap/SEGUIMIENTO.md"><b>Seguimiento</b><span>Qué está construido, qué falta y quién lo lleva.</span><i>GitHub</i></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="equipo">
+  <div class="ancho">
+    <h2 data-aparece>El equipo.</h2>
+    <ul class="equipo" data-aparece="hijos">
+      <li><h3>Francisco Zúñiga</h3><p>Verificación y API</p><a href="https://github.com/dreamxist">github.com/dreamxist</a></li>
+      <li><h3>Diego Villanueva</h3><p>Gestión de órdenes de trabajo</p><a href="https://github.com/dvillanuevaaraya">github.com/dvillanuevaaraya</a></li>
+      <li><h3>Jonathan Riquelme</h3><p>Edge, sensores y detector</p><a href="https://github.com/sh1njr">github.com/sh1njr</a></li>
+      <li><h3>Daniel Godoy</h3><p>App del operario y voz</p><a href="https://github.com/godoy97">github.com/godoy97</a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="cierre">
+  <canvas class="cierre-fondo" id="cierre-lienzo" aria-hidden="true"></canvas>
+  <div class="ancho">
+    <h2 data-aparece>Cada trabajo deja hechos.</h2>
+    <p class="entrada" data-aparece>Con ellos el operario corrige en el momento, el reporte queda escrito y el procedimiento pasa a su versión siguiente.</p>
+    <p class="acciones" data-aparece><a class="boton boton-grande" href="https://factum-tau.vercel.app/login">Entrar</a><a class="boton boton-grande boton-linea" href="#docs">Leer la documentación</a></p>
+  </div>
+</section>
+
+</main>
+
+<footer class="pie">
+  <div class="ancho pie-fila">
+    <div>
+      <svg class="pie-marca" role="img" aria-label="Factum"><use href="#marca"/></svg>
+      <p>Cada trabajo deja hechos.</p>
+    </div>
+    <nav aria-label="Pie">
+      <a href="#hecho">Producto</a>
+      <a href="#mejora">Mejora continua</a>
+      <a href="#industrias">Industrias</a>
+      <a href="#estado">Qué funciona hoy</a>
+      <a href="#docs">Docs</a>
+      <a href="https://factum-tau.vercel.app/login">Entrar</a>
+    </nav>
+    <p class="pie-legal">© 2026 Factum. Hecho en Platanus Hack 26, Santiago.</p>
+  </div>
+</footer>
+
+<script type="module" src="/pagina.js"></script>
+</body>
+</html>
