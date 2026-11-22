@@ -606,7 +606,7 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
               <Stack gap={4}>
                 <Group gap="sm">
                   <Title order={2}>{otId.toUpperCase()}</Title>
-                  {v.detalle && <EstadoBadge estado={estadoDe(v.detalle)} />}
+                  {v.detalle && <EstadoBadge estado={ot?.completa ? 'completa' : estadoDe(v.detalle)} />}
                   {calificacion && <VerificacionBadge nivel={calificacion.nivel} />}
                 </Group>
                 <Text fw={600}>{nombre}</Text>
@@ -651,6 +651,22 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
               setElegido(id)
             }}
           />
+          {/* Primero que la OT terminó, después lo que dejó para la pauta. */}
+          {ot?.completa && vista === 'vivo' && (
+            <Paper withBorder radius="md" p="md" bg="verificado.0" style={{ borderLeft: '6px solid var(--mantine-color-verificado-6)' }}>
+              <Group justify="space-between" wrap="nowrap" gap="md">
+                <Group gap="sm" wrap="nowrap">
+                  <IconCheck size={28} color="var(--mantine-color-verificado-7)" style={{ flexShrink: 0 }} />
+                  <Text fw={800} size="lg">
+                    OT completa: los {ot.pasos.length} pasos quedaron verificados.
+                  </Text>
+                </Group>
+                <Button color="verificado" onClick={() => setElegida('reporte')} style={{ flexShrink: 0 }}>
+                  Ver el reporte
+                </Button>
+              </Group>
+            </Paper>
+          )}
           <PropuestasDeMejora propuestas={propuestas} nuevas={nuevas} />
 
           {!ot ? (
@@ -664,21 +680,6 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
             <Reporte otId={otId} alDia={eventos} />
           ) : (
             <>
-              {ot.completa && (
-                <Paper withBorder radius="md" p="md" bg="verificado.0" style={{ borderLeft: '6px solid var(--mantine-color-verificado-6)' }}>
-                  <Group justify="space-between" wrap="nowrap" gap="md">
-                    <Group gap="sm" wrap="nowrap">
-                      <IconCheck size={28} color="var(--mantine-color-verificado-7)" style={{ flexShrink: 0 }} />
-                      <Text fw={800} size="lg">
-                        OT completa: los {ot.pasos.length} pasos quedaron verificados.
-                      </Text>
-                    </Group>
-                    <Button color="verificado" onClick={() => setElegida('reporte')} style={{ flexShrink: 0 }}>
-                      Ver el reporte
-                    </Button>
-                  </Group>
-                </Paper>
-              )}
               {/* Como el monitor: a un lado lo que se ve y cómo va; al otro, sensores y pasos; abajo, todo lo que pasó. */}
               <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" style={{ alignItems: 'start' }}>
                 <Stack gap="lg">

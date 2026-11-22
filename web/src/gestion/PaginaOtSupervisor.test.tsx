@@ -213,6 +213,9 @@ describe('lo que la OT deja para mejorar la pauta', () => {
     terminar('ot-13')
     const aviso = await propuesta()
     expect(within(aviso).getByText('Con esta OT nació una propuesta para mejorar la pauta')).toBeInTheDocument()
+    // Primero que la OT terminó, después lo que dejó.
+    const completa = screen.getByText(/^OT completa: los \d+ pasos quedaron verificados\.$/)
+    expect(completa.compareDocumentPosition(aviso) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(aviso).getByText(`«${adelantado.titulo}» se desvió en 2 de 3 OT de la versión ${PAUTA_DEMO.version}.`)).toBeInTheDocument()
     const id = `${PAUTA_DEMO.id}:v${PAUTA_DEMO.version}:${adelantado.id}`
     expect(within(aviso).getByRole('link', { name: 'Revisar la propuesta' })).toHaveAttribute('href', `/supervisor/mejoras#${encodeURIComponent(id)}`)
@@ -278,8 +281,13 @@ describe('el reporte de la OT', () => {
     const user = userEvent.setup()
     abrir('ot-13', 'incidente')
     expect(await screen.findByRole('region', { name: 'Cámara de la estación' })).toBeInTheDocument()
+    expect(screen.getByText('En ejecución')).toBeInTheDocument()
     terminar('ot-13')
-    await user.click(await screen.findByRole('button', { name: 'Ver el reporte' }))
+    const ver = await screen.findByRole('button', { name: 'Ver el reporte' })
+    // El estado de arriba sigue a la OT: no se queda en «En ejecución».
+    expect(screen.getByText('Completa')).toBeInTheDocument()
+    expect(screen.queryByText('En ejecución')).not.toBeInTheDocument()
+    await user.click(ver)
     expect(await reporte()).toBeInTheDocument()
   })
 })
