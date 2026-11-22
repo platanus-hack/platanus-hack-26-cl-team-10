@@ -8,8 +8,7 @@
 }
 
 .tarjeta:hover {
-  border-color: var(--mantine-color-roca-4);
-  box-shadow: var(--mantine-shadow-sm);
+  border-color: var(--f-accion, var(--mantine-color-roca-4));
 }
 
 /* Encendida: la estación avisa algo. Franja a la izquierda y fondo teñido, además del ícono y el texto. */

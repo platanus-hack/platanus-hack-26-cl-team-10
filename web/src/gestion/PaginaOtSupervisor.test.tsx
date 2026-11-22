@@ -64,8 +64,14 @@ it('a running OT: its camera, the sensors with what the step expects, the steps 
   const guarda = sensor('Guarda')
   expect(within(guarda).getByText('abierta')).toBeInTheDocument()
 
-  expect(screen.getByText('3. Cambiar el rodillo')).toBeInTheDocument()
-  expect(screen.getByText('En curso')).toBeInTheDocument()
+  // Los pasos van numerados: los dos primeros verificados y el tercero en curso.
+  const pasos = within(screen.getByRole('list', { name: 'Pasos de la OT' })).getAllByRole('listitem')
+  expect(pasos).toHaveLength(6)
+  expect(pasos[2]).toHaveTextContent('03')
+  expect(pasos[2]).toHaveTextContent('Cambiar el rodillo')
+  expect(pasos[2]).toHaveTextContent('En curso')
+  expect(pasos[0]).toHaveTextContent('Verificado')
+  expect(pasos[5]).toHaveTextContent('Pendiente')
   expect(within(bitacora()).getAllByRole('listitem').length).toBe(m.eventos('ot-13').length)
 })
 
@@ -98,7 +104,7 @@ it('an incident arrives live: red on top, marked open in the log, and «Ver en l
   const item = document.getElementById(`bitacora-${alerta.id}`)!
   expect(item).toHaveTextContent('Peligro (abierta)')
   await userEvent.click(within(arriba).getByRole('button', { name: 'Ver en la bitácora' }))
-  await waitFor(() => expect(document.getElementById(`bitacora-${alerta.id}`)!.style.outline).toContain('solid'))
+  await waitFor(() => expect(document.getElementById(`bitacora-${alerta.id}`)).toHaveAttribute('data-elegido'))
 
   // Se resuelve: sale de arriba y queda en la bitácora como resuelta.
   m.agregar('ot-13', { tipo: 'alerta_resuelta', actor: 'sistema', capa: 1, detalle: 'Se normalizó', evidencia: { resuelve: alerta.id } })

@@ -80,10 +80,11 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 - **Cada color significa una sola cosa.** Rojo es peligro, amarillo es precaución, verde es verificado y azul es acción obligatoria, que en la app es el paso actual y el botón «Hecho».
 - **Lo demás es neutro.** Una OT tranquila se ve gris y blanca, con el paso actual en azul. Cuando algo sale mal, la pantalla cambia de color, y eso es lo que se tiene que notar.
 - **Sin naranjo.** Queda entre el rojo y el amarillo y confunde los dos avisos.
-- **La marca no dice estados.** El lima y la tinta del logo viven solo en la banda de arriba y en el login (ver «Marca»); nada de lo que avisa los usa.
+- **La marca casi no dice estados.** En claro, el lima y la tinta del logo viven solo en la banda de arriba (ver «Marca»). En oscuro, el lima dice además «verificado», como en el monitor: es el único estado que comparte color con la marca.
 - **El color nunca va solo.** Siempre va con un ícono y un texto: con sol, con guantes o con daltonismo rojo-verde, el color no alcanza.
-- **Fondo claro para el operario, oscuro para el supervisor.** Lo del operario y el login van en claro, que se lee mejor bajo el sol. Lo del supervisor (`/supervisor…`) se proyecta, y va en oscuro como las láminas y el monitor. Lo decide la ruta, en `App.tsx`; ninguna pantalla sabe en qué esquema está.
-- **En oscuro los colores de seguridad no cambian.** El tono 6 de cada color es el mismo. Cambian solo los extremos: el fondo teñido (tono 0) pasa a oscuro y los textos de color (tonos 7 a 9), a claros. Está en `variablesDelTema`, en `tema.ts`, con la razón de cada excepción (Mantine usa los tonos 0 y 7 por dentro).
+- **Claro para el operario, oscuro para el supervisor y el login.** Lo del operario va en claro, que se lee mejor bajo el sol. Lo del supervisor (`/supervisor…`) y el login van en oscuro, con el lenguaje del monitor. Lo decide la ruta, en `App.tsx`; ninguna pantalla sabe en qué esquema está.
+- **En oscuro, la paleta del monitor más dos colores.** Lima para lo verificado, ámbar para el aviso y rojo para el peligro. El lima dejó de usarse para todo: **hielo** es lo que se puede tocar y el paso en curso, y **lila** son las propuestas de mejora. Los dos tienen la misma claridad que el lima, así que conviven con él.
+- **Cada color tiene cinco usos:** el color, bajo el cursor, el texto que va encima, un fondo teñido y el texto de color. Sus valores cambian con el esquema y están en `tema.ts` (`CLARO` y `OSCURO`). Botones, insignias e íconos los toman de ahí, y en oscuro los tonos de Mantine que las pantallas ya usan (`peligro.6`, `precaucion.0`) siguen esos usos.
 - **La alerta de capa 1 se ve como una tarjeta de bloqueo:** una franja roja arriba con «Peligro» en blanco, y el cuerpo blanco con el texto en grafito.
 
 | Token | Hex | Uso |
@@ -97,6 +98,19 @@ Los colores son los de seguridad industrial (ISO 3864, ANSI Z535): los mismos de
 | Precaución | `#FFD100` de relleno, `#7A5C00` para texto | Avisos de nivel `warning` (cámara y anomalías de señal), sin señal, sin conexión y la marca de un paso confirmado por una persona |
 | Peligro | `#C8102E` | Lo de nivel `error`: el warn de capa 1 que suena y la alerta de seguridad |
 
+En oscuro:
+
+| Token | Hex | Uso |
+|---|---|---|
+| Tinta | `#0a0c0a` | Fondo, con una trama de líneas finas |
+| Panel | `#101310` | Celdas y tarjetas |
+| Línea | `#252a23` y `#3d4439` | Separadores de celdas y bordes |
+| Lima | `#d4ff9e` | Verificado, y la marca |
+| Hielo | `#9fe3ff` | Botones principales, enlaces y el paso en curso |
+| Lila | `#c8b6ff` | Propuestas de mejora |
+| Ámbar | `#ffc24d` | Avisos de nivel `warning` |
+| Rojo | `#ff4433` | Lo de nivel `error` |
+
 El amarillo de seguridad no se lee como texto sobre blanco (1,5:1): va siempre de relleno con texto grafito (10,5:1), y el texto amarillo usa `#7A5C00` (6,3:1). Los demás pasan AA con texto blanco: rojo 5,9:1, verde 4,8:1, azul 8,5:1.
 
 **Ejecución:** `pendiente` roca · `en_curso` y `comprobando` acción · `verificado` verificado · `warn` peligro si es capa 1 y precaución si no · `sin_senal` precaución · `confirmado` verificado con un borde izquierdo de precaución, porque está cerrado pero cuenta como warn.
@@ -109,7 +123,7 @@ El logo es `project-logo.png`: una cruz lima y «Factum» en matriz de puntos, s
 
 - **`<Marca>`** (`web/src/Marca.tsx`) lo dibuja en SVG, calcado del PNG punto por punto: no depende de que cargue una letra. La cruz y el nombre van siempre juntos; la cruz sola en una barra se lee como un botón de «agregar».
 - **Vive sobre tinta, y solo arriba.** La banda de arriba (`Encabezado` y `BarraOt`) y el panel del login son tinta. Lo de trabajo va debajo: en claro para el operario y en oscuro para el supervisor, donde una línea separa la banda. `SOBRE_TINTA` en `tema.ts` trae el fondo, el texto y el foco del teclado en lima, porque el azul no se ve sobre tinta.
-- **La letra** es Bitcount Prop Single, servida por el front (`@fontsource-variable/bitcount-prop-single`). Se usa solo en la frase del login: «Cada paso verificado queda como un hecho.»
+- **La letra** es Bitcount Prop Single, servida por el front (`@fontsource-variable/bitcount-prop-single`). En las vistas oscuras va en los títulos y en los valores grandes; en el login, además, en la frase «Cada paso verificado queda como un hecho.»
 - **El favicon** (`web/public/favicon.svg`) es la cruz lima sobre tinta, con el trazo más grueso que en el logo para que se lea a 16 px.
 
 | Token | Hex | Uso |
@@ -119,27 +133,20 @@ El logo es `project-logo.png`: una cruz lima y «Factum» en matriz de puntos, s
 | Hueso | `#eef2e9` | «Factum» y el texto sobre tinta |
 | Tenue | `#9ca696` | Texto secundario sobre tinta |
 
-El tema vive en `web/src/tema.ts` y nadie escribe un hex fuera de ahí (las dos excepciones son archivos que no pueden importarlo: `favicon.svg` y el `theme-color` de `index.html`):
+El tema vive en `web/src/tema.ts`, con los colores, sus usos por esquema, las letras y los radios. Nadie escribe un hex fuera de ahí; las dos excepciones son archivos que no pueden importarlo, `favicon.svg` y el `theme-color` de `index.html`.
 
-```ts
-import { createTheme, type MantineColorsTuple } from '@mantine/core'
+### El lenguaje del monitor
 
-const accion: MantineColorsTuple = ['#ebf1f7', '#d1dfec', '#adc6de', '#85a9cd', '#5c8cbc', '#2e6caa', '#004C97', '#004180', '#00356a', '#002a53']
-const verificado: MantineColorsTuple = ['#ebf5ef', '#d1e9dc', '#add8c1', '#85c4a2', '#5cb083', '#2e9a60', '#00843D', '#007034', '#005c2b', '#004922']
-const precaucion: MantineColorsTuple = ['#fffbeb', '#fff7d1', '#fff0ad', '#ffe985', '#ffe25c', '#ffd92e', '#FFD100', '#d9b200', '#b29200', '#7A5C00']
-const peligro: MantineColorsTuple = ['#fbecee', '#f5d4d9', '#edb3bc', '#e58c9b', '#dc6679', '#d23b54', '#C8102E', '#aa0e27', '#8c0b20', '#6e0919']
-const roca: MantineColorsTuple = ['#f2f3f4', '#e1e3e5', '#cbced1', '#b0b5ba', '#969ca3', '#79818a', '#5B6570', '#4d565f', '#40474e', '#32383e']
+Las vistas del supervisor y el login se ven como el monitor de Jona (`app/estatico/monitor.html`). Sus clases están en `web/src/gestion/industrial.module.css`:
 
-export const tema = createTheme({
-  primaryColor: 'accion',
-  primaryShade: 6,
-  colors: { accion, verificado, precaucion, peligro, roca },
-  black: '#1F262E',
-  white: '#FFFFFF',
-  autoContrast: true, // texto grafito sobre el amarillo, blanco sobre los demás
-})
-// El fondo Polvo (#EDF0F2) va en el body, con forceColorScheme="light" en el MantineProvider.
-```
+- **Rótulos** en mayúsculas monoespaciadas. El título de una sección va entre corchetes: `[// SENSORES ]`.
+- **Celdas, no tarjetas:** grupos de datos separados por una línea de 1 px (la ficha de la OT, los contadores, los sensores).
+- **Títulos y valores grandes** en la letra de puntos.
+- **Esquinas casi rectas:** ningún radio pasa de unos pocos píxeles, en toda la app.
+- **El video** lleva esquineros de visor que toman el color de la verificación, y el paso en curso encima.
+- **Los pasos van numerados** (`01`, `02`), con su estado a la derecha.
+
+El operario conserva su fondo claro y sus colores ISO. De este lenguaje toma solo las formas y la letra de botones e insignias, que salen del tema.
 
 ## 5. Diego — gestión
 
@@ -157,11 +164,11 @@ export const tema = createTheme({
 
 **Vista en vivo (`/supervisor/ot/:id`).** Se llega desde la barra, desde la tarjeta de la OT, desde su id o desde «Ver». Trabaja como el monitor de Jona y, como todo lo del supervisor, va en oscuro.
 
-- **Arriba,** quién la ejecuta, con su nombre en grande, y en qué estación corre y desde cuándo. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora».
+- **Arriba,** el número de la OT y el nombre de la pauta, y la ficha en celdas: quién la ejecuta, en qué estación corre y desde cuándo, el equipo y el estado. Debajo, las alertas abiertas en rojo, con «Ver en la bitácora».
 - **Cámara.** El video de la estación (`GET /edge/{edge}/video.mjpg`, el que el edge manda al servidor). Encima va lo que la cámara reconoce, en cajas: blancas si está segura (80 % o más) y amarillas si duda; se borran si pasa 1 s sin detecciones. También el paso en curso, y el marco toma el color de la verificación. Si la OT no corre en una estación, lo dice.
-- **Verificación.** Por qué la OT dice «Atención» o «Detente»: cada aviso activo de `calificacion.avisos`, quién lo dice (el sensor o la cámara) y con cuánta certeza. Es lo que explica una tarjeta encendida de la lista.
+- **Verificación.** «Todo bien», «Atención» o «Detente», en grande y con su color, y por qué lo dice: cada aviso activo de `calificacion.avisos`, quién lo dice (el sensor o la cámara) y con cuánta certeza. Es lo que explica una tarjeta encendida de la lista.
 - **Sensores,** una ficha por sensor: los de la pauta de esta OT y los que están leyendo ahora (el servidor recuerda sensores de todas las estaciones, y esos no se muestran). El que espera el paso en curso va primero y marcado, y solo una lectura de ahora cuenta como «ya está». Lo que solo trajo el snapshot dice «Última lectura guardada» y va en gris hasta que llega una nueva. Un sensor numérico muestra su unidad y una línea con sus últimas 90 lecturas, para ver hacia dónde va (la temperatura que baja mientras se espera).
-- **Pasos.** Un paso en conflicto va en rojo solo si lo dice el sensor; la duda de la cámara va en amarillo.
+- **Pasos,** numerados y con su estado a la derecha: verificado en lima, en curso en hielo. Un paso en conflicto va en rojo solo si lo dice el sensor; la duda de la cámara va en ámbar.
 - **Bitácora** completa, abajo y a todo el ancho, lo último arriba.
 
 Todo llega por el mismo WebSocket de la OT que usa la ejecución, pero esta vista no abre sesión ni declara: mirar no cambia la bitácora.
