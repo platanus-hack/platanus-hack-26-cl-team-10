@@ -355,7 +355,7 @@ $("video").onerror = () => $("marco").classList.add("vacio");
 // Las cajas vienen normalizadas 0-1: se escalan al tamaño con que se ve el video.
 // Si deja de llegar detección por 1 s, se borran para no mostrar algo viejo.
 let borrarCajas = null;
-const POLINES = {"soda can": "polín", "red soda can": "polín rojo"};  // en la estación los polines son latas
+const POLINES = {"soda can": "polín", "red soda can": "polín rojo", "green soda can": "polín verde"};  // en la estación los polines son latas
 function pintarCajas(d) {
   const cv = $("cajas"), img = $("video");
   cv.width = img.clientWidth; cv.height = img.clientHeight;

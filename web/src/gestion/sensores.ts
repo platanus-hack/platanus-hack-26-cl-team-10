@@ -48,4 +48,8 @@ export function enPalabras(texto: string): string {
 }
 
 // En la estación del demo los polines son latas: el detector las llama «soda can».
-export const NOMBRE_CLASE: Record<string, string> = { 'soda can': 'polín', 'red soda can': 'polín rojo' }
+export const NOMBRE_CLASE: Record<string, string> = {
+  'soda can': 'polín',
+  'red soda can': 'polín rojo',
+  'green soda can': 'polín verde',
+}
