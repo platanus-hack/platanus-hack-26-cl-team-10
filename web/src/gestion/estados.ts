@@ -42,9 +42,9 @@ export const ESTADOS: Record<EstadoGeneral, { etiqueta: string; color: string }>
   completa: { etiqueta: 'Completa', color: 'verificado' },
 }
 
-/** Cómo se agrupan las OT del supervisor. Arriba, las que se ejecutan ahora: ese grupo se muestra aunque esté vacío. */
-const GRUPOS: { titulo: string; estados: EstadoGeneral[]; siVacio?: string }[] = [
-  { titulo: 'En ejecución', estados: ['en_ejecucion'], siVacio: 'Ninguna OT se está ejecutando ahora.' },
+/** Cómo se agrupan las OT del supervisor. Arriba, las que se ejecutan ahora. Un grupo vacío no se muestra. */
+const GRUPOS: { titulo: string; estados: EstadoGeneral[] }[] = [
+  { titulo: 'En ejecución', estados: ['en_ejecucion'] },
   { titulo: 'Por asignar', estados: ['entregada', 'sin_asignar'] },
   { titulo: 'Asignadas, sin empezar', estados: ['asignada'] },
   { titulo: 'Completas', estados: ['completa'] },
@@ -52,15 +52,14 @@ const GRUPOS: { titulo: string; estados: EstadoGeneral[]; siVacio?: string }[] =
 
 const GRAVEDAD: Record<Nivel, number> = { error: 0, warning: 1, ok: 2 }
 
-export type Grupo<T> = { titulo: string; ots: T[]; siVacio?: string }
+export type Grupo<T> = { titulo: string; ots: T[] }
 
 /** Las OT en sus grupos. Dentro de cada uno van primero las que avisan: «detente», después «atención». */
 export function enGrupos<T extends { ot: string; estado: EstadoGeneral; calificacion: CalificacionOt | null }>(ots: T[]): Grupo<T>[] {
   if (ots.length === 0) return []
   const gravedad = (o: T) => GRAVEDAD[avisoDe(o)?.nivel ?? 'ok']
-  return GRUPOS.map(({ titulo, estados, siVacio }) => ({
+  return GRUPOS.map(({ titulo, estados }) => ({
     titulo,
-    siVacio,
     ots: ots
       .filter((o) => estados.includes(o.estado))
       .sort(
@@ -69,7 +68,7 @@ export function enGrupos<T extends { ot: string; estado: EstadoGeneral; califica
           estados.indexOf(a.estado) - estados.indexOf(b.estado) ||
           a.ot.localeCompare(b.ot, undefined, { numeric: true }),
       ),
-  })).filter((g) => g.ots.length > 0 || g.siVacio)
+  })).filter((g) => g.ots.length > 0)
 }
 
 export function puedeAsignarse(estado: EstadoGeneral): boolean {

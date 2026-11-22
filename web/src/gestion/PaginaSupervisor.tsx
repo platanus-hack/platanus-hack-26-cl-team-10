@@ -10,7 +10,7 @@ import { campana } from './campana'
 import { avisoDe, enGrupos, ESTADOS, incidentesDe, puedeAsignarse, type Incidente } from './estados'
 import industrial from './industrial.module.css'
 import estilos from './TarjetaOt.module.css'
-import { EstadoBadge, Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
+import { Encabezado, EstadoLista, FranjaDesactualizada, Pagina, VerificacionBadge } from './ui'
 import { mensajeDe, useOts, type OtVista } from './useOts'
 import { Recomendaciones } from './Recomendaciones'
 import { useRecomendaciones } from './useRecomendaciones'
@@ -235,10 +235,7 @@ function TarjetaOt({ ot: o, operadores, onListo }: { ot: OtVista; operadores: Op
       <Stack gap="sm" flex={1}>
         <Group justify="space-between" wrap="nowrap" align="flex-start">
           <IdOt ot={o.ot} />
-          <Group gap={6} justify="flex-end">
-            {o.calificacion && <VerificacionBadge nivel={o.calificacion.nivel} />}
-            <EstadoBadge estado={o.estado} />
-          </Group>
+          {o.calificacion && <VerificacionBadge nivel={o.calificacion.nivel} />}
         </Group>
         <div>
           <Text fw={600}>{o.avance?.nombre ?? o.pauta}</Text>
@@ -272,17 +269,13 @@ function Grupos({ ots, operadores, onListo }: { ots: OtVista[]; operadores: Oper
         <Stack key={g.titulo} component="section" aria-label={g.titulo} gap="sm">
           <Title order={3} className={industrial.seccion}>
             {g.titulo}
-            {g.ots.length > 0 && <span className={industrial.dato}>{g.ots.length}</span>}
+            <span className={industrial.dato}>{g.ots.length}</span>
           </Title>
-          {g.ots.length === 0 ? (
-            <Text c="roca.6">{g.siVacio}</Text>
-          ) : (
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-              {g.ots.map((o) => (
-                <TarjetaOt key={o.ot} ot={o} operadores={operadores} onListo={onListo} />
-              ))}
-            </SimpleGrid>
-          )}
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+            {g.ots.map((o) => (
+              <TarjetaOt key={o.ot} ot={o} operadores={operadores} onListo={onListo} />
+            ))}
+          </SimpleGrid>
         </Stack>
       ))}
     </Stack>

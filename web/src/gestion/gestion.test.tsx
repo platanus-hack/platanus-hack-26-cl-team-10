@@ -270,7 +270,6 @@ describe('supervisor dashboard', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const ot12 = await tarjeta('ot-12')
-    expect(within(ot12).getByText('Entregada')).toBeInTheDocument()
     expect(within(ot12).getByText('Turno entregado por Ana Rojas')).toBeInTheDocument()
     await userEvent.click(within(ot12).getByRole('button', { name: 'Reasignar ot-12 a Bruno Díaz' }))
     await waitFor(() => expect(m.operador('ot-12')).toBe('operario:2'))
@@ -308,11 +307,11 @@ describe('supervisor dashboard', () => {
     expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12', 'OT-14'])
   })
 
-  it('says so when no OT is running, and still lists the rest', async () => {
+  it('hides the groups that have no OT, «En ejecución» included', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    expect(within(await screen.findByRole('region', { name: 'En ejecución' })).getByText('Ninguna OT se está ejecutando ahora.')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Asignadas, sin empezar' })).getByText('OT-12')).toBeInTheDocument()
+    expect(within(await screen.findByRole('region', { name: 'Asignadas, sin empezar' })).getByText('OT-12')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'En ejecución' })).toBeNull()
   })
 
   it('a warning from the station lights up its card and says why, without raising the red bar', async () => {

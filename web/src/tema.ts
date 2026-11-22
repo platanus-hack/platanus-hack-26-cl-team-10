@@ -118,7 +118,8 @@ const tonosEnOscuro = Object.fromEntries(
 )
 
 export const variablesDelTema: CSSVariablesResolver = () => ({
-  variables: { '--f-titular': TITULAR, '--f-mono': MONO },
+  // La letra de puntos queda para el logo y el login; en las pantallas de trabajo, los títulos van en la letra del texto.
+  variables: { '--f-titular': 'var(--mantine-font-family)', '--f-mono': MONO },
   light: {
     '--factum-fondo': '#EDF0F2',
     '--f-vacio': '#1F262E',
@@ -141,7 +142,7 @@ export const variablesDelTema: CSSVariablesResolver = () => ({
     '--f-linea': '#252a23',
     '--f-linea-2': '#3d4439',
     '--f-tenue': MARCA.tenue,
-    '--f-trama': '#141813',
+    '--f-trama': 'transparent',
     ...variablesDe(OSCURO),
     ...tonosEnOscuro,
     // El texto secundario: el gris de roca no se lee sobre tinta.
@@ -193,8 +194,8 @@ export const tema = createTheme({
   autoContrast: true,
   variantColorResolver: variantes,
   components: {
-    Button: Button.extend({ styles: { root: { ...ROTULO, letterSpacing: '0.06em' } } }),
+    Button: Button.extend({ styles: { root: { fontWeight: 600 } } }),
     Badge: Badge.extend({ styles: { root: { ...ROTULO, letterSpacing: '0.09em' } } }),
-    SegmentedControl: SegmentedControl.extend({ styles: { label: { ...ROTULO, letterSpacing: '0.06em', fontSize: rem(13) } } }),
+    SegmentedControl: SegmentedControl.extend({ styles: { label: { fontWeight: 600, fontSize: rem(13) } } }),
   },
 })
