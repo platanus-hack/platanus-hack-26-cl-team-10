@@ -334,19 +334,19 @@ class AislarBloquearYComprobar(Base):
         self.s.video._detecciones["edge-1"].clear()  # como si ya hubiera pasado el segundo que se mira
         for _ in range(DETECCIONES_MIN):
             self.s._ultimo_juicio.clear()  # en la prueba no se espera el medio segundo entre juicios
-            self.s.recibir_detecciones("edge-1", {"clases": ["soda can", "red soda can"], "objetos": [
+            self.s.recibir_detecciones("edge-1", {"clases": ["green soda can", "red soda can"], "objetos": [
                 {"clase": c, "conf": p, "caja": [0, 0, 1, 1]} for c, p in objetos]})
 
     def test_estacion_en_su_orden_se_completa_sin_avisos_ni_declarar(self):
         alertas = self.estacion() + self.leer(energia="cortada") + self.leer(operario="presente")
         self.assertEqual(self.cerrados(), 2)
-        self.ver(("soda can", 0.9))
+        self.ver(("green soda can", 0.9))
         self.assertEqual(self.cerrados(), 2)  # un polín que no es rojo no es el que falló
         self.ver(("red soda can", 0.9))
         self.assertEqual(self.cerrados(), 3)
-        self.ver(("red soda can", 0.9), ("soda can", 0.9))
+        self.ver(("red soda can", 0.9), ("green soda can", 0.9))
         self.assertEqual(self.cerrados(), 3)  # el rojo sigue a la vista: no se ha sacado
-        self.ver(("soda can", 0.9))
+        self.ver(("green soda can", 0.9))
         self.assertEqual(self.cerrados(), 4)
         alertas += self.leer(operario="ausente") + self.leer(energia="viva")
         self.assertEqual((alertas, self.juez), ([], []))  # sin avisos y sin preguntarle al VLM
@@ -355,7 +355,7 @@ class AislarBloquearYComprobar(Base):
     def test_estacion_encender_el_motor_sin_alejarse_avisa_y_no_cierra(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")
         self.ver(("red soda can", 0.9))
-        self.ver(("soda can", 0.9))
+        self.ver(("green soda can", 0.9))
         self.assertEqual(self.cerrados(), 4)
         alertas = self.leer(energia="viva")  # junto a la cinta
         self.assertTrue(any(a.startswith("PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO") for a in alertas), alertas)
@@ -363,7 +363,7 @@ class AislarBloquearYComprobar(Base):
 
     def test_estacion_no_ver_el_polin_rojo_no_cuenta_si_nunca_se_vio(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")
-        self.ver(("soda can", 0.9))
+        self.ver(("green soda can", 0.9))
         self.ver()
         self.assertEqual(self.cerrados(), 2)
 
@@ -372,12 +372,12 @@ class AislarBloquearYComprobar(Base):
         self.ver(("red soda can", 0.9))
         self.ver()  # la cámara tapada, o el rojo fuera y nada en su lugar
         self.assertEqual(self.cerrados(), 3)
-        self.ver(("soda can", 0.6))  # el nuevo se ve, pero sin certeza
+        self.ver(("green soda can", 0.6))  # el nuevo se ve, pero sin certeza
         self.assertEqual(self.cerrados(), 3)
-        self.ver(("soda can", 0.9))
+        self.ver(("green soda can", 0.9))
         self.assertEqual(self.cerrados(), 4)
         with self.assertRaises(ValueError):
-            Deteccion("red soda can", presente=True, en_su_lugar="soda can")
+            Deteccion("red soda can", presente=True, en_su_lugar="green soda can")
 
     def test_estacion_si_el_detector_duda_el_operario_declara_y_responde_el_vlm(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")

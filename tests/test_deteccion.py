@@ -142,7 +142,7 @@ class ElModeloDelServidor(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("exportar_onnx", ruta)
         modulo = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(modulo)  # no importa ultralytics hasta exportar
-        self.assertEqual(modulo.clases_de(sorted(PAUTA_DEMO.parent.glob("pauta-*.json"))), ["mouse", "pencil", "red soda can", "soda can"])
+        self.assertEqual(modulo.clases_de(sorted(PAUTA_DEMO.parent.glob("pauta-*.json"))), ["green soda can", "mouse", "pencil", "red soda can"])
 
     def test_la_escena_de_entrenamiento_etiqueta_lo_que_quedo_a_la_vista(self):
         import numpy as np
