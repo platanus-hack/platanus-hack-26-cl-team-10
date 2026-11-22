@@ -25,7 +25,7 @@ Son tres, en este orden, y cada pauta de este protocolo los tiene que traer (ADR
 | Control | Imita | Cómo se comprueba en la maqueta |
 |---|---|---|
 | M1 · Apagar el motor | Aislar | `energia = cortada` |
-| M2 · Trabar la parada | Bloquear | `bloqueo = puesto`, o la cámara ve el dispositivo de bloqueo |
+| M2 · Bloquear el encendido | Bloquear | `bloqueo = puesto`, o la cámara ve el dispositivo de bloqueo |
 | M3 · Esperar a que se enfríe | Comprobar energía cero | `equipo = frio`; no es una prueba de partida |
 
 ## 4. Lo que sí se puede mostrar

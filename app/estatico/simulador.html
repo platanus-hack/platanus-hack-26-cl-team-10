@@ -473,7 +473,7 @@ function Motor(pauta, peligros) {
     const centro = mediana(h), mad = mediana(h.map(v => Math.abs(v - centro))) * 1.4826;
     const desvio = Math.abs(x - centro) / Math.max(mad, K.PISO_RELATIVO * Math.abs(centro), K.PISO_ABSOLUTO);
     const certeza = Math.min(1, h.length / (3 * K.HISTORIA_MIN));
-    return desvio >= K.DESVIO_WARNING ? {nivel: "warning", certeza, motivo: `${sensor} = ${g(x)}, lejos de su mediana ${g(centro)} (${desvio.toFixed(1)} desvíos)`} : {nivel: "ok", certeza};
+    return desvio >= K.DESVIO_WARNING ? {nivel: "warning", certeza, motivo: `${({temp_c: "Temperatura", hum_pct: "Humedad", dist_cm: "Distancia"})[sensor] ?? sensor} ${g(x)} fuera de lo normal: lo habitual es ${g(centro)}`} : {nivel: "ok", certeza};
   }
   function pegado(sensor, x) {
     const [previo, n0] = iguales[sensor] || [null, 0], n = x === previo ? n0 + 1 : 1;

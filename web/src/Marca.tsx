@@ -43,7 +43,7 @@ const CRUZ_D = `M${CRUZ / 2} 0V${CRUZ}M0 ${CRUZ / 2}H${CRUZ}`
  * La marca: la cruz y «Factum», siempre juntas y sobre tinta. La cruz sola en una barra se lee
  * como un botón de «agregar».
  */
-export function Marca({ alto = 20 }: { alto?: number }) {
+export function Marca({ alto = 20, girada = false }: { alto?: number; girada?: boolean }) {
   return (
     <svg
       role="img"
@@ -53,7 +53,13 @@ export function Marca({ alto = 20 }: { alto?: number }) {
       height={alto}
       style={{ display: 'block', flexShrink: 0 }}
     >
-      <path d={CRUZ_D} stroke={MARCA.lima} strokeWidth={TRAZO} fill="none" />
+      <path
+        d={CRUZ_D}
+        stroke={MARCA.lima}
+        strokeWidth={TRAZO}
+        fill="none"
+        style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: girada ? 'rotate(135deg)' : 'none', transition: 'transform 300ms ease' }}
+      />
       <path d={PUNTOS} fill={MARCA.hueso} />
     </svg>
   )

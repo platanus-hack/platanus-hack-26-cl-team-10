@@ -1,6 +1,6 @@
-/* El lenguaje del monitor (app/estatico/monitor.html), para las vistas del supervisor: rótulos
-   monoespaciados entre corchetes, celdas separadas por líneas en vez de tarjetas, y títulos y
-   valores en la letra de puntos. Los colores salen de tema.ts (variables --f-*). */
+/* El lenguaje del monitor (app/estatico/monitor.html), para las vistas del supervisor, en versión sobria:
+   rótulos monoespaciados chicos, celdas separadas por líneas en vez de tarjetas, y títulos y valores en la
+   letra del texto (la de puntos queda para el logo y el login). Los colores salen de tema.ts (variables --f-*). */
 
 .vista {
   /* El color de la calificación vigente: tiñe el marco del video y el veredicto. */
@@ -19,9 +19,8 @@
 
 .titular {
   margin: 0;
-  font: 400 clamp(24px, 2.5vw, 40px) / 1.05 var(--f-titular);
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
+  font: 700 clamp(22px, 2vw, 30px) / 1.15 var(--f-titular);
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
@@ -33,29 +32,20 @@
   color: var(--f-tenue);
 }
 
-/* El título de una sección: [// SENSORES ], con un dato a la derecha si lo lleva. */
+/* El título de una sección, con un dato a la derecha si lo lleva. */
 .seccion {
-  composes: rotulo;
   display: flex;
   align-items: center;
-  gap: 0.9em;
-  margin-bottom: 12px;
-}
-
-.seccion::before {
-  content: '[//';
-  color: var(--f-linea-2);
-}
-
-.seccion::after {
-  content: ']';
-  color: var(--f-linea-2);
+  gap: 0.6em;
+  margin: 0 0 12px;
+  font: 600 15px/1.4 var(--mantine-font-family);
+  color: var(--mantine-color-text);
 }
 
 .dato {
   order: 3;
   margin-left: auto;
-  color: var(--mantine-color-text);
+  color: var(--f-tenue);
 }
 
 /* El número de la OT, sobre el nombre de la pauta. */
@@ -141,15 +131,14 @@
 .celda dd,
 .celdaValor {
   margin: 4px 0 0;
-  font: 400 13px/1.45 var(--f-mono);
-  letter-spacing: 0.02em;
+  font: 500 14px/1.45 var(--mantine-font-family);
   overflow-wrap: anywhere;
 }
 
 /* Una celda que lleva un número grande: los contadores y los resúmenes. */
 .numero {
   margin: 4px 0 0;
-  font: 400 clamp(30px, 2.6vw, 42px) / 1.05 var(--f-titular);
+  font: 700 clamp(26px, 2.2vw, 34px) / 1.1 var(--f-titular);
   font-variant-numeric: tabular-nums;
 }
 
@@ -349,8 +338,7 @@
 
 .nivel {
   margin: 0;
-  font: 500 clamp(40px, 4.2vw, 64px) / 0.95 var(--f-titular);
-  text-transform: uppercase;
+  font: 700 clamp(32px, 3.4vw, 52px) / 1 var(--f-titular);
   color: var(--estado);
 }
 
@@ -427,8 +415,7 @@
   align-items: center;
   gap: 8px;
   margin: 6px 0 0;
-  font: 400 clamp(26px, 2.4vw, 38px) / 1.05 var(--f-titular);
-  text-transform: uppercase;
+  font: 700 clamp(22px, 2vw, 30px) / 1.1 var(--f-titular);
 }
 
 .sensorNota {

@@ -1,6 +1,6 @@
 // Piezas comunes de las pantallas de gestión.
 
-import { Alert, Badge, Box, Button, Center, Container, Group, Loader, Paper, Stack, Text, UnstyledButton } from '@mantine/core'
+import { Alert, Badge, Box, Button, Center, Container, Drawer, Group, Loader, Paper, Stack, Text, UnstyledButton } from '@mantine/core'
 import {
   IconAlertTriangle,
   IconArrowsExchange,
@@ -13,7 +13,7 @@ import {
   IconUserCheck,
   IconWifiOff,
 } from '@tabler/icons-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/cliente'
 import type { EstadoGeneral, Nivel } from '../api/tipos'
@@ -67,6 +67,7 @@ const SECCIONES_SUPERVISOR = [
 
 export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: string }) {
   const navigate = useNavigate()
+  const [menu, setMenu] = useState(false)
   const salir = () => {
     // El token se lee al llamar: primero se avisa al servidor, después se borra la sesión local.
     api.salir().catch(() => {})
@@ -80,38 +81,25 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
       <Container size={1360} px="md">
         <Group justify="space-between" wrap="nowrap" gap="sm" h={56}>
           <Group gap="md" wrap="nowrap">
-            <UnstyledButton component={Link} to={inicioDe(usuario.rol)} aria-label="Factum, ir al inicio" py={6} style={{ borderRadius: 4 }}>
-              <Marca alto={20} />
-            </UnstyledButton>
             {usuario.rol === 'supervisor' ? (
-              // El supervisor tiene dos lugares: las OT en vivo y lo que esas OT dicen de las pautas.
-              <Group component="nav" aria-label="Secciones" gap={4} wrap="nowrap">
-                {SECCIONES_SUPERVISOR.map(({ a, nombre }) => {
-                  const aqui = nombre === seccion
-                  return (
-                    <UnstyledButton
-                      key={a}
-                      component={Link}
-                      to={a}
-                      aria-current={aqui ? 'page' : undefined}
-                      px={10}
-                      py={8}
-                      fz={13}
-                      fw={500}
-                      tt="uppercase"
-                      c={aqui ? MARCA.hueso : MARCA.tenue}
-                      style={{ fontFamily: 'var(--f-mono)', letterSpacing: '0.09em', boxShadow: aqui ? `inset 0 -2px ${MARCA.lima}` : undefined }}
-                    >
-                      {nombre}
-                    </UnstyledButton>
-                  )
-                })}
-              </Group>
+              // El supervisor tiene dos lugares, en un menú a la izquierda que abre el logo: la cruz gira y se vuelve ×.
+              <UnstyledButton
+                aria-label={menu ? 'Cerrar el menú' : 'Abrir el menú'}
+                aria-expanded={menu}
+                onClick={() => setMenu((m) => !m)}
+                py={6}
+                style={{ borderRadius: 4 }}
+              >
+                <Marca alto={20} girada={menu} />
+              </UnstyledButton>
             ) : (
-              <Text c={MARCA.tenue} fw={600} visibleFrom="xs">
-                {seccion}
-              </Text>
+              <UnstyledButton component={Link} to={inicioDe(usuario.rol)} aria-label="Factum, ir al inicio" py={6} style={{ borderRadius: 4 }}>
+                <Marca alto={20} />
+              </UnstyledButton>
             )}
+            <Text c={MARCA.tenue} fw={600} visibleFrom="xs">
+              {seccion}
+            </Text>
           </Group>
           <Group gap="sm" wrap="nowrap" miw={0}>
             <Stack gap={0} align="flex-end" miw={0}>
@@ -134,6 +122,46 @@ export function Encabezado({ usuario, seccion }: { usuario: Usuario; seccion: st
           </Group>
         </Group>
       </Container>
+      {usuario.rol === 'supervisor' && (
+        <Drawer
+          opened={menu}
+          onClose={() => setMenu(false)}
+          position="left"
+          size={240}
+          withCloseButton={false}
+          transitionProps={{ transition: 'slide-right', duration: 300, timingFunction: 'ease' }}
+          overlayProps={{ backgroundOpacity: 0.4, blur: 2 }}
+          styles={{ content: { ...SOBRE_TINTA, borderRight: '1px solid var(--f-linea)' }, body: { padding: 0 } }}
+        >
+          <Box h={56} px="md" style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--f-linea)' }}>
+            <UnstyledButton aria-label="Cerrar el menú" onClick={() => setMenu(false)} py={6}>
+              <Marca alto={20} girada />
+            </UnstyledButton>
+          </Box>
+          <Stack component="nav" aria-label="Secciones" gap={2} p="sm">
+            {SECCIONES_SUPERVISOR.map(({ a, nombre }) => {
+              const aqui = nombre === seccion
+              return (
+                <UnstyledButton
+                  key={a}
+                  component={Link}
+                  to={a}
+                  onClick={() => setMenu(false)}
+                  aria-current={aqui ? 'page' : undefined}
+                  px="md"
+                  py={10}
+                  fz={15}
+                  fw={600}
+                  c={aqui ? MARCA.hueso : MARCA.tenue}
+                  style={{ borderRadius: 4, background: aqui ? 'var(--f-alto)' : undefined, boxShadow: aqui ? `inset 3px 0 ${MARCA.lima}` : undefined }}
+                >
+                  {nombre}
+                </UnstyledButton>
+              )
+            })}
+          </Stack>
+        </Drawer>
+      )}
     </Box>
   )
 }

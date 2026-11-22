@@ -1,6 +1,6 @@
-import { Button, Center, Loader, ScrollArea, SegmentedControl, Stack, Text, Title } from '@mantine/core'
-import { IconArrowLeft, IconCheck, IconX } from '@tabler/icons-react'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Button, Center, Collapse, Loader, ScrollArea, SegmentedControl, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { IconArrowLeft, IconCheck, IconChevronRight, IconX } from '@tabler/icons-react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { senalesDe } from '../api/mejoras'
 import type { Calificacion, CalificacionOt, Deteccion, EstadoOt, Evento, Mejora, Pauta, PasoEstado } from '../api/tipos'
@@ -238,8 +238,7 @@ function Sensores({ sensores, ot, pauta }: { sensores: Record<string, Lectura>; 
       nombreDe(a).localeCompare(nombreDe(b)),
   )
   return (
-    <section>
-      <h3 className={estilos.seccion}>Sensores</h3>
+    <Desplegable titulo="Sensores" dato={fichas.length ? String(fichas.length) : undefined}>
       {fichas.length === 0 ? (
         <p className={estilos.sinAvisos}>Todavía no llega ninguna lectura de la estación.</p>
       ) : (
@@ -269,6 +268,25 @@ function Sensores({ sensores, ot, pauta }: { sensores: Record<string, Lectura>; 
           })}
         </ul>
       )}
+    </Desplegable>
+  )
+}
+
+/** Una sección que se pliega: el título es el botón, con el dato a la derecha. Para lo que se consulta, no lo que se vigila. */
+function Desplegable({ titulo, dato, children }: { titulo: string; dato?: string; children: ReactNode }) {
+  const [abierto, setAbierto] = useState(false)
+  return (
+    <section aria-label={titulo}>
+      <UnstyledButton onClick={() => setAbierto((a) => !a)} aria-expanded={abierto} w="100%">
+        <h3 className={estilos.seccion}>
+          <IconChevronRight size={16} aria-hidden style={{ transform: abierto ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }} />
+          {titulo}
+          {dato && <span className={estilos.dato}>{dato}</span>}
+        </h3>
+      </UnstyledButton>
+      <Collapse expanded={abierto} transitionDuration={200} keepMounted keepMountedMode="display-none">
+        {children}
+      </Collapse>
     </section>
   )
 }
@@ -500,25 +518,6 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
                 />
               </div>
             </div>
-            {/* La ficha: quién la ejecuta y dónde, lo primero que el supervisor quiere saber de una OT. */}
-            <dl className={estilos.celdas}>
-              <div className={estilos.celda} role="group" aria-label="Operador">
-                <dt className={estilos.rotulo}>Operador</dt>
-                <dd>{v.detalle ? (v.detalle.operador ? nombreDe(v.detalle.operador) : 'Sin operador') : '…'}</dd>
-              </div>
-              <div className={estilos.celda}>
-                <dt className={estilos.rotulo}>Estación</dt>
-                <dd>{enEstacion && v.sesion ? `En la estación ${enEstacion} desde las ${horaCorta(v.sesion.desde)}` : 'Sin estación'}</dd>
-              </div>
-              <div className={estilos.celda} data-ancho>
-                <dt className={estilos.rotulo}>Equipo</dt>
-                <dd>{ot ? ot.equipo : '…'}</dd>
-              </div>
-              <div className={estilos.celda}>
-                <dt className={estilos.rotulo}>Estado</dt>
-                <dd>{estado && <EstadoBadge estado={estado} />}</dd>
-              </div>
-            </dl>
           </Stack>
 
           <Incidentes
@@ -558,8 +557,29 @@ function VistaOt({ otId, usuario }: { otId: string; usuario: Usuario }) {
                   <Verificacion calificacion={calificacion} />
                 </div>
                 <div className={estilos.col}>
-                  {enEstacion && <Sensores sensores={v.sensores} ot={ot} pauta={v.pauta} />}
                   <Pasos ot={ot} bitacora={s.bitacora} />
+                  {/* La ficha: quién la ejecuta, dónde y en qué equipo. Se consulta, no se vigila: va plegada. */}
+                  <Desplegable titulo="Detalles" dato={v.detalle?.operador ? nombreDe(v.detalle.operador) : undefined}>
+                  <dl className={estilos.celdas}>
+                    <div className={estilos.celda} role="group" aria-label="Operador">
+                      <dt className={estilos.rotulo}>Operador</dt>
+                      <dd>{v.detalle ? (v.detalle.operador ? nombreDe(v.detalle.operador) : 'Sin operador') : '…'}</dd>
+                    </div>
+                    <div className={estilos.celda}>
+                      <dt className={estilos.rotulo}>Estación</dt>
+                      <dd>{enEstacion && v.sesion ? `En la estación ${enEstacion} desde las ${horaCorta(v.sesion.desde)}` : 'Sin estación'}</dd>
+                    </div>
+                    <div className={estilos.celda} data-ancho>
+                      <dt className={estilos.rotulo}>Equipo</dt>
+                      <dd>{ot ? ot.equipo : '…'}</dd>
+                    </div>
+                    <div className={estilos.celda}>
+                      <dt className={estilos.rotulo}>Estado</dt>
+                      <dd>{estado && <EstadoBadge estado={estado} />}</dd>
+                    </div>
+                  </dl>
+                  </Desplegable>
+                  {enEstacion && <Sensores sensores={v.sensores} ot={ot} pauta={v.pauta} />}
                 </div>
               </div>
               <Bitacora bitacora={s.bitacora} ot={ot} abiertas={abiertas} elegido={elegido} />

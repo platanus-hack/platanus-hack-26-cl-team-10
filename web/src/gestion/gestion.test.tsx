@@ -222,11 +222,11 @@ describe('operator dashboard', () => {
 })
 
 describe('supervisor dashboard', () => {
-  it('lists every OT in cards, with counters', async () => {
+  it('lists every OT in cards, with the count of each group', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     expect(await screen.findByLabelText('Por asignar: 1')).toBeInTheDocument()
-    expect(screen.getByLabelText('En curso: 2')).toBeInTheDocument()
+    expect(screen.getByLabelText('Asignadas, sin empezar: 2')).toBeInTheDocument()
     const ids = screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)
     expect(ids).toEqual(['OT-14', 'OT-12', 'OT-13'])
     expect(within(await tarjeta('ot-12')).getByText('Ana Rojas')).toBeInTheDocument()
@@ -238,7 +238,7 @@ describe('supervisor dashboard', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Asignar ot-14 a Bruno Díaz' }))
     await waitFor(() => expect(within(screen.getByText('OT-14').closest<HTMLElement>('.mantine-Card-root')!).getByText('Bruno Díaz')).toBeInTheDocument())
     expect(m.operador('ot-14')).toBe('operario:2')
-    expect(screen.getByLabelText('Por asignar: 0')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Por asignar' })).toBeNull()
     // La bitácora dice qué supervisor la asignó, como en la API real.
     expect(m.eventos('ot-14').at(-1)).toMatchObject({ tipo: 'ot_asignada', actor: 'supervisor:oculta', evidencia: { operador: 'operario:2' } })
   })
@@ -270,11 +270,10 @@ describe('supervisor dashboard', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const ot12 = await tarjeta('ot-12')
-    expect(within(ot12).getByText('Entregada')).toBeInTheDocument()
     expect(within(ot12).getByText('Turno entregado por Ana Rojas')).toBeInTheDocument()
     await userEvent.click(within(ot12).getByRole('button', { name: 'Reasignar ot-12 a Bruno Díaz' }))
     await waitFor(() => expect(m.operador('ot-12')).toBe('operario:2'))
-    expect(await screen.findByLabelText('Entregadas: 0')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Por asignar: 1')).toBeInTheDocument()
   })
 
   it('shows the rule when the API refuses the assignment', async () => {
@@ -308,14 +307,14 @@ describe('supervisor dashboard', () => {
     expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12', 'OT-14'])
   })
 
-  it('says so when no OT is running, and still lists the rest', async () => {
+  it('hides the groups that have no OT, «En ejecución» included', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
-    expect(within(await screen.findByRole('region', { name: 'En ejecución' })).getByText('Ninguna OT se está ejecutando ahora.')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Asignadas, sin empezar' })).getByText('OT-12')).toBeInTheDocument()
+    expect(within(await screen.findByRole('region', { name: 'Asignadas, sin empezar' })).getByText('OT-12')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'En ejecución' })).toBeNull()
   })
 
-  it('a warning from the station lights up its card and says why, without raising the red bar', async () => {
+  it('a warning from the station lights up its card and says why on hover, without raising the red bar', async () => {
     m.abrirSesion('ot-13', config.EDGE_ID, 'operario:2')
     m.agregar('ot-13', { tipo: 'veredicto', actor: 'sistema', paso_id: m.pauta.pasos[0].id, estado: 'en_conflicto', capa: 2, detalle: 'La cámara no ve el candado puesto.', evidencia: { tipo: 'camara' } })
     entrarComo(SUPERVISORA)
@@ -323,7 +322,7 @@ describe('supervisor dashboard', () => {
     const ot13 = await tarjeta('ot-13')
     expect(ot13).toHaveAttribute('data-nivel', 'warning')
     expect(within(ot13).getByText('Atención')).toBeInTheDocument()
-    expect(within(ot13).getByText('La cámara no ve el candado puesto.')).toBeInTheDocument()
+    expect(within(ot13).getByLabelText('Atención: La cámara no ve el candado puesto.')).toBeInTheDocument()
     expect(within(ot13).getByText('Bruno Díaz')).toBeInTheDocument()
     expect(await tarjeta('ot-12')).not.toHaveAttribute('data-nivel')
     expect(screen.queryByRole('alert', { name: 'Incidentes en curso' })).toBeNull()
@@ -336,7 +335,7 @@ describe('supervisor dashboard', () => {
     abrir('/supervisor')
     const ot13 = await tarjeta('ot-13')
     expect(ot13).toHaveAttribute('data-nivel', 'error')
-    expect(within(ot13).getByText('GUARDA ABIERTA.')).toBeInTheDocument()
+    expect(within(ot13).getByLabelText(/: GUARDA ABIERTA\.$/)).toBeInTheDocument()
   })
 
   it('a click anywhere on a card opens its live view', async () => {
@@ -491,10 +490,11 @@ describe('Factum recommendations on the supervisor screen', () => {
     m.mejoras = [recomendacion(true)]
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
-    expect(within(zona).getByText('Factum propone la versión 8 de «Cambio de polín en la cinta»')).toBeInTheDocument()
-    expect(within(zona).getByText('Qué cambia y por qué')).toBeInTheDocument()
+    expect(within(zona).getByText('Factum propone mejorar una pauta')).toBeInTheDocument()
+    expect(within(zona).getByText('Cambio de polín en la cinta')).toBeInTheDocument()
+    expect(within(zona).getByText('versión 8 · 1 cambio')).toBeInTheDocument()
     expect(within(zona).getByText(/^Reescribe «/)).toBeInTheDocument()
-    expect(within(zona).getByText(/Se desvió en 3 de 3 OT/)).toBeInTheDocument()
+    expect(within(zona).getByRole('button', { name: /Se desvió en 3 de 3 OT/ })).toBeInTheDocument()
     expect(within(zona).queryByText(/Bruno|Ana/)).toBeNull()
     expect(sonar).toHaveBeenCalledOnce()
     expect(within(zona).getByRole('link', { name: 'Ver el detalle' })).toHaveAttribute('href', '/supervisor/mejoras')
@@ -503,8 +503,8 @@ describe('Factum recommendations on the supervisor screen', () => {
   it('one tap applies the whole summary: Factum builds the next version and the card leaves', async () => {
     const conformidad: Mejora = {
       ...recomendacion(true), id: 'conformidad:pauta-polin-estacion@7:prot-maqueta-01:M2:falta', tipo: 'conformidad', paso: '', ots: [],
-      titulo: 'Ningún paso cumple M2 Trabar la parada', motivo: 'prot-maqueta-01: ningún paso cumple M2 Trabar la parada.',
-      conformidad: { protocolo: 'prot-maqueta-01', control: 'M2', tipo: 'falta', detalle: 'ningún paso cumple M2 Trabar la parada', pasos: [], nombres: ['Trabar la parada'] },
+      titulo: 'Ningún paso cumple M2 Bloquear el encendido', motivo: 'prot-maqueta-01: ningún paso cumple M2 Bloquear el encendido.',
+      conformidad: { protocolo: 'prot-maqueta-01', control: 'M2', tipo: 'falta', detalle: 'ningún paso cumple M2 Bloquear el encendido', pasos: [], nombres: ['Bloquear el encendido'] },
       recurrencia: null, detectada: { ot: null, evento: null, ts: '2026-11-22T03:00:00+00:00' },
     }
     m.mejoras = [conformidad, recomendacion(true)]
@@ -512,8 +512,8 @@ describe('Factum recommendations on the supervisor screen', () => {
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
     expect(within(zona).getAllByRole('button', { name: /Aplicar/ })).toHaveLength(1)
-    expect(within(zona).getByText('Agrega «Trabar la parada»')).toBeInTheDocument()
-    expect(within(zona).getByText('El protocolo lo exige y hoy ningún paso de la pauta lo hace.')).toBeInTheDocument()
+    expect(within(zona).getByText('Agrega «Bloquear el encendido»')).toBeInTheDocument()
+    expect(within(zona).getByRole('button', { name: 'El protocolo lo exige y hoy ningún paso de la pauta lo hace.' })).toBeInTheDocument()
     expect(within(zona).queryByText(/prot-maqueta-01|M2/)).toBeNull()
     await userEvent.click(within(zona).getByRole('button', { name: 'Aplicar los 2 cambios' }))
     expect(await within(zona).findByText(/Factum armó la versión 8/)).toBeInTheDocument()
@@ -526,9 +526,9 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
-    expect(within(zona).getByText('Qué no cambia y por qué no')).toBeInTheDocument()
-    expect(within(zona).getByText(/se revisa el sensor/)).toBeInTheDocument()
-    expect(within(zona).queryByText('Qué cambia y por qué')).toBeNull()
+    expect(within(zona).getByText(/^No cambia: «/)).toBeInTheDocument()
+    expect(within(zona).getByRole('button', { name: /se revisa el sensor/ })).toBeInTheDocument()
+    expect(within(zona).getByText('sin cambios a la pauta')).toBeInTheDocument()
     await userEvent.click(within(zona).getByRole('button', { name: 'Entendido' }))
     await waitFor(() => expect(m.mejoras[0]!.estado).toBe('aceptada'))
   })
