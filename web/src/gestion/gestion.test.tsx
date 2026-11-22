@@ -471,7 +471,7 @@ it('the demo handover: Carla assigns, Ana sees it, hands over, Bruno takes it', 
 
 describe('Factum recommendations on the supervisor screen', () => {
   const recomendacion = (detectada: boolean): Mejora => ({
-    id: 'pauta-polin-estacion:v5:e1', tipo: 'desviacion', conformidad: null, ots: ['ot-11', 'ot-12', 'ot-13'], aplicable: true, por_que_no: null, pauta: 'pauta-polin-estacion', nombre: 'Cambio de polín en la cinta', version: 5,
+    id: 'pauta-polin-estacion:v7:e1', tipo: 'desviacion', conformidad: null, ots: ['ot-11', 'ot-12', 'ot-13'], aplicable: true, por_que_no: null, pauta: 'pauta-polin-estacion', nombre: 'Cambio de polín en la cinta', version: 7,
     paso: 'e1', titulo: 'Apagar el motor', control_critico: false, ejecuciones: 3, ots_con_senal: 3, operarios_distintos: 2,
     senales: { seguridad: 3, orden: 0, control: 0, conflicto: 0, persona: 0, observacion: 0 }, observaciones: [], revision: null, validacion: null, motivo: '«Apagar el motor» tuvo señales en 3 de 3 OT',
     sugerencia: 'Con este paso todavía abierto se dio una condición de peligro.',
@@ -504,7 +504,7 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
-    await userEvent.click(within(zona).getByRole('button', { name: 'Aceptar la recomendación' }))
+    await userEvent.click(within(zona).getByRole('button', { name: 'Aplicar la recomendación' }))
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull())
     expect(m.mejoras[0]!.estado).toBe('aceptada')
   })
@@ -524,7 +524,7 @@ describe('Factum recommendations on the supervisor screen', () => {
 
   it('a conformity finding has no OT: it says what the pauta lacks and points to the proposals', async () => {
     m.mejoras = [{
-      ...recomendacion(true), id: 'conformidad:pauta-polin-estacion@5:prot-maqueta-01:M2:falta', tipo: 'conformidad',
+      ...recomendacion(true), id: 'conformidad:pauta-polin-estacion@7:prot-maqueta-01:M2:falta', tipo: 'conformidad',
       titulo: 'Ningún paso cumple M2 Trabar la parada', motivo: 'prot-maqueta-01: ningún paso cumple M2 Trabar la parada. Lo dice la pauta misma, sin esperar ninguna OT.',
       conformidad: { protocolo: 'prot-maqueta-01', control: 'M2', tipo: 'falta', detalle: 'ningún paso cumple M2 Trabar la parada', pasos: [] },
       recurrencia: null, detectada: { ot: null, evento: null, ts: '2026-11-22T03:00:00+00:00' },

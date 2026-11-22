@@ -260,6 +260,8 @@ export type CambioBorrador = {
   /** Por qué, citando las OT por id. */
   porque: string
   ots: string[]
+  /** La propuesta de la que sale el cambio: en la versión siguiente se juntan varias. */
+  propuesta: string
 }
 
 /** `GET /cliente/mejoras/{id}/borrador`: el cambio concreto a la pauta que haría aplicar la propuesta. */

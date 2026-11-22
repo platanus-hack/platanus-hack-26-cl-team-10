@@ -112,6 +112,7 @@ TITULOS = {
     "GET /interno/inventario": "Inventario del servidor",
     "POST /interno/pautas/validar": "Validar una pauta sin guardarla",
     "GET /cliente/mejoras": "Propuestas de mejora de las pautas",
+    "GET /cliente/mejoras/{propuesta_id}/borrador": "El cambio que propone una propuesta",
     "POST /cliente/mejoras/{propuesta_id}/revision": "Aceptar o descartar una propuesta",
     "GET /cliente/metricas": "Resumen de la empresa",
     "GET /cliente/metricas/pautas": "Métricas por pauta",
@@ -119,6 +120,7 @@ TITULOS = {
     "GET /cliente/metricas/equipos": "Métricas por equipo",
     "GET /cliente/metricas/serie": "Métricas en el tiempo",
     "GET /interno/mejoras": "Propuestas de mejora de todas las empresas",
+    "POST /interno/pautas/{pauta_id}/version-siguiente": "Armar la versión siguiente con las propuestas aceptadas",
     "GET /ot/{ot_id}": "Estado de la OT, paso por paso",
     "POST /ot/{ot_id}/declarar": "Declarar un paso",
     "POST /ot/{ot_id}/pasos/{paso_id}/confirmar": "Confirmar un paso por una persona",
@@ -142,6 +144,7 @@ ERRORES_DE = {
     "GET /cliente/operadores": (403,),
     "POST /cliente/ots/{ot_id}/observaciones": (404, 409),
     "GET /cliente/mejoras": (403,),
+    "GET /cliente/mejoras/{propuesta_id}/borrador": (403, 404),
     "POST /cliente/mejoras/{propuesta_id}/revision": (403, 404, 409),
     "GET /cliente/metricas": (403,),
     "GET /cliente/metricas/pautas/{pauta_id}/pasos": (403, 404),
@@ -226,8 +229,10 @@ se pega una vez en «Authentication» y sirve para probar todas las rutas.
 5. Cualquiera de los dos sigue el avance y la calificación en `GET /cliente/ots/{{ot_id}}`. Al terminar,
    `GET /cliente/ots/{{ot_id}}/reporte` da el reporte armado desde la bitácora, en JSON o en Markdown.
 6. El supervisor mide en `GET /cliente/metricas` y sus detalles por pauta, paso, equipo y día, y valida las
-   propuestas de `GET /cliente/mejoras`. Lo que acepta lo lleva el equipo de Factum a la versión siguiente de la
-   pauta, y la misma propuesta dice después si el paso dejó de desviarse.
+   propuestas de `GET /cliente/mejoras`: `GET /cliente/mejoras/{{propuesta_id}}/borrador` le muestra el cambio
+   concreto a la pauta, y el reporte de cada OT trae las mejoras en que esa OT aportó. Aplicar una propuesta es
+   aceptarla con `POST /cliente/mejoras/{{propuesta_id}}/revision`; el equipo de Factum arma con las aceptadas la
+   versión siguiente de la pauta, y la misma propuesta dice después si el paso dejó de desviarse.
 
 Las métricas y las propuestas agrupan por pauta, equipo, paso y día, nunca por persona: Factum mira el paso, no a
 quien lo ejecuta. El reporte de una OT sí nombra a quienes la ejecutaron, como una notificación de cierre.

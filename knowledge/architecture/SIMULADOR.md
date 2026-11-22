@@ -23,7 +23,7 @@ El enlace del simulador al monitor solo aparece para un supervisor con sesión. 
 | Operarios | Con sesión, `GET /cliente/personas` (con nombre). Sin sesión, los `operador` de `GET /ots` (solo el id) |
 | OT reales de la pauta y su bitácora | `GET /cliente/ots` (o `GET /ots` sin sesión) y `GET /ot/{id}/eventos`. Se muestran, no se tocan |
 | Las ejecuciones en pantalla | **Simuladas.** Un motor en la página aplica las mismas reglas que `app/servicios.py` sobre las lecturas del guion. No llaman a la API ni dejan rastro |
-| El reporte y las propuestas | Calculados en la página sobre las ejecuciones simuladas, con el mismo criterio de [`app/mejora.py`](../../app/mejora.py): por paso, en al menos dos OT distintas, nunca por persona |
+| El reporte y las propuestas | Calculados en la página sobre las ejecuciones simuladas, con el criterio mínimo de [`app/mejora.py`](../../app/mejora.py): por paso, en al menos dos OT distintas, nunca por persona. Sin la prueba de recurrencia, el aviso en vivo ni el cambio propuesto, que solo calcula el servidor |
 
 Sin sesión, la base no entrega nombres: los operarios se ven por su id. Con un usuario del cliente se ven sus nombres, sus OT y sus protocolos; un supervisor ve toda la empresa y un operador solo sus OT.
 
@@ -48,7 +48,7 @@ Cada ejecución tiene un operario de la base y una forma de ejecutar la pauta:
 | Deshace un control antes de tiempo | Pierde un control ya verificado y lo repone: control perdido |
 | Declara el paso de cámara antes de tiempo | El juez responde que no y el paso queda en conflicto hasta que se vuelve a declarar |
 
-Los desvíos de una pauta de la base se generan desde sus pasos, y el motor los comprueba antes de ofrecerlos: tienen que abrir una alerta, quedar resueltos y dejar que la OT termine. Una pauta cuyo único control crítico es el último paso no tiene desvío que ofrecer (pasa con `pauta-polin-estacion`).
+Los desvíos de una pauta de la base se generan desde sus pasos, y el motor los comprueba antes de ofrecerlos: tienen que abrir una alerta, quedar resueltos y dejar que la OT termine. Una pauta cuyo único control crítico es el último paso no tiene desvío que ofrecer (pasaba con `pauta-polin-estacion` hasta la v6). La v7 agrega «Alejarte de la cinta», un control crítico antes del último; si el simulador ya le ofrece un desvío no se comprobó.
 
 **Agregar y sacar operarios.** «+ Operario» agrega una ejecución eligiendo quién y cómo; la «×» de cada ficha la saca de la simulación y del reporte. **El relevo** («⇄ Relevo») entrega la misma OT a otro operario desde el paso en curso: lo verificado sigue verificado, como en `POST /ot/{id}/relevo/entregar` y `/recibir`. Otra ejecución, en cambio, es otra OT: una OT completa no se reasigna.
 

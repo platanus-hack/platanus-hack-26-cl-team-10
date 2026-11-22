@@ -1,6 +1,6 @@
 # ADR-0018 — La pauta tiene un protocolo dueño; cada protocolo de cada empresa itera por separado
 
-> Estado: `proposed` · Fecha: 2026-11-22
+> Estado: `accepted` · Fecha: 2026-11-22 · Aceptado el 2026-11-22: Francisco lo pidió («implementalo así y testea») y entró a `main` con el PR #74
 
 ## Contexto
 
@@ -27,7 +27,7 @@ No es la alternativa C que descartó el ADR-0016. Esa separaba «aplica a» de �
 
 **Los protocolos que solo aplican se copian una vez por empresa y se comparten dentro de ella.** El de aislamiento de Oculta (`prot-aislamiento-01--oculta`) les aplica a las dos plantas; el de otra empresa es otro. Al copiar una pauta, su `cumple` se reescribe a las copias, así que la conformidad se calcula contra los controles de esa empresa.
 
-**El informe pasa por Factum.** El supervisor de cada empresa recibe el aviso y revisa las propuestas de sus protocolos; el equipo ve las de todas en `/interno/mejoras`, escribe cada versión nueva y decide si una mejora que funcionó en un protocolo se ofrece a otro, que la adopta en su propia copia. Las métricas, por protocolo dueño: `GET /cliente/metricas/protocolos` (`metricas.por_protocolo`).
+**El informe pasa por Factum.** El supervisor de cada empresa recibe el aviso y revisa las propuestas de sus protocolos; el equipo ve las de todas en `/interno/mejoras`, arma cada versión nueva y decide si una mejora que funcionó en un protocolo se ofrece a otro, que la adopta en su propia copia. Las métricas, por protocolo dueño: `GET /cliente/metricas/protocolos` (`metricas.por_protocolo`).
 
 **Lo que hace converger el ciclo.** Iterar sin fin no sirve si cada vuelta puede sacar una versión por ruido o insistir con una causa que la pauta no arregla. Dos reglas, medidas en la [simulación de la mejora continua](../projects/mejora-continua/simulacion.md), sección «Convergencia»:
 
@@ -54,6 +54,10 @@ No es la alternativa C que descartó el ADR-0016. Esa separaba «aplica a» de �
 - **El front no tiene una vista por protocolo.** La pantalla de mejoras y las métricas de `web/` no agrupan por `protocolo_dueno` todavía. `Brecha`.
 - **Un salto, dos señales.** Cuando el paso saltado es un control crítico, el mismo incidente deja seguridad en ese paso y orden en el que se adelantó, y el aviso tarda más (6 OT en `tests/test_recorrido_interno.py`). Contarlas como un incidente no se decidió. `Candidata a validar`.
 - Ofrecer a otro protocolo una mejora que funcionó en uno no tiene ruta: hoy es una decisión del equipo, a mano.
+
+### Nota del 2026-11-22: la versión siguiente la arma el código
+
+Desde el PR #74, «escribe cada versión nueva» es `POST /interno/pautas/{id}/version-siguiente` (`app/sugerencias.py`): junta los cambios de las propuestas aceptadas de la última versión aprobada, la guarda sin aprobar con los mismos protocolos que aplican y el mismo protocolo dueño, y una persona del equipo la aprueba. Una propuesta con `escalar` no trae cambio (`aplicable` false), así que la regla que hace converger el ciclo también rige ahí: lo escalado no entra a la versión siguiente.
 
 ## Referencias
 

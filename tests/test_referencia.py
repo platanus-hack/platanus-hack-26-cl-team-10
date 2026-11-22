@@ -11,6 +11,7 @@ import os
 import re
 import unittest
 from unittest import mock
+from urllib.parse import quote
 
 from app import db
 
@@ -47,6 +48,9 @@ class LaReferencia(unittest.TestCase):
         self.c = TestClient(api.app)
         self.doc = self.c.get("/openapi.json").json()
         self.clientes = self.c.get("/referencia/clientes.json").json()
+        sin_modelo = mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""})  # el borrador lo redacta el código
+        sin_modelo.start()
+        self.addCleanup(sin_modelo.stop)
 
     def operaciones(self, doc=None):
         for ruta, operaciones in (doc or self.doc)["paths"].items():
@@ -158,6 +162,8 @@ class LaReferencia(unittest.TestCase):
             ("POST /cliente/ots/{ot_id}/observaciones", 404): self.c.post(f"/cliente/ots/{otra}/observaciones", json={"texto": "x"}, headers=ana),
             ("POST /cliente/ots/{ot_id}/observaciones", 409): self.c.post(f"/cliente/ots/{ot}/observaciones", json={"texto": " "}, headers=ana),
             ("GET /cliente/mejoras", 403): self.c.get("/cliente/mejoras", headers=ana),
+            ("GET /cliente/mejoras/{propuesta_id}/borrador", 403): self.c.get(f"/cliente/mejoras/{propuesta}/borrador", headers=ana),
+            ("GET /cliente/mejoras/{propuesta_id}/borrador", 404): self.c.get("/cliente/mejoras/no-existe/borrador", headers=carla),
             ("POST /cliente/mejoras/{propuesta_id}/revision", 403): self.c.post(f"/cliente/mejoras/{propuesta}/revision", json={"decision": "aceptar"}, headers=ana),
             ("POST /cliente/mejoras/{propuesta_id}/revision", 404): self.c.post("/cliente/mejoras/no-existe/revision", json={"decision": "aceptar"}, headers=carla),
             ("POST /cliente/mejoras/{propuesta_id}/revision", 409): self.c.post(f"/cliente/mejoras/{propuesta}/revision", json={"decision": "descartar"}, headers=carla),
@@ -238,6 +244,9 @@ class LaReferencia(unittest.TestCase):
         real["GET /cliente/metricas/equipos"] = self.c.get("/cliente/metricas/equipos", headers=carla).json()
         real["GET /cliente/metricas/serie"] = self.c.get("/cliente/metricas/serie", headers=carla).json()
         real["GET /cliente/mejoras"] = self.c.get("/cliente/mejoras", headers=carla).json()
+        r = self.c.get(f"/cliente/mejoras/{quote(real['GET /cliente/mejoras'][0]['id'], safe='')}/borrador", headers=carla)
+        self.assertEqual(r.status_code, 200)
+        real["GET /cliente/mejoras/{propuesta_id}/borrador"] = r.json()
         r = self.c.post(f"/cliente/mejoras/{real['GET /cliente/mejoras'][0]['id']}/revision", headers=carla,
                         json={"decision": "aceptar", "nota": "poner el punto de bloqueo junto al tablero"})
         self.assertEqual(r.status_code, 200)

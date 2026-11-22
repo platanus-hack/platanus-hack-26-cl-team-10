@@ -5,8 +5,8 @@ Correr:  uv run --with httpx python -m unittest tests.test_recorrido_interno
 1. El equipo carga un protocolo con sus controles críticos y escribe una pauta a la que le falta uno.
 2. El validador lo dice antes de guardarla, y la pauta se aprueba igual: la falta queda como hallazgo.
 3. El supervisor ve el hallazgo de conformidad apenas la pauta se le habilita, sin esperar ninguna OT.
-4. Las OT corren; el operario se acerca sin cortar la energía en todas, y a la quinta el supervisor recibe la
-   recomendación por desviación recurrente (a la tercera si el paso saltado no fuera control crítico).
+4. Las OT corren; el operario se acerca sin cortar la energía en todas, y a la sexta el supervisor recibe la
+   recomendación por desviación recurrente: saltarse un control crítico deja dos señales por OT (seguridad y orden).
 5. El supervisor acepta las dos; el equipo las ve en /interno/mejoras.
 6. El equipo escribe una versión que saca el candado: no se aprueba. Escribe otra que agrega la prueba que faltaba: sí.
 7. Con las OT de la versión nueva, sin desviarse, la propuesta por desviación dice «mejoró» y la de conformidad, también.

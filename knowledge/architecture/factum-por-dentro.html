@@ -366,7 +366,7 @@ ol.plan li{margin:0 0 8px}
     <h3>La conversión de protocolo a pauta</h3>
     <div class="dos">
       <div class="hoy"><b>Lo que hay hoy</b>Es parte del servicio, no algo que haga el cliente (ADR-0011): el equipo de Factum entra a la operación y convierte el protocolo con la skill <code>reconocer-proceso</code>. Lo que la skill afirma lo comprueba <code>app/analisis.py</code> sin modelo (citas literales, factibilidad contra la estación, pasos que se cierran solos, reglas que disparan en una ejecución correcta) por <code>POST /interno/pautas/validar</code> (ADR-0015). Por eso la API no recibe un PDF, y las rutas que crean, aprueban pautas o abren OT sin empresa piden la clave del equipo.</div>
-      <div class="manana"><b>Lo que lo reemplaza</b>Una llamada a un modelo de lenguaje: entra el protocolo y salen sus pautas, cada paso con su <code>tipo_evidencia</code> y su <code>pregunta_visual</code>. Es el plan del 2026-11-21, y está en la pantalla 10. El contrato de salida no cambia: una <code>Pauta</code>, que pasa por la misma validación y espera la misma aprobación. El ADR-0006 da el porqué: la OT nace del protocolo que el cliente ya tiene, no de una falla.</div>
+      <div class="manana"><b>El plan que cambió</b>El 2026-11-21 el plan era una llamada a un modelo de lenguaje: entra el protocolo y salen sus pautas, cada paso con su <code>tipo_evidencia</code> y su <code>pregunta_visual</code>, como dice la pantalla 10. El ADR-0015 lo dejó en la skill del equipo que se describe a la izquierda. El contrato de salida no cambia: una <code>Pauta</code>, que pasa por la misma validación y espera la misma aprobación. El ADR-0006 da el porqué: la OT nace del protocolo que el cliente ya tiene, no de una falla.</div>
     </div>
     <p class="nota" style="margin:10px 0 0">Lo de aquí hacia abajo: una pauta ya escrita entra por <code>POST /pautas</code> con la clave del equipo, se valida, una persona la aprueba y se versiona.</p>
   </div>
@@ -418,7 +418,7 @@ ol.plan li{margin:0 0 8px}
       <div><h4>Versiones y OT</h4><table id="cat-estado"></table></div>
       <div><h4>Lo que responde la API</h4><ol class="registro" id="cat-registro"></ol></div>
     </div>
-    <p class="honesto"><b>La regla «nunca encima de otra» vive en <code>catalogo.crear_pauta</code>.</b> El atajo del demo no pasa por ella: <code>POST /pauta/demo</code> escribe con <code>INSERT OR REPLACE</code> y vuelve a cargar la versión 1 desde el archivo cada vez.</p>
+    <p class="honesto"><b>La regla «nunca encima de otra» vive en <code>catalogo.crear_pauta</code>.</b> El atajo del demo no pasa por ella: <code>POST /pauta/demo</code> escribe con <code>INSERT OR REPLACE</code> y vuelve a cargar desde el archivo la versión que trae, cada vez. Desde el 2026-11-22 pide la clave del equipo.</p>
   </div>
   <div class="pie"><span></span><button data-ir="ot">2 · De pauta a OT →</button></div>
 </div></section>
@@ -865,7 +865,7 @@ ol.plan li{margin:0 0 8px}
 <section class="pantalla" id="p-diseno"><div class="wrap">
   <h2>10 · El plan: protocolo, pautas y OT por API</h2>
   <p class="entrada">El plan quedó más simple el 2026-11-21. Hay un protocolo, un modelo de lenguaje crea sus pautas, y un servicio por API genera las OT desde esas pautas. Lo simple es llegar a la OT. La complejidad se queda donde está el valor: en la verificación, que es a la medida de cada proceso estandarizado.</p>
-  <p class="borrador"><b>Diseño, no construido.</b> El recurso protocolo y la llamada al modelo no están en <code>app/</code>. Generar la OT desde una pauta sí está. El plan lo dictó Pancho el 2026-11-21 y todavía no está en un ADR: es <code>Candidata a validar</code> por el equipo.</p>
+  <p class="borrador"><b>Construido en parte, con un cambio.</b> El recurso protocolo está en <code>app/</code> (<code>/interno/protocolos</code>, ADR-0011), con sus controles críticos (ADR-0016), y el cliente pide la OT por API (<code>POST /cliente/ots</code>). Las pautas no las crea una llamada a un modelo desde la app: las arma el equipo de Factum con la skill <code>reconocer-proceso</code> y las comprueba el código (ADR-0015). Lo de abajo es el diseño del 2026-11-21.</p>
 
   <div class="bloque">
     <h3>Los tres pasos</h3>
@@ -2052,9 +2052,9 @@ const REQ = [
   ["RF", "La bitácora solo agrega filas, cada una con su evidencia", "LOGICA; CA10", "cumple", "Sobre <code>eventos</code> no hay <code>UPDATE</code> ni <code>DELETE</code>."],
   ["RF", "Cada evento y cada OT llevan su calificación, con certeza y motivos", "ADR-0007; PRD de servicios, O3", "cumple", "<code>scoring.py</code>. Pantalla 5."],
   ["RF", "La pantalla lo recibe todo al instante y recupera lo perdido al reconectar", "PRD de servicios, O2; CA6 y CA7", "cumple", "<code>bus.py</code> y <code>WS /ot/{id}/stream</code>."],
-  ["RF", "El operario recibe el aviso por voz en el momento", "CONTEXTO; guion del demo", "falta", "No está en <code>main</code>. Según el SEGUIMIENTO, la voz vive en la rama <code>feat/front-y-servicios</code>."],
+  ["RF", "El operario recibe el aviso por voz en el momento", "CONTEXTO; guion del demo", "parcial", "Está en <code>main</code>: <code>web/</code> le habla al operario con ElevenLabs por <code>/api/voz</code> (FRONTEND). Falta medir la latencia de punta a punta."],
   ["RF", "El turno siguiente retoma desde el último paso verificado y puede preguntar", "CONTEXTO; LOGICA, relevo de turno", "cumple", "El estado se lee de la bitácora y el traspaso se firma. El resumen y las preguntas los redacta Claude citando eventos, y el código comprueba las citas."],
-  ["RF", "Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta", "CONTEXTO; LOGICA; REFERENCIAS 33", "parcial", "<code>reglas.propuesta_de_mejora</code> las agrupa por paso desde dos OT. Aprobar la propuesta y crear la versión sigue siendo a mano."],
+  ["RF", "Las desviaciones que se repiten se vuelven una propuesta de cambio a la pauta", "CONTEXTO; LOGICA; REFERENCIAS 33", "cumple", "<code>mejora.propuestas</code> las agrupa por paso desde dos OT y prueba si el paso se desvía más que el resto de su pauta (<code>recurrencia.py</code>); el supervisor recibe el aviso apenas el patrón se distingue del ruido. Cada propuesta trae el cambio concreto (<code>sugerencias.py</code>); el supervisor lo acepta y el equipo arma la versión siguiente con las aceptadas (<code>POST /interno/pautas/{id}/version-siguiente</code>) y la aprueba. La conformidad con el protocolo se comprueba aparte (ADR-0016). <code>reglas.propuesta_de_mejora</code> sigue detrás de <code>GET /supervisor/propuestas</code>, la ruta anterior."],
   ["RF", "El equipo se detiene por su cuenta cuando alguien entra con la energía viva", "ADR-0010", "falta", "Pide el relé y que el firmware actúe. Está simulado en la pantalla 8."],
   ["RNF", "Un modelo nunca contradice a un sensor, y solo la capa 1 interrumpe", "ADR-0004; LOGICA", "cumple", "Por construcción en <code>scoring.py</code>, y el patrón F5 lo comprueba en cada caso."],
   ["RNF", "El corte de seguridad no depende de la red ni del servidor", "ADR-0010", "falta", "Es la razón del corte local en el ESP32. Sin construir."],
@@ -2066,7 +2066,7 @@ const REQ = [
   ["RNF", "Sobrevive a un reinicio y a un corte de conexión", "ADR-0007", "parcial", "La bitácora y las alertas activas sobreviven; el edge reintenta. Qué pasa sin conectividad en terreno es <code>Brecha</code>."],
   ["RNF", "Funciona sin tocar el control del equipo", "CONTEXTO, plug and play", "cumple", "Sensores propios y la cámara. El relé del ADR-0010 se presenta como integración opcional."],
   ["RNF", "El gasto de una API pública está acotado", "SEGUIMIENTO, servicios", "cumple", "Tope de llamadas al juez por proceso y de edges con video."],
-  ["RNF", "Solo quien debe puede operar", "PRD de servicios, riesgos", "parcial", "La clave del equipo protege mover un edge. El resto de la API es pública."],
+  ["RNF", "Solo quien debe puede operar", "PRD de servicios, riesgos", "parcial", "El servicio al cliente pide login y cada empresa ve lo suyo (ADR-0012). La clave del equipo protege <code>/interno</code>, mover un edge y las rutas del demo que crean o aprueban pautas y abren OT. La ejecución sin login (<code>/ot/{id}/...</code>) y las listas <code>GET /ots</code> y <code>GET /pautas</code> siguen abiertas."],
   ["RNF", "Cada criterio se puede correr contra un servidor vivo", "PRD de servicios, O8; ADR-0008", "cumple", `<code>/casos</code>, la matriz en una caja aislada y ${DISENO.tests.corridos} tests.`],
 ];
 const ESTADO_REQ = {cumple: "ok", parcial: "warning", falta: "error", "sin medir": "gris"};

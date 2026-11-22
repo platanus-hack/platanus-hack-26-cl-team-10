@@ -13,6 +13,8 @@
 - **No hay reporte.** El resumen del relevo (`cerebro.redactar_resumen`) es un stub.
 - **La mejora propone, pero no reescribe.** Las propuestas nacen de la evidencia ([ADR-0014](../../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md)), pero la versión nueva la escribe una persona. Además, nada recomienda cambiar con qué capa se comprueba un paso.
 
+Al 2026-11-22, esos puntos cambiaron: el stub de `protocolos.extraer_pasos` se borró (los protocolos los lee `reconocer-proceso`); el reporte de la OT existe (`app/reporte.py`, armado por el código) y el resumen del relevo lo redacta un modelo con citas que el código comprueba (`cerebro.redactar_resumen`); y cada propuesta trae el cambio concreto que haría en la versión siguiente, que Factum junta y aprueba ([ADR-0014](../../decisions/0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md), «Lo que cambió el 2026-11-22»).
+
 **Después:** un conjunto de skills, en el formato abierto de Agent Skills (REFERENCIAS 74), que cualquier agente carga y usa contra la API. El trabajo se reparte así:
 
 - **El modelo** lee, redacta y propone.
@@ -69,7 +71,7 @@ Las construyó Jonathan. Están descritas, medidas y con sus límites en el [ADR
 | `regla-programatica` | Un peligro descrito con lecturas de sensores | Una regla de capa 1 en `app/reglas.py`, con su test |
 | `solucion-vision` | Un paso de cámara y sus imágenes | La pregunta al VLM o el detector, y los casos que lo miden |
 
-`reconocer-proceso` hace en una sola skill lo que este PRD separaba en dos: extraer el protocolo y generar la pauta. `regla-programatica` y `solucion-vision` no estaban en el diseño: son las que mueven un paso de capa cuando la evidencia lo pide.
+`reconocer-proceso` hace en una sola skill lo que este PRD separaba en dos: extraer el protocolo y generar la pauta. `regla-programatica` y `solucion-vision` no estaban en el diseño: son las que mueven un paso de capa cuando la evidencia lo pide. Lo que `optimizar-proceso` escribe a partir de la bitácora es más que lo que arma el código: el código solo sabe agregar el paso de un control que falta, separar dos controles juntos y reescribir cuándo un paso está hecho (`POST /interno/pautas/{id}/version-siguiente`). Un cambio de orden, de sensor o de capa sigue saliendo de la skill y de una persona.
 
 **Las recomendaciones de capa.** Las hace `optimizar-proceso` con el criterio de `app/analisis.py`. Es la mejora continua interna con las tres capas:
 

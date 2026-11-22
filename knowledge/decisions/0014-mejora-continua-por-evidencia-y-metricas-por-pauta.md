@@ -54,6 +54,17 @@ Las alertas de señal y de sensor pegado hablan del sensor, no de cómo se ejecu
 
 **Nada se agrupa por persona.** Las métricas van por pauta, equipo, paso y día. De las propuestas solo sale cuántos operarios distintos dieron señales, nunca quiénes. Así lo piden LOGICA y el ADR-0013, y una prueba comprueba que ninguna de estas respuestas nombra a un operario.
 
+### Lo que cambió el 2026-11-22
+
+La regla de las dos OT sigue decidiendo cuándo existe una propuesta de desviación (`mejora.MINIMO`), pero ya no decide qué se le muestra al supervisor como patrón:
+
+- **El aviso.** Al supervisor le llega «Factum encontró un patrón» apenas el paso es recurrente **en vivo**: la prueba binomial con el α repartido entre las OT de la versión (`en_vivo`, `mejora.alfa_en_vivo`, [ADR-0018](./0018-la-pauta-tiene-un-protocolo-dueno-y-cada-protocolo-itera-por-separado.md)). Queda en la bitácora de la OT que lo destapó (`detectada`). Una propuesta de dos OT que no es recurrente se ve en la lista, pero no avisa.
+- **Las señales son seis.** Se sumó la alerta de seguridad atribuida al paso que seguía abierto (`mejora.SENALES`).
+- **Hay propuestas de conformidad**, que nacen de la pauta misma y no de las OT ([ADR-0016](./0016-una-pauta-sale-del-protocolo-que-aplica-a-su-tarea.md)).
+- **Cada propuesta trae su cambio** (`app/sugerencias.py`, PR #74). `GET /cliente/mejoras/{id}/borrador` devuelve qué pasos agrega, separa o reescribe la versión siguiente, con el antes, el después y las OT que lo respaldan (`ots`), comprobado contra los controles del protocolo. Lo arma el código; si hay key, Claude Opus 5.5 puede reescribir solo el título, la instrucción y el porqué, y el código descarta su texto si cita una OT ajena o toca otra cosa. Las que no traen un cambio de pauta (domina la confirmación por persona o las observaciones, se escaló, o son de conformidad por orden o por un control desconocido) lo dicen en `aplicable` y `por_que_no`.
+- **El reporte de la OT** trae `mejoras`: las propuestas de su pauta y versión en que esa OT aportó, más las de conformidad, con su cambio en una línea por paso, y la sección «Mejoras sugeridas» en markdown. El texto del reporte lo sigue armando solo el código.
+- **El paso 2 del ciclo cambió.** «Aplicar», en la pantalla del supervisor, es aceptar. El equipo ya no escribe la versión siguiente a mano: `POST /interno/pautas/{id}/version-siguiente` junta los borradores de todas las aceptadas de la última versión aprobada y la guarda sin aprobar; una persona del equipo la aprueba con la ruta de siempre, que la rechaza si pierde un control crítico. Sigue valiendo la alternativa C descartada: el sistema propone, una persona aprueba.
+
 ## Alternativas consideradas
 
 - **A — Guardar las métricas en una tabla que se actualiza con cada evento:** responde más rápido, pero es un segundo registro que se puede desfasar de la bitácora. Con decenas de OT por empresa, calcular al pedir tarda milisegundos. Se revisa cuando una empresa tenga miles.
@@ -69,15 +80,15 @@ Las alertas de señal y de sensor pegado hablan del sensor, no de cómo se ejecu
 
 ## Pendientes y no verificado
 
-- La comprobación compara la fracción de OT con señal antes y después, sin un mínimo de ejecuciones. Con dos o tres OT por versión, «mejoró» puede ser azar. `Candidata a validar`.
-- La versión nueva la escribe a mano el equipo. Que un modelo redacte el cambio a partir de la propuesta es el siguiente paso. `Brecha`.
-- `GET /supervisor/propuestas`, la ruta anterior, sigue abierta y sin empresa. Queda hasta que la pantalla del demo use `/cliente/mejoras`. `Brecha`.
+- La comprobación compara la fracción de OT con señal antes y después, sin un mínimo de ejecuciones. Con dos o tres OT por versión, «mejoró» puede ser azar. `Candidata a validar`. Resuelto el 2026-11-21: «mejoro» pide Fisher exacta con α = 0,05, y si la baja puede ser azar dice `sin_evidencia`.
+- La versión nueva la escribe a mano el equipo. Que un modelo redacte el cambio a partir de la propuesta es el siguiente paso. `Brecha`. Resuelto el 2026-11-22 de otra forma: el cambio lo arma el código con reglas fijas y un modelo solo puede reescribir su texto (`app/sugerencias.py`); la versión la junta `version-siguiente` y la aprueba una persona.
+- `GET /supervisor/propuestas`, la ruta anterior, sigue abierta y sin empresa. Queda hasta que la pantalla del demo use `/cliente/mejoras`. `Brecha`. Al 2026-11-22, la web del supervisor ya usa `/cliente/mejoras`; la ruta anterior la sigue leyendo `app/estatico/simulador.html`.
 - El tiempo de ejecución se mide del primer evento después de asignar la OT al último paso verificado. Una OT que espera entre pasos cuenta esa espera. `Candidata a validar`.
 - Las métricas no paginan más allá de `limite`, y `GET /cliente/metricas` lee todas las OT de la empresa en cada llamada. `Brecha` cuando una empresa tenga miles.
 - La semilla trae las observaciones solo en una base nueva: en la VM, las OT de la semilla ya existían y no se vuelven a ejecutar. `Brecha` del despliegue.
 
 ## Referencias
 
-- Código: `app/mejora.py`, `app/metricas.py`, `Servicios.observar` en `app/servicios.py`, las rutas de `app/api.py` y `tests/test_mejora_y_metricas.py`.
+- Código: `app/mejora.py`, `app/recurrencia.py`, `app/sugerencias.py`, `app/metricas.py`, `Servicios.observar` en `app/servicios.py`, las rutas de `app/api.py`, `tests/test_mejora_y_metricas.py` y `tests/test_sugerencias.py`.
 - [ADR-0003](./0003-patrones-de-arquitectura-para-el-mvp.md), [ADR-0012](./0012-login-y-clientes-cada-empresa-ve-lo-suyo.md) y [ADR-0013](./0013-el-pitch-copiloto-del-operario-sin-supervisor-encima.md).
 - REFERENCIAS 33: un paso que se saltan muchos operarios apunta a la pauta, no a ellos.

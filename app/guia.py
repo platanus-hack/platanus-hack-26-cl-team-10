@@ -181,16 +181,22 @@ construcción, corrida en una caja aislada que no toca la bitácora de este serv
 - **Mejora continua y métricas (`/cliente/...`), con login**: el operario o el supervisor deja lo que vio con
   `POST /cliente/ots/{{ot_id}}/observaciones` (`texto`, `categoria` y, si habla de uno, `paso_id`). Cuando el mismo paso de
   la misma versión tiene señales en dos o más OT (alertas de orden o de control, conflictos, pasos confirmados por una
-  persona y observaciones de `pauta` o `seguridad`), nace una propuesta en `GET /cliente/mejoras`. El supervisor la acepta
-  o la descarta en `POST /cliente/mejoras/{{propuesta_id}}/revision`; las aceptadas las ve el equipo en `GET /interno/mejoras`
-  y las lleva a la versión siguiente de la pauta, y la propuesta dice después en `validacion` si el paso dejó de desviarse.
+  persona y observaciones de `pauta` o `seguridad`), nace una propuesta de desviación en `GET /cliente/mejoras`; su
+  `recurrencia` dice si el paso se desvía más que el resto de la pauta, y con `en_vivo` el supervisor ya recibió el aviso.
+  Las de conformidad nacen de la pauta misma, sin OT, cuando no cumple un control crítico de su protocolo. Cada una dice
+  si trae un cambio que aplicar (`aplicable`, `por_que_no`), y `GET /cliente/mejoras/{{propuesta_id}}/borrador` (el id va
+  codificado en la URL) muestra ese cambio, paso por paso. El reporte de la OT trae las mejoras en que esa OT aportó. El
+  supervisor la acepta («Aplicar») o la descarta en `POST /cliente/mejoras/{{propuesta_id}}/revision`; con las aceptadas,
+  el equipo arma la versión siguiente sin aprobar en `POST /interno/pautas/{{pauta_id}}/version-siguiente` y la aprueba
+  aparte, y la propuesta dice después en `validacion` si el paso dejó de desviarse.
   Las métricas, solo para el supervisor: `GET /cliente/metricas` (el resumen), y `/pautas`, `/pautas/{{pauta_id}}/pasos`,
   `/equipos` y `/serie` debajo, con `desde`, `hasta` y `orden`. Agrupan por pauta, equipo, paso o día, nunca por persona.
 
 ## Clave del equipo
 
-Si el servidor tiene `CLAVE_EQUIPO`, dos llamadas piden la cabecera `X-Clave-Equipo`: `POST /ot/{{ot_id}}/sesion` cuando el
-edge ya ejecuta otra OT, y `DELETE /edge/{{edge_id}}/sesion`. Un operador con login no la usa: va por `POST /cliente/ots/{{ot_id}}/sesion`. Unir un edge libre o repetir la sesión que ya tiene no la pide,
+Si el servidor tiene `CLAVE_EQUIPO`, piden la cabecera `X-Clave-Equipo`: `POST /ot/{{ot_id}}/sesion` cuando el
+edge ya ejecuta otra OT, `DELETE /edge/{{edge_id}}/sesion`, y lo que escribe pautas u OT fuera del servicio al cliente
+(`POST /pauta/demo`, `POST /pautas`, `POST /pautas/{{pauta_id}}/versiones/{{version}}/aprobar` y `POST /ot/{{ot_id}}/abrir`). Un operador con login no la usa: va por `POST /cliente/ots/{{ot_id}}/sesion`. Unir un edge libre o repetir la sesión que ya tiene no la pide,
 y el resto de la API tampoco, salvo el servicio interno (`/interno/...`), que la pide en cada llamada. `GET /clave` dice si este servidor la pide y si la que mandas sirve. En el navegador, el home
 y el banco la guardan al abrirlos una vez con `?clave=`.
 
