@@ -3,6 +3,7 @@
 import { http, HttpResponse, ws, type RequestHandler, type WebSocketHandler } from 'msw'
 import type { Persona } from '../api/tipos'
 import { config } from '../config'
+import { mejorasDe, metricasDe, reporteDe } from './analisis'
 import { resumenDeRelevo, type Escenario, type Temporizador } from './escenarios'
 import { ErrorMock, type Mundo } from './mundo'
 import { CLAVE_MOCK, expiraMock, PERSONAS, personaDeCabecera, tokenMock } from './personas'
@@ -160,6 +161,34 @@ export function crearHandlers(
       m.asignar(id, operador as string)
       return HttpResponse.json(m.resumenes().find((o) => o.ot === id))
     })))),
+
+    // El reporte de la OT, armado desde su bitácora (app/reporte.py). 404 si la OT no es suya.
+    http.get(`${raiz}/cliente/ots/:id/reporte`, vivo(conLogin(({ params }, p) => {
+      const id = otDe(params)
+      if (!otsDe(p).some((x) => x.ot === id)) return noExiste(`OT ${id}`)
+      return HttpResponse.json(reporteDe(m, id, (quien) => PERSONAS.find((x) => x.id === quien)?.nombre ?? quien))
+    }))),
+
+    // Las propuestas de mejora y su revisión (app/mejora.py). Solo supervisor.
+    http.get(`${raiz}/cliente/mejoras`, vivo(conLogin(soloSupervisor(({ request }) => {
+      const estado = new URL(request.url).searchParams.get('estado')
+      return HttpResponse.json(mejorasDe(m).filter((x) => !estado || x.estado === estado))
+    })))),
+
+    http.post(`${raiz}/cliente/mejoras/:id/revision`, vivo(conLogin(soloSupervisor(async ({ params, request }, p) => {
+      const id = otDe(params)
+      const { decision, nota = '' } = ((await request.json().catch(() => null)) ?? {}) as { decision?: string; nota?: string }
+      if (decision !== 'aceptar' && decision !== 'descartar') return regla(`la decisión ${String(decision)} no existe; hay aceptar, descartar`)
+      if (decision === 'descartar' && !nota.trim()) return regla('descartar una propuesta necesita una nota que diga por qué')
+      if (!mejorasDe(m).some((x) => x.id === id)) return noExiste(`propuesta ${id}`)
+      m.revisar(id, decision, nota, p.id)
+      return HttpResponse.json(mejorasDe(m).find((x) => x.id === id))
+    })))),
+
+    // La foto de la empresa (app/metricas.py). Solo supervisor.
+    http.get(`${raiz}/cliente/metricas`, vivo(conLogin(soloSupervisor(() =>
+      HttpResponse.json({ periodo: { desde: null, hasta: null }, ...metricasDe(m) }),
+    )))),
 
     // La cámara de la estación: en el mock, un cuadro fijo que dice que es de mentira.
     http.get(`${raiz}/edge/:edge/video.mjpg`, vivo(({ params }) =>

@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { setupServer } from 'msw/node'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { config } from '../config'
-import { ESCENARIOS, type NombreEscenario, type Temporizador } from '../mocks/escenarios'
+import { cerrarSolo, ESCENARIOS, salto, type NombreEscenario, type Temporizador } from '../mocks/escenarios'
 import { crearHandlers } from '../mocks/handlers'
 import { Mundo } from '../mocks/mundo'
 import { PAUTA_DEMO } from '../mocks/pauta'
@@ -23,10 +23,11 @@ afterEach(() => vi.restoreAllMocks())
 
 let m: Mundo
 
-function abrir(ot: string, escenario: NombreEscenario = 'feliz') {
+function abrir(ot: string, escenario: NombreEscenario = 'feliz', antes: () => void = () => {}) {
   m = new Mundo(PAUTA_DEMO)
   const e = ESCENARIOS[escenario]!
   e.preparar(m)
+  antes()
   server.resetHandlers(...crearHandlers(m, e, sinEspera))
   entrarComo(SUPERVISORA)
   render(
@@ -179,5 +180,94 @@ it('marks the sensor the step under way waits for, and whether it already reads 
 it('an OT of another company, or that does not exist, says so', async () => {
   abrir('ot-99')
   expect(await screen.findByText('Esta OT no está en tu empresa')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Supervisión' })).toHaveAttribute('href', '/supervisor')
+  expect(screen.getByRole('link', { name: 'Todas las OT' })).toHaveAttribute('href', '/supervisor')
+})
+
+describe('lo que la OT deja para mejorar la pauta', () => {
+  const { pendiente, adelantado } = salto(PAUTA_DEMO)!
+  const propuesta = () => screen.findByRole('status', { name: 'Propuesta de mejora' })
+
+  it('when this OT is the second to deviate at the same step, the proposal shows up on its own', async () => {
+    abrir('ot-13', 'feliz', () => {
+      // Otra OT ya se desvió ahí, y se corrigió.
+      m.saltar('ot-12', pendiente, adelantado)
+      cerrarSolo(m, 'ot-12', pendiente)
+    })
+    expect(await screen.findByText('En vivo')).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Propuesta de mejora' })).not.toBeInTheDocument()
+
+    m.saltar('ot-13', pendiente, adelantado)
+
+    const aviso = await propuesta()
+    expect(within(aviso).getByText('Nació una propuesta para mejorar la pauta')).toBeInTheDocument()
+    expect(within(aviso).getByText(`«${adelantado.titulo}» se desvió en 2 de 3 OT de la versión ${PAUTA_DEMO.version}.`)).toBeInTheDocument()
+    const id = `${PAUTA_DEMO.id}:v${PAUTA_DEMO.version}:${adelantado.id}`
+    expect(within(aviso).getByRole('link', { name: 'Revisar la propuesta' })).toHaveAttribute('href', `/supervisor/mejoras#${encodeURIComponent(id)}`)
+  })
+
+  it('an OT that did not deviate at that step does not show the proposal of the others', async () => {
+    abrir('ot-14', 'feliz', () => {
+      m.saltar('ot-12', pendiente, adelantado)
+      m.saltar('ot-13', pendiente, adelantado)
+    })
+    expect(await screen.findByText('En vivo')).toBeInTheDocument()
+    await waitFor(() => expect(m.eventos('ot-14').length).toBe(1))
+    expect(screen.queryByRole('status', { name: 'Propuesta de mejora' })).not.toBeInTheDocument()
+  })
+})
+
+describe('el reporte de la OT', () => {
+  const reporte = () => screen.findByRole('region', { name: 'Reporte de la OT' })
+
+  it('a complete OT opens on its report: what closed each step, with nobody writing it', async () => {
+    abrir('ot-12', 'completa')
+    const r = await reporte()
+    expect(within(r).getByText(/^Armado desde la bitácora, con \d+ eventos\. Nadie lo escribió\.$/)).toBeInTheDocument()
+    expect(within(r).getByText('Completa, sin desviaciones')).toBeInTheDocument()
+    expect(within(r).getByText(`${PAUTA_DEMO.pasos.length} de ${PAUTA_DEMO.pasos.length}`)).toBeInTheDocument()
+
+    const filas = within(within(r).getByRole('table', { name: 'Pasos' })).getAllByRole('row').slice(1)
+    expect(filas).toHaveLength(PAUTA_DEMO.pasos.length)
+    const conSensor = PAUTA_DEMO.pasos.find((p) => p.sensor)!
+    expect(filas[conSensor.orden - 1]).toHaveTextContent(`${conSensor.orden}. ${conSensor.titulo}`)
+    expect(filas[conSensor.orden - 1]).toHaveTextContent(/Sensor: .+ = /)
+  })
+
+  it('a running OT shows the live view, and its report so far one tap away', async () => {
+    const user = userEvent.setup()
+    abrir('ot-13', 'incidente')
+    expect(await screen.findByRole('region', { name: 'Cámara de la estación' })).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: 'Reporte' }))
+
+    const r = await reporte()
+    expect(within(r).getByText('En curso')).toBeInTheDocument()
+    expect(within(r).getByText('2 de 6')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Cámara de la estación' })).not.toBeInTheDocument()
+  })
+
+  it('a deviation says what it was, at which step and how long it took to fix', async () => {
+    const user = userEvent.setup()
+    const { pendiente, adelantado } = salto(PAUTA_DEMO)!
+    abrir('ot-12', 'feliz', () => {
+      m.saltar('ot-12', pendiente, adelantado)
+      cerrarSolo(m, 'ot-12', pendiente)
+    })
+    await user.click(await screen.findByRole('radio', { name: 'Reporte' }))
+
+    const desviaciones = within(await reporte()).getByRole('list', { name: 'Desviaciones' })
+    expect(within(desviaciones).getByText(`Orden invertido, en el paso ${adelantado.orden}`)).toBeInTheDocument()
+    expect(within(desviaciones).getByText(/^Se corrigió en \d+ s$/)).toBeInTheDocument()
+  })
+
+  it('when the OT finishes while watching, it offers the report', async () => {
+    const user = userEvent.setup()
+    abrir('ot-13', 'incidente')
+    expect(await screen.findByRole('region', { name: 'Cámara de la estación' })).toBeInTheDocument()
+    for (const paso of PAUTA_DEMO.pasos) cerrarSolo(m, 'ot-13', paso)
+    for (const paso of PAUTA_DEMO.pasos.filter((p) => !p.sensor && !p.deteccion)) {
+      m.agregar('ot-13', { tipo: 'veredicto', actor: 'sistema', paso_id: paso.id, estado: 'verificado', capa: 3, detalle: 'la cámara responde que sí', evidencia: { tipo: 'camara', respuesta: true, confianza: 0.9 } })
+    }
+    await user.click(await screen.findByRole('button', { name: 'Ver el reporte' }))
+    expect(await reporte()).toBeInTheDocument()
+  })
 })

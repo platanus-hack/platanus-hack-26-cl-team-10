@@ -159,7 +159,7 @@ const rutaDe = (ot: string) => `/supervisor/ot/${encodeURIComponent(ot)}`
 /** El id de la OT lleva a su vista en vivo: cámara, sensores y bitácora. */
 function IdOt({ ot }: { ot: string }) {
   return (
-    <Anchor component={Link} to={rutaDe(ot)} fw={800} c="dark" underline="hover">
+    <Anchor component={Link} to={rutaDe(ot)} fw={800} c="var(--mantine-color-text)" underline="hover">
       {ot.toUpperCase()}
     </Anchor>
   )

@@ -4,10 +4,12 @@
 import type {
   Calificacion,
   CalificacionOt,
+  DecisionMejora,
   Deteccion,
   EstadoGeneral,
   EstadoOt,
   Evento,
+  Mejora,
   MensajeStream,
   OtResumen,
   PasoEstado,
@@ -63,6 +65,8 @@ export class Mundo {
   /** La última lectura de cada sensor, como db.sensores en la API. */
   private lecturas = new Map<string, string>()
   private suscriptores = new Map<string, Set<(m: MensajeStream) => void>>()
+  /** La última revisión de cada propuesta de mejora: la que manda, como en mejora_revisiones. */
+  private revisiones = new Map<string, NonNullable<Mejora['revision']>>()
 
   constructor(pauta: Pauta) {
     this.pauta = { ...pauta, pasos: [...pauta.pasos].sort((a, b) => a.orden - b.orden) }
@@ -366,6 +370,15 @@ export class Mundo {
       detalle: `Control repuesto con ${id} = ${espera}: ${alerta.detalle}`,
       evidencia: { resuelve: alerta.id, tipo: 'control', sensor: id, valor: espera },
     })
+  }
+
+  revisionDe(propuestaId: string): Mejora['revision'] {
+    return this.revisiones.get(propuestaId) ?? null
+  }
+
+  /** El supervisor acepta o descarta una propuesta; se puede cambiar de opinión. */
+  revisar(propuestaId: string, decision: DecisionMejora, nota: string, actor: string): void {
+    this.revisiones.set(propuestaId, { decision, nota: nota.trim(), por: actor, ts: new Date().toISOString() })
   }
 
   suscribir(otId: string, fn: (m: MensajeStream) => void): () => void {

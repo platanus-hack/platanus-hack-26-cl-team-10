@@ -30,6 +30,7 @@ export type NombreEscenario =
   | 'completa'
   | 'incidente'
   | 'atencion'
+  | 'mejora'
   | 'estacion-ocupada'
 
 export const SENSOR_TARDA_MS = 4000
@@ -324,6 +325,34 @@ export const ESCENARIOS: Partial<Record<NombreEscenario, Escenario>> = {
       }
       t(500, latir)
     },
+  }),
+
+  // El demo sin la estación: la OT de Ana ya se ejecutó, con un desvío de orden que corrigió. La de
+  // Bruno corre ahora y a los 6 s se desvía en el mismo paso: es la segunda, y la propuesta de mejora
+  // nace mientras el supervisor mira. Después se corrige y termina sola. /supervisor/ot/ot-13?escenario=mejora
+  mejora: como({
+    preparar(m) {
+      otsBase(m)
+      const s = salto(m.pauta)
+      if (s) m.saltar('ot-12', s.pendiente, s.adelantado)
+      for (const p of m.pauta.pasos) cerrarYa(m, 'ot-12', p)
+      m.abrirSesion('ot-13', 'edge-1', 'operario:2')
+      // Bruno queda justo antes del control que se va a saltar.
+      for (const p of m.pauta.pasos) {
+        if (p.id === s?.pendiente.id) break
+        cerrarYa(m, 'ot-13', p)
+      }
+    },
+    alIniciar(m, t) {
+      const s = salto(m.pauta)
+      if (!s) return
+      t(6000, () => {
+        m.saltar('ot-13', s.pendiente, s.adelantado)
+        t(6000, () => cerrarSolo(m, 'ot-13', s.pendiente))
+      })
+    },
+    // Sin operario que declare: cada paso se cierra solo, a su ritmo, hasta completar la OT.
+    alAvanzar: (m, otId, paso, t) => t(3000, () => cerrarYa(m, otId, paso)),
   }),
 
   // La estación edge-1 ejecuta la OT de Bruno cuando Ana abre la suya: Ana ve de quién es y puede
