@@ -560,7 +560,9 @@ def pautas_disponibles(cx: sqlite3.Connection) -> list[dict]:
 
 
 def _id_de_ot(cx: sqlite3.Connection) -> str:
-    n = cx.execute("SELECT COUNT(*) AS n FROM ots").fetchone()["n"] + 1
+    """La siguiente después de la más alta bajo ot-1000 (las de la semilla), para no volver atrás si se borran OT."""
+    altas = [int(f["id"][3:]) for f in cx.execute("SELECT id FROM ots WHERE id GLOB 'ot-0[0-9][0-9][0-9]'").fetchall()]
+    n = max([cx.execute("SELECT COUNT(*) AS n FROM ots").fetchone()["n"], *altas]) + 1
     while cx.execute("SELECT 1 FROM ots WHERE id = ?", (f"ot-{n:04d}",)).fetchone():
         n += 1
     return f"ot-{n:04d}"

@@ -158,9 +158,10 @@ def conformidad(pauta: Pauta, protocolos: Sequence[Mapping]) -> dict:
             avisos.append(f"ningún paso dice qué control de {prot['id']} cumple: hay que anotarlo con `cumple` antes de exigirlo")
             continue
         ids = {c["id"] for c in controles}
+        nombre = {c["id"]: c["nombre"] for c in controles}
         for c in sorted({c for c in cumplido_por if c.split(":")[0] == prot["id"] and c.split(":")[1] not in ids}):
             hallazgos.append({"clave": f"{c}:desconocido", "protocolo": prot["id"], "control": c.split(":")[1],
-                              "tipo": "desconocido", "pasos": [p.id for p in cumplido_por[c]],
+                              "tipo": "desconocido", "pasos": [p.id for p in cumplido_por[c]], "nombres": [],
                               "detalle": f"un paso dice cumplir {c}, que {prot['id']} no declara"})
         primeros = {}
         for c in controles:
@@ -168,7 +169,7 @@ def conformidad(pauta: Pauta, protocolos: Sequence[Mapping]) -> dict:
             pasos = cumplido_por.get(clave, [])
             if not pasos:
                 hallazgos.append({"clave": f"{clave}:falta", "protocolo": prot["id"], "control": c["id"], "tipo": "falta",
-                                  "pasos": [], "detalle": f"ningún paso cumple {c['id']} {c['nombre']}"})
+                                  "pasos": [], "nombres": [c["nombre"]], "detalle": f"ningún paso cumple {c['id']} {c['nombre']}"})
                 continue
             primeros[c["id"]] = pasos[0]
             cumplen.append({"protocolo": prot["id"], "control": c["id"], "pasos": [p.id for p in pasos]})
@@ -180,6 +181,7 @@ def conformidad(pauta: Pauta, protocolos: Sequence[Mapping]) -> dict:
                 juntos = ", ".join(sorted(cids))
                 hallazgos.append({"clave": f"{prot['id']}:{'+'.join(sorted(cids))}:juntos", "protocolo": prot["id"],
                                   "control": "+".join(sorted(cids)), "tipo": "juntos", "pasos": [paso_id],
+                                  "nombres": [nombre[c] for c in sorted(cids)],
                                   "detalle": f"{juntos} en el mismo paso: la evidencia no puede comprobar que se hicieron "
                                              "por separado y en su orden"})
         en_orden = [c["id"] for c in controles if c["id"] in primeros]
@@ -188,6 +190,7 @@ def conformidad(pauta: Pauta, protocolos: Sequence[Mapping]) -> dict:
                 hallazgos.append({"clave": f"{prot['id']}:{antes}>{despues}:orden", "protocolo": prot["id"],
                                   "control": f"{antes}>{despues}", "tipo": "orden",
                                   "pasos": [primeros[antes].id, primeros[despues].id],
+                                  "nombres": [nombre[antes], nombre[despues]],
                                   "detalle": f"{despues} va antes que {antes}: el protocolo los pide en el orden contrario"})
     return {"hallazgos": hallazgos, "cumplen": cumplen, "avisos": avisos}
 
