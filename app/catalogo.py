@@ -222,9 +222,22 @@ def _es_operador(cx: sqlite3.Connection, operador: str) -> bool:
     return cx.execute("SELECT 1 FROM personas WHERE id = ? AND rol = 'operador'", (operador,)).fetchone() is not None
 
 
+def _rol_de(cx: sqlite3.Connection, persona: str) -> str | None:
+    if not cx.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'personas'").fetchone():
+        return None
+    f = cx.execute("SELECT rol FROM personas WHERE id = ?", (persona,)).fetchone()
+    return f["rol"] if f else None
+
+
 def asignacion(cx: sqlite3.Connection, ot_id: str, operador: str, actor: str) -> Evento:
-    """El evento que asigna la OT, si las reglas lo dejan: solo a un operador conocido y solo
-    una OT sin operador (nunca asignada, o entregada en un relevo que nadie recibió)."""
+    """El evento que asigna la OT, si las reglas lo dejan: la asigna un supervisor, solo a un operador
+    conocido y solo una OT sin operador (nunca asignada, o entregada en un relevo que nadie recibió).
+
+    Un actor que es una persona de la base tiene que tener rol supervisor; uno que no lo es (los del
+    demo y las pruebas) tiene que decirlo en su id: `supervisor` o `supervisor:<algo>`."""
+    rol = _rol_de(cx, actor)
+    if rol != "supervisor" and (rol is not None or not (actor == "supervisor" or actor.startswith("supervisor:"))):
+        raise ReglaDeNegocio(f"solo un supervisor asigna una OT; {actor} es {rol or 'alguien sin rol de supervisor'}")
     actual = resumen_ot(cx, ot_id)
     if not _es_operador(cx, operador):
         raise ReglaDeNegocio(f"el operador {operador} no existe; hay {', '.join(OPERADORES)} y los operadores de cada cliente")
