@@ -276,7 +276,7 @@ class PorHTTP(unittest.TestCase):
         f = self.c.get("/cliente/ots/ot-1017/ficha", headers=ana).json()
         self.assertEqual((f["cliente"]["nombre"], f["operador_nombre"], f["pedida_por_nombre"], f["estado_general"], f["paso_actual"]),
                          ("Oculta", "Ana Rojas", "Carla Muñoz", "asignada", "e1"))
-        self.assertEqual((f["pauta"], f["version"], f["nombre"]), ("pauta-polin-estacion", 4, "Cambio de polín en la cinta · estación del demo"))
+        self.assertEqual((f["pauta"], f["version"], f["nombre"]), ("pauta-polin-estacion", 5, "Cambio de polín en la cinta · estación del demo"))
         self.assertEqual([p["id"] for p in f["protocolos"]], ["prot-correa-01", "prot-maqueta-01"])
         self.assertEqual([(p["id"], p["tipo_evidencia"]) for p in f["pasos"]],
                          [("e1", "sensor"), ("e2", "sensor"), ("e3", "sensor"), ("e4", "camara"), ("e5", "camara"), ("e6", "sensor")])
