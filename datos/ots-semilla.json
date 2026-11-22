@@ -5,9 +5,7 @@
   "personas": [
     {"id": "supervisor:oculta", "nombre": "Carla Muñoz", "usuario": "carla.munoz@oculta.example", "rol": "supervisor"},
     {"id": "operario:1", "nombre": "Ana Rojas", "usuario": "ana.rojas@oculta.example", "rol": "operador"},
-    {"id": "operario:2", "nombre": "Bruno Díaz", "usuario": "bruno.diaz@oculta.example", "rol": "operador"},
-    {"id": "supervisor:francisco", "nombre": "Francisco Zúñiga", "usuario": "francisco.zuniga@oculta.example", "rol": "supervisor"},
-    {"id": "operario:jonathan", "nombre": "Jonathan Riquelme", "usuario": "jonathan.riquelme@oculta.example", "rol": "operador"}
+    {"id": "operario:2", "nombre": "Bruno Díaz", "usuario": "bruno.diaz@oculta.example", "rol": "operador"}
   ],
   "ots": [
     {"ot": "ot-1001", "pauta": "pauta-polin-demo", "hace_dias": 6, "operador": "operario:1", "cerrar": "todos",
@@ -57,8 +55,8 @@
        {"antes_del_paso": 6, "lecturas": [["operario", "ausente"]]}]},
     {"ot": "ot-1017", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:1", "cerrar": 0},
     {"ot": "ot-1018", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:2", "cerrar": 0},
-    {"ot": "ot-1019", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:jonathan", "supervisor": "supervisor:francisco", "cerrar": 0},
+    {"ot": "ot-1019", "pauta": "pauta-polin-estacion", "hace_dias": 0, "operador": "operario:1", "cerrar": 0},
     {"ot": "ot-1020", "pauta": "pauta-botella-01", "hace_dias": 1, "operador": "operario:2", "cerrar": "todos"},
-    {"ot": "ot-1021", "pauta": "pauta-botella-01", "hace_dias": 0, "operador": "operario:jonathan", "supervisor": "supervisor:francisco", "cerrar": 0}
+    {"ot": "ot-1021", "pauta": "pauta-botella-01", "hace_dias": 0, "operador": "operario:1", "cerrar": 0}
   ]
 }

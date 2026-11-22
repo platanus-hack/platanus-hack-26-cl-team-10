@@ -96,7 +96,7 @@ class LaMejoraContinua(Base):
         self.assertEqual((p["ots_con_senal"], p["operarios_distintos"]), (2, 2))
         self.assertEqual((p["senales"]["orden"], p["senales"]["observacion"]), (1, 1))
         self.assertIn("punto de bloqueo", p["observaciones"][0]["texto"])
-        self.assertEqual([x["id"] for x in p["protocolos"]], ["prot-aislamiento-01", "prot-correa-01"])
+        self.assertEqual([x["id"] for x in p["protocolos"]], ["prot-correa-01", "prot-maqueta-01"])
 
     def test_una_sola_ot_con_senal_no_es_una_propuesta(self):
         for p in self.c.get("/cliente/mejoras", headers=self.carla).json():
