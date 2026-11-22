@@ -2,7 +2,7 @@
 // (app/reporte.py), las propuestas de mejora (app/mejora.py) y la foto de la empresa (app/metricas.py).
 
 import { ALIMENTAN_MEJORAS, senalesDe } from '../api/mejoras'
-import type { Borrador, CambioBorrador, CierreReporte, DesviacionReporte, EstadoGeneral, EstadoMejora, Evento, Mejora, Metricas, ReporteOt, SenalMejora } from '../api/tipos'
+import type { Borrador, CambioBorrador, CierreReporte, DesviacionReporte, EstadoGeneral, EstadoMejora, Evento, Mejora, Metricas, ReporteOt, ResumenMejoras, SenalMejora } from '../api/tipos'
 import type { Mundo } from './mundo'
 
 /** Como mejora.MINIMO: una desviación suelta no es una propuesta. */
@@ -232,6 +232,28 @@ export function borradorDe(m: Mundo, x: Mejora): Borrador {
         porque: `${citadas} ${x.sugerencia}`, ots: x.ots, propuesta: x.id,
       }
   return { ...base, cambios: [cambio], comprobacion: { valida: true, hallazgos_nuevos: [] } }
+}
+
+/** Como `sugerencias.resumen_por_pauta`: por pauta, qué cambia y por qué con las propuestas abiertas que se avisaron. */
+export function resumenDe(m: Mundo, mejoras: Mejora[]): ResumenMejoras[] {
+  const grupos = new Map<string, Mejora[]>()
+  for (const x of mejoras.filter((x) => x.estado === 'abierta' && x.detectada)) {
+    const clave = `${x.pauta}@${x.version}`
+    grupos.set(clave, [...(grupos.get(clave) ?? []), x])
+  }
+  return [...grupos.values()].map((xs) => ({
+    pauta: xs[0]!.pauta, nombre: xs[0]!.nombre, desde_version: xs[0]!.version, version: xs[0]!.version + 1,
+    cambios: xs.filter((x) => x.aplicable).map((x) => {
+      const c = borradorDe(m, x).cambios[0]!
+      const n = x.recurrencia?.ots_con_senal ?? x.ots_con_senal
+      const total = x.recurrencia?.ots ?? x.ejecuciones
+      return c.tipo === 'agrega'
+        ? { que: `Agrega «${x.conformidad?.nombres[0] ?? c.despues.titulo}»`, porque: 'El protocolo lo exige y hoy ningún paso de la pauta lo hace.', propuesta: x.id }
+        : { que: `Reescribe «${c.despues.titulo}»: dice cuándo el paso está hecho y qué no se hace antes`, porque: `Se desvió en ${n} de ${total} OT: la instrucción no decía cuándo el paso está hecho.`, propuesta: x.id }
+    }),
+    sin_cambio: xs.filter((x) => !x.aplicable).map((x) => ({ que: `«${x.titulo}»`, por_que_no: x.por_que_no, propuesta: x.id })),
+    propuestas: xs.map((x) => x.id),
+  }))
 }
 
 const pct = (parte: number, total: number) => (total ? Math.round((1000 * parte) / total) / 10 : null)

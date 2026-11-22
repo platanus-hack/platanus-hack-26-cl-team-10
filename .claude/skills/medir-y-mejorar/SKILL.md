@@ -29,7 +29,7 @@ Todas aceptan `desde` y `hasta` (AAAA-MM-DD, según cuándo se abrió la OT).
 | ¿En qué paso falla esta pauta? ¿Qué capa lo cierra y con cuánta confianza? | `GET /cliente/metricas/pautas/<pauta>/pasos?orden=desviaciones` |
 | ¿Qué equipo da más problemas? ¿Qué se ha observado de la máquina? | `GET /cliente/metricas/equipos` |
 | ¿Mejoró este mes? | `GET /cliente/metricas/serie?intervalo=semana` |
-| ¿Qué habría que cambiar en las pautas? | `GET /cliente/mejoras` |
+| ¿Qué habría que cambiar en las pautas? | `GET /cliente/mejoras/resumen` (por pauta, qué cambia y por qué, y qué no) y, con el detalle, `GET /cliente/mejoras` |
 
 `orden` en pautas y equipos: `desviaciones` (el total de desviaciones, de más a menos), `cumplimiento` (el peor primero), `ots` (las más ejecutadas) o `minutos` (las más lentas). `limite` corta la lista.
 
@@ -67,6 +67,14 @@ curl -s "$FACTUM_URL/cliente/mejoras/<id>/borrador" -H "$H"   # el id lleva «:�
 curl -s -X POST "$FACTUM_URL/cliente/mejoras/<id>/revision" -H "$H" -H 'content-type: application/json' \
   -d '{"decision":"aceptar","nota":"<su razón>"}'
 ```
+
+Si quiere aplicar todo lo de una pauta de una vez, como el botón del aviso:
+
+```bash
+curl -s -X POST "$FACTUM_URL/cliente/pautas/<pauta>/mejoras/aplicar" -H "$H"
+```
+
+Acepta sus propuestas abiertas y Factum arma la versión siguiente sin aprobar (`version`); si no se pudo, `aviso` dice por qué.
 
 Descartar pide una nota que diga por qué. Lo aceptado lo lleva el equipo de Factum a la versión siguiente de la pauta, y la aprueba aparte: eso no lo hace el supervisor ni esta skill. Después, la misma propuesta queda `aplicada` y trae `validacion`: si el paso dejó de desviarse en la versión nueva (`mejoro`), si la baja todavía puede ser azar (`sin_evidencia`, con su `p_valor`), si se sigue desviando (`se_repite`) o si todavía nadie la ejecutó (`sin_datos`). Si un cambio no bajó el paso y se sigue desviando, la propuesta de la versión nueva viene con `escalar`: la causa no es el texto de la pauta, y se conversa con la supervisión antes de otra versión.
 

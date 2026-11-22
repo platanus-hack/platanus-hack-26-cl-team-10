@@ -1,146 +1,143 @@
-import { Anchor, Box, Button, CloseButton, Group, Paper, Stack, Text } from '@mantine/core'
-import { IconBulb, IconEye } from '@tabler/icons-react'
+import { Alert, Anchor, Box, Button, Group, List, Paper, Stack, Text } from '@mantine/core'
+import { IconBulb, IconCheck } from '@tabler/icons-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import type { Mejora } from '../api/tipos'
-import { Decidir, VistaBorrador } from './PaginaMejoras'
+import { api } from '../api/cliente'
+import type { ResumenMejoras } from '../api/tipos'
+import { mensajeDe } from './useOts'
 
-const rutaDe = (ot: string) => `/supervisor/ot/${encodeURIComponent(ot)}`
-const lista = (xs: string[]) => xs.map((x) => `«${x}»`).join(' y ')
-
-/** Qué le pasa a la pauta y por qué importa, en las palabras del supervisor: sin ids de protocolo ni de control. */
-function enPalabras(m: Mejora): { que: string; porque: string } {
-  const c = m.conformidad
-  const nombres = c?.nombres ?? []
-  if (c && c.tipo === 'falta' && nombres.length)
-    return { que: `Falta el paso ${lista(nombres)}`, porque: 'El protocolo lo exige y hoy ningún paso de la pauta lo hace.' }
-  if (c && c.tipo === 'juntos' && nombres.length)
-    return {
-      que: `${lista(nombres)} van en un mismo paso`,
-      porque: 'Separados, la evidencia comprueba que se hizo cada uno y en su orden.',
-    }
-  if (c && c.tipo === 'orden' && nombres.length === 2)
-    return { que: `«${nombres[1]}» va antes que «${nombres[0]}»`, porque: 'El protocolo los pide en el orden contrario.' }
-  if (c) return { que: m.titulo, porque: m.sugerencia }
-  const r = m.recurrencia
-  const operarios = m.operarios_distintos === 1 ? '1 operario' : `${m.operarios_distintos} operarios distintos`
-  return {
-    que: `«${m.titulo}» se está desviando`,
-    porque: `Se desvió en ${r?.ots_con_senal ?? m.ots_con_senal} de ${r?.ots ?? m.ejecuciones} OT, con ${operarios}${
-      m.control_critico ? '. Es un control crítico' : ''
-    }.`,
-  }
-}
-
-function Fila({ m, onRevisada, onPosponer }: { m: Mejora; onRevisada: () => void; onPosponer: () => void }) {
-  const [abierta, setAbierta] = useState(false)
-  const { que, porque } = enPalabras(m)
+function Linea({ que, porque }: { que: string; porque: string | null }) {
   return (
-    <Box py="sm" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }} aria-label={que} role="group">
-      <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm">
-        <Box style={{ minWidth: 0 }}>
-          <Text fw={700}>{que}</Text>
-          <Text size="sm" c="dimmed">
-            {porque}
-          </Text>
-        </Box>
-        <Group gap={4} wrap="nowrap">
-          <Button size="xs" variant={abierta ? 'default' : 'light'} onClick={() => setAbierta((a) => !a)} aria-expanded={abierta}>
-            {abierta ? 'Cerrar' : 'Revisar'}
-          </Button>
-          <CloseButton aria-label={`Más tarde: ${que}`} title="Más tarde" onClick={onPosponer} />
-        </Group>
-      </Group>
-      {abierta && (
-        <Stack gap="sm" mt="sm">
-          {m.aplicable ? (
-            <VistaBorrador propuesta={m.id} />
-          ) : (
-            <Text size="sm">{m.por_que_no ?? m.sugerencia}</Text>
-          )}
-          <Group gap="sm" align="flex-start" justify="space-between">
-            <Decidir p={m} alDecidir={onRevisada} />
-            {m.detectada?.ot && (
-              <Button
-                component={Link}
-                to={rutaDe(m.detectada.ot)}
-                variant="subtle"
-                size="xs"
-                leftSection={<IconEye size={16} />}
-                aria-label={`Ver ${m.detectada.ot}`}
-              >
-                Ver la OT donde se vio
-              </Button>
-            )}
-          </Group>
-        </Stack>
+    <List.Item>
+      <Text size="sm" fw={600}>
+        {que}
+      </Text>
+      {porque && (
+        <Text size="sm" c="dimmed">
+          {porque}
+        </Text>
       )}
-    </Box>
+    </List.Item>
   )
 }
 
-/**
- * Lo que Factum sugiere cambiar en las pautas: las faltas frente a su protocolo y los pasos que se desvían seguido.
- * Agrupadas por pauta; cada una se revisa con su cambio a la vista antes de aplicarla. Aplicar la manda a Factum.
- */
-export function Recomendaciones({ recomendaciones, quitar }: { recomendaciones: Mejora[]; quitar: (id: string) => void }) {
-  const [pospuestas, setPospuestas] = useState<Set<string>>(new Set())
-  const [abierta, setAbierta] = useState(true)
-  const visibles = recomendaciones.filter((m) => !pospuestas.has(m.id))
-  if (visibles.length === 0) return null
+/** Una pauta: la versión que Factum armaría, qué cambia y por qué, qué no y por qué no, y un solo botón. */
+function Propuesta({ r, onAplicada, onPosponer }: { r: ResumenMejoras; onAplicada: (texto: string) => void; onPosponer: () => void }) {
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const n = r.cambios.length
 
-  const grupos = new Map<string, Mejora[]>()
-  for (const m of visibles) {
-    const clave = `${m.nombre} · v${m.version}`
-    grupos.set(clave, [...(grupos.get(clave) ?? []), m])
+  const aplicar = async () => {
+    setEnviando(true)
+    setError(null)
+    try {
+      const a = await api.aplicarMejoras(r.pauta)
+      onAplicada(
+        a.version
+          ? `Listo. Factum armó la versión ${a.version.version}; el equipo la revisa y la aprueba antes de que llegue a las OT.`
+          : `Quedó en manos de Factum. ${a.aviso ?? ''}`.trim(),
+      )
+    } catch (e) {
+      setError(mensajeDe(e))
+    } finally {
+      setEnviando(false)
+    }
   }
-  const n = visibles.length
+
   return (
     <Paper
       withBorder
       radius="md"
       p="md"
-      role="region"
-      aria-label="Recomendaciones de Factum"
+      aria-label={`Mejoras para ${r.nombre}`}
       style={{ borderLeft: '4px solid var(--mantine-color-precaucion-6)' }}
     >
-      <Group justify="space-between" wrap="nowrap" align="flex-start">
-        <Group gap="sm" wrap="nowrap" align="flex-start">
-          <IconBulb size={24} color="var(--mantine-color-precaucion-5)" style={{ flexShrink: 0 }} />
-          <Box>
-            <Text fw={800} size="lg">
-              {n === 1 ? 'Factum sugiere una mejora a tus pautas' : `Factum sugiere ${n} mejoras a tus pautas`}
+      <Group gap="sm" wrap="nowrap" align="flex-start">
+        <IconBulb size={24} color="var(--mantine-color-precaucion-5)" style={{ flexShrink: 0 }} />
+        <Stack gap="sm" style={{ flex: 1, minWidth: 0 }}>
+          <Text fw={800}>
+            {n
+              ? `Factum propone la versión ${r.version} de «${r.nombre}»`
+              : `Factum vio algo en «${r.nombre}» que no se arregla cambiando la pauta`}
+          </Text>
+          {n > 0 && (
+            <Box>
+              <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={4}>
+                Qué cambia y por qué
+              </Text>
+              <List spacing={6}>
+                {r.cambios.map((c) => (
+                  <Linea key={`${c.propuesta}:${c.que}`} que={c.que} porque={c.porque} />
+                ))}
+              </List>
+            </Box>
+          )}
+          {r.sin_cambio.length > 0 && (
+            <Box>
+              <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={4}>
+                Qué no cambia y por qué no
+              </Text>
+              <List spacing={6}>
+                {r.sin_cambio.map((c) => (
+                  <Linea key={c.propuesta} que={c.que} porque={c.por_que_no} />
+                ))}
+              </List>
+            </Box>
+          )}
+          {error && (
+            <Text size="sm" c="peligro" role="alert">
+              {error}
             </Text>
-            <Text size="sm" c="dimmed">
-              Ninguna cambia la pauta sola: revisa el cambio y, si lo aplicas, Factum arma la versión nueva.
-            </Text>
-          </Box>
-        </Group>
-        <Group gap="xs" wrap="nowrap">
-          <Anchor component={Link} to="/supervisor/mejoras" size="sm">
-            Ver todas
-          </Anchor>
-          <Button variant="subtle" size="xs" onClick={() => setAbierta((a) => !a)} aria-expanded={abierta}>
-            {abierta ? 'Ocultar' : 'Mostrar'}
-          </Button>
-        </Group>
+          )}
+          <Group gap="sm">
+            <Button loading={enviando} leftSection={<IconCheck size={18} />} onClick={() => void aplicar()}>
+              {n === 0 ? 'Entendido' : n === 1 ? 'Aplicar el cambio' : `Aplicar los ${n} cambios`}
+            </Button>
+            <Button variant="subtle" onClick={onPosponer}>
+              Ahora no
+            </Button>
+            <Anchor component={Link} to="/supervisor/mejoras" size="sm" ml="auto">
+              Ver el detalle
+            </Anchor>
+          </Group>
+        </Stack>
       </Group>
-      {abierta &&
-        [...grupos].map(([pauta, ms]) => (
-          <Box key={pauta} mt="md">
-            <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={4}>
-              {pauta}
-            </Text>
-            {ms.map((m) => (
-              <Fila
-                key={m.id}
-                m={m}
-                onRevisada={() => quitar(m.id)}
-                onPosponer={() => setPospuestas((s) => new Set(s).add(m.id))}
-              />
-            ))}
-          </Box>
-        ))}
     </Paper>
+  )
+}
+
+/** Lo que Factum propone cambiar en las pautas, resumido: una tarjeta por pauta, con un solo toque para aplicarlo. */
+export function Recomendaciones({ recomendaciones, quitar }: { recomendaciones: ResumenMejoras[]; quitar: (pauta: string) => void }) {
+  const [pospuestas, setPospuestas] = useState<Set<string>>(new Set())
+  const [hechos, setHechos] = useState<{ pauta: string; texto: string }[]>([])
+  const visibles = recomendaciones.filter((r) => !pospuestas.has(r.pauta))
+  if (visibles.length === 0 && hechos.length === 0) return null
+  return (
+    <Stack gap="sm" role="region" aria-label="Recomendaciones de Factum">
+      {hechos.map((h) => (
+        <Alert
+          key={h.pauta}
+          color="verificado"
+          variant="light"
+          icon={<IconCheck size={18} />}
+          withCloseButton
+          onClose={() => setHechos((hs) => hs.filter((x) => x.pauta !== h.pauta))}
+          closeButtonLabel="Cerrar aviso"
+        >
+          {h.texto}
+        </Alert>
+      ))}
+      {visibles.map((r) => (
+        <Propuesta
+          key={r.pauta}
+          r={r}
+          onAplicada={(texto) => {
+            quitar(r.pauta)
+            setHechos((hs) => [...hs.filter((x) => x.pauta !== r.pauta), { pauta: r.pauta, texto }])
+          }}
+          onPosponer={() => setPospuestas((s) => new Set(s).add(r.pauta))}
+        />
+      ))}
+    </Stack>
   )
 }

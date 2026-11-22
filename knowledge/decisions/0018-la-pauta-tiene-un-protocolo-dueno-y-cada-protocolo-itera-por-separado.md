@@ -59,6 +59,8 @@ No es la alternativa C que descartó el ADR-0016. Esa separaba «aplica a» de �
 
 Desde el PR #74, «escribe cada versión nueva» es `POST /interno/pautas/{id}/version-siguiente` (`app/sugerencias.py`): junta los cambios de las propuestas aceptadas de la última versión aprobada, la guarda sin aprobar con los mismos protocolos que aplican y el mismo protocolo dueño, y una persona del equipo la aprueba. Una propuesta con `escalar` no trae cambio (`aplicable` false), así que la regla que hace converger el ciclo también rige ahí: lo escalado no entra a la versión siguiente.
 
+Desde el PR #77 el supervisor también la dispara: «Aplicar los N cambios» en el aviso (`POST /cliente/pautas/{id}/mejoras/aplicar`) acepta todas las propuestas avisadas de la pauta y llama a la misma función. La versión queda sin aprobar y la aprobación sigue siendo del equipo, con el rechazo si pierde un control crítico.
+
 ## Referencias
 
 - [ADR-0011](./0011-protocolos-y-pautas-por-servicio-interno-ot-por-servicio-al-cliente.md), [ADR-0014](./0014-mejora-continua-por-evidencia-y-metricas-por-pauta.md) y [ADR-0016](./0016-una-pauta-sale-del-protocolo-que-aplica-a-su-tarea.md).

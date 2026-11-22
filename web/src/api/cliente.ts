@@ -5,11 +5,13 @@ import { cerrarSesion, tokenDeSesion } from '../sesion/sesion'
 import type {
   Companero,
   DecisionMejora,
+  AplicacionMejoras,
   Borrador,
   Entrada,
   EstadoOt,
   Mejora,
   Metricas,
+  ResumenMejoras,
   OtDetalle,
   OtPedida,
   OtResumen,
@@ -89,6 +91,10 @@ export type Cliente = {
   revisarMejora(propuestaId: string, decision: DecisionMejora, nota?: string): Promise<Mejora>
   /** El cambio concreto a la pauta que haría aplicar la propuesta. 404 si no es de la empresa. Solo supervisor. */
   leerBorrador(propuestaId: string): Promise<Borrador>
+  /** Por pauta, qué cambiaría Factum y por qué, y qué no. Solo supervisor. */
+  resumenDeMejoras(): Promise<ResumenMejoras[]>
+  /** Acepta todo el resumen de una pauta; Factum arma la versión siguiente sin aprobar. Solo supervisor. */
+  aplicarMejoras(pautaId: string): Promise<AplicacionMejoras>
   /** La foto de la empresa: cumplimiento, evidencia y desviaciones. Solo supervisor. */
   leerMetricas(): Promise<Metricas>
 }
@@ -172,6 +178,8 @@ export function crearCliente(
     listarMejoras: () => pedir('GET', '/cliente/mejoras'),
     revisarMejora: (id, decision, nota = '') => pedir('POST', `/cliente/mejoras/${encodeURIComponent(id)}/revision`, { decision, nota }),
     leerBorrador: (id) => pedir('GET', `/cliente/mejoras/${encodeURIComponent(id)}/borrador`),
+    resumenDeMejoras: () => pedir('GET', '/cliente/mejoras/resumen'),
+    aplicarMejoras: (id) => pedir('POST', `/cliente/pautas/${encodeURIComponent(id)}/mejoras/aplicar`),
     leerMetricas: () => pedir('GET', '/cliente/metricas'),
   }
 }

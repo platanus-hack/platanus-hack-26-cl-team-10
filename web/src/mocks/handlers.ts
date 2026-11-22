@@ -3,7 +3,7 @@
 import { http, HttpResponse, ws, type RequestHandler, type WebSocketHandler } from 'msw'
 import type { Persona } from '../api/tipos'
 import { config } from '../config'
-import { borradorDe, mejorasDe, metricasDe, reporteDe } from './analisis'
+import { borradorDe, mejorasDe, metricasDe, reporteDe, resumenDe } from './analisis'
 import { resumenDeRelevo, type Escenario, type Temporizador } from './escenarios'
 import { ErrorMock, type Mundo } from './mundo'
 import { CLAVE_MOCK, expiraMock, PERSONAS, personaDeCabecera, tokenMock } from './personas'
@@ -195,6 +195,28 @@ export function crearHandlers(
       if (!mejorasDe(m).some((x) => x.id === id)) return noExiste(`propuesta ${id}`)
       m.revisar(id, decision, nota, p.id)
       return HttpResponse.json(mejorasDe(m).find((x) => x.id === id))
+    })))),
+
+    // El aviso del supervisor: una versión siguiente por pauta (app/sugerencias.py, resumen_por_pauta).
+    http.get(`${raiz}/cliente/mejoras/resumen`, vivo(conLogin(soloSupervisor(() =>
+      HttpResponse.json(resumenDe(m, [...mejorasDe(m), ...m.mejoras])),
+    )))),
+
+    http.post(`${raiz}/cliente/pautas/:id/mejoras/aplicar`, vivo(conLogin(soloSupervisor((_, p) => {
+      const pauta = String(_.params.id)
+      const abiertas = [...mejorasDe(m), ...m.mejoras].filter((x) => x.pauta === pauta && x.estado === 'abierta' && x.detectada)
+      if (!abiertas.length) return noExiste(`propuestas abiertas de ${pauta}`)
+      for (const x of abiertas) {
+        const puesta = m.mejoras.find((y) => y.id === x.id)
+        if (puesta) puesta.estado = 'aceptada'
+        else m.revisar(x.id, 'aceptar', '', p.id)
+      }
+      const aplicables = abiertas.some((x) => x.aplicable)
+      return HttpResponse.json({
+        aceptadas: abiertas.map((x) => x.id),
+        version: aplicables ? { version: abiertas[0]!.version + 1 } : null,
+        aviso: aplicables ? null : `la pauta ${pauta} no tiene propuestas aceptadas con un cambio que aplicar`,
+      })
     })))),
 
     // La foto de la empresa (app/metricas.py). Solo supervisor.

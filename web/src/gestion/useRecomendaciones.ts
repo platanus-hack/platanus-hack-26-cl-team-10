@@ -1,21 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/cliente'
-import type { Mejora } from '../api/tipos'
+import type { ResumenMejoras } from '../api/tipos'
 import { campana } from './campana'
 import { RECARGA_MS } from './useOts'
 
 /**
- * Las recomendaciones que Factum avisó: propuestas abiertas con `detectada`, la más nueva primero. Factum avisa apenas un
- * paso se vuelve recurrente (app/servicios.py, `_vigilar_patrones`); acá se lee cada `cadaMs`, como las OT. Suena una vez
- * por recomendación que aparece con la página abierta; las que ya estaban al entrar se muestran sin sonar.
+ * El aviso de mejoras: por pauta, la versión siguiente que Factum armaría con lo que ya avisó (`GET /cliente/mejoras/resumen`).
+ * Se lee cada `cadaMs`, como las OT. Suena una vez cuando aparece una propuesta nueva con la página abierta; lo que ya
+ * estaba al entrar se muestra sin sonar.
  */
 export function useRecomendaciones(cadaMs: number = RECARGA_MS) {
-  const [mejoras, setMejoras] = useState<Mejora[] | null>(null)
+  const [resumen, setResumen] = useState<ResumenMejoras[] | null>(null)
   const recargar = useCallback(async () => {
     try {
-      setMejoras(await api.listarMejoras())
+      setResumen(await api.resumenDeMejoras())
     } catch {
-      // Si la API no responde, la franja de la lista de OT ya lo dice; se queda la última lista.
+      // Si la API no responde, la franja de la lista de OT ya lo dice; se queda el último resumen.
     }
   }, [])
   useEffect(() => {
@@ -24,22 +24,14 @@ export function useRecomendaciones(cadaMs: number = RECARGA_MS) {
     return () => clearInterval(id)
   }, [recargar, cadaMs])
 
-  const recomendaciones = useMemo(
-    () =>
-      (mejoras ?? [])
-        .filter((m) => m.detectada && m.estado === 'abierta')
-        .sort((a, b) => b.detectada!.ts.localeCompare(a.detectada!.ts)),
-    [mejoras],
-  )
-
   const vistas = useRef<Set<string> | null>(null)
   useEffect(() => {
-    if (mejoras === null) return
-    const ids = new Set(recomendaciones.map((m) => m.id))
+    if (resumen === null) return
+    const ids = new Set(resumen.flatMap((r) => r.propuestas))
     if (vistas.current && [...ids].some((id) => !vistas.current!.has(id))) campana.sonar()
     vistas.current = ids
-  }, [mejoras, recomendaciones])
+  }, [resumen])
 
-  const quitar = useCallback((id: string) => setMejoras((ms) => ms?.filter((m) => m.id !== id) ?? ms), [])
-  return { recomendaciones, recargar, quitar }
+  const quitar = useCallback((pauta: string) => setResumen((rs) => rs?.filter((r) => r.pauta !== pauta) ?? rs), [])
+  return { recomendaciones: resumen ?? [], recargar, quitar }
 }

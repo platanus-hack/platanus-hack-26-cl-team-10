@@ -297,6 +297,48 @@ def resumen_de(cx: sqlite3.Connection, propuesta: dict) -> list[str]:
     return resumen(_borrador(cx, propuesta, con_modelo=False)[1]) if propuesta["aplicable"] else []
 
 
+# ─── El resumen para el supervisor: una versión siguiente por pauta ─────────
+
+
+def _por_que_corto(c: dict, propuesta: dict) -> str:
+    if c["tipo"] == "agrega":
+        return "El protocolo lo exige y hoy ningún paso de la pauta lo hace."
+    if c["tipo"] == "separa":
+        return "Va junto con otro control en un mismo paso, y así no se comprueba que se hizo cada uno."
+    r = propuesta.get("recurrencia") or {}
+    n, total = r.get("ots_con_senal", propuesta["ots_con_senal"]), r.get("ots", propuesta["ejecuciones"])
+    return f"Se desvió en {n} de {total} OT: la instrucción no decía cuándo el paso está hecho."
+
+
+def _sin_cambio(p: dict) -> dict:
+    que = f"«{p['titulo']}»" if p["tipo"] == "desviacion" else p["titulo"]
+    return {"que": que, "por_que_no": p["por_que_no"], "propuesta": p["id"]}
+
+
+def resumen_por_pauta(cx: sqlite3.Connection, propuestas: Sequence[dict]) -> list[dict]:
+    """Lo que Factum propone, en pocas líneas: por cada pauta con propuestas abiertas que ya avisó, la versión siguiente
+    que armaría con todas juntas, qué cambia y por qué, y lo que no cambia y por qué no. Solo el código; no guarda nada."""
+    grupos: dict[tuple[str, int], list[dict]] = {}
+    for p in propuestas:
+        if p["estado"] == "abierta" and p["detectada"]:
+            grupos.setdefault((p["pauta"], p["version"]), []).append(p)
+    salida = []
+    for (pauta_id, version), ps in grupos.items():
+        origen = db.leer_pauta(cx, pauta_id, version)
+        siguiente = max(v["version"] for v in catalogo.versiones(cx, pauta_id)) + 1
+        aplicables = sorted((p for p in ps if p["aplicable"]), key=lambda p: (p["tipo"] != "conformidad", p["id"]))
+        por_id = {p["id"]: p for p in aplicables}
+        crudos = _armar(cx, origen, aplicables, siguiente)[1] if aplicables else []
+        salida.append({
+            "pauta": pauta_id, "nombre": origen.nombre, "desde_version": version, "version": siguiente,
+            "cambios": [{"que": linea, "porque": _por_que_corto(c, por_id[c["propuesta"]]), "propuesta": c["propuesta"]}
+                        for c, linea in zip(crudos, resumen(crudos))],
+            "sin_cambio": [_sin_cambio(p) for p in ps if not p["aplicable"]],
+            "propuestas": [p["id"] for p in ps],
+        })
+    return salida
+
+
 # ─── La versión siguiente que arma Factum ───────────────────────────────────
 
 
