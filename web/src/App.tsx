@@ -15,6 +15,7 @@ import { PaginaOtSupervisor } from './gestion/PaginaOtSupervisor'
 import { PaginaSupervisor } from './gestion/PaginaSupervisor'
 import { NombresDeLaEmpresa } from './sesion/nombres'
 import { RequiereRol } from './sesion/RequiereRol'
+import { PaginaSimulador } from './simulador/PaginaSimulador'
 import { FONDO, tema, variablesDelTema } from './tema'
 
 export default function App() {
@@ -74,6 +75,14 @@ function Rutas() {
             element={
               <RequiereRol rol="supervisor">
                 <PaginaOtSupervisor />
+              </RequiereRol>
+            }
+          />
+          <Route
+            path="/simulador"
+            element={
+              <RequiereRol rol="supervisor">
+                <PaginaSimulador />
               </RequiereRol>
             }
           />

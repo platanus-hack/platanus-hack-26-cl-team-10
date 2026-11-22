@@ -1,7 +1,7 @@
 {
   "id": "pauta-polin-estacion",
   "nombre": "Cambio de polín en la cinta · estación del demo",
-  "version": 8,
+  "version": 9,
   "equipo": "cinta a escala (ESP32: motor con botón y distancia; cámara)",
   "pasos": [
     {
@@ -48,13 +48,14 @@
       "id": "e5",
       "orden": 4,
       "titulo": "Reemplazar el polín rojo",
-      "instruccion": "Saca el polín rojo y pon el nuevo en su lugar. La cámara cierra el paso cuando deja de ver el rojo que antes vio.",
+      "instruccion": "Saca el polín rojo y pon el nuevo en su lugar. La cámara cierra el paso cuando deja de ver el rojo que antes vio y ve el polín nuevo.",
       "tipo_evidencia": "camara",
       "capa_minima": 2,
-      "pregunta_visual": "¿Ya no se ve ninguna lata de bebida de cuerpo rojo?",
+      "pregunta_visual": "¿Ya no se ve ninguna lata de bebida de cuerpo rojo y sí se ve una lata de bebida que no es roja?",
       "deteccion": {
         "clase": "red soda can",
-        "presente": false
+        "presente": false,
+        "en_su_lugar": "soda can"
       }
     },
     {

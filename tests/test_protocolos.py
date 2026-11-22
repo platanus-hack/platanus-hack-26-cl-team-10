@@ -17,6 +17,7 @@ from unittest import mock
 from app import catalogo, db, protocolos
 from app.bus import Bus
 from app.catalogo import ReglaDeNegocio
+from app.contratos import Deteccion
 from app.protocolos import DATOS, PAUTA_DEMO, SEMILLA
 from app.servicios import DETECCIONES_MIN, Servicios
 from app.video import Video
@@ -365,6 +366,18 @@ class AislarBloquearYComprobar(Base):
         self.ver(("soda can", 0.9))
         self.ver()
         self.assertEqual(self.cerrados(), 2)
+
+    def test_estacion_sacar_el_polin_rojo_no_cierra_hasta_que_se_ve_el_nuevo(self):
+        self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")
+        self.ver(("red soda can", 0.9))
+        self.ver()  # la cámara tapada, o el rojo fuera y nada en su lugar
+        self.assertEqual(self.cerrados(), 3)
+        self.ver(("soda can", 0.6))  # el nuevo se ve, pero sin certeza
+        self.assertEqual(self.cerrados(), 3)
+        self.ver(("soda can", 0.9))
+        self.assertEqual(self.cerrados(), 4)
+        with self.assertRaises(ValueError):
+            Deteccion("red soda can", presente=True, en_su_lugar="soda can")
 
     def test_estacion_si_el_detector_duda_el_operario_declara_y_responde_el_vlm(self):
         self.estacion(), self.leer(energia="cortada"), self.leer(operario="presente")

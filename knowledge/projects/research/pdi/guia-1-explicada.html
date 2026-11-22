@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PDI · Guía 1 explicada paso a paso</title>
+<style>
+:root{--ink:#17252a;--muted:#66777a;--paper:#f5f1e8;--card:#fffdf8;--teal:#075f5a;--mint:#dceee7;--coral:#e4674b;--yellow:#f4c95d;--line:#d7dfd9}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.58 system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:950px;margin:auto;padding:22px 18px 70px}a{color:var(--teal);font-weight:800}header{background:var(--teal);color:#f8f4e8;border-radius:22px;padding:38px 60px}.tag{font-size:.76rem;text-transform:uppercase;letter-spacing:.15em;color:#a9d9cc;font-weight:800}.tag b{color:var(--yellow)}h1{font:4.6rem/.94 Georgia,serif;letter-spacing:-.06em;margin:18px 0 14px;max-width:760px}header p{max-width:700px;color:#d9ece5;font-size:1.08rem}.alert{border-left:5px solid var(--coral);background:#fff3e4;padding:15px 18px;margin:20px 0;border-radius:0 12px 12px 0}.alert b{color:#9b3e29}section{margin-top:42px}h2{font:2.25rem/1 Georgia,serif;letter-spacing:-.045em;color:var(--teal);margin:0 0 13px}h3{color:var(--teal);margin:0 0 7px;font-size:1.12rem}.lead{color:var(--muted)}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 5px 18px #18302a08}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.full{grid-column:1/-1}ul,ol{padding-left:1.2rem;margin:8px 0}li+li{margin-top:6px}code{background:#eaf1ed;border-radius:4px;padding:1px 4px;color:#164d49}.formula{background:#142b30;color:#ebf6ed;border-radius:10px;padding:13px 15px;font:14px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow:auto}.matrix{text-align:center}.answer{border-left:3px solid var(--yellow);padding-left:13px}.step{display:inline-block;background:var(--mint);border:1px solid #b9d9cc;padding:6px 9px;border-radius:8px;font-weight:800}.flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.arrow{color:var(--coral);font-weight:900}table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}th{background:var(--mint);color:var(--teal)}tr:last-child td{border:0}.source,footer{font-size:.86rem;color:var(--muted)}footer{border-top:1px solid var(--line);margin-top:48px;padding-top:15px}@media print{.grid{display:block}.card{margin-bottom:14px;break-inside:avoid;box-shadow:none}.full{grid-column:auto}header{padding:32px 42px}h1{font-size:4rem}.flow{gap:5px}}
+</style></head><body><main class="wrap">
+<header><div class="tag">TEL328 · guía 1 · <b>resuelta</b></div><h1>Ejercicio por ejercicio, sin saltos.</h1><p>Esta guía sigue exactamente el PDF de respuestas. Lee el enunciado, intenta el paso antes de mirar la solución y después explica qué significa el resultado.</p></header>
+<div class="alert"><b>Alcance:</b> son 7 ejercicios; el 7 tiene partes a, b, c y d. Aquí aparecen todos los cálculos de la guía, incluyendo las convenciones de borde que usa la respuesta oficial.</div>
+
+<section><h2>Antes de empezar: tres reglas</h2><div class="grid"><article class="card"><h3>RGB normalizado</h3><p>Para pasar de 0–255 a 0–1, divides cada canal por 255. Así, 0 → 0 y 255 → 1.</p></article><article class="card"><h3>Segmentación</h3><p>Siempre separa el procedimiento en: asignar cada dato a un grupo, recalcular el representante y volver a revisar.</p></article><article class="card full"><h3>Ojo con las convenciones</h3><p>En la guía, los valores sobre <code>Th</code> son fuertes y los que quedan entre <code>Tl</code> y <code>Th</code> solo sobreviven si se conectan con uno fuerte. En Median Cut, los valores exactamente en un corte se asignan según la convención indicada.</p></article></div></section>
+
+<section><h2>Ejercicio 1 · combinaciones RGB</h2><div class="card"><p><b>Pregunta:</b> ¿Cuántos colores distintos se pueden formar en RGB?</p><p>Cada canal puede tomar 256 valores: desde 0 hasta 255. Como R, G y B se combinan independientemente, multiplicamos:</p><div class="formula">256 posibilidades para R × 256 para G × 256 para B
+256³ = 16.777.216 colores</div><p class="answer"><b>Respuesta:</b> <b>16.777.216 colores</b>. No es 256+256+256, porque cada valor de rojo se puede combinar con cada valor de verde y cada valor de azul.</p></div></section>
+
+<section><h2>Ejercicio 2 · separar canales RGB</h2><div class="card"><p><b>Pregunta:</b> dada una imagen RGB 4×4, genera las matrices R, G y B normalizadas.</p><p>La imagen tiene solo tres colores: azul <code>(0,0,255)</code>, verde <code>(0,255,0)</code> y rojo <code>(255,0,0)</code>. El método es mirar cada píxel, copiar su componente y dividir por 255.</p><h3>Paso 1 · canal rojo</h3><p>Solo los píxeles rojos tienen R=255; azul y verde tienen R=0.</p><div class="formula matrix">R =
+0 0 0 0
+0 1 0 1
+0 0 0 0
+0 1 0 1</div><h3>Paso 2 · canal verde</h3><p>Solo los píxeles verdes tienen G=255.</p><div class="formula matrix">G =
+0 1 0 1
+1 0 1 0
+0 1 0 1
+1 0 1 0</div><h3>Paso 3 · canal azul</h3><p>Solo los píxeles azules tienen B=255.</p><div class="formula matrix">B =
+1 0 1 0
+0 0 0 0
+1 0 1 0
+0 0 0 0</div><p class="answer"><b>Cómo revisar:</b> en cada posición, los tres canales deben reconstruir el color original. Por ejemplo, la posición (fila 1, columna 1) es azul: <code>R=0,G=0,B=1</code>.</p></div></section>
+
+<section><h2>Ejercicio 3 · convolución sin padding</h2><div class="card"><p><b>Datos:</b></p><div class="formula">f =  1 0 0 0
+     1 1 0 1
+     1 1 0 0
+     0 1 1 1
+
+w =  1 0
+     0 1</div><p>El kernel mide 2×2. La imagen mide 4×4. Sin padding y con stride 1, el kernel puede comenzar en 3 posiciones verticales y 3 horizontales:</p><div class="formula">salida = (4−2)/1 + 1 = 3
+resultado de tamaño 3×3</div><h3>Calculamos las nueve ventanas</h3><div class="formula">Fila 1:
+[1 0; 1 1] → 1·1+0·0+1·0+1·1 = 2
+[0 0; 1 0] → 0
+[0 0; 0 1] → 1
+
+Fila 2:
+[1 1; 1 1] → 2
+[1 0; 1 0] → 1
+[0 1; 0 0] → 0
+
+Fila 3:
+[1 1; 0 1] → 2
+[1 0; 1 1] → 2
+[0 0; 1 1] → 1</div><div class="formula matrix">salida =
+2 0 1
+2 1 0
+2 2 1</div><p class="answer"><b>Idea:</b> como no hay padding, nunca inventamos valores fuera de la imagen. Como el stride es 1, avanzamos una columna o una fila cada vez.</p></div></section>
+
+<section><h2>Ejercicio 4 · Non-Maximum Suppression</h2><div class="card"><p><b>Objetivo:</b> adelgazar los bordes. Para cada celda roja, mira los dos vecinos ubicados en la dirección de su flecha. Si el valor central no es máximo local, se convierte en 0.</p><div class="formula">4 4 3 | 0 2 4 | 1 0 0
+6 5↓ 2 | 1→ 0 3↓ | 3 5↑ 6
+4 1 1 | 0 2 0 | 0 2 0</div><h3>Celda 5↓</h3><p>La flecha es vertical. Comparamos con el vecino de arriba, 4, y el de abajo, 1. Como <code>5&gt;4</code> y <code>5&gt;1</code>, es máximo local: <b>se conserva 5</b>.</p><h3>Celda 1→</h3><p>La flecha es horizontal. Comparamos con izquierda, 2, y derecha, 0. Como 1 no es mayor que 2, <b>se elimina y queda 0</b>.</p><h3>Celda 3↓</h3><p>Comparamos arriba, 4, y abajo, 0. Como 3 no supera a 4, <b>se elimina y queda 0</b>.</p><h3>Celda 5↑</h3><p>Comparamos arriba, 0, y abajo, 2. Como 5 es mayor que ambos, <b>se conserva 5</b>.</p><div class="formula matrix">resultado =
+4 4 3 0 2 4 1 0 0
+6 5 2 0 0 0 3 5 6
+4 1 1 0 2 0 0 2 0</div><p class="answer"><b>Regla:</b> no compares siempre arriba/abajo; la dirección de la flecha decide qué dos vecinos se comparan.</p></div></section>
+
+<section><h2>Ejercicio 5 · umbral de histéresis</h2><div class="card"><p><b>Datos:</b> <code>Th=4</code> y <code>Tl=2</code>.</p><div class="formula matrix">1 2 3 1
+3 1 5 3
+1 1 3 3
+4 1 3 2</div><h3>Paso 1 · clasificar</h3><ul><li>Menor que 2: no es borde, queda 0.</li><li>Entre 2 y 4: borde débil; solo queda si se conecta a uno fuerte.</li><li>Sobre 4: borde fuerte. En esta respuesta, el 5 es el fuerte.</li></ul><h3>Paso 2 · seguir conexiones</h3><p>El 5 es el origen. Los valores 3 y 2 conectados a él sobreviven, incluso si forman una cadena diagonal u horizontal. El 4 de la esquina inferior izquierda está aislado: aunque supera el umbral bajo, no conecta con el 5, así que se elimina.</p><div class="formula matrix">resultado =
+0 2 3 0
+3 0 5 3
+0 0 3 3
+0 0 3 2</div><p class="answer"><b>Idea:</b> la histéresis evita conservar bordes débiles aislados, pero mantiene segmentos débiles que continúan un borde fuerte.</p></div></section>
+
+<section><h2>Ejercicio 6 · histograma</h2><div class="card"><p><b>Imagen:</b></p><div class="formula matrix">1 2 3
+3 3 5
+1 1 3</div><p>Contamos cuántas veces aparece cada intensidad:</p><table><tr><th>Intensidad k</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr><tr><td>Frecuencia h(k)</td><td>3</td><td>1</td><td>4</td><td>0</td><td>1</td></tr></table><p class="answer"><b>Respuesta:</b> las barras del histograma tienen alturas <code>3, 1, 4, 0, 1</code>. La suma es 9, igual al número total de píxeles.</p></div></section>
+
+<section><h2>Ejercicio 7 · trabajar sobre una imagen</h2><div class="card"><p>La imagen base es:</p><div class="formula matrix">11  0  7
+ 9 12  4
+10  1  8</div><p>Sus intensidades ordenadas son <code>0,1,4,7,8,9,10,11,12</code>.</p></div><div class="grid"><article class="card"><h3>7a · thresholding con t=6</h3><p>Aplicamos <code>valor&lt;6 → 0</code> y <code>valor≥6 → 1</code>.</p><div class="formula">11→1  0→0  7→1
+9→1   12→1  4→0
+10→1  1→0   8→1</div><div class="formula matrix">1 0 1
+1 1 0
+1 0 1</div><p>Es segmentación binaria: no conserva la intensidad original, solo la pertenencia a un grupo.</p></article><article class="card"><h3>7b · espacio de intensidades</h3><p>Convertimos cada píxel en un punto sobre una recta numérica:</p><div class="formula">0 ●   1 ●   2   3   4 ●   5   6   7 ●   8 ●   9 ●   10 ●   11 ●   12 ●</div><p>Los valores 2, 3, 5 y 6 no aparecen. El espacio sirve para visualizar qué intensidades están cerca y facilita clustering.</p></article><article class="card full"><h3>7c · K-Means con K=3</h3><p>Centroides iniciales: <code>0, 7, 10</code>. Trabajamos sobre los valores ordenados, no sobre sus coordenadas 2D.</p><h4>Paso 1 · asignar</h4><ul><li><code>0,1</code> quedan cerca de 0.</li><li><code>4,7,8</code> quedan cerca de 7.</li><li><code>9,10,11,12</code> quedan cerca de 10.</li></ul><h4>Paso 2 · recalcular</h4><div class="formula">c₁=(0+1)/2 = 0,5
+c₂=(4+7+8)/3 = 6,333
+c₃=(9+10+11+12)/4 = 10,5</div><h4>Paso 3 · comprobar</h4><p>Reasignamos usando 0,5; 6,333; 10,5. Las pertenencias no cambian, por lo tanto K-Means converge.</p><p>Con la escala de colores 0=blanco, 6=gris y 12=negro: el resultado por píxel queda:</p><div class="formula matrix">negro  blanco  gris
+negro  negro   gris
+negro  blanco  gris</div><p class="answer"><b>Lo que debes escribir:</b> clusters, centroides finales y la imagen donde cada píxel recibe el color de su centroide.</p></article><article class="card full"><h3>7d · Median Cut con 4 colores</h3><p>Valores ordenados: <code>0,1,4,7,8,9,10,11,12</code>.</p><h4>Primer corte</h4><p>La mediana es 8. Siguiendo la convención de la guía, 8 queda en el segundo cubo:</p><div class="formula">Cubo 1 = {0,1,4,7}
+Cubo 2 = {8,9,10,11,12}</div><h4>Segundo corte</h4><p>Cubo 1 tiene cantidad par: su corte es el promedio de los centrales, <code>(1+4)/2=2,5</code>. Cubo 2 se corta en la mediana 10; la guía asigna 10 al cuarto cubo.</p><div class="formula">Cubo 1 = {0,1}       promedio=0,5
+Cubo 2 = {4,7}       promedio=5,5
+Cubo 3 = {8,9}       promedio=8,5
+Cubo 4 = {10,11,12}  promedio=11</div><h4>Asignar colores</h4><p>Con escala 0=blanco, 4=gris claro, 8=gris oscuro, 12=negro, los promedios se asignan al color más cercano:</p><ul><li>0,5 → blanco.</li><li>5,5 → gris claro.</li><li>8,5 → gris oscuro.</li><li>11 → negro.</li></ul><p class="answer"><b>Idea:</b> Median Cut divide el espacio de intensidades/colores por medianas hasta tener la cantidad de cubos pedida. Luego reemplaza todos los píxeles de cada cubo por su promedio.</p></article></div></section>
+
+<section><h2>La respuesta integradora</h2><div class="card"><p>Si te piden explicar toda la guía en pocas líneas:</p><p class="answer">Una imagen RGB tiene tres canales y cada canal puede tomar 256 valores. Los filtros recorren vecindarios con kernels; sin padding la salida se reduce. Para bordes, Sobel estima gradiente y Canny adelgaza con supresión no máxima y conecta bordes con histéresis. Thresholding separa por una regla, K-Means agrupa respecto a centroides y Median Cut divide valores por medianas para crear una paleta.</p></div></section>
+<footer><p><span>PDF de respuestas original (material del curso, no versionado)</span> · <a href="./control-1-express.html">Volver a la guía express ↗</a></p><p>Guía explicada a partir de “Respuestas Guía Unidad 1 TEL-328, 2026”.</p></footer>
+</main></body></html>
