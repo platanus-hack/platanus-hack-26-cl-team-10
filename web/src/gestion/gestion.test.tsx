@@ -323,6 +323,16 @@ describe('supervisor dashboard', () => {
     expect(screen.getAllByText(/^OT-\d+$/).map((e) => e.textContent)).toEqual(['OT-13', 'OT-12', 'OT-14'])
   })
 
+  it('each group folds, and the choice is remembered', async () => {
+    entrarComo(SUPERVISORA)
+    abrir('/supervisor')
+    const grupo = await screen.findByRole('region', { name: 'Asignadas, sin empezar' })
+    const titulo = within(grupo).getByRole('button', { expanded: true })
+    await userEvent.click(titulo)
+    expect(titulo).toHaveAttribute('aria-expanded', 'false')
+    expect(localStorage.getItem('factum.grupo.Asignadas, sin empezar')).toBe('0')
+  })
+
   it('hides the groups that have no OT, «En ejecución» included', async () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
@@ -424,14 +434,15 @@ describe('supervisor dashboard', () => {
     })
     act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
     const barra = await screen.findByRole('alert', { name: 'Incidentes en curso' })
-    expect(within(barra).getByText('OT-13, Bruno Díaz')).toBeInTheDocument()
-    expect(within(barra).getByText('GUARDA ABIERTA CON ENERGÍA VIVA.')).toBeInTheDocument()
+    expect(within(barra).getByText('OT-13 · Bruno Díaz')).toBeInTheDocument()
+    // En una línea y sin mayúsculas gritadas: el detalle completo está en la vista en vivo.
+    expect(within(barra).getByText(/Guarda abierta con energía viva$/)).toBeInTheDocument()
     expect(within(await tarjeta('ot-13')).getByText('Detente')).toBeInTheDocument()
     expect(sonar).toHaveBeenCalledOnce()
 
     // El mismo incidente no vuelve a sonar.
     act(() => void window.dispatchEvent(new Event('focus'))) // volver a la pestaña lee al tiro, sin esperar el reloj
-    await waitFor(() => expect(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByText('OT-13, Bruno Díaz')).toBeInTheDocument())
+    await waitFor(() => expect(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByText('OT-13 · Bruno Díaz')).toBeInTheDocument())
     expect(sonar).toHaveBeenCalledOnce()
 
     await userEvent.click(within(screen.getByRole('alert', { name: 'Incidentes en curso' })).getByRole('link', { name: 'Ver ot-13 en vivo' }))

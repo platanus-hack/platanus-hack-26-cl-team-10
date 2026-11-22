@@ -24,6 +24,17 @@ const ANOMALIA_VIEJA = /^(\w+) = (-?[\d.]+), lejos de su mediana (-?[\d.]+) \([\
 const uno = (n: string) => String(Math.round(Number(n) * 10) / 10)
 
 /**
+ * Un aviso en una línea que se lee de un vistazo: la primera oración, en palabras y sin mayúsculas gritadas.
+ * «PERSONA JUNTO A LA MÁQUINA CON EL MOTOR ENCENDIDO. Alejarse; …» → «Persona junto a la máquina con el motor encendido».
+ */
+export function fraseCorta(texto: string): string {
+  const primera = enPalabras(texto).split(/(?<=[^\d])\.\s|;\s/)[0]!.replace(/\.$/, '').trim()
+  if (primera !== primera.toUpperCase()) return primera
+  const min = primera.toLowerCase()
+  return min.charAt(0).toUpperCase() + min.slice(1)
+}
+
+/**
  * Los avisos de anomalía que ya están en la bitácora se escribieron como estadística («dist_cm = 148.9, lejos de su
  * mediana 102.1 (22.9 desvíos)»). Se muestran como los nuevos (app/scoring.py): «Distancia 148.9 cm fuera de lo normal: lo
  * habitual es 102.1 cm». Cualquier otro texto pasa igual.
