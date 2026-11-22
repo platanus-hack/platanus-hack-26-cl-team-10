@@ -73,7 +73,7 @@ def requiere(pauta: Pauta) -> dict:
     return {
         "sensores": sensores,
         "camara": any(p.tipo_evidencia is TipoEvidencia.CAMARA for p in pauta.pasos),
-        "clases": sorted({p.deteccion.clase for p in pauta.pasos if p.deteccion}),
+        "clases": sorted({c for p in pauta.pasos if p.deteccion for c in p.deteccion.clases}),
     }
 
 
@@ -90,7 +90,7 @@ def factibilidad(pauta: Pauta, estacion: Mapping) -> list[dict]:
             elif p.sensor.espera not in sensores[p.sensor.id]:
                 falta = f"«{p.sensor.id}» no reporta «{p.sensor.espera}» (reporta {', '.join(sensores[p.sensor.id])})"
         elif p.tipo_evidencia is TipoEvidencia.CAMARA:
-            capa = 2 if p.deteccion and p.deteccion.clase in clases else 3
+            capa = 2 if p.deteccion and all(c in clases for c in p.deteccion.clases) else 3
             if not estacion.get("camara"):
                 falta = "la estación no tiene cámara"
         salida.append({"paso": p.id, "capa": capa, "falta": falta})

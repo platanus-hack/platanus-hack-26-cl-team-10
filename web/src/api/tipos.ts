@@ -72,7 +72,7 @@ export type PasoPauta = {
   pregunta_visual: string | null
   sensor: { id: string; espera: string } | null
   /** La cámara del edge lo cierra sola cuando su modelo ve (o deja de ver) esta clase. */
-  deteccion?: { clase: string; presente: boolean } | null
+  deteccion?: { clase: string; presente: boolean; en_su_lugar?: string } | null
 }
 
 export type Pauta = { id: string; nombre: string; version: number; equipo: string; pasos: PasoPauta[] }

@@ -144,12 +144,22 @@ def por_deteccion(paso: Paso, detecciones: Sequence[Mapping]) -> Veredicto | Non
     """
     if paso.deteccion is None or not detecciones:
         return None
-    clase, presente = paso.deteccion.clase, paso.deteccion.presente
-    confs = [max((o["conf"] for o in d["objetos"] if o["clase"] == clase), default=0.0) for d in detecciones]
+    clase, presente, otra = paso.deteccion.clase, paso.deteccion.presente, paso.deteccion.en_su_lugar
+
+    def confs_de(c: str) -> list[float]:
+        return [max((o["conf"] for o in d["objetos"] if o["clase"] == c), default=0.0) for d in detecciones]
+
+    confs = confs_de(clase)
     if presente and min(confs) >= CONF_ALTA:
         confianza, detalle = min(confs), f"el modelo del edge ve {clase} en {len(confs)} cuadros seguidos (mín. {min(confs):.0%})"
     elif not presente and max(confs) < CONF_PISO and all(clase in (d.get("clases") or ()) for d in detecciones):
         confianza, detalle = 1 - max(confs), f"el modelo del edge ya no ve {clase} en {len(confs)} cuadros seguidos"
+        if otra:
+            # shortcut: basta con ver una «otra» cualquiera, no cuenta cuántas hay; si la cámara ve más
+            # de un polín a la vez, comparar con las que había cuando se vio la clase que salió.
+            if min(confs_de(otra)) < CONF_ALTA:
+                return None
+            confianza, detalle = min(confianza, min(confs_de(otra))), f"{detalle}, y ve {otra} en su lugar"
     else:
         return None
     evidencia = {"tipo": "deteccion", "clase": clase, "presente": presente, "confianza": round(confianza, 3),

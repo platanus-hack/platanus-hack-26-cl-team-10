@@ -124,8 +124,7 @@ def guardar_pauta(cx: sqlite3.Connection, pauta: Pauta) -> None:
                 "control_critico": p.control_critico,
                 "pregunta_visual": p.pregunta_visual,
                 "sensor": {"id": p.sensor.id, "espera": p.sensor.espera} if p.sensor else None,
-                "deteccion": ({"clase": p.deteccion.clase, "presente": p.deteccion.presente}
-                              if p.deteccion else None),
+                "deteccion": p.deteccion.como_dict() if p.deteccion else None,
                 "comparar_con": p.comparar_con,
                 **({"cumple": list(p.cumple)} if p.cumple else {}),
             }

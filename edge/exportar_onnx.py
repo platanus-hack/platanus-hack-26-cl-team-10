@@ -16,7 +16,8 @@ def clases_de(rutas):
     clases = set()
     for r in rutas:
         d = json.loads(Path(r).read_text(encoding="utf-8"))
-        clases |= {p["deteccion"]["clase"] for p in d.get("pauta", d)["pasos"] if p.get("deteccion")}
+        clases |= {c for p in d.get("pauta", d)["pasos"] if p.get("deteccion")
+                   for c in (p["deteccion"]["clase"], p["deteccion"].get("en_su_lugar")) if c}
     return sorted(clases)
 
 
