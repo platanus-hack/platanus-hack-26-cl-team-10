@@ -491,20 +491,25 @@ describe('Factum recommendations on the supervisor screen', () => {
     m.mejoras = [recomendacion(true)]
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
-    expect(within(zona).getByText('Factum encontró un patrón')).toBeInTheDocument()
-    expect(within(zona).getByText(/«Apagar el motor»/)).toBeInTheDocument()
+    expect(within(zona).getByText('Factum sugiere una mejora a tus pautas')).toBeInTheDocument()
+    expect(within(zona).getByText('Cambio de polín en la cinta · v7')).toBeInTheDocument()
+    expect(within(zona).getByText('«Apagar el motor» se está desviando')).toBeInTheDocument()
     expect(within(zona).getByText(/Se desvió en 3 de 3 OT, con 2 operarios distintos/)).toBeInTheDocument()
     expect(within(zona).queryByText(/Bruno|Ana/)).toBeNull()
     expect(sonar).toHaveBeenCalledOnce()
+    await userEvent.click(within(zona).getByRole('button', { name: 'Revisar' }))
     expect(within(zona).getByRole('link', { name: 'Ver ot-13' })).toHaveAttribute('href', '/supervisor/ot/ot-13')
   })
 
-  it('accepting it sends the review and takes it off the screen', async () => {
+  it('reviewing it shows the change, and applying it sends the review and takes it off the screen', async () => {
     m.mejoras = [recomendacion(true)]
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
-    await userEvent.click(within(zona).getByRole('button', { name: 'Aplicar la recomendación' }))
+    expect(within(zona).queryByRole('button', { name: 'Aplicar' })).toBeNull()
+    await userEvent.click(within(zona).getByRole('button', { name: 'Revisar' }))
+    expect(await within(zona).findByRole('region', { name: 'Cambio propuesto' })).toBeInTheDocument()
+    await userEvent.click(within(zona).getByRole('button', { name: 'Aplicar' }))
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull())
     expect(m.mejoras[0]!.estado).toBe('aceptada')
   })
@@ -514,26 +519,30 @@ describe('Factum recommendations on the supervisor screen', () => {
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
+    await userEvent.click(within(zona).getByRole('button', { name: 'Revisar' }))
     await userEvent.click(within(zona).getByRole('button', { name: 'Descartar' }))
-    const confirmar = within(zona).getByRole('button', { name: 'Descartar' })
+    const confirmar = within(zona).getByRole('button', { name: 'Descartar la propuesta' })
     expect(confirmar).toBeDisabled()
-    await userEvent.type(within(zona).getByLabelText('Por qué la descartas'), 'fue una prueba del demo')
+    await userEvent.type(within(zona).getByLabelText(/Por qué se descarta/), 'fue una prueba del demo')
     await userEvent.click(confirmar)
     await waitFor(() => expect(m.mejoras[0]!.estado).toBe('descartada'))
   })
 
-  it('a conformity finding has no OT: it says what the pauta lacks and points to the proposals', async () => {
+  it('a conformity finding has no OT: it names the missing step in plain words, without protocol ids', async () => {
     m.mejoras = [{
       ...recomendacion(true), id: 'conformidad:pauta-polin-estacion@7:prot-maqueta-01:M2:falta', tipo: 'conformidad',
       titulo: 'Ningún paso cumple M2 Trabar la parada', motivo: 'prot-maqueta-01: ningún paso cumple M2 Trabar la parada. Lo dice la pauta misma, sin esperar ninguna OT.',
-      conformidad: { protocolo: 'prot-maqueta-01', control: 'M2', tipo: 'falta', detalle: 'ningún paso cumple M2 Trabar la parada', pasos: [] },
+      conformidad: { protocolo: 'prot-maqueta-01', control: 'M2', tipo: 'falta', detalle: 'ningún paso cumple M2 Trabar la parada', pasos: [], nombres: ['Trabar la parada'] },
       recurrencia: null, detectada: { ot: null, evento: null, ts: '2026-11-22T03:00:00+00:00' },
     }]
     entrarComo(SUPERVISORA)
     abrir('/supervisor')
     const zona = await screen.findByRole('region', { name: 'Recomendaciones de Factum' })
-    expect(within(zona).getByText(/sin esperar ninguna OT/)).toBeInTheDocument()
-    expect(within(zona).getByRole('link', { name: 'Ver en mejoras' })).toHaveAttribute('href', '/supervisor/mejoras')
+    expect(within(zona).getByText('Falta el paso «Trabar la parada»')).toBeInTheDocument()
+    expect(within(zona).queryByText(/prot-maqueta-01|M2/)).toBeNull()
+    expect(within(zona).getByRole('link', { name: 'Ver todas' })).toHaveAttribute('href', '/supervisor/mejoras')
+    await userEvent.click(within(zona).getByRole('button', { name: 'Más tarde: Falta el paso «Trabar la parada»' }))
+    expect(screen.queryByRole('region', { name: 'Recomendaciones de Factum' })).toBeNull()
   })
 
   it('a recommendation already detected on arrival shows, but does not chime', async () => {

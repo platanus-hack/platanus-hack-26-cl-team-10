@@ -79,6 +79,21 @@ class ElLogin(Base):
         self.assertEqual({a["rol"] for a in self.r["accesos"]}, {"supervisor", "operador"})
         self.assertEqual(semilla.cargar(self.cx)["accesos"], [])
 
+    def test_sin_historia_no_crea_ot_ni_habilita_y_no_repone_lo_borrado(self):
+        cx = db.conectar(":memory:")
+        r = semilla.cargar(cx, historia=False)
+        self.assertEqual((r["ots_creadas"], len(r["accesos"])), ([], 3))
+        self.assertEqual((cx.execute("SELECT COUNT(*) FROM ots").fetchone()[0],
+                          cx.execute("SELECT COUNT(*) FROM cliente_pautas").fetchone()[0]), (0, 0))
+        acceso.habilitar(cx, "oculta", "pauta-polin-estacion")
+        semilla.cargar(cx, historia=False)
+        self.assertEqual([f[0] for f in cx.execute("SELECT pauta_id FROM cliente_pautas")], ["pauta-polin-estacion"])
+        cx.close()
+
+    def test_la_ot_nueva_no_vuelve_atras_si_se_borraron_otras(self):
+        self.cx.execute("INSERT INTO ots (id, pauta_id, pauta_version, equipo, abierta_en) VALUES ('ot-0059', 'x', 1, 'x', 'x')")
+        self.assertEqual(catalogo._id_de_ot(self.cx), "ot-0060")
+
 
 class CadaEmpresaVeLoSuyo(Base):
     def test_el_supervisor_ve_todas_las_de_su_empresa_y_ninguna_de_otra(self):

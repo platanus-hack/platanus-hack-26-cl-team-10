@@ -22,7 +22,9 @@ sudo -u factum env HOME=/srv/factum UV_PYTHON_INSTALL_DIR=/srv/factum/.python ba
 # demo, que «Nueva demo» necesita. Se puede repetir. Va con el servidor detenido porque guarda y repone la tabla de
 # sensores. Las claves de las personas nuevas salen acá, una sola vez. Si falla, el servidor parte igual.
 systemctl stop factum 2>/dev/null || true
-sudo -u factum env HOME=/srv/factum bash -c 'cd /srv/factum/codigo && .venv/bin/python -m app.semilla' \
+# SEMILLA=sin-historia en /srv/factum/entorno: sin OT de ejemplo ni habilitar pautas (desde el 2026-11-22, la VM).
+SIN_HISTORIA=$(grep -qx 'SEMILLA=sin-historia' /srv/factum/entorno 2>/dev/null && echo --sin-historia || true)
+sudo -u factum env HOME=/srv/factum bash -c "cd /srv/factum/codigo && .venv/bin/python -m app.semilla $SIN_HISTORIA" \
   || echo "AVISO: la semilla falló; el servidor parte sin ella"
 cat > /etc/systemd/system/factum.service <<UNIDAD
 [Unit]

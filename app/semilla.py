@@ -12,6 +12,9 @@ ningún cuadro, y las horas se reparten hacia atrás según `hace_dias`.
 
 Las claves de las personas se generan al crearlas y se devuelven una sola vez, en `accesos`.
 
+Con `--sin-historia` (la VM, si /srv/factum/entorno dice SEMILLA=sin-historia) carga los protocolos, las pautas y las
+personas, pero no crea OT de ejemplo ni habilita pautas: en esa base las OT son de verdad y Factum habilita a mano.
+
 Se puede repetir: una OT o una persona que ya existe no se toca. Los sensores y las sesiones vuelven a como
 estaban, para que la semilla no deje lecturas que disparen una regla en una OT de verdad.
 """
@@ -20,6 +23,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import sys
 import tempfile
 import time
 from collections.abc import Iterator
@@ -109,7 +113,7 @@ def _ejecutar(s: Servicios, d: dict, pauta) -> None:
     s.terminar_sesion(EDGE)
 
 
-def cargar(cx: sqlite3.Connection, ahora: datetime | None = None) -> dict:
+def cargar(cx: sqlite3.Connection, ahora: datetime | None = None, historia: bool = True) -> dict:
     """Carga los protocolos con sus pautas y las OT de ejemplo. Devuelve qué OT creó y cuáles ya estaban."""
     acceso.preparar(cx)
     semilla = protocolos.cargar_semilla(cx)
@@ -122,6 +126,8 @@ def cargar(cx: sqlite3.Connection, ahora: datetime | None = None) -> dict:
         if not cx.execute("SELECT 1 FROM personas WHERE id = ?", (d["id"],)).fetchone():
             _, clave = acceso.crear_persona(cx, cliente["id"], d["id"], d["nombre"], d["usuario"], d["rol"])
             accesos.append({"usuario": d["usuario"], "rol": d["rol"], "clave": clave})
+    if not historia:
+        return {**semilla, "cliente": cliente["id"], "accesos": accesos, "ots_creadas": [], "ots_que_ya_estaban": []}
     for pauta_id in semilla["pautas"]:
         acceso.habilitar(cx, cliente["id"], pauta_id)
     supervisor = next(d["id"] for d in todo["personas"] if d["rol"] == "supervisor")
@@ -158,7 +164,7 @@ def cargar(cx: sqlite3.Connection, ahora: datetime | None = None) -> dict:
 
 if __name__ == "__main__":
     cx = db.conectar()
-    r = cargar(cx)
+    r = cargar(cx, historia="--sin-historia" not in sys.argv)
     for a in r["accesos"]:
         print(f"  acceso nuevo · {a['rol']:10} {a['usuario']:28} clave: {a['clave']}")
     print(f"{len(r['protocolos'])} protocolos, {len(r['pautas'])} pautas; "

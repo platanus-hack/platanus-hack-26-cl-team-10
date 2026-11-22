@@ -324,7 +324,7 @@ export type Mejora = {
   por_que_no: string | null
   /** `desviacion` nace de las OT; `conformidad`, de comparar la pauta con los controles de su protocolo (ADR-0016). */
   tipo: 'desviacion' | 'conformidad'
-  conformidad: { protocolo: string; control: string; tipo: 'falta' | 'juntos' | 'orden' | 'desconocido'; detalle: string; pasos: string[] } | null
+  conformidad: { protocolo: string; control: string; tipo: 'falta' | 'juntos' | 'orden' | 'desconocido'; detalle: string; pasos: string[]; nombres: string[] } | null
   estado: EstadoMejora
   revision: { decision: DecisionMejora; nota: string; por: string; ts: string } | null
   /** Con una versión más nueva de la pauta: si el paso dejó de desviarse. */

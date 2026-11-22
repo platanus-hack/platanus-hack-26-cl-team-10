@@ -323,7 +323,7 @@ def _de_conformidad(cx: sqlite3.Connection, ejecuciones: Counter, cliente_id: st
                     "motivo": f"{h['protocolo']}: {h['detalle']}. Lo dice la pauta misma, sin esperar ninguna OT.",
                     "sugerencia": SUGERENCIA_CONFORMIDAD[h["tipo"]], "recurrencia": None,
                     "detectada": {"ot": None, "evento": None, "ts": aprobada_en},
-                    "conformidad": {k: h[k] for k in ("protocolo", "control", "tipo", "detalle", "pasos")},
+                    "conformidad": {k: h[k] for k in ("protocolo", "control", "tipo", "detalle", "pasos", "nombres")},
                     "estado": estado, "revision": revision, "validacion": validacion,
                 })
     return salida

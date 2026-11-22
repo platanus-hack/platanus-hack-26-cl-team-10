@@ -100,59 +100,62 @@ function Texto({ titulo, t }: { titulo: string; t: { titulo: string; instruccion
 }
 
 /** El cambio concreto a la pauta que haría aplicar la propuesta: antes y después de cada paso, con por qué. */
-function CambioPropuesto({ p }: { p: Mejora }) {
-  const [abierto, setAbierto] = useState(false)
+export function VistaBorrador({ propuesta }: { propuesta: string }) {
   const [b, setB] = useState<Borrador | null>(null)
   const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    api.leerBorrador(propuesta).then(setB, (e: unknown) => setError(mensajeDe(e)))
+  }, [propuesta])
 
-  const alternar = () => {
-    setAbierto((a) => !a)
-    if (b) return
-    api.leerBorrador(p.id).then(setB, (e: unknown) => setError(mensajeDe(e)))
-  }
+  if (error)
+    return (
+      <Text size="sm" c="peligro" role="alert">
+        {error}
+      </Text>
+    )
+  if (!b) return null
+  return (
+    <Paper component="section" withBorder radius="md" p="md" aria-label="Cambio propuesto">
+      <Stack gap="sm">
+        <Text size="sm" c="roca.7">
+          De la versión {b.desde_version} a la {b.version}
+        </Text>
+        {b.cambios.map((c, i) => (
+          <Stack key={i} gap={6}>
+            <Badge variant="light" radius="sm" w="fit-content">
+              {CAMBIO[c.tipo]}
+            </Badge>
+            <Group align="flex-start" gap="lg">
+              <Texto titulo="Antes" t={c.antes} />
+              <Texto titulo="Después" t={c.despues} />
+            </Group>
+            <Text size="sm">
+              <b>Por qué:</b> {c.porque}
+            </Text>
+          </Stack>
+        ))}
+        {!b.comprobacion ? null : b.comprobacion.valida ? (
+          <Text size="sm" c="verificado.8">
+            El validador lo revisó: no saca ningún control crítico.
+          </Text>
+        ) : (
+          <Text size="sm" c="peligro" role="alert">
+            El validador lo rechaza: la versión perdería un control crítico que hoy cumple.
+          </Text>
+        )}
+      </Stack>
+    </Paper>
+  )
+}
 
+function CambioPropuesto({ p }: { p: Mejora }) {
+  const [abierto, setAbierto] = useState(false)
   return (
     <Stack gap="xs">
-      <Button variant="light" size="xs" w="fit-content" onClick={alternar} aria-expanded={abierto}>
+      <Button variant="light" size="xs" w="fit-content" onClick={() => setAbierto((a) => !a)} aria-expanded={abierto}>
         {abierto ? 'Ocultar el cambio' : 'Ver el cambio'}
       </Button>
-      {abierto && error && (
-        <Text size="sm" c="peligro" role="alert">
-          {error}
-        </Text>
-      )}
-      {abierto && b && (
-        <Paper component="section" withBorder radius="md" p="md" aria-label="Cambio propuesto">
-          <Stack gap="sm">
-            <Text size="sm" c="roca.7">
-              De la versión {b.desde_version} a la {b.version}
-            </Text>
-            {b.cambios.map((c, i) => (
-              <Stack key={i} gap={6}>
-                <Badge variant="light" radius="sm" w="fit-content">
-                  {CAMBIO[c.tipo]}
-                </Badge>
-                <Group align="flex-start" gap="lg">
-                  <Texto titulo="Antes" t={c.antes} />
-                  <Texto titulo="Después" t={c.despues} />
-                </Group>
-                <Text size="sm">
-                  <b>Por qué:</b> {c.porque}
-                </Text>
-              </Stack>
-            ))}
-            {!b.comprobacion ? null : b.comprobacion.valida ? (
-              <Text size="sm" c="verificado.8">
-                El validador lo revisó: no saca ningún control crítico.
-              </Text>
-            ) : (
-              <Text size="sm" c="peligro" role="alert">
-                El validador lo rechaza: la versión perdería un control crítico que hoy cumple.
-              </Text>
-            )}
-          </Stack>
-        </Paper>
-      )}
+      {abierto && <VistaBorrador propuesta={p.id} />}
     </Stack>
   )
 }
@@ -161,7 +164,7 @@ function CambioPropuesto({ p }: { p: Mejora }) {
  * Aplicar es un toque: acepta la propuesta y Factum arma y aprueba la versión siguiente con su cambio. Sin cambio que
  * aplicar (el sensor, una escalada), se acepta para que Factum lo vea. Descartar pide antes el motivo.
  */
-function Decidir({ p, alDecidir, alCancelar }: { p: Mejora; alDecidir(): void; alCancelar?: () => void }) {
+export function Decidir({ p, alDecidir, alCancelar }: { p: Mejora; alDecidir(): void; alCancelar?: () => void }) {
   const [descartando, setDescartando] = useState(false)
   const [nota, setNota] = useState('')
   const [enviando, setEnviando] = useState<DecisionMejora | null>(null)

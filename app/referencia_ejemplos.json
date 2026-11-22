@@ -530,6 +530,9 @@
               "control": "A3",
               "tipo": "falta",
               "pasos": [],
+              "nombres": [
+                "Comprobar energía cero"
+              ],
               "detalle": "ningún paso cumple A3 Comprobar energía cero"
             }
           ],
