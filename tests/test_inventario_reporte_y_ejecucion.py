@@ -59,8 +59,7 @@ class ElInventario(Base):
         self.assertIn({"pauta": "pauta-polin-demo", "version": 1, "paso": "p1", "titulo": "Cortar la corriente del motor",
                        "espera": "cortada", "control_critico": True}, energia["pautas"])
         self.assertTrue(energia["reglas_de_peligro"])
-        self.assertTrue(sensores["temp_c"]["numerico"])
-        self.assertLess(sensores["temp_c"]["rango_visto"]["min"], sensores["temp_c"]["rango_visto"]["max"])
+        self.assertFalse({"temp_c", "equipo"} & set(sensores))  # el servidor no guarda la temperatura de la estación
         self.assertIn("guarda", sensores)
 
     def test_las_clases_y_las_preguntas_visuales_salen_de_las_pautas_y_de_lo_que_respondio_la_camara(self):
@@ -96,8 +95,7 @@ class ElValidador(Base):
         polin = self.validar(pauta("pauta-polin"))
         self.assertEqual([(h["regla"], h["paso"]) for h in polin["hallazgos"]], [("V1", "p4")])
         self.assertIn("palabra del operario", polin["hallazgos"][0]["texto"])
-        self.assertEqual([(h["regla"], h["texto"]) for h in self.validar(pauta("pauta-polin-demo"))["hallazgos"]],
-                         [("C1", "prot-maqueta-01: ningún paso cumple M3 Esperar a que se enfríe")])
+        self.assertEqual(self.validar(pauta("pauta-polin-demo"))["hallazgos"], [])
 
     def test_no_guarda_nada(self):
         self.validar(pauta("pauta-polin-demo"))
@@ -112,9 +110,9 @@ class ElValidador(Base):
         self.assertIn("tiene que ser la 2", repetida["errores"][0])
 
     def test_un_paso_que_espera_el_valor_de_reposo_abre_una_alerta_de_orden(self):
-        r = self.validar(pauta("pauta-loto"), reposo={"equipo": "frio"})
-        self.assertIn(("V2", "l3"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
-        self.assertEqual(r["reposo"]["equipo"], "frio")
+        r = self.validar(pauta("pauta-polin-demo"), reposo={"bloqueo": "puesto"})
+        self.assertIn(("V2", "p2"), [(h["regla"], h["paso"]) for h in r["hallazgos"]])
+        self.assertEqual(r["reposo"]["bloqueo"], "puesto")
 
     def test_la_reposicion_en_el_mismo_orden_y_la_capa_que_no_calza(self):
         d = pauta("pauta-polin-demo")
@@ -197,7 +195,7 @@ class ElReporte(Base):
         self.assertEqual(r["personas"]["a_cargo"], "Ana Rojas")
         self.assertEqual(r["pasos"][0]["cerrado_con"], {"con": "sensor", "sensor": "energia", "leido": "cortada", "esperado": "cortada"})
         clases = {d["clase"] for d in r["desviaciones"]}
-        self.assertTrue({"seguridad", "orden", "senal"} <= clases)
+        self.assertTrue({"seguridad", "orden"} <= clases)
         self.assertTrue(all(d["minutos"] is not None for d in r["desviaciones"] if d["clase"] == "seguridad"))
 
     def test_no_omite_ninguna_alerta_y_cada_evento_citado_existe(self):

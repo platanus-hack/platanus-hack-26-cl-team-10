@@ -1,7 +1,7 @@
 {
   "id": "pauta-loto-escritorio",
   "nombre": "Bloqueo y etiquetado (LOTO) para intervenir un equipo",
-  "version": 1,
+  "version": 2,
   "equipo": "estación demo (ESP32 + cámara)",
   "pasos": [
     {
@@ -26,19 +26,8 @@
       "cumple": ["prot-maqueta-01:M2"]
     },
     {
-      "id": "l3",
-      "orden": 3,
-      "titulo": "Verificar energía cero: equipo frío",
-      "instruccion": "Espera a que el equipo esté frío antes de intervenir.",
-      "tipo_evidencia": "sensor",
-      "capa_minima": 1,
-      "control_critico": true,
-      "sensor": { "id": "equipo", "espera": "frio" },
-      "cumple": ["prot-maqueta-01:M3"]
-    },
-    {
       "id": "l4",
-      "orden": 4,
+      "orden": 3,
       "titulo": "Intervenir con la herramienta",
       "instruccion": "Trabaja en el equipo. En el demo, el lápiz hace de herramienta.",
       "tipo_evidencia": "camara",
@@ -48,7 +37,7 @@
     },
     {
       "id": "l5",
-      "orden": 5,
+      "orden": 4,
       "titulo": "Retirar la herramienta",
       "instruccion": "Saca todas las herramientas de la zona antes de liberar el equipo.",
       "tipo_evidencia": "camara",
@@ -59,7 +48,7 @@
     },
     {
       "id": "l6",
-      "orden": 6,
+      "orden": 5,
       "titulo": "Retirar el bloqueo",
       "instruccion": "Con la zona despejada, retira el candado y la tarjeta.",
       "tipo_evidencia": "camara",

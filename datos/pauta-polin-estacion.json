@@ -1,8 +1,8 @@
 {
   "id": "pauta-polin-estacion",
   "nombre": "Cambio de polín en la cinta · estación del demo",
-  "version": 7,
-  "equipo": "cinta a escala (ESP32: motor con botón, distancia y temperatura; cámara)",
+  "version": 8,
+  "equipo": "cinta a escala (ESP32: motor con botón y distancia; cámara)",
   "pasos": [
     {
       "id": "e1",
@@ -32,23 +32,8 @@
       }
     },
     {
-      "id": "e3",
-      "orden": 3,
-      "titulo": "Esperar a que baje la temperatura",
-      "instruccion": "Espera a que el equipo esté frío antes de tocar el polín.",
-      "tipo_evidencia": "sensor",
-      "capa_minima": 1,
-      "sensor": {
-        "id": "equipo",
-        "espera": "frio"
-      },
-      "cumple": [
-        "prot-maqueta-01:M3"
-      ]
-    },
-    {
       "id": "e4",
-      "orden": 4,
+      "orden": 3,
       "titulo": "Ubicar el polín rojo",
       "instruccion": "Deja a la vista de la cámara el polín rojo, que es el que falló. En el demo los polines son latas: la cámara tiene que verlo antes de que lo saques.",
       "tipo_evidencia": "camara",
@@ -61,7 +46,7 @@
     },
     {
       "id": "e5",
-      "orden": 5,
+      "orden": 4,
       "titulo": "Reemplazar el polín rojo",
       "instruccion": "Saca el polín rojo y pon el nuevo en su lugar. La cámara cierra el paso cuando deja de ver el rojo que antes vio.",
       "tipo_evidencia": "camara",
@@ -74,7 +59,7 @@
     },
     {
       "id": "e6",
-      "orden": 6,
+      "orden": 5,
       "titulo": "Alejarte de la cinta",
       "instruccion": "Antes de encender el motor, aléjate de la cinta hasta que el sensor deje de verte.",
       "tipo_evidencia": "sensor",
@@ -87,7 +72,7 @@
     },
     {
       "id": "e7",
-      "orden": 7,
+      "orden": 6,
       "titulo": "Dejar la cinta andando",
       "instruccion": "Desde donde estás, lejos de la cinta, aprieta el botón para encender el motor.",
       "tipo_evidencia": "sensor",
