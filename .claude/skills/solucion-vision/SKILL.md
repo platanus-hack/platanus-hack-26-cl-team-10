@@ -35,11 +35,19 @@ Pruébalo en fotos con el objeto y sin él. La capa 2 solo cierra el paso si **t
 
 Si sirve: agrega `"deteccion": {"clase": "<objeto>", "presente": true}` al paso, pon `capa_minima` en 2, y agrega la clase a la estación. El detector la recibe de la pauta: en modo edge no hay nada más que hacer (el edge pregunta qué clases pide la OT en sesión y las suma a las suyas); en modo servidor hay que exportar el modelo de nuevo con `edge/exportar_onnx.py --pautas <la pauta> ../datos/pauta-*.json` ([cómo se despliega](../../../app/README.md#dónde-corre-yolo-dos-modos)). Mientras el detector no conozca la clase, el paso lo cierra el VLM.
 
-## 3. Detector entrenado · solo con historia que lo pida
+## 3. Detector entrenado · solo con el número que lo pida
 
-Cuesta fotos etiquetadas y mantenerlo. Se justifica cuando `scripts/analizar.py ejecuciones` marca el paso (la cámara no lo cerró en varias OT) **y** los peldaños 1 y 2 se midieron y no alcanzan. Antes de eso, no.
+Cuesta fotos y mantenerlo. Se justifica cuando los peldaños 1 y 2 se midieron y no alcanzan: `scripts/analizar.py ejecuciones` marca el paso (la cámara no lo cerró en varias OT), o el detector reconoce el objeto de cerca pero a la distancia de la cámara de la estación sus confianzas caen a los dos lados de 0,8. Antes de eso, no.
 
-Las fotos salen de la evidencia que el sistema ya guarda (`datos/evidencias/`). El modelo tiene que entregar lo mismo que el actual, `{clase, conf, caja}`, por `servicios.recibir_detecciones`, y exportarse a ONNX para `app/detector.py`. No hay todavía un script de entrenamiento en el repo: si llegas acá, plantéalo antes de escribirlo.
+Hacen falta tres o más fotos de cerca de cada objeto, por lados distintos (la última de cada clase se aparta para medir), y los cuadros de la cámara que deja `edge/correr_colector.command`:
+
+```bash
+cd edge && .venv/bin/python entrenar.py --device mps --fotos "red soda can=data/fotos-polin/rojo-*.jpg" "green soda can=data/fotos-polin/verde-*.jpg"
+```
+
+`edge/entrenar.py` recorta el objeto de cada foto, lo pega chico y girado sobre los cuadros de la cámara, afina YOLO-World con esas escenas y lo mide contra el modelo base con los umbrales de la capa 2. Las fotos no se etiquetan a mano ni se versionan (`edge/data/` está ignorado). Deja `datos/modelos/yolo-factum.pt`, que entrega lo mismo que el base, `{clase, conf, caja}`: en modo edge va con `edge.py --pesos`, y en modo servidor se exporta con `exportar_onnx.py --pesos` y `DETECTOR_ONNX` apunta al archivo nuevo.
+
+La medida es sobre escenas armadas, no sobre la estación. Antes de dejarlo por defecto, pruébalo con la cámara puesta donde va a estar.
 
 ## Entregar
 
