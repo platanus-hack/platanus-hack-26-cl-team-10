@@ -1,5 +1,5 @@
 import { Alert, Anchor, Button, Card, Group, Modal, Paper, Progress, Radio, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core'
-import { IconAlertTriangle, IconEye, IconPlus, IconRefresh, IconUser } from '@tabler/icons-react'
+import { IconAlertTriangle, IconEye, IconPlus, IconUser } from '@tabler/icons-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../api/cliente'
@@ -340,11 +340,6 @@ export function PaginaSupervisor() {
 
   const lista = ots ?? []
   const deOperadores: Operadores = { lista: operadores.operadores, error: operadores.error }
-  const actualizar = () => {
-    void recargar()
-    void recomendaciones.recargar()
-    if (!operadores.operadores) void operadores.recargar()
-  }
   const alPedir = async (o: OtPedida) => {
     setPedida(o)
     await recargar()
@@ -360,12 +355,7 @@ export function PaginaSupervisor() {
             <Title order={2} className={industrial.titular}>
               Órdenes de trabajo
             </Title>
-            <Group gap="sm">
-              <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={actualizar}>
-                Actualizar
-              </Button>
-              <PedirOt onPedida={alPedir} />
-            </Group>
+            <PedirOt onPedida={alPedir} />
           </Group>
           <BarraIncidentes incidentes={incidentes ?? []} />
           <Recomendaciones recomendaciones={recomendaciones.recomendaciones} quitar={recomendaciones.quitar} />
