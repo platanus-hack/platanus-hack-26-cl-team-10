@@ -7,7 +7,7 @@ import { cierraSolo } from '../api/pauta'
 import type { Deteccion, Pauta, Sesion } from '../api/tipos'
 import { config } from '../config'
 import type { Usuario } from '../sesion/usuarios'
-import { inicial, reducir, saltoDe, textoParaVoz } from './estado'
+import { esAlto, frasesDeLaOt, inicial, reducir, saltoDe, textoParaVoz } from './estado'
 import { conectarStream } from './stream'
 import { useWakeLock } from './useWakeLock'
 import { voz } from './voz'
@@ -113,12 +113,24 @@ export function useEjecucion(otId: string, usuario: Usuario) {
     [otId, refrescar],
   )
 
-  // Cada evento que tiene que sonar (ver debeSonar) suena una vez, en orden, dicho como frase.
+  // Cada evento que tiene que sonar (ver debeSonar) suena una vez, en orden, dicho como frase;
+  // un «Alto» pasa adelante.
   useEffect(() => {
     if (s.porSonar.length === 0) return
-    for (const ev of s.porSonar) voz.decir(textoParaVoz(ev, actual.current.ot))
+    for (const ev of s.porSonar) voz.decir(textoParaVoz(ev, actual.current.ot), { alto: esAlto(ev) })
     dispatch({ tipo: 'sonado', ids: s.porSonar.map((e) => e.id) })
   }, [s.porSonar])
+
+  // Las frases que esta OT puede decir se generan al abrirla, así su aviso suena sin esperar a
+  // ElevenLabs. El texto como dependencia: la OT cambia con cada evento, sus frases casi nunca.
+  const frases = JSON.stringify(s.ot ? frasesDeLaOt(s.ot) : [])
+  useEffect(() => {
+    const textos = JSON.parse(frases) as string[]
+    if (textos.length === 0) return
+    const corte = new AbortController()
+    void voz.precalentar(textos, corte.signal)
+    return () => corte.abort()
+  }, [frases])
 
   useWakeLock(sesionDesde !== null && !s.ot?.completa)
 

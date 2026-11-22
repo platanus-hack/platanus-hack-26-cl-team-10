@@ -29,7 +29,7 @@ it('asks ElevenLabs once per phrase, like tts.py, and serves the MP3', async () 
   }
   expect(el.pedidos).toHaveLength(1)
   const [p] = el.pedidos
-  expect(p.url).toBe('https://api.elevenlabs.io/v1/text-to-speech/JBFqnCBsd6RMkjVDRZzb?output_format=mp3_44100_128')
+  expect(p.url).toBe('https://api.elevenlabs.io/v1/text-to-speech/6Gr4AVmTax1pMJO0lHRK?output_format=mp3_44100_128')
   expect(p.init.method).toBe('POST')
   expect(p.init.headers).toMatchObject({ 'xi-api-key': 'k', 'Content-Type': 'application/json' })
   expect(JSON.parse(String(p.init.body))).toEqual({ text: 'Oye, te saltaste el paso 1.', model_id: 'eleven_flash_v2_5' })

@@ -224,19 +224,36 @@ function conflictoEnPalabras(paso: PasoEstado): string | null {
   return paso.detalle
 }
 
+/** «Alto»: la alerta de seguridad de capa 1. Su voz pasa adelante y corta lo que esté sonando. */
+export const esAlto = (ev: Evento): boolean => ev.tipo === 'alerta' && ev.capa === 1 && tipoDeAlerta(ev) === 'seguridad'
+
+type PasoDicho = Pick<PasoEstado, 'orden' | 'titulo'>
+const fraseSalto = (p: PasoDicho) => `Oye, te saltaste el paso ${p.orden}: ${p.titulo}. Hazlo antes de seguir.`
+const fraseControl = (p: PasoDicho) => `Oye, se deshizo el paso ${p.orden}: ${p.titulo}. Vuelve a dejarlo como estaba.`
+
 /** Lo que dice la voz: una frase corta y en orden de lectura, no el detalle técnico tal cual. */
 export function textoParaVoz(ev: Evento, ot: EstadoOt | null): string {
   const paso = (id: unknown) => ot?.pasos.find((p) => p.id === id)
   const tipo = ev.tipo === 'alerta' ? tipoDeAlerta(ev) : 'otra'
   if (tipo === 'orden') {
     const p = paso(ev.evidencia?.pendiente)
-    if (p) return `Oye, te saltaste el paso ${p.orden}: ${p.titulo}. Hazlo antes de seguir.`
+    if (p) return fraseSalto(p)
   }
   if (tipo === 'control') {
     const p = paso(ev.evidencia?.paso)
-    if (p) return `Oye, se deshizo el paso ${p.orden}: ${p.titulo}. Vuelve a dejarlo como estaba.`
+    if (p) return fraseControl(p)
   }
   return comoOracion(ev.detalle)
+}
+
+/**
+ * Las frases que esta OT puede llegar a decir y que el front conoce de antemano: un salto en
+ * cualquier paso y un control perdido solo en un control crítico (`reglas.controles_deshechos`).
+ * El texto de una alerta de seguridad lo escribe el back, así que no está acá.
+ */
+export function frasesDeLaOt(ot: EstadoOt): string[] {
+  const pasos = [...ot.pasos].sort((a, b) => a.orden - b.orden)
+  return [...pasos.map(fraseSalto), ...pasos.filter((p) => p.control_critico).map(fraseControl)]
 }
 
 /** «GUARDA ABIERTA CON ENERGÍA VIVA. Detener…» → «Guarda abierta con energía viva. Detener…». */

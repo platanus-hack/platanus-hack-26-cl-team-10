@@ -367,3 +367,29 @@ describe('a station busy with another OT', () => {
     expect(intentos).toBe(1)
   })
 })
+
+describe('the voice: Alto first, known phrases ready ahead', () => {
+  const GUARDA = 'Guarda abierta con energía viva. Detener y aislar la energía antes de continuar.'
+  const SALTO_P1 = 'Oye, te saltaste el paso 1: Cortar la energía y bloquear con candado. Hazlo antes de seguir.'
+
+  it('alerta-seguridad is spoken as an Alto', async () => {
+    abrir('alerta-seguridad')
+    await entrar()
+    await waitFor(() => expect(dicho).toContain(GUARDA), { timeout: 2000 })
+    expect(voz.decir).toHaveBeenCalledWith(GUARDA, { alto: true })
+  })
+
+  it('a skipped step is not an Alto', async () => {
+    abrir('warn-sobrescrito')
+    await entrar()
+    await waitFor(() => expect(dicho).toEqual([SALTO_P1]), { timeout: 2000 })
+    expect(voz.decir).toHaveBeenCalledWith(SALTO_P1, { alto: false })
+  })
+
+  it('opening the OT asks ahead for the phrases it may say, without a tap', async () => {
+    const precalentar = vi.spyOn(voz, 'precalentar').mockResolvedValue()
+    abrir('feliz')
+    await waitFor(() => expect(precalentar).toHaveBeenCalled())
+    expect(precalentar.mock.calls[0][0]).toContain(SALTO_P1)
+  })
+})
