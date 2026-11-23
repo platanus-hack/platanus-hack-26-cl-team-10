@@ -2,6 +2,14 @@
 
 > **El estado vivo del proyecto.** Único documento donde se escribe avance. Cada quien agrega y actualiza sus filas en el mismo commit que sube el trabajo. Estados: `pendiente` · `en curso` · `hecho` · `bloqueado`. Responsable `—` significa que nadie la tomó.
 
+## Cierre
+
+La hackathon terminó. Factum no ganó y quedó entre los 20 primeros equipos de Platanus Hack 26 Santiago.
+
+**Crítica de Francisco.** Estuvo bueno, pero nos faltó visión de producto y ambición para dar una demo que reflejara el valor que creemos que Factum puede aportar.
+
+**Infraestructura.** El 2026-11-23 se borraron los recursos del demo en el proyecto GCP de IMC: la VM `factum-vm` con su disco, la IP fija `factum-ip` y la regla de firewall `factum-web`. Antes se detuvo el servicio y se extrajo `/srv/factum/datos` (la bitácora, las evidencias, los modelos y los respaldos de la base), que guarda Francisco. El código está entero en este repo. En la cuenta de AWS de IMC no había nada de Factum. Siguen arriba la landing (`factum-landing` en Vercel, equipo de Francisco) y el front de Daniel (`factum` en Vercel), que no dependen de la cuenta de IMC; las rutas que llamaban a la VM ya no responden.
+
 ## Research
 
 | Tarea | Responsable | Estado | Notas |
