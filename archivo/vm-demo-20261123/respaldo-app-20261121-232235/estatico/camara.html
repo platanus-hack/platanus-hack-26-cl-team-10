@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cámara del edge</title>
+<style>
+  body{font:16px/1.5 system-ui;margin:0;background:#141c26;color:#eef2f7}
+  main{max-width:520px;margin:0 auto;padding:16px}
+  video{width:100%;border-radius:14px;background:#000}
+  label{display:block;margin:10px 0 4px;color:#b8c2cf}
+  input,button{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid #2e3b4e;background:#1d2734;color:#eef2f7;width:100%}
+  button{margin-top:12px;background:#2f5f9e;border-color:#2f5f9e;font-weight:700}
+  #estado{margin-top:12px;color:#b8c2cf}
+</style>
+</head>
+<body>
+<main>
+  <h1>Cámara del edge</h1>
+  <p>Este celular manda su cámara a la API como el video del edge. Necesita HTTPS o <code>localhost</code> para pedir la cámara.</p>
+  <video id="vista" autoplay playsinline muted></video>
+  <label for="edge">Edge</label><input id="edge" value="edge-1">
+  <label for="fps">Cuadros por segundo</label><input id="fps" type="number" value="5" min="1" max="10">
+  <button id="boton">Empezar a transmitir</button>
+  <div id="estado">Detenida.</div>
+</main>
+<script>
+// Si la red no da abasto se descartan cuadros en vez de encolarlos: el video tiene que ser
+// el de ahora, no el de hace diez segundos.
+const vista = document.getElementById("vista"), estado = document.getElementById("estado");
+const lienzo = document.createElement("canvas");
+let ws = null, reloj = null, enviados = 0, descartados = 0;
+// /casos abre esta página con ?edge=<el edge de su corrida>.
+const pedido = new URLSearchParams(location.search).get("edge");
+if (pedido) document.getElementById("edge").value = pedido;
+
+async function empezar() {
+  const edge = document.getElementById("edge").value.trim();
+  const fps = Math.min(10, Math.max(1, +document.getElementById("fps").value || 5));
+  const medio = await navigator.mediaDevices.getUserMedia({video: {facingMode: "environment", width: 640}});
+  vista.srcObject = medio;
+  const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/edge/${encodeURIComponent(edge)}/video`;
+  ws = new WebSocket(url);
+  ws.binaryType = "arraybuffer";
+  ws.onmessage = e => { estado.textContent = "La API rechazó un cuadro: " + e.data; };
+  ws.onclose = () => { estado.textContent = "Conexión cerrada."; detener(); };
+  ws.onopen = () => {
+    reloj = setInterval(() => {
+      if (!vista.videoWidth) return;
+      if (ws.bufferedAmount > 500000) { descartados++; return; }
+      lienzo.width = 640; lienzo.height = Math.round(640 * vista.videoHeight / vista.videoWidth);
+      lienzo.getContext("2d").drawImage(vista, 0, 0, lienzo.width, lienzo.height);
+      lienzo.toBlob(b => { if (b && ws.readyState === 1) { ws.send(b); enviados++; } }, "image/jpeg", 0.7);
+      estado.textContent = `Transmitiendo a ${edge}: ${enviados} cuadros, ${descartados} descartados por red lenta.`;
+    }, 1000 / fps);
+  };
+  document.getElementById("boton").textContent = "Detener";
+}
+
+function detener() {
+  clearInterval(reloj); reloj = null;
+  if (ws && ws.readyState === 1) ws.close();
+  if (vista.srcObject) vista.srcObject.getTracks().forEach(t => t.stop());
+  document.getElementById("boton").textContent = "Empezar a transmitir";
+}
+
+document.getElementById("boton").onclick = () => (reloj ? detener() : empezar().catch(e => estado.textContent = "No se pudo abrir la cámara: " + e.message));
+</script>
+</body>
+</html>
